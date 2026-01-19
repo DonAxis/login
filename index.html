@@ -1,22 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>pagina Login</title>
-	<link rel="stylesheet" href="botones.css">  <!-- estilos botones -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Portal Escolar - Bienvenida</title>
+   
+    <link rel="stylesheet" type="text/css" href="botones2.css">
 </head>
 <body>
 
-  <div class="cv-links">
-      <a href="controlAlumno.html" target="_blank">
-        <button class="botAzu">Alumno</button>
-      </a>
+    <div class="main-wrapper">
+        <header class="index-header">
+            <h1>Sistema de Gestión Escolar</h1>
+            <p>Selecciona tu perfil para ingresar al portal</p>
+        </header>
 
-      <a href="login.html" target="_blank">
-        <button class="botAzu">Profesor</button>
-      </a>
+        <div class="portal-grid">
+            <a href="controlAlumno.html" class="portal-card">
+                <div class="icon">🎓</div>
+                <span>Alumno</span>
+            </a>
 
+            <a href="login.html" class="portal-card">
+                <div class="icon">👨‍🏫</div>
+                <span>Profesor</span>
+            </a>
+
+            <a href="login.html" class="portal-card">
+                <div class="icon">📋</div>
+                <span>Coordinador</span>
+            </a>
+
+            <a href="login.html" class="portal-card">
+                <div class="icon">🏢</div>
+                <span>Control Escolar</span>
+            </a>
+        </div>
+
+        <footer class="index-footer">
+            <img src="FA.png" alt="Logo Empresa" class="footer-logo">
+        </footer>
+    </div>
 
 </body>
 </html>
