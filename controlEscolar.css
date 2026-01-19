@@ -1,0 +1,123 @@
+/* Reset General */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', serif; /* Una fuente con serifa o limpia se ve mejor para este estilo */
+    /* Fondo con tus colores Vino y Marrón */
+    background: radial-gradient(circle, #6A2135 0%, #6A3221 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+.main-wrapper {
+    width: 100%;
+    max-width: 1000px;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.index-header h1 {
+    font-size: 2rem;
+    letter-spacing: 4px;
+    font-weight: 300;
+}
+
+.divider {
+    width: 60px;
+    height: 3px;
+    background-color: white;
+    margin: 15px auto;
+}
+
+.index-header p {
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+    opacity: 0.8;
+    margin-bottom: 50px;
+}
+
+/* Rejilla de Tarjetas */
+.portal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 25px;
+    margin-bottom: 60px;
+}
+
+.portal-card {
+    padding: 40px 20px;
+    border-radius: 4px; /* Bordes más rectos para mayor seriedad */
+    text-decoration: none;
+    color: white;
+    transition: all 0.4s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Estilos de colores específicos usando tu paleta */
+.card-vino { background-color: rgba(106, 33, 53, 0.7); }    /* #6A2135 */
+.card-purpura { background-color: rgba(106, 33, 89, 0.7); } /* #6A2159 */
+.card-verde { background-color: rgba(33, 106, 50, 0.7); }   /* 216A32 */
+.card-azul { background-color: rgba(33, 89, 106, 0.7); }    /* 21596A */
+
+.portal-card:hover {
+    transform: translateY(-10px);
+    background-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+}
+
+/* Cambio de color de texto al pasar el mouse */
+.portal-card:hover .card-title { color: #6A2135; }
+.portal-card:hover .card-subtitle { color: #333; }
+
+.card-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+    transition: color 0.3s;
+}
+
+.card-subtitle {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    opacity: 0.8;
+    transition: color 0.3s;
+}
+
+/* Footer y Logo */
+.index-footer {
+    margin-top: 40px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 30px;
+}
+
+.footer-logo {
+    max-width: 150px;
+    height: auto;
+    /* Efecto sutil para que el logo resalte sobre el fondo oscuro */
+    filter: brightness(0) invert(1) opacity(0.8); 
+    transition: opacity 0.3s;
+}
+
+.footer-logo:hover {
+    opacity: 1;
+}
+
+/* Responsivo */
+@media (max-width: 600px) {
+    .portal-grid {
+        grid-template-columns: 1fr;
+    }
+}

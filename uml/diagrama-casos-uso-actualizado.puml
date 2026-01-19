@@ -1,0 +1,269 @@
+@startuml Sistema de Gestión Escolar - Actualizado con Control Escolar
+
+' ===== CONFIGURACIÓN =====
+left to right direction
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+' ===== ACTORES =====
+actor "Admin" as admin #lightcoral
+actor "Coordinador" as coord #lightgreen
+actor "Profesor" as prof #salmon
+actor "Alumno" as alumno #lightblue
+actor "Control\nEscolar" as control #orange
+actor "Sistema\nFirebase" as firebase #gray
+
+' ===== PAQUETES PRINCIPALES =====
+
+package "Gestión Académica" {
+  
+  package "Gestión de Periodos" #TECHNOLOGY {
+    usecase (UC01: Ver Periodo Actual) as UC01
+    usecase (UC02: Cambiar Periodo) as UC02
+    usecase (UC03: Avanzar Alumnos\nde Semestre) as UC03
+    usecase (UC04: Graduar Alumnos) as UC04
+  }
+  
+  package "Gestión de Estructura" #BUSINESS {
+    usecase (UC05: Crear Carrera) as UC05
+    usecase (UC06: Crear/Editar Materias) as UC06
+    usecase (UC07: Generar Grupos) as UC07
+    usecase (UC08: Activar/Desactivar Grupos) as UC08
+  }
+  
+  package "Gestión de Usuarios" #BUSINESS {
+    usecase (UC09: Crear Profesores) as UC09
+    usecase (UC10: Crear Alumnos) as UC10
+    usecase (UC11: Editar Usuarios) as UC11
+    usecase (UC12: Activar/Desactivar\nUsuarios) as UC12
+    usecase (UC13N: Crear Control\nEscolar) as UC13N
+  }
+  
+  package "Asignaciones" #BUSINESS {
+    usecase (UC14: Asignar Profesor\na Materia) as UC14
+    usecase (UC15: Inscribir Alumno\na Materia) as UC15
+    usecase (UC16: Gestionar\nAsignaciones) as UC16
+  }
+}
+
+package "Gestión de Calificaciones" {
+  
+  package "Captura de Calificaciones" #APPLICATION {
+    usecase (UC17: Seleccionar Materia) as UC17
+    usecase (UC18: Capturar\nCalificaciones) as UC18
+    usecase (UC19: Guardar\nCalificaciones) as UC19
+    usecase (UC20: Calcular Promedios) as UC20
+  }
+  
+  package "Consulta de Calificaciones" #APPLICATION {
+    usecase (UC21: Ver Mis\nCalificaciones) as UC21
+    usecase (UC22: Ver Boleta) as UC22
+    usecase (UC23: Ver Historial\nAcadémico) as UC23
+  }
+  
+  package "Reportes" #APPLICATION {
+    usecase (UC24: Generar Acta PDF) as UC24
+    usecase (UC25: Ver Historial\nde Alumnos) as UC25
+  }
+  
+  package "Acceso Global - Control Escolar" #APPLICATION {
+    usecase (UC26N: Consultar Todas\nlas Carreras) as UC26N
+    usecase (UC27N: Modificar Cualquier\nCalificación) as UC27N
+    usecase (UC28N: Ver Estadísticas\nGlobales) as UC28N
+    usecase (UC29N: Exportar Reportes\nGenerales) as UC29N
+  }
+}
+
+package "Sistema de Autenticación" #IMPLEMENTATION {
+  usecase (UC30: Iniciar Sesión) as UC30
+  usecase (UC31: Cerrar Sesión) as UC31
+  usecase (UC32: Verificar Permisos) as UC32
+}
+
+' ===== RELACIONES ADMIN =====
+admin --> UC05
+admin --> UC13N
+admin --> UC11
+admin --> UC12
+admin --> UC30
+admin --> UC31
+
+' ===== RELACIONES COORDINADOR =====
+coord --> UC01
+coord --> UC02
+coord --> UC06
+coord --> UC07
+coord --> UC08
+coord --> UC09
+coord --> UC10
+coord --> UC11
+coord --> UC12
+coord --> UC14
+coord --> UC15
+coord --> UC16
+coord --> UC17
+coord --> UC18
+coord --> UC19
+coord --> UC24
+coord --> UC25
+coord --> UC30
+coord --> UC31
+
+' ===== RELACIONES PROFESOR =====
+prof --> UC17
+prof --> UC18
+prof --> UC19
+prof --> UC21 : "Ver de\nsus alumnos"
+prof --> UC30
+prof --> UC31
+
+' ===== RELACIONES ALUMNO =====
+alumno --> UC21
+alumno --> UC22
+alumno --> UC30 : "Consulta pública\n(sin login)"
+
+' ===== RELACIONES CONTROL ESCOLAR (NUEVO) =====
+control --> UC26N
+control --> UC27N
+control --> UC28N
+control --> UC29N
+control --> UC18 : "Modificar"
+control --> UC19 : "Modificar"
+control --> UC25
+control --> UC30
+control --> UC31
+
+' ===== RELACIONES ENTRE CASOS DE USO =====
+UC02 ..> UC03 : <<include>>
+UC02 ..> UC04 : <<include>>
+UC03 ..> UC08 : <<include>>
+
+UC18 ..> UC20 : <<include>>
+UC19 ..> UC20 : <<include>>
+
+UC21 ..> UC20 : <<include>>
+UC22 ..> UC20 : <<include>>
+UC23 ..> UC20 : <<include>>
+
+UC24 ..> UC20 : <<include>>
+
+UC30 ..> UC32 : <<include>>
+
+UC14 ..> UC07 : <<require>>
+UC14 ..> UC06 : <<require>>
+UC14 ..> UC09 : <<require>>
+
+UC15 ..> UC10 : <<require>>
+UC15 ..> UC06 : <<require>>
+
+UC18 ..> UC14 : <<require>>
+
+UC27N ..> UC26N : <<require>>
+
+' ===== RELACIONES CON FIREBASE =====
+firebase <.. UC19 : <<store>>
+firebase <.. UC10 : <<store>>
+firebase <.. UC09 : <<store>>
+firebase <.. UC13N : <<store>>
+firebase <.. UC30 : <<authenticate>>
+firebase ..> UC21 : <<retrieve>>
+firebase ..> UC01 : <<retrieve>>
+firebase ..> UC26N : <<retrieve>>
+
+' ===== NOTAS IMPORTANTES =====
+note right of UC02
+  **IMPORTANTE**
+  Cambiar periodo avanza
+  TODOS los alumnos
+  automáticamente
+  
+  Periodos: 2024-1 a 2028-2
+end note
+
+note right of UC20
+  **REGLA DE NEGOCIO**
+  Si hay NP en cualquier
+  parcial, promedio = 5.0
+  
+  Escala: 0-10 o NP
+end note
+
+note right of UC07
+  **FORMATO**
+  TSGG-SIGLA
+  T = Turno (1,2,3)
+  S = Semestre (1-9)
+  GG = Grupo (01-99)
+  
+  Ej: 1201-MAT
+end note
+
+note left of UC30
+  **4 TIPOS DE ACCESO**
+  
+  Admin:
+  - Crea carreras
+  - Crea Control Escolar
+  
+  Coordinador:
+  - Gestión de su carrera
+  - Gestión completa
+  
+  Profesor:
+  - Solo sus materias
+  
+  Control Escolar:
+  - Acceso a TODAS las carreras
+  - Modifica TODAS las calificaciones
+  
+  Alumno:
+  - Consulta pública
+  - Por matrícula
+end note
+
+note right of control
+  **NUEVO ROL**
+  Control Escolar tiene
+  acceso GLOBAL a todas
+  las carreras y puede
+  modificar cualquier
+  calificación del sistema.
+  
+  Color: Naranja
+  #FF6B35
+end note
+
+note bottom of firebase
+  **FIRESTORE COLLECTIONS**
+  - usuarios (incluye controlEscolar)
+  - carreras
+  - materias
+  - grupos
+  - profesorMaterias
+  - alumnoMaterias
+  - calificaciones
+  - config
+end note
+
+' ===== COLORES POR ROL =====
+note right of admin
+  **Color: Rojo Claro**
+  #FF6B6B
+end note
+
+note right of coord
+  **Color: Verde**
+  #216A32
+end note
+
+note right of prof
+  **Color: Rojo Vino**
+  #6A2135
+end note
+
+note right of alumno
+  **Color: Azul Claro**
+  #4A90E2
+end note
+
+@enduml
