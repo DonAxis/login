@@ -108,6 +108,11 @@
       <h3>Crear Coordinador</h3>
       <p>Registrar nuevo coordinador de carrera</p>
     </div>
+    <div class="opcion" onclick="mostrarModalControlEscolar()">
+      <h3>Crear Control Escolar</h3>
+      <p>Registrar personal de control escolar</p>
+    </div>
+
 
     <div class="opcion" onclick="window.location.href='gestionUsuarios.html'">
       <h3>Gestionar Usuarios</h3>
@@ -187,6 +192,48 @@
       </form>
 
       <div id="mensajeCoord" style="margin-top: 15px; padding: 15px; border-radius: 8px; display: none;"></div>
+    </div>
+  </div>
+
+  <!-- MODAL CREAR CONTROL ESCOLAR -->
+  <div id="modalControlEscolar" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 40px; border-radius: 15px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #FF6B35;">Nuevo Control Escolar</h2>
+        <button onclick="cerrarModalControlEscolar()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999;">&times;</button>
+      </div>
+
+      <form id="formControlEscolar" onsubmit="crearControlEscolar(event)">
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Nombre Completo: *</label>
+          <input type="text" id="nombreControl" required placeholder="Ej: Ana Garcia Lopez" 
+                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Email: *</label>
+          <input type="email" id="emailControl" required placeholder="control@escuela.com"
+                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Contraseña: *</label>
+          <input type="password" id="passControl" required placeholder="Minimo 6 caracteres" value="Control123!"
+                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+          <small style="color: #666;">El usuario podra cambiarla despues</small>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">
+            Crear Control Escolar
+          </button>
+          <button type="button" onclick="cerrarModalControlEscolar()" style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">
+            Cancelar
+          </button>
+        </div>
+      </form>
+
+      <div id="mensajeControl" style="margin-top: 15px; padding: 15px; border-radius: 8px; display: none;"></div>
     </div>
   </div>
 
@@ -610,6 +657,90 @@
     function cerrarModalControlPeriodos() {
       const modal = document.getElementById('modalControlPeriodos');
       if (modal) modal.remove();
+    }
+
+    // ===== CREAR CONTROL ESCOLAR =====
+    function mostrarModalControlEscolar() {
+      document.getElementById('modalControlEscolar').style.display = 'flex';
+    }
+
+    function cerrarModalControlEscolar() {
+      document.getElementById('modalControlEscolar').style.display = 'none';
+      document.getElementById('formControlEscolar').reset();
+      const mensajeDiv = document.getElementById('mensajeControl');
+      if (mensajeDiv) mensajeDiv.style.display = 'none';
+    }
+
+    async function crearControlEscolar(event) {
+      event.preventDefault();
+      
+      const nombre = document.getElementById('nombreControl').value.trim();
+      const email = document.getElementById('emailControl').value.trim().toLowerCase();
+      const password = document.getElementById('passControl').value;
+      
+      if (password.length < 6) {
+        mostrarMensajeControl('La contraseña debe tener al menos 6 caracteres', 'error');
+        return;
+      }
+      
+      try {
+        mostrarMensajeControl('Creando usuario de Control Escolar...', 'info');
+        
+        // Crear en Authentication
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const newUid = userCredential.user.uid;
+        
+        // Crear en Firestore
+        console.log('Guardando usuario en Firestore...');
+        await db.collection('usuarios').doc(newUid).set({
+          nombre: nombre,
+          email: email,
+          rol: 'controlEscolar',
+          activo: true,
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log('Documento guardado en Firestore');
+        
+        // Esperar un momento para asegurar que Firestore termine
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Verificar que se guardo
+        const verificar = await db.collection('usuarios').doc(newUid).get();
+        if (!verificar.exists) {
+          throw new Error('El documento no se guardo correctamente');
+        }
+        
+        console.log('Documento verificado en Firestore');
+        
+        // IMPORTANTE: Firebase cambia la sesion al nuevo usuario automaticamente
+        // Debemos cerrar sesion y que el admin vuelva a entrar
+        await auth.signOut();
+        
+        alert(`Control Escolar creado exitosamente\n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}\n\nIMPORTANTE: Debes iniciar sesion de nuevo como administrador.`);
+        
+        // Redirigir al login
+        window.location.href = 'login.html';
+        
+      } catch (error) {
+        console.error('Error:', error);
+        let mensaje = 'Error al crear usuario de Control Escolar';
+        if (error.code === 'auth/email-already-in-use') {
+          mensaje = 'Este email ya esta registrado';
+        } else if (error.code === 'auth/invalid-email') {
+          mensaje = 'Email invalido';
+        }
+        mostrarMensajeControl(mensaje, 'error');
+      }
+    }
+
+    function mostrarMensajeControl(texto, tipo) {
+      const div = document.getElementById('mensajeControl');
+      if (!div) return;
+      div.textContent = texto;
+      div.style.display = 'block';
+      div.style.background = tipo === 'error' ? '#ffebee' : tipo === 'success' ? '#e8f5e9' : '#e3f2fd';
+      div.style.color = tipo === 'error' ? '#c62828' : tipo === 'success' ? '#2e7d32' : '#1565c0';
     }
   </script>
 </body>
