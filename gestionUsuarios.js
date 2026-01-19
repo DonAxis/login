@@ -98,7 +98,8 @@ function mostrarUsuarios() {
       'admin': ' Admin',
       'coordinador': ' Coordinador',
       'profesor': ' Profesor',
-      'alumno': ' Alumno'
+      'alumno': 'Alumno',
+      'controlEscolar': 'Control Escolar'
     }[usuario.rol] || usuario.rol;
     
     // Buscar nombre de carrera si es coordinador

@@ -120,6 +120,10 @@ async function redirigirSegunRol(rol) {
     case 'profesor':
       window.location.href = 'controlProfe.html';
       break;
+    case 'controlEscolar':
+      window.location.href = 'controlEscolar.html';
+      window.location.href = 'controlProfe.html';
+      break;
     case 'alumno':
       // Bloquear login de alumnos - solo consulta pública
       await auth.signOut();
