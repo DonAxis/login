@@ -367,29 +367,26 @@
     async function crearCoordinador(event) {
       event.preventDefault();
       
-      const nombre = document.getElementById('nombreCoord').value.trim();
-      const email = document.getElementById('emailCoord').value.trim().toLowerCase();
-      const password = document.getElementById('passCoord').value;
-      const carreraId = document.getElementById('carreraCoord').value;
+      const nombre = document.getElementById("nombreCoord").value.trim();
+      const email = document.getElementById("emailCoord").value.trim().toLowerCase();
+      const password = document.getElementById("passCoord").value;
+      const carreraId = document.getElementById("carreraCoord").value;
       
       if (password.length < 6) {
-        mostrarMensaje('La contraseña debe tener al menos 6 caracteres', 'error');
+        mostrarMensaje("La contrasena debe tener al menos 6 caracteres", "error");
         return;
       }
       
       try {
-        mostrarMensaje('Creando coordinador...', 'info');
-        
-        // Crear en Authentication
+        mostrarMensaje("Creando coordinador...", "info");
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const newUid = userCredential.user.uid;
+        console.log("Usuario creado. UID:", newUid);
         
-        // Crear en Firestore
-        console.log('Guardando coordinador en Firestore...');
-        const docRef = await db.collection('usuarios').doc(newUid).set({
+        await db.collection("usuarios").doc(newUid).set({
           nombre: nombre,
           email: email,
-          rol: 'coordinador',
+          rol: "coordinador",
           carreraId: carreraId,
           carreras: [carreraId],
           esProfesor: true,
@@ -397,37 +394,23 @@
           fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        console.log('Documento guardado en Firestore');
-        
-        // Esperar un momento para asegurar que Firestore termine
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Verificar que se guardó
-        const verificar = await db.collection('usuarios').doc(newUid).get();
-        if (!verificar.exists) {
-          throw new Error('El documento no se guardó correctamente');
-        }
-        
-        console.log('Documento verificado en Firestore');
-        
-        // IMPORTANTE: Firebase cambia la sesión al nuevo usuario automáticamente
-        // Debemos cerrar sesión y que el admin vuelva a entrar
+        console.log("Guardado en Firestore");
         await auth.signOut();
-        
-        alert(`Coordinador creado exitosamente\n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}\n\nIMPORTANTE: Debes iniciar sesión de nuevo como administrador.`);
-        
-        // Redirigir al login
-        window.location.href = 'login.html';
+        alert("Coordinador creado\n\nNombre: " + nombre + "\nEmail: " + email + "\nPassword: " + password);
+        window.location.href = "login.html";
         
       } catch (error) {
-        console.error('Error:', error);
-        let mensaje = 'Error al crear coordinador';
-        if (error.code === 'auth/email-already-in-use') {
-          mensaje = 'Este email ya está registrado';
-        } else if (error.code === 'auth/invalid-email') {
-          mensaje = 'Email inválido';
-        }
-        mostrarMensaje(mensaje, 'error');
+        console.error("Error:", error);
+        let mensaje = "Error: ";
+        if (error.code === "auth/email-already-in-use") mensaje += "Email ya registrado";
+        else if (error.code === "auth/invalid-email") mensaje += "Email invalido";
+        else if (error.code === "permission-denied") mensaje += "Error de permisos. Actualiza reglas de Firestore";
+        else mensaje += error.message;
+        mostrarMensaje(mensaje, "error");
+        setTimeout(async () => {
+          await auth.signOut();
+          window.location.href = "login.html";
+        }, 3000);
       }
     }
 
@@ -674,63 +657,46 @@
     async function crearControlEscolar(event) {
       event.preventDefault();
       
-      const nombre = document.getElementById('nombreControl').value.trim();
-      const email = document.getElementById('emailControl').value.trim().toLowerCase();
-      const password = document.getElementById('passControl').value;
+      const nombre = document.getElementById("nombreControl").value.trim();
+      const email = document.getElementById("emailControl").value.trim().toLowerCase();
+      const password = document.getElementById("passControl").value;
       
       if (password.length < 6) {
-        mostrarMensajeControl('La contraseña debe tener al menos 6 caracteres', 'error');
+        mostrarMensajeControl("La contrasena debe tener al menos 6 caracteres", "error");
         return;
       }
       
       try {
-        mostrarMensajeControl('Creando usuario de Control Escolar...', 'info');
-        
-        // Crear en Authentication
+        mostrarMensajeControl("Creando Control Escolar...", "info");
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const newUid = userCredential.user.uid;
+        console.log("Usuario creado. UID:", newUid);
         
-        // Crear en Firestore
-        console.log('Guardando usuario en Firestore...');
-        await db.collection('usuarios').doc(newUid).set({
+        await db.collection("usuarios").doc(newUid).set({
           nombre: nombre,
           email: email,
-          rol: 'controlEscolar',
+          rol: "controlEscolar",
           activo: true,
           fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        console.log('Documento guardado en Firestore');
-        
-        // Esperar un momento para asegurar que Firestore termine
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Verificar que se guardo
-        const verificar = await db.collection('usuarios').doc(newUid).get();
-        if (!verificar.exists) {
-          throw new Error('El documento no se guardo correctamente');
-        }
-        
-        console.log('Documento verificado en Firestore');
-        
-        // IMPORTANTE: Firebase cambia la sesion al nuevo usuario automaticamente
-        // Debemos cerrar sesion y que el admin vuelva a entrar
+        console.log("Guardado en Firestore");
         await auth.signOut();
-        
-        alert(`Control Escolar creado exitosamente\n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}\n\nIMPORTANTE: Debes iniciar sesion de nuevo como administrador.`);
-        
-        // Redirigir al login
-        window.location.href = 'login.html';
+        alert("Control Escolar creado\n\nNombre: " + nombre + "\nEmail: " + email + "\nPassword: " + password);
+        window.location.href = "login.html";
         
       } catch (error) {
-        console.error('Error:', error);
-        let mensaje = 'Error al crear usuario de Control Escolar';
-        if (error.code === 'auth/email-already-in-use') {
-          mensaje = 'Este email ya esta registrado';
-        } else if (error.code === 'auth/invalid-email') {
-          mensaje = 'Email invalido';
-        }
-        mostrarMensajeControl(mensaje, 'error');
+        console.error("Error:", error);
+        let mensaje = "Error: ";
+        if (error.code === "auth/email-already-in-use") mensaje += "Email ya registrado";
+        else if (error.code === "auth/invalid-email") mensaje += "Email invalido";
+        else if (error.code === "permission-denied") mensaje += "Error de permisos. Actualiza reglas de Firestore";
+        else mensaje += error.message;
+        mostrarMensajeControl(mensaje, "error");
+        setTimeout(async () => {
+          await auth.signOut();
+          window.location.href = "login.html";
+        }, 3000);
       }
     }
 
