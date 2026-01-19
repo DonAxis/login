@@ -1,47 +1,435 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Portal Escolar - Acceso</title>
-    <link rel="stylesheet" href="botones2.css">
-    <link rel="stylesheet" type="text/css" href="controlEscolar.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="botones.css">
+  <link rel="stylesheet" href="Personas.css">
+  <title>Control Escolar - Sistema</title>
+  <style>
+    .header {
+      background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+    }
+
+    .header h1 {
+      color: white;
+      margin: 0 0 5px 0;
+      font-size: 2rem;
+    }
+
+    .header p {
+      margin: 5px 0;
+      opacity: 0.9;
+    }
+
+    .usuario-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .btn-salir {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid white;
+      padding: 8px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-salir:hover {
+      background: white;
+      color: #FF6B35;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+
+    .stat-card h3 {
+      color: #666;
+      font-size: 0.9rem;
+      margin: 0 0 10px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-card .numero {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #FF6B35;
+      margin: 10px 0;
+    }
+
+    .filtros-container {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .filtros-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .form-grupo {
+      margin: 0;
+    }
+
+    .form-grupo label {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .form-grupo select,
+    .form-grupo input {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      transition: all 0.3s;
+    }
+
+    .form-grupo select:focus,
+    .form-grupo input:focus {
+      outline: none;
+      border-color: #FF6B35;
+      box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+    }
+
+    .btn-buscar {
+      background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 10px;
+    }
+
+    .btn-buscar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+    }
+
+    .tabla-container {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th {
+      background: #FF6B35;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+      position: sticky;
+      top: 0;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    tr:hover {
+      background: #fff9f7;
+    }
+
+    .input-calificacion {
+      width: 60px;
+      padding: 6px;
+      border: 2px solid #e0e0e0;
+      border-radius: 5px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .input-calificacion:focus {
+      outline: none;
+      border-color: #FF6B35;
+    }
+
+    .btn-guardar-cal {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 6px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .btn-guardar-cal:hover {
+      background: #45a049;
+    }
+
+    .sin-datos {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .sin-datos p {
+      font-size: 1.2rem;
+      margin: 10px 0;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .badge-aprobado {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .badge-reprobado {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .badge-np {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .acciones-rapidas {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+
+    .btn-accion {
+      padding: 10px 20px;
+      border: 2px solid #FF6B35;
+      background: white;
+      color: #FF6B35;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-accion:hover {
+      background: #FF6B35;
+      color: white;
+    }
+
+    @media (max-width: 768px) {
+      .filtros-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
 
-    <div class="main-wrapper">
-        <header class="index-header">
-            <h1>SISTEMA DE GESTIÓN ESCOLAR</h1>
-            <div class="divider"></div>
-            <p>PANEL DE ACCESO INSTITUCIONAL</p>
-        </header>
+  <div class="header">
+    <h1>🏫 Control Escolar</h1>
+    <p>Gestión Global de Calificaciones</p>
+    <div class="usuario-info">
+      <span id="infoUsuario">👤 Cargando...</span>
+      <button onclick="cerrarSesion()" class="btn-salir">🚪 Cerrar Sesión</button>
+    </div>
+  </div>
 
-        <div class="portal-grid">
-            <a href="controlAlumno.html" class="portal-card card-vino">
-                <span class="card-title">ALUMNO</span>
-                <span class="card-subtitle">Consulta de calificaciones</span>
-            </a>
+  <!-- Estadísticas -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Total Carreras</h3>
+      <div class="numero" id="totalCarreras">0</div>
+    </div>
+    <div class="stat-card">
+      <h3>Total Alumnos</h3>
+      <div class="numero" id="totalAlumnos">0</div>
+    </div>
+    <div class="stat-card">
+      <h3>Total Materias</h3>
+      <div class="numero" id="totalMaterias">0</div>
+    </div>
+    <div class="stat-card">
+      <h3>Periodo Actual</h3>
+      <div class="numero" id="periodoActual" style="font-size: 1.8rem;">-</div>
+    </div>
+  </div>
 
-            <a href="login.html" class="portal-card card-purpura">
-                <span class="card-title">PROFESOR</span>
-                <span class="card-subtitle">Gestión de grupos</span>
-            </a>
+  <!-- Acciones Rápidas -->
+  <div class="acciones-rapidas">
+    <button onclick="mostrarTodasCarreras()" class="btn-accion">
+      📋 Ver Todas las Carreras
+    </button>
+    <button onclick="exportarReporteGeneral()" class="btn-accion">
+      📊 Exportar Reporte General
+    </button>
+    <button onclick="buscarAlumno()" class="btn-accion">
+      🔍 Buscar Alumno Específico
+    </button>
+  </div>
 
-            <a href="login.html" class="portal-card card-verde">
-                <span class="card-title">COORDINADOR</span>
-                <span class="card-subtitle">Administración académica</span>
-            </a>
+  <!-- Filtros de Búsqueda -->
+  <div class="filtros-container">
+    <h3 style="margin: 0 0 15px 0; color: #333;">🔎 Filtros de Búsqueda</h3>
+    <div class="filtros-grid">
+      <div class="form-grupo">
+        <label for="filtroCarrera">Carrera:</label>
+        <select id="filtroCarrera" onchange="cargarGruposPorCarrera()">
+          <option value="">Todas las carreras</option>
+        </select>
+      </div>
 
-            <a href="login.html" class="portal-card card-azul">
-                <span class="card-title">CONTROL ESCOLAR</span>
-                <span class="card-subtitle">Registros y sistemas</span>
-            </a>
-        </div>
+      <div class="form-grupo">
+        <label for="filtroGrupo">Grupo:</label>
+        <select id="filtroGrupo" onchange="cargarMateriasPorGrupo()">
+          <option value="">Todos los grupos</option>
+        </select>
+      </div>
 
-        <footer class="index-footer">
-            <img src="FA.png" alt="Logo Empresa" class="footer-logo">
-        </footer>
+      <div class="form-grupo">
+        <label for="filtroMateria">Materia:</label>
+        <select id="filtroMateria">
+          <option value="">Todas las materias</option>
+        </select>
+      </div>
+
+      <div class="form-grupo">
+        <label for="filtroPeriodo">Periodo:</label>
+        <select id="filtroPeriodo">
+          <option value="">Periodo actual</option>
+        </select>
+      </div>
     </div>
 
+    <button onclick="aplicarFiltros()" class="btn-buscar">
+      🔍 Buscar Calificaciones
+    </button>
+  </div>
+
+  <!-- Tabla de Calificaciones -->
+  <div class="tabla-container">
+    <h3 style="margin: 0 0 15px 0; color: #333;" id="tituloTabla">
+      📊 Selecciona filtros para ver calificaciones
+    </h3>
+    <div id="tablaCalificaciones">
+      <div class="sin-datos">
+        <p>👆 Utiliza los filtros de arriba para consultar calificaciones</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para editar calificación -->
+  <div id="modalCalificacion" class="modal">
+    <div class="modal-contenido" style="max-width: 500px;">
+      <span class="cerrar" onclick="cerrarModalCal()">&times;</span>
+      <h2>Editar Calificación</h2>
+      
+      <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <p style="margin: 5px 0;"><strong>Alumno:</strong> <span id="modalAlumnoNombre"></span></p>
+        <p style="margin: 5px 0;"><strong>Matrícula:</strong> <span id="modalAlumnoMatricula"></span></p>
+        <p style="margin: 5px 0;"><strong>Materia:</strong> <span id="modalMateriaNombre"></span></p>
+        <p style="margin: 5px 0;"><strong>Periodo:</strong> <span id="modalPeriodo"></span></p>
+      </div>
+
+      <form id="formCalificacion" onsubmit="guardarCalificacion(event)">
+        <input type="hidden" id="editAlumnoId">
+        <input type="hidden" id="editMateriaId">
+        <input type="hidden" id="editGrupoId">
+        <input type="hidden" id="editPeriodo">
+
+        <div class="form-grupo">
+          <label for="editParcial1">Parcial 1:</label>
+          <input type="text" id="editParcial1" placeholder="0-10 o NP">
+        </div>
+
+        <div class="form-grupo">
+          <label for="editParcial2">Parcial 2:</label>
+          <input type="text" id="editParcial2" placeholder="0-10 o NP">
+        </div>
+
+        <div class="form-grupo">
+          <label for="editParcial3">Parcial 3:</label>
+          <input type="text" id="editParcial3" placeholder="0-10 o NP">
+        </div>
+
+        <div class="form-botones">
+          <button type="submit" class="btn-guardar-cal" style="padding: 12px 30px;">
+            💾 Guardar Cambios
+          </button>
+          <button type="button" onclick="cerrarModalCal()" class="botAzu">
+            ✖️ Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <!-- jsPDF para reportes -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  
+  <script src="firebase.js"></script>
+  <script src="logoPdf.js"></script>
+  <script src="controlEscolar.js"></script>
 </body>
 </html>
