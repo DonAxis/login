@@ -707,7 +707,7 @@ async function cargarAsignaciones() {
  </div>
  <div class="item-acciones">
  <button onclick="reasignarProfesor('${doc.id}')" class="btn-editar">Reasignar</button>
- <button onclick="desactivarAsignacion('${doc.id}')" class="btn-eliminar">Desactivar</button>
+ <button onclick="eliminarAsignacion('${doc.id}')" class="btn-eliminar">Borrar</button>
  </div>
  </div>
  `;
@@ -1004,22 +1004,32 @@ async function guardarAsignacionProfesor(event) {
  }
 }
 
-async function desactivarAsignacion(asignacionId) {
- if (!confirm('¿Desactivar esta asignación?\n\nEl profesor ya no aparecerá como responsable de esta materia.')) {
+async function eliminarAsignacion(asignacionId) {
+ if (!confirm('¿Eliminar esta asignación?\n\nEsta acción no se puede deshacer.')) {
  return;
  }
  
+ try {
+ await db.collection('profesorMaterias').doc(asignacionId).delete();
+ 
+ alert('Asignación eliminada correctamente');
+ cargarAsignaciones();
+ } catch (error) {
+ console.error('Error:', error);
+ alert('Error al eliminar la asignación');
+ }
+}
+
+// MANTENER LA FUNCIÓN DESACTIVAR PARA CUANDO SE USA REASIGNAR
+async function desactivarAsignacionInterna(asignacionId) {
  try {
  await db.collection('profesorMaterias').doc(asignacionId).update({
  activa: false,
  fechaFin: firebase.firestore.FieldValue.serverTimestamp()
  });
- 
- alert(' Asignación desactivada');
- cargarAsignaciones();
  } catch (error) {
- console.error('Error:', error);
- alert('Error al desactivar');
+ console.error('Error al desactivar:', error);
+ throw error;
  }
 }
 
@@ -1032,11 +1042,8 @@ async function reasignarProfesor(asignacionId) {
  return;
  }
  
- // Desactivar asignación actual
- await db.collection('profesorMaterias').doc(asignacionId).update({
- activa: false,
- fechaFin: firebase.firestore.FieldValue.serverTimestamp()
- });
+ // Desactivar asignación actual (para mantener historial)
+ await desactivarAsignacionInterna(asignacionId);
  
  // Mostrar formulario para nueva asignación
  mostrarFormAsignarProfesor();
