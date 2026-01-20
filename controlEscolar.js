@@ -1,20 +1,18 @@
-// controlEscolar.js
-// Panel de Control Escolar - Acceso Global a Calificaciones
-
+// controlEscolar.js - Rediseñado
 const auth = firebase.auth();
 let usuarioActual = null;
 let carrerasData = [];
 let gruposData = [];
 let materiasData = [];
 let alumnosData = [];
-let calificacionesData = [];
-let periodoActual = '';
+let carreraSeleccionada = null;
+let grupoSeleccionado = null;
+let periodoActual = '2026-1';
 
-// ===== PROTECCIÓN DE PÁGINA =====
+// Proteccion de pagina
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
-    console.log('No hay sesión activa');
-    alert('Debes iniciar sesión para acceder');
+    alert('Debes iniciar sesion para acceder');
     window.location.href = 'login.html';
     return;
   }
@@ -22,104 +20,71 @@ auth.onAuthStateChanged(async (user) => {
   try {
     const userDoc = await db.collection('usuarios').doc(user.uid).get();
     
-    if (!userDoc.exists) {
-      console.log('Usuario no encontrado');
-      await auth.signOut();
+    if (!userDoc.exists || userDoc.data().rol !== 'controlEscolar') {
+      alert('Solo personal de Control Escolar puede acceder');
       window.location.href = 'login.html';
       return;
     }
 
     usuarioActual = userDoc.data();
     usuarioActual.uid = user.uid;
-
-    // Verificar que sea Control Escolar
-    if (usuarioActual.rol !== 'controlEscolar') {
-      console.log('No tienes permisos para acceder');
-      alert('Solo personal de Control Escolar puede acceder a esta página');
-      window.location.href = 'login.html';
-      return;
-    }
-
-    console.log('Usuario autorizado:', usuarioActual.nombre);
     
-    // Mostrar info del usuario
-    document.getElementById('infoUsuario').textContent = 
-      `${usuarioActual.nombre} - Control Escolar`;
+    document.getElementById('nombreUsuario').textContent = usuarioActual.nombre;
     
-    // Inicializar sistema
     await inicializar();
     
   } catch (error) {
-    console.error('Error al verificar usuario:', error);
+    console.error('Error:', error);
     alert('Error al verificar permisos');
     window.location.href = 'login.html';
   }
 });
 
-// ===== CERRAR SESIÓN =====
 async function cerrarSesion() {
-  if (confirm('¿Cerrar sesión?')) {
+  if (confirm('Cerrar sesion?')) {
     try {
       await auth.signOut();
-      sessionStorage.clear();
       window.location.href = 'login.html';
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-      alert('Error al cerrar sesión');
+      console.error('Error:', error);
+      alert('Error al cerrar sesion');
     }
   }
 }
 
-// ===== INICIALIZACIÓN =====
 async function inicializar() {
   console.log('Inicializando Control Escolar...');
   
   try {
-    // Cargar periodo actual
     await cargarPeriodoActual();
-    
-    // Cargar datos base
     await Promise.all([
       cargarCarreras(),
       cargarAlumnos(),
       cargarMaterias()
     ]);
     
-    // Llenar selectores
-    llenarSelectorCarreras();
-    llenarSelectorPeriodos();
-    
-    // Actualizar estadísticas
     actualizarEstadisticas();
-    
-    console.log('Sistema inicializado');
+    mostrarCarreras();
     
   } catch (error) {
     console.error('Error al inicializar:', error);
-    alert('Error al cargar datos del sistema');
   }
 }
 
-// ===== CARGAR PERIODO ACTUAL =====
 async function cargarPeriodoActual() {
   try {
     const configDoc = await db.collection('config').doc('periodoActual').get();
     
     if (configDoc.exists) {
       periodoActual = configDoc.data().periodo;
-      document.getElementById('periodoActual').textContent = periodoActual;
-      console.log('Periodo actual:', periodoActual);
-    } else {
-      periodoActual = '2026-1';
-      document.getElementById('periodoActual').textContent = periodoActual;
     }
+    
+    document.getElementById('periodoActual').textContent = periodoActual;
   } catch (error) {
     console.error('Error al cargar periodo:', error);
-    periodoActual = '2026-1';
   }
 }
 
-// ===== CARGAR CARRERAS =====
 async function cargarCarreras() {
   try {
     const snapshot = await db.collection('carreras')
@@ -134,13 +99,12 @@ async function cargarCarreras() {
       });
     });
     
-    console.log(`${carrerasData.length} carreras cargadas`);
+    console.log(carrerasData.length + ' carreras cargadas');
   } catch (error) {
     console.error('Error al cargar carreras:', error);
   }
 }
 
-// ===== CARGAR ALUMNOS =====
 async function cargarAlumnos() {
   try {
     const snapshot = await db.collection('usuarios')
@@ -156,13 +120,12 @@ async function cargarAlumnos() {
       });
     });
     
-    console.log(`${alumnosData.length} alumnos cargados`);
+    console.log(alumnosData.length + ' alumnos cargados');
   } catch (error) {
     console.error('Error al cargar alumnos:', error);
   }
 }
 
-// ===== CARGAR MATERIAS =====
 async function cargarMaterias() {
   try {
     const snapshot = await db.collection('materias').get();
@@ -175,57 +138,47 @@ async function cargarMaterias() {
       });
     });
     
-    console.log(`${materiasData.length} materias cargadas`);
+    console.log(materiasData.length + ' materias cargadas');
   } catch (error) {
     console.error('Error al cargar materias:', error);
   }
 }
 
-// ===== ACTUALIZAR ESTADÍSTICAS =====
 function actualizarEstadisticas() {
   document.getElementById('totalCarreras').textContent = carrerasData.length;
   document.getElementById('totalAlumnos').textContent = alumnosData.length;
   document.getElementById('totalMaterias').textContent = materiasData.length;
 }
 
-// ===== LLENAR SELECTOR DE CARRERAS =====
-function llenarSelectorCarreras() {
-  const select = document.getElementById('filtroCarrera');
-  select.innerHTML = '<option value="">Todas las carreras</option>';
+function mostrarCarreras() {
+  const container = document.getElementById('menuCarreras');
   
-  carrerasData.forEach(carrera => {
-    select.innerHTML += `<option value="${carrera.id}">${carrera.nombre}</option>`;
-  });
-}
-
-// ===== LLENAR SELECTOR DE PERIODOS =====
-function llenarSelectorPeriodos() {
-  const select = document.getElementById('filtroPeriodo');
-  const periodos = ['2024-1', '2024-2', '2025-1', '2025-2', '2026-1', '2026-2', '2027-1', '2027-2', '2028-1', '2028-2'];
-  
-  select.innerHTML = `<option value="">${periodoActual} (actual)</option>`;
-  
-  periodos.forEach(periodo => {
-    if (periodo !== periodoActual) {
-      select.innerHTML += `<option value="${periodo}">${periodo}</option>`;
-    }
-  });
-}
-
-// ===== CARGAR GRUPOS POR CARRERA =====
-async function cargarGruposPorCarrera() {
-  const carreraId = document.getElementById('filtroCarrera').value;
-  const selectGrupo = document.getElementById('filtroGrupo');
-  const selectMateria = document.getElementById('filtroMateria');
-  
-  selectGrupo.innerHTML = '<option value="">Todos los grupos</option>';
-  selectMateria.innerHTML = '<option value="">Todas las materias</option>';
-  
-  if (!carreraId) {
-    gruposData = [];
+  if (carrerasData.length === 0) {
+    container.innerHTML = '<div class="sin-datos">No hay carreras registradas</div>';
     return;
   }
   
+  let html = '';
+  carrerasData.forEach(carrera => {
+    html += `
+      <div class="carrera-card" onclick="seleccionarCarrera('${carrera.id}')">
+        <h3>${carrera.nombre}</h3>
+        <p>Codigo: ${carrera.codigo}</p>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+}
+
+async function seleccionarCarrera(carreraId) {
+  carreraSeleccionada = carrerasData.find(c => c.id === carreraId);
+  
+  if (!carreraSeleccionada) return;
+  
+  console.log('Carrera seleccionada:', carreraSeleccionada.nombre);
+  
+  // Cargar grupos de esta carrera
   try {
     const snapshot = await db.collection('grupos')
       .where('carreraId', '==', carreraId)
@@ -239,224 +192,265 @@ async function cargarGruposPorCarrera() {
         id: doc.id,
         ...doc.data()
       });
-      selectGrupo.innerHTML += `<option value="${doc.id}">${doc.data().nombre}</option>`;
     });
     
-    console.log(`${gruposData.length} grupos cargados`);
+    mostrarGrupos();
+    
   } catch (error) {
     console.error('Error al cargar grupos:', error);
+    alert('Error al cargar grupos');
   }
 }
 
-// ===== CARGAR MATERIAS POR GRUPO =====
-async function cargarMateriasPorGrupo() {
-  const grupoId = document.getElementById('filtroGrupo').value;
-  const selectMateria = document.getElementById('filtroMateria');
+function mostrarGrupos() {
+  const container = document.getElementById('gruposGrid');
+  const gruposContainer = document.getElementById('gruposContainer');
   
-  selectMateria.innerHTML = '<option value="">Todas las materias</option>';
+  gruposContainer.classList.add('active');
+  document.getElementById('menuCarreras').style.display = 'none';
   
-  if (!grupoId) return;
-  
-  const carreraId = document.getElementById('filtroCarrera').value;
-  
-  // Filtrar materias de esa carrera
-  const materiasFiltradas = materiasData.filter(m => m.carreraId === carreraId);
-  
-  materiasFiltradas.forEach(materia => {
-    selectMateria.innerHTML += `<option value="${materia.id}">${materia.nombre}</option>`;
-  });
-}
-
-// ===== APLICAR FILTROS =====
-async function aplicarFiltros() {
-  const carreraId = document.getElementById('filtroCarrera').value;
-  const grupoId = document.getElementById('filtroGrupo').value;
-  const materiaId = document.getElementById('filtroMateria').value;
-  const periodo = document.getElementById('filtroPeriodo').value || periodoActual;
-  
-  if (!carreraId && !grupoId && !materiaId) {
-    alert('Debes seleccionar al menos un filtro (Carrera, Grupo o Materia)');
+  if (gruposData.length === 0) {
+    container.innerHTML = '<div class="sin-datos">No hay grupos en esta carrera</div>';
     return;
   }
   
-  console.log('Aplicando filtros:', { carreraId, grupoId, materiaId, periodo });
-  
-  try {
-    // Construir query base
-    let query = db.collection('calificaciones').where('periodo', '==', periodo);
-    
-    // Agregar filtros
-    if (materiaId) {
-      query = query.where('materiaId', '==', materiaId);
-    }
-    
-    if (grupoId) {
-      query = query.where('grupoId', '==', grupoId);
-    }
-    
-    const snapshot = await query.get();
-    
-    calificacionesData = [];
-    snapshot.forEach(doc => {
-      calificacionesData.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    console.log(`${calificacionesData.length} calificaciones encontradas`);
-    
-    // Filtrar por carrera si se especificó (ya que no podemos hacer query directo)
-    if (carreraId && !grupoId) {
-      const gruposCarrera = gruposData.map(g => g.id);
-      calificacionesData = calificacionesData.filter(cal => 
-        gruposCarrera.includes(cal.grupoId)
-      );
-    }
-    
-    mostrarCalificaciones();
-    
-  } catch (error) {
-    console.error('Error al buscar calificaciones:', error);
-    alert('Error al buscar calificaciones');
-  }
-}
-
-// ===== MOSTRAR CALIFICACIONES =====
-function mostrarCalificaciones() {
-  const container = document.getElementById('tablaCalificaciones');
-  const titulo = document.getElementById('tituloTabla');
-  
-  if (calificacionesData.length === 0) {
-    container.innerHTML = `
-      <div class="sin-datos">
-        <p>No se encontraron calificaciones con los filtros seleccionados</p>
+  let html = '';
+  gruposData.forEach(grupo => {
+    html += `
+      <div class="grupo-card" onclick="seleccionarGrupo('${grupo.id}')">
+        ${grupo.nombre}
       </div>
     `;
-    titulo.textContent = 'Sin resultados';
-    return;
-  }
-  
-  // Obtener info de filtros
-  const carreraId = document.getElementById('filtroCarrera').value;
-  const grupoId = document.getElementById('filtroGrupo').value;
-  const materiaId = document.getElementById('filtroMateria').value;
-  
-  let tituloTexto = 'Calificaciones';
-  
-  if (carreraId) {
-    const carrera = carrerasData.find(c => c.id === carreraId);
-    if (carrera) tituloTexto += ` - ${carrera.nombre}`;
-  }
-  
-  if (grupoId) {
-    const grupo = gruposData.find(g => g.id === grupoId);
-    if (grupo) tituloTexto += ` - Grupo ${grupo.nombre}`;
-  }
-  
-  if (materiaId) {
-    const materia = materiasData.find(m => m.id === materiaId);
-    if (materia) tituloTexto += ` - ${materia.nombre}`;
-  }
-  
-  titulo.textContent = tituloTexto;
-  
-  // Generar tabla
-  let html = `
-    <table>
-      <thead>
-        <tr>
-          <th>Matrícula</th>
-          <th>Alumno</th>
-          <th>Materia</th>
-          <th>Grupo</th>
-          <th>Parcial 1</th>
-          <th>Parcial 2</th>
-          <th>Parcial 3</th>
-          <th>Promedio</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-  
-  calificacionesData.forEach(cal => {
-    // Buscar info del alumno
-    const alumno = alumnosData.find(a => a.uid === cal.alumnoId);
-    const matricula = alumno ? alumno.matricula : 'N/A';
-    const nombreAlumno = alumno ? alumno.nombre : 'Alumno no encontrado';
-    
-    // Buscar info de materia
-    const materia = materiasData.find(m => m.id === cal.materiaId);
-    const nombreMateria = materia ? materia.nombre : cal.materiaNombre || 'N/A';
-    
-    // Buscar info de grupo
-    const grupo = gruposData.find(g => g.id === cal.grupoId);
-    const nombreGrupo = grupo ? grupo.nombre : 'N/A';
-    
-    const p1 = cal.parciales?.parcial1 ?? '-';
-    const p2 = cal.parciales?.parcial2 ?? '-';
-    const p3 = cal.parciales?.parcial3 ?? '-';
-    
-    // Calcular promedio
-    const promedio = calcularPromedio(p1, p2, p3);
-    
-    // Determinar estado
-    let estado = '';
-    let badgeClass = '';
-    
-    if (promedio === '-') {
-      estado = 'Sin calificar';
-      badgeClass = 'badge';
-    } else if (promedio === '5.0' || parseFloat(promedio) < 6) {
-      estado = 'Reprobado';
-      badgeClass = 'badge badge-reprobado';
-    } else if (p1 === 'NP' || p2 === 'NP' || p3 === 'NP') {
-      estado = 'Con NP';
-      badgeClass = 'badge badge-np';
-    } else {
-      estado = 'Aprobado';
-      badgeClass = 'badge badge-aprobado';
-    }
-    
-    html += `
-      <tr>
-        <td><strong>${matricula}</strong></td>
-        <td>${nombreAlumno}</td>
-        <td>${nombreMateria}</td>
-        <td>${nombreGrupo}</td>
-        <td style="text-align: center;">${p1}</td>
-        <td style="text-align: center;">${p2}</td>
-        <td style="text-align: center;">${p3}</td>
-        <td style="text-align: center;"><strong>${promedio}</strong></td>
-        <td><span class="${badgeClass}">${estado}</span></td>
-        <td>
-          <button onclick="editarCalificacion('${cal.alumnoId}', '${cal.materiaId}', '${cal.grupoId}', '${cal.periodo}')" 
-                  class="btn-editar" style="font-size: 0.85rem;">
-            Editar
-          </button>
-        </td>
-      </tr>
-    `;
   });
-  
-  html += `
-      </tbody>
-    </table>
-  `;
   
   container.innerHTML = html;
 }
 
-// ===== CALCULAR PROMEDIO =====
+function seleccionarGrupo(grupoId) {
+  grupoSeleccionado = gruposData.find(g => g.id === grupoId);
+  
+  if (!grupoSeleccionado) return;
+  
+  console.log('Grupo seleccionado:', grupoSeleccionado.nombre);
+  
+  // Remover seleccion anterior
+  document.querySelectorAll('.grupo-card').forEach(card => {
+    card.classList.remove('selected');
+  });
+  
+  // Marcar como seleccionado
+  event.target.classList.add('selected');
+  
+  // Mostrar opciones
+  document.getElementById('opcionesContainer').classList.add('active');
+}
+
+async function verAlumnos() {
+  if (!grupoSeleccionado) return;
+  
+  console.log('Cargando alumnos del grupo:', grupoSeleccionado.nombre);
+  
+  const alumnosGrupo = alumnosData.filter(a => a.grupoId === grupoSeleccionado.id);
+  
+  if (alumnosGrupo.length === 0) {
+    mostrarLista('<div class="sin-datos">No hay alumnos en este grupo</div>');
+    return;
+  }
+  
+  let html = '<h2 class="titulo-seccion">Alumnos del Grupo ' + grupoSeleccionado.nombre + '</h2>';
+  html += '<table><thead><tr>';
+  html += '<th>Matricula</th>';
+  html += '<th>Nombre</th>';
+  html += '<th>Semestre</th>';
+  html += '<th>Acciones</th>';
+  html += '</tr></thead><tbody>';
+  
+  alumnosGrupo.forEach(alumno => {
+    html += '<tr>';
+    html += '<td><strong>' + (alumno.matricula || 'N/A') + '</strong></td>';
+    html += '<td>' + alumno.nombre + '</td>';
+    html += '<td>' + (alumno.semestreActual || 'N/A') + '</td>';
+    html += '<td>';
+    html += '<button onclick="verCalificacionesAlumno(\'' + alumno.uid + '\', \'' + alumno.nombre + '\')" class="btn-accion">Ver Calificaciones</button>';
+    html += '</td>';
+    html += '</tr>';
+  });
+  
+  html += '</tbody></table>';
+  
+  mostrarLista(html);
+}
+
+async function verMaterias() {
+  if (!grupoSeleccionado) return;
+  
+  console.log('Cargando materias del grupo:', grupoSeleccionado.nombre);
+  
+  // Buscar asignaciones de materias para este grupo
+  try {
+    const snapshot = await db.collection('profesorMaterias')
+      .where('grupoId', '==', grupoSeleccionado.id)
+      .where('periodo', '==', periodoActual)
+      .where('activa', '==', true)
+      .get();
+    
+    if (snapshot.empty) {
+      mostrarLista('<div class="sin-datos">No hay materias asignadas a este grupo</div>');
+      return;
+    }
+    
+    let html = '<h2 class="titulo-seccion">Materias del Grupo ' + grupoSeleccionado.nombre + '</h2>';
+    html += '<table><thead><tr>';
+    html += '<th>Codigo</th>';
+    html += '<th>Materia</th>';
+    html += '<th>Profesor</th>';
+    html += '<th>Acciones</th>';
+    html += '</tr></thead><tbody>';
+    
+    snapshot.forEach(doc => {
+      const asignacion = doc.data();
+      html += '<tr>';
+      html += '<td><strong>' + (asignacion.materiaCodigo || 'N/A') + '</strong></td>';
+      html += '<td>' + asignacion.materiaNombre + '</td>';
+      html += '<td>' + asignacion.profesorNombre + '</td>';
+      html += '<td>';
+      html += '<button onclick="verCalificacionesMateria(\'' + asignacion.materiaId + '\', \'' + asignacion.materiaNombre + '\')" class="btn-accion">Ver Calificaciones</button>';
+      html += '</td>';
+      html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    
+    mostrarLista(html);
+    
+  } catch (error) {
+    console.error('Error al cargar materias:', error);
+    alert('Error al cargar materias');
+  }
+}
+
+async function verCalificacionesAlumno(alumnoId, nombreAlumno) {
+  console.log('Cargando calificaciones del alumno:', nombreAlumno);
+  
+  try {
+    const snapshot = await db.collection('calificaciones')
+      .where('alumnoId', '==', alumnoId)
+      .where('grupoId', '==', grupoSeleccionado.id)
+      .where('periodo', '==', periodoActual)
+      .get();
+    
+    if (snapshot.empty) {
+      alert('Este alumno no tiene calificaciones registradas en este grupo');
+      return;
+    }
+    
+    let html = '<h2 class="titulo-seccion">Calificaciones de ' + nombreAlumno + '</h2>';
+    html += '<p style="margin-bottom: 20px;">Grupo: ' + grupoSeleccionado.nombre + ' - Periodo: ' + periodoActual + '</p>';
+    html += '<table><thead><tr>';
+    html += '<th>Materia</th>';
+    html += '<th>Parcial 1</th>';
+    html += '<th>Parcial 2</th>';
+    html += '<th>Parcial 3</th>';
+    html += '<th>Promedio</th>';
+    html += '<th>Estado</th>';
+    html += '</tr></thead><tbody>';
+    
+    snapshot.forEach(doc => {
+      const cal = doc.data();
+      const p1 = cal.parciales?.parcial1 || '-';
+      const p2 = cal.parciales?.parcial2 || '-';
+      const p3 = cal.parciales?.parcial3 || '-';
+      const promedio = calcularPromedio(p1, p2, p3);
+      const estado = obtenerEstado(promedio, p1, p2, p3);
+      
+      html += '<tr>';
+      html += '<td>' + (cal.materiaNombre || 'N/A') + '</td>';
+      html += '<td>' + p1 + '</td>';
+      html += '<td>' + p2 + '</td>';
+      html += '<td>' + p3 + '</td>';
+      html += '<td><strong>' + promedio + '</strong></td>';
+      html += '<td>' + estado + '</td>';
+      html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    html += '<div style="margin-top: 20px;">';
+    html += '<button onclick="imprimirHistorialAlumno(\'' + alumnoId + '\', \'' + nombreAlumno + '\')" class="opcion-btn">Imprimir Historial Completo</button>';
+    html += '</div>';
+    
+    mostrarLista(html);
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cargar calificaciones');
+  }
+}
+
+async function verCalificacionesMateria(materiaId, nombreMateria) {
+  console.log('Cargando calificaciones de la materia:', nombreMateria);
+  
+  try {
+    const snapshot = await db.collection('calificaciones')
+      .where('materiaId', '==', materiaId)
+      .where('grupoId', '==', grupoSeleccionado.id)
+      .where('periodo', '==', periodoActual)
+      .get();
+    
+    if (snapshot.empty) {
+      alert('No hay calificaciones registradas para esta materia');
+      return;
+    }
+    
+    let html = '<h2 class="titulo-seccion">Calificaciones de ' + nombreMateria + '</h2>';
+    html += '<p style="margin-bottom: 20px;">Grupo: ' + grupoSeleccionado.nombre + ' - Periodo: ' + periodoActual + '</p>';
+    html += '<table><thead><tr>';
+    html += '<th>Matricula</th>';
+    html += '<th>Alumno</th>';
+    html += '<th>Parcial 1</th>';
+    html += '<th>Parcial 2</th>';
+    html += '<th>Parcial 3</th>';
+    html += '<th>Promedio</th>';
+    html += '<th>Estado</th>';
+    html += '</tr></thead><tbody>';
+    
+    snapshot.forEach(doc => {
+      const cal = doc.data();
+      const alumno = alumnosData.find(a => a.uid === cal.alumnoId);
+      const p1 = cal.parciales?.parcial1 || '-';
+      const p2 = cal.parciales?.parcial2 || '-';
+      const p3 = cal.parciales?.parcial3 || '-';
+      const promedio = calcularPromedio(p1, p2, p3);
+      const estado = obtenerEstado(promedio, p1, p2, p3);
+      
+      html += '<tr>';
+      html += '<td><strong>' + (alumno ? alumno.matricula : 'N/A') + '</strong></td>';
+      html += '<td>' + (alumno ? alumno.nombre : 'N/A') + '</td>';
+      html += '<td>' + p1 + '</td>';
+      html += '<td>' + p2 + '</td>';
+      html += '<td>' + p3 + '</td>';
+      html += '<td><strong>' + promedio + '</strong></td>';
+      html += '<td>' + estado + '</td>';
+      html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    html += '<div style="margin-top: 20px;">';
+    html += '<button onclick="imprimirActaMateria(\'' + materiaId + '\', \'' + nombreMateria + '\')" class="opcion-btn">Imprimir Acta de Calificaciones</button>';
+    html += '</div>';
+    
+    mostrarLista(html);
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cargar calificaciones');
+  }
+}
+
 function calcularPromedio(p1, p2, p3) {
-  // Si alguno es NP, promedio es 5.0
   if (p1 === 'NP' || p2 === 'NP' || p3 === 'NP') {
     return '5.0';
   }
   
-  // Filtrar valores válidos
   const valores = [p1, p2, p3]
     .filter(v => v !== '-' && v !== null && v !== undefined && v !== '')
     .map(v => parseFloat(v))
@@ -468,179 +462,52 @@ function calcularPromedio(p1, p2, p3) {
   return promedio.toFixed(1);
 }
 
-// ===== EDITAR CALIFICACIÓN =====
-async function editarCalificacion(alumnoId, materiaId, grupoId, periodo) {
-  try {
-    // Buscar la calificación
-    const calQuery = await db.collection('calificaciones')
-      .where('alumnoId', '==', alumnoId)
-      .where('materiaId', '==', materiaId)
-      .where('periodo', '==', periodo)
-      .limit(1)
-      .get();
-    
-    if (calQuery.empty) {
-      alert('No se encontró la calificación');
-      return;
-    }
-    
-    const calDoc = calQuery.docs[0];
-    const cal = calDoc.data();
-    
-    // Buscar info del alumno y materia
-    const alumno = alumnosData.find(a => a.uid === alumnoId);
-    const materia = materiasData.find(m => m.id === materiaId);
-    
-    // Llenar modal
-    document.getElementById('modalAlumnoNombre').textContent = alumno ? alumno.nombre : 'N/A';
-    document.getElementById('modalAlumnoMatricula').textContent = alumno ? alumno.matricula : 'N/A';
-    document.getElementById('modalMateriaNombre').textContent = materia ? materia.nombre : cal.materiaNombre || 'N/A';
-    document.getElementById('modalPeriodo').textContent = periodo;
-    
-    document.getElementById('editAlumnoId').value = alumnoId;
-    document.getElementById('editMateriaId').value = materiaId;
-    document.getElementById('editGrupoId').value = grupoId;
-    document.getElementById('editPeriodo').value = periodo;
-    
-    document.getElementById('editParcial1').value = cal.parciales?.parcial1 || '';
-    document.getElementById('editParcial2').value = cal.parciales?.parcial2 || '';
-    document.getElementById('editParcial3').value = cal.parciales?.parcial3 || '';
-    
-    document.getElementById('modalCalificacion').style.display = 'block';
-    
-  } catch (error) {
-    console.error('Error al cargar calificación:', error);
-    alert('Error al cargar calificación');
+function obtenerEstado(promedio, p1, p2, p3) {
+  if (promedio === '-') {
+    return '<span class="badge badge-pendiente">Pendiente</span>';
   }
-}
-
-// ===== GUARDAR CALIFICACIÓN =====
-async function guardarCalificacion(event) {
-  event.preventDefault();
   
-  const alumnoId = document.getElementById('editAlumnoId').value;
-  const materiaId = document.getElementById('editMateriaId').value;
-  const grupoId = document.getElementById('editGrupoId').value;
-  const periodo = document.getElementById('editPeriodo').value;
-  
-  let p1 = document.getElementById('editParcial1').value.trim().toUpperCase();
-  let p2 = document.getElementById('editParcial2').value.trim().toUpperCase();
-  let p3 = document.getElementById('editParcial3').value.trim().toUpperCase();
-  
-  // Validar formato
-  const validar = (val) => {
-    if (val === '' || val === '-') return '-';
-    if (val === 'NP') return 'NP';
-    const num = parseFloat(val);
-    if (isNaN(num) || num < 0 || num > 10) {
-      throw new Error('Calificación inválida. Debe ser 0-10 o NP');
-    }
-    return num;
-  };
-  
-  try {
-    p1 = validar(p1);
-    p2 = validar(p2);
-    p3 = validar(p3);
-    
-    // Buscar el documento
-    const calQuery = await db.collection('calificaciones')
-      .where('alumnoId', '==', alumnoId)
-      .where('materiaId', '==', materiaId)
-      .where('periodo', '==', periodo)
-      .limit(1)
-      .get();
-    
-    if (calQuery.empty) {
-      alert('No se encontró la calificación');
-      return;
-    }
-    
-    const calDoc = calQuery.docs[0];
-    
-    // Actualizar
-    await calDoc.ref.update({
-      'parciales.parcial1': p1,
-      'parciales.parcial2': p2,
-      'parciales.parcial3': p3,
-      actualizadoPor: usuarioActual.uid,
-      fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    console.log('Calificación actualizada');
-    alert('Calificación guardada correctamente');
-    
-    cerrarModalCal();
-    
-    // Recargar calificaciones
-    await aplicarFiltros();
-    
-  } catch (error) {
-    console.error('Error al guardar:', error);
-    alert(error.message);
+  if (p1 === 'NP' || p2 === 'NP' || p3 === 'NP') {
+    return '<span class="badge badge-reprobado">Reprobado (NP)</span>';
   }
-}
-
-// ===== CERRAR MODAL =====
-function cerrarModalCal() {
-  document.getElementById('modalCalificacion').style.display = 'none';
-}
-
-// ===== MOSTRAR TODAS LAS CARRERAS =====
-async function mostrarTodasCarreras() {
-  let mensaje = 'CARRERAS DEL SISTEMA\n\n';
   
-  if (carrerasData.length === 0) {
-    mensaje += 'No hay carreras registradas';
+  const prom = parseFloat(promedio);
+  if (prom >= 6) {
+    return '<span class="badge badge-aprobado">Aprobado</span>';
   } else {
-    carrerasData.forEach((carrera, index) => {
-      mensaje += `${index + 1}. ${carrera.nombre} (${carrera.codigo})\n`;
-    });
-  }
-  
-  alert(mensaje);
-}
-
-// ===== EXPORTAR REPORTE GENERAL =====
-async function exportarReporteGeneral() {
-  alert('Función en desarrollo\n\nSe generará un PDF con estadísticas generales del sistema.');
-  // TODO: Implementar generación de PDF con jsPDF
-}
-
-// ===== BUSCAR ALUMNO =====
-function buscarAlumno() {
-  const matricula = prompt('Ingresa la matrícula del alumno:');
-  
-  if (!matricula) return;
-  
-  const alumno = alumnosData.find(a => 
-    a.matricula && a.matricula.toLowerCase().includes(matricula.toLowerCase())
-  );
-  
-  if (!alumno) {
-    alert('No se encontró ningún alumno con esa matrícula');
-    return;
-  }
-  
-  const carrera = carrerasData.find(c => c.id === alumno.carreraId);
-  
-  let mensaje = `👤 ALUMNO ENCONTRADO\n\n`;
-  mensaje += `Nombre: ${alumno.nombre}\n`;
-  mensaje += `Matrícula: ${alumno.matricula}\n`;
-  mensaje += `Carrera: ${carrera ? carrera.nombre : 'N/A'}\n`;
-  mensaje += `Periodo: ${alumno.periodo || 'N/A'}\n`;
-  mensaje += `Semestre: ${alumno.semestreActual || 'N/A'}\n`;
-  mensaje += `Email: ${alumno.email}\n`;
-  
-  alert(mensaje);
-}
-
-// Cerrar modal al hacer clic fuera
-window.onclick = function(event) {
-  const modal = document.getElementById('modalCalificacion');
-  if (event.target === modal) {
-    cerrarModalCal();
+    return '<span class="badge badge-reprobado">Reprobado</span>';
   }
 }
 
-console.log('Sistema de Control Escolar cargado');
+function mostrarLista(html) {
+  document.getElementById('listaContenido').innerHTML = html;
+  document.getElementById('gruposContainer').style.display = 'none';
+  document.getElementById('listaContainer').classList.add('active');
+}
+
+function volverCarreras() {
+  document.getElementById('gruposContainer').classList.remove('active');
+  document.getElementById('menuCarreras').style.display = 'grid';
+  document.getElementById('opcionesContainer').classList.remove('active');
+  carreraSeleccionada = null;
+  grupoSeleccionado = null;
+}
+
+function volverGrupos() {
+  document.getElementById('listaContainer').classList.remove('active');
+  document.getElementById('gruposContainer').style.display = 'block';
+}
+
+function imprimirHistorialAlumno(alumnoId, nombreAlumno) {
+  if (typeof descargarHistorialAlumnoPDF === 'function') {
+    descargarHistorialAlumnoPDF(alumnoId, nombreAlumno);
+  } else {
+    alert('Funcion de PDF no disponible');
+  }
+}
+
+function imprimirActaMateria(materiaId, nombreMateria) {
+  alert('Funcion de imprimir acta en desarrollo');
+}
+
+console.log('Control Escolar cargado');
