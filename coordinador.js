@@ -3354,6 +3354,9 @@ async function regenerarEstructura() {
 // ===== GENERAR GRUPOS SIMPLE =====
 
 function mostrarGenerarGrupos() {
+  // Obtener la sigla de la carrera del coordinador
+  const siglaCarrera = carreraActual?.sigla || 'N/A';
+  
   const html = `
     <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; margin: 20px auto;">
       <h3 style="margin: 0 0 20px 0; color: #667eea;">Generar Grupos</h3>
@@ -3362,8 +3365,12 @@ function mostrarGenerarGrupos() {
         <div style="margin-bottom: 20px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600;">Sigla de carrera:</label>
           <input type="text" id="siglaCarrera" required 
-                 placeholder="Ej. LI, TA"
-                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; text-transform: uppercase;">
+                 value="${siglaCarrera}"
+                 readonly
+                 style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; text-transform: uppercase; background-color: #f5f5f5; color: #666; cursor: not-allowed;">
+          <small style="display: block; margin-top: 5px; color: #666; font-size: 0.85rem;">
+            📌 Sigla automática de tu carrera (no editable)
+          </small>
         </div>
         
         <div style="margin-bottom: 20px;">
