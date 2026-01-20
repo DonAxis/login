@@ -73,6 +73,12 @@
       <div class="seccion">
         <h3>Mis Materias</h3>
         <div id="listaMaterias"></div>
+        
+        <!-- Botón para generar PDF -->
+        <button onclick="generarPDFBoletaActual()" 
+                style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 20px; display: block; width: 100%;">
+          Descargar Boleta en PDF
+        </button>
       </div>
     </div>
   </div>
@@ -332,7 +338,7 @@
   
   <!-- Logos y funciones de PDF -->
   <script src="logoPdf.js"></script>
-  <script src="HistorialAlumnoPDF.js"></script>
+  <script src="boletaPDF.js"></script>
   
   <script src="controlAlumnoHistorial.js"></script>
 </body>
