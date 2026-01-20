@@ -843,7 +843,7 @@ async function mostrarFormAsignarProfesor() {
  profesoresHtml += `<option value="${doc.id}" data-nombre="${prof.nombre}">${prof.nombre} (${prof.email})</option>`;
  });
  
- // Cargar materias de la carrera
+ // Cargar materias de la carrera con información del grupo
  let materiasQuery = db.collection('materias');
  if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
  materiasQuery = materiasQuery.where('carreraId', '==', usuarioActual.carreraId);
@@ -852,7 +852,7 @@ async function mostrarFormAsignarProfesor() {
  let materiasHtml = '<option value="">Seleccionar materia...</option>';
  materiasSnap.forEach(doc => {
  const mat = doc.data();
- materiasHtml += `<option value="${doc.id}" data-nombre="${mat.nombre}" data-codigo="${mat.codigo}">${mat.nombre} (${mat.codigo})</option>`;
+ materiasHtml += `<option value="${doc.id}" data-nombre="${mat.nombre}" data-codigo="${mat.codigo}" data-grupo="${mat.codigo}">${mat.nombre} (${mat.codigo})</option>`;
  });
  
  // Cargar grupos de la carrera
@@ -879,7 +879,7 @@ async function mostrarFormAsignarProfesor() {
  <form onsubmit="guardarAsignacionProfesor(event)">
  <div class="form-grupo">
  <label>Materia: *</label>
- <select id="materiaAsignar" required>
+ <select id="materiaAsignar" required onchange="actualizarGrupoDesdeMateria()">
  ${materiasHtml}
  </select>
  </div>
@@ -893,9 +893,11 @@ async function mostrarFormAsignarProfesor() {
  
  <div class="form-grupo">
  <label>Grupo: *</label>
- <select id="grupoAsignar" required>
- ${gruposHtml}
- </select>
+ <input type="text" id="grupoAsignar" required readonly
+ style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: #f5f5f5; cursor: not-allowed; color: #666;"
+ placeholder="Selecciona primero una materia">
+ <input type="hidden" id="grupoAsignarId">
+ <small style="color: #666;">El grupo se asigna automáticamente según la materia seleccionada</small>
  </div>
  
  <div class="form-grupo">
@@ -916,12 +918,29 @@ async function mostrarFormAsignarProfesor() {
  document.getElementById('modalGenerico').style.display = 'block';
 }
 
+async function actualizarGrupoDesdeMateria() {
+ const materiaSelect = document.getElementById('materiaAsignar');
+ const grupoInput = document.getElementById('grupoAsignar');
+ const grupoIdInput = document.getElementById('grupoAsignarId');
+ 
+ const grupoId = materiaSelect.options[materiaSelect.selectedIndex].getAttribute('data-codigo');
+ 
+ if (grupoId) {
+ grupoInput.value = grupoId;
+ grupoIdInput.value = grupoId;
+ } else {
+ grupoInput.value = '';
+ grupoIdInput.value = '';
+ }
+}
+
 async function guardarAsignacionProfesor(event) {
  event.preventDefault();
  
  const materiaSelect = document.getElementById('materiaAsignar');
  const profesorSelect = document.getElementById('profesorAsignar');
- const grupoSelect = document.getElementById('grupoAsignar');
+ const grupoInput = document.getElementById('grupoAsignar');
+ const grupoIdInput = document.getElementById('grupoAsignarId');
  
  const materiaId = materiaSelect.value;
  const materiaNombre = materiaSelect.options[materiaSelect.selectedIndex].dataset.nombre;
@@ -930,8 +949,8 @@ async function guardarAsignacionProfesor(event) {
  const profesorId = profesorSelect.value;
  const profesorNombre = profesorSelect.options[profesorSelect.selectedIndex].dataset.nombre;
  
- const grupoId = grupoSelect.value;
- const grupoNombre = grupoSelect.options[grupoSelect.selectedIndex].dataset.nombre;
+ const grupoId = grupoIdInput.value;
+ const grupoNombre = grupoInput.value;
  
  const periodo = document.getElementById('periodoAsignar').value.trim();
  
