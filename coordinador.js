@@ -3369,7 +3369,7 @@ function mostrarGenerarGrupos() {
                  readonly
                  style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; text-transform: uppercase; background-color: #f5f5f5; color: #666; cursor: not-allowed;">
           <small style="display: block; margin-top: 5px; color: #666; font-size: 0.85rem;">
-            📌 Sigla automática de tu carrera (no editable)
+            Sigla automática de tu carrera (no editable)
           </small>
         </div>
         
