@@ -183,7 +183,6 @@ async function seleccionarCarrera(carreraId) {
     const snapshot = await db.collection('grupos')
       .where('carreraId', '==', carreraId)
       .where('activo', '==', true)
-      .orderBy('nombre')
       .get();
     
     gruposData = [];
@@ -193,6 +192,9 @@ async function seleccionarCarrera(carreraId) {
         ...doc.data()
       });
     });
+    
+    // Ordenar por nombre en JavaScript
+    gruposData.sort((a, b) => a.nombre.localeCompare(b.nombre));
     
     mostrarGrupos();
     
