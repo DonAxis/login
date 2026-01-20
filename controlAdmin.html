@@ -381,8 +381,12 @@
         mostrarMensaje("Creando coordinador...", "info");
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const newUid = userCredential.user.uid;
-        console.log("Usuario creado. UID:", newUid);
+        console.log("Usuario creado en Authentication. UID:", newUid);
         
+        // Esperar un momento para que Firebase propague permisos
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        console.log("Guardando en Firestore...");
         await db.collection("usuarios").doc(newUid).set({
           nombre: nombre,
           email: email,
@@ -394,9 +398,17 @@
           fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        console.log("Guardado en Firestore");
+        console.log("Guardado exitosamente en Firestore");
+        
+        // Verificar que se guardo
+        const verificar = await db.collection("usuarios").doc(newUid).get();
+        if (!verificar.exists) {
+          throw new Error("El documento no se guardo en Firestore");
+        }
+        console.log("Documento verificado en Firestore");
+        
         await auth.signOut();
-        alert("Coordinador creado\n\nNombre: " + nombre + "\nEmail: " + email + "\nPassword: " + password);
+        alert("Coordinador creado exitosamente\n\nNombre: " + nombre + "\nEmail: " + email + "\nPassword: " + password + "\n\nAhora inicia sesion de nuevo.");
         window.location.href = "login.html";
         
       } catch (error) {
@@ -670,8 +682,12 @@
         mostrarMensajeControl("Creando Control Escolar...", "info");
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const newUid = userCredential.user.uid;
-        console.log("Usuario creado. UID:", newUid);
+        console.log("Usuario creado en Authentication. UID:", newUid);
         
+        // Esperar un momento para que Firebase propague permisos
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        console.log("Guardando en Firestore...");
         await db.collection("usuarios").doc(newUid).set({
           nombre: nombre,
           email: email,
@@ -680,9 +696,17 @@
           fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        console.log("Guardado en Firestore");
+        console.log("Guardado exitosamente en Firestore");
+        
+        // Verificar que se guardo
+        const verificar = await db.collection("usuarios").doc(newUid).get();
+        if (!verificar.exists) {
+          throw new Error("El documento no se guardo en Firestore");
+        }
+        console.log("Documento verificado en Firestore");
+        
         await auth.signOut();
-        alert("Control Escolar creado\n\nNombre: " + nombre + "\nEmail: " + email + "\nPassword: " + password);
+        alert("Control Escolar creado exitosamente\n\nNombre: " + nombre + "\nEmail: " + email + "\nPassword: " + password + "\n\nAhora inicia sesion de nuevo.");
         window.location.href = "login.html";
         
       } catch (error) {
