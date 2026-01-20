@@ -2,13 +2,7 @@
 // Extension para controlAlumno.html - Visualizacion de historial de calificaciones
 
 // AGREGAR este boton en el HTML despues del boton "Ver Horario":
-/*
-<button onclick="verHistorialCompleto()" class="btn-historial" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px;">
-  Ver Historial de Calificaciones
-</button>
-*/
 
-// Funcion para ver el historial completo de calificaciones
 async function verHistorialCompleto() {
   if (!alumnoActual || !alumnoActual.id) {
     alert('No hay datos de alumno cargados');
@@ -44,9 +38,16 @@ async function verHistorialCompleto() {
       <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1000px; margin: 20px auto; max-height: 85vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;">
           <h2 style="margin: 0; color: #6A2135;">Historial Completo de Calificaciones</h2>
-          <button onclick="cerrarModalHistorial()" style="background: #f5f5f5; border: 2px solid #ddd; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-            Cerrar
-          </button>
+          <div style="display: flex; gap: 10px;">
+            <button onclick="descargarHistorialAlumnoPDF('${alumnoActual.id}', '${alumnoActual.nombre}')" 
+                    style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              Descargar PDF
+            </button>
+            <button onclick="cerrarModalHistorial()" 
+                    style="background: #f5f5f5; border: 2px solid #ddd; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              Cerrar
+            </button>
+          </div>
         </div>
         
         <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
