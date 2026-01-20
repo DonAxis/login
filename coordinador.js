@@ -3355,7 +3355,7 @@ async function regenerarEstructura() {
 
 function mostrarGenerarGrupos() {
   // Obtener la sigla de la carrera del coordinador
-  const siglaCarrera = carreraActual?.sigla || 'N/A';
+  const siglaCarrera = carreraActual?.codigo || 'Error';
   
   const html = `
     <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; margin: 20px auto;">
