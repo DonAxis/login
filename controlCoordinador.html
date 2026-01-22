@@ -202,16 +202,18 @@
  <h1 style="margin: 0 0 10px 0; font-size: 1.8rem; color: white;">Panel de Coordinador</h1>
  
  <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
- <div style="display: flex; align-items: center; gap: 10px;">
+ <div id="selectorCarreras" style="display: none; align-items: center; gap: 10px;">
  <label style="font-weight: 600; color: white; font-size: 0.95rem;">Cambiar carrera:</label>
- <select id="selectorCarrera" onchange="cambiarCarreraActiva()" 
- style="padding: 6px 12px; border: 2px solid white; border-radius: 6px; font-size: 0.95rem; font-weight: 600; background: white; color: #333; cursor: pointer; min-width: 180px;">
+ <select id="selectCarrera" onchange="cambiarCarreraActiva()" 
+ style="padding: 6px 12px; border: 2px solid white; border-radius: 6px; font-size: 0.95rem; font-weight: 600; background: white; color: #333; cursor: pointer; min-width: 200px;">
  <option value="">Cargando...</option>
  </select>
  </div>
  
- <div style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 6px; font-size: 0.9rem;">
- <strong>Carreras asignadas:</strong> <span id="numCarrerasAsignadas">0</span>
+ <div>
+ <span style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 6px; font-size: 0.9rem; display: inline-block;">
+ <strong>Carreras asignadas:</strong> <span id="cantidadCarreras">0</span>
+ </span>
  </div>
  </div>
  </div>
