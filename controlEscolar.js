@@ -12,7 +12,7 @@ let periodoActual = '2026-1';
 // Proteccion de pagina
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
-    alert('Debes iniciar sesion para acceder');
+    //alert('Debes iniciar sesion para acceder');
     window.location.href = 'login.html';
     return;
   }
