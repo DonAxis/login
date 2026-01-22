@@ -1154,6 +1154,7 @@ async function cargarAsignacionesPorPeriodo(periodo) {
  }
 }
 
+
 async function mostrarFormAsignarProfesor() {
  document.getElementById('tituloModal').textContent = 'Asignar Profesor a Materia';
  
@@ -1171,10 +1172,13 @@ async function mostrarFormAsignarProfesor() {
  profesoresValidos.push({ id: doc.id, ...data });
  }
  });
+ 
+ // CAMBIO: Usar profesoresValidos en lugar de profesoresSnap
  let profesoresHtml = '<option value="">Seleccionar profesor...</option>';
- profesoresSnap.forEach(doc => {
- const prof = doc.data();
- profesoresHtml += `<option value="${doc.id}" data-nombre="${prof.nombre}">${prof.nombre} (${prof.email})</option>`;
+ profesoresValidos.forEach(item => {
+ const prof = item;
+ const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
+ profesoresHtml += `<option value="${item.id}" data-nombre="${prof.nombre}">${prof.nombre}${rolDisplay} (${prof.email})</option>`;
  });
  
  // Cargar materias de la carrera con información del grupo
@@ -1228,28 +1232,19 @@ async function mostrarFormAsignarProfesor() {
  <div class="form-grupo">
  <label>Grupo: *</label>
  <input type="text" id="grupoAsignar" required readonly
- style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: #f5f5f5; cursor: not-allowed; color: #666;"
- placeholder="Selecciona primero una materia">
- <input type="hidden" id="grupoAsignarId">
- <small style="color: #666;">El grupo se asigna automáticamente según la materia seleccionada</small>
+ style="padding: 10px; border: 2px solid #ddd; border-radius: 5px; background: #f5f5f5; cursor: not-allowed;"
+ placeholder="Se autocompletará con la materia">
  </div>
  
- <div class="form-grupo">
- <label>Periodo: *</label>
- <input type="text" id="periodoAsignar" required readonly value="${periodoActualCarrera}" 
- style="background: #f0f0f0; cursor: not-allowed; font-weight: bold; color: #216A32;">
- <small style="color: #666;">Las asignaciones se crean para el periodo actual del sistema</small>
- </div>
- 
- <div class="form-botones">
- <button type="submit" class="btn-guardar"> Asignar Profesor</button>
- <button type="button" onclick="cerrarModal()" class="btn-cancelar"> Cancelar</button>
+ <div class="botones-formulario">
+ <button type="submit" class="botAzu">Guardar Asignación</button>
+ <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
  </div>
  </form>
  `;
  
  document.getElementById('contenidoModal').innerHTML = html;
- document.getElementById('modalGenerico').style.display = 'block';
+ document.getElementById('modalGenerico').style.display = 'flex';
 }
 
 async function actualizarGrupoDesdeMateria() {
@@ -1591,35 +1586,51 @@ async function darDeBajaAlumno(inscripcionId) {
 }
 
 // ===== GESTIÓN DE PROFESORES (CREAR/EDITAR) =====
+
 async function cargarProfesores() {
  try {
- // Filtrar profesores por carrera del coordinador
+ // CAMBIO: Cargar TODOS los usuarios de la carrera, luego filtrar
  const snapshot = await db.collection('usuarios')
- .where('rol', '==', 'profesor')
  .where('carreras', 'array-contains', usuarioActual.carreraId)
  .get();
+ 
  const container = document.getElementById('listaProfesores');
  
- if (snapshot.empty) {
+ // Filtrar profesores y coordinadores con esProfesor: true
+ const profesoresValidos = [];
+ snapshot.forEach(doc => {
+ const data = doc.data();
+ // Incluir si es profesor O si es coordinador con esProfesor: true
+ if (data.rol === 'profesor' || (data.rol === 'coordinador' && data.esProfesor === true)) {
+ profesoresValidos.push({ id: doc.id, ...data });
+ }
+ });
+ 
+ if (profesoresValidos.length === 0) {
  container.innerHTML = '<div class="sin-datos">No hay profesores registrados</div>';
  return;
  }
  
  let html = '';
- snapshot.forEach(doc => {
- const profesor = doc.data();
+ profesoresValidos.forEach(item => {
+ const profesor = item;
+ const rolDisplay = profesor.rol === 'coordinador' ? '(Coordinador-Profesor)' : '';
  html += `
  <div class="item">
  <div class="item-info">
- <h4>${profesor.nombre}</h4>
- <p> ${profesor.email}</p>
+ <h4>${profesor.nombre} ${rolDisplay}</h4>
+ <p>${profesor.email}</p>
  <p>${profesor.activo ? '<span style="color: #4caf50;"></span> Activo' : '<span style="color: #f44336;"></span> Inactivo'}</p>
  </div>
  <div class="item-acciones">
- <button onclick="editarProfesor('${doc.id}')" class="btn-editar"> Editar</button>
- <button onclick="toggleActivoUsuario('${doc.id}', 'profesor', ${!profesor.activo})" class="botAzu">
- ${profesor.activo ? ' Desactivar' : ' Activar'}
+ ${profesor.rol === 'profesor' ? `
+ <button onclick="editarProfesor('${item.id}')" class="btn-editar">Editar</button>
+ <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="botAzu">
+ ${profesor.activo ? 'Desactivar' : 'Activar'}
  </button>
+ ` : `
+ <span style="color: #666; font-size: 0.9rem;">Coordinador (no editable)</span>
+ `}
  </div>
  </div>
  `;
