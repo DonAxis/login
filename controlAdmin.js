@@ -28,7 +28,6 @@ auth.onAuthStateChanged(async (user) => {
     return;
   }
 
-  // Verificar rol
   const userDoc = await db.collection('usuarios').doc(user.uid).get();
   
   if (!userDoc.exists) {
@@ -47,14 +46,12 @@ auth.onAuthStateChanged(async (user) => {
     return;
   }
 
-  // Mostrar datos del usuario
   document.getElementById('userName').textContent = userData.nombre;
   document.getElementById('userEmail').textContent = user.email;
   
   console.log('Dashboard de admin cargado');
 });
 
-// Función para cerrar sesión
 async function cerrarSesion() {
   if (confirm('¿Estás seguro de cerrar sesión?')) {
     try {
@@ -68,11 +65,10 @@ async function cerrarSesion() {
   }
 }
 
-// ===== CREAR COORDINADOR =====
+// CREAR COORDINADOR
 async function mostrarModalCoordinador() {
   document.getElementById('modalCoordinador').style.display = 'flex';
   
-  // Cargar carreras
   try {
     const carrerasSnap = await db.collection('carreras').get();
     const select = document.getElementById('carreraCoord');
@@ -109,547 +105,428 @@ async function crearCoordinador(event) {
   }
   
   try {
-    mostrarMensaje("Creando coordinador en Firebase Authentication...", "info");
+    mostrarMensaje("Creando coordinador...", "info");
     
-    // 1. Crear el nuevo usuario en Authentication
-    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    // SOLUCION: Crear una segunda instancia de Firebase Auth
+    // Esto permite crear el usuario sin cerrar la sesión del admin
+    const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+    const secondaryAuth = secondaryApp.auth();
+    
+    // Crear usuario en la instancia secundaria
+    const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
     const newUid = userCredential.user.uid;
-    console.log("Usuario creado en Authentication. UID:", newUid);
+    console.log("Usuario creado en Authentication:", newUid);
     
-    mostrarMensaje("Usuario creado en Authentication. Guardando en Firestore...", "info");
+    // Guardar en Firestore usando la instancia principal
+    await db.collection("usuarios").doc(newUid).set({
+      nombre: nombre,
+      email: email,
+      rol: "coordinador",
+      carreraId: carreraId,
+      carreras: [{
+        carreraId: carreraId,
+        color: "#43a047"
+      }],
+      carreraActual: carreraId,
+      esProfesor: true,
+      activo: true,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
     
-    // 2. ESPERAR 1 SEGUNDO para que Firebase propague permisos
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log("Guardado exitosamente en Firestore");
     
-    console.log("Guardando en Firestore...");
+    // Verificar que se guardó
+    const verificar = await db.collection("usuarios").doc(newUid).get();
     
-    // 3. Crear documento en Firestore CON MÚLTIPLES INTENTOS
-    let intentos = 0;
-    let guardadoExitoso = false;
-    
-    while (intentos < 3 && !guardadoExitoso) {
-      try {
-        await db.collection("usuarios").doc(newUid).set({
-          nombre: nombre,
-          email: email,
-          rol: "coordinador",
-          carreraId: carreraId,
-          carreras: [{
-            carreraId: carreraId,
-            color: "#43a047"
-          }],
-          carreraActual: carreraId,
-          esProfesor: true,
-          activo: true,
-          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        guardadoExitoso = true;
-        console.log("Guardado exitosamente en Firestore");
-        
-      } catch (errorFirestore) {
-        intentos++;
-        console.log(`Intento ${intentos} de guardar falló:`, errorFirestore);
-        
-        if (intentos < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-          throw errorFirestore;
-        }
-      }
+    if (!verificar.exists) {
+      throw new Error("El documento no se guardó en Firestore");
     }
     
-    mostrarMensaje("Guardado en Firestore. Verificando...", "info");
+    console.log("Documento verificado:", verificar.data());
     
-    // 4. ESPERAR OTRO SEGUNDO antes de verificar
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Cerrar sesión de la instancia secundaria
+    await secondaryAuth.signOut();
     
-    // 5. Verificar que se guardó (con reintentos)
-    let verificado = false;
-    intentos = 0;
-    
-    while (intentos < 3 && !verificado) {
-      const verificar = await db.collection("usuarios").doc(newUid).get();
-      
-      if (verificar.exists) {
-        verificado = true;
-        console.log("Documento verificado en Firestore");
-        console.log("Datos guardados:", verificar.data());
-      } else {
-        intentos++;
-        console.log(`Intento ${intentos} de verificar - documento no existe aún`);
-        
-        if (intentos < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-    }
-    
-    if (!verificado) {
-      throw new Error("El documento no se pudo verificar en Firestore después de 3 intentos");
-    }
+    // Eliminar la app secundaria
+    await secondaryApp.delete();
     
     mostrarMensaje(
-      `¡Coordinador creado exitosamente!\n\n` +
-      `Nombre: ${nombre}\n` +
-      `Email: ${email}\n` +
-      `Password: ${password}\n\n` +
-      `El documento se ha guardado en Firestore.\n` +
-      `Ahora puedes cerrar sesión y el coordinador podrá iniciar sesión.`,
+      "Coordinador creado exitosamente\n\n" +
+      "Nombre: " + nombre + "\n" +
+      "Email: " + email + "\n" +
+      "Password: " + password + "\n\n" +
+      "El coordinador ya puede iniciar sesión",
       "success"
     );
     
-    // 6. ESPERAR 2 SEGUNDOS antes de cerrar sesión
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    document.getElementById('formCoordinador').reset();
     
-    // 7. Cerrar sesión del coordinador recién creado
-    console.log("Cerrando sesión del coordinador...");
-    await auth.signOut();
-    
-    // 8. Mostrar alert y redirigir
-    alert(
-      "Coordinador creado exitosamente\n\n" +
-      `Nombre: ${nombre}\n` +
-      `Email: ${email}\n` +
-      `Password: ${password}\n\n` +
-      "IMPORTANTE: Debes iniciar sesión nuevamente como administrador."
-    );
-    
-    window.location.href = "login.html";
+    setTimeout(() => {
+      cerrarModalCoordinador();
+    }, 3000);
     
   } catch (error) {
     console.error("Error completo:", error);
     
     let mensaje = "Error: ";
+    
     if (error.code === "auth/email-already-in-use") {
-      mensaje += "Este email ya está registrado en el sistema";
+      mensaje += "Este email ya está registrado";
     } else if (error.code === "auth/invalid-email") {
       mensaje += "Email inválido";
+    } else if (error.code === "auth/weak-password") {
+      mensaje += "La contraseña es muy débil";
     } else if (error.code === "permission-denied") {
-      mensaje += "Error de permisos en Firestore.\n\n" +
-                "Verifica que las reglas de Firestore permitan escribir en la colección 'usuarios'.\n\n" +
-                "Regla sugerida:\n" +
-                "allow write: if request.auth != null;";
+      mensaje += "Error de permisos en Firestore";
     } else {
       mensaje += error.message;
     }
     
     mostrarMensaje(mensaje, "error");
-    
-    // Esperar 3 segundos antes de cerrar sesión en caso de error
-    setTimeout(async () => {
-      try {
-        await auth.signOut();
-        window.location.href = "login.html";
-      } catch (e) {
-        console.error("Error al cerrar sesión:", e);
-        window.location.href = "login.html";
-      }
-    }, 3000);
   }
 }
 
 function mostrarMensaje(texto, tipo) {
-  const div = document.getElementById('mensajeCoord');
-  if (!div) return;
-  div.textContent = texto;
-  div.style.display = 'block';
-  div.style.whiteSpace = 'pre-line';
-  div.style.padding = '15px';
-  div.style.borderRadius = '8px';
-  div.style.background = tipo === 'error' ? '#ffebee' : tipo === 'success' ? '#e8f5e9' : '#e3f2fd';
-  div.style.color = tipo === 'error' ? '#c62828' : tipo === 'success' ? '#2e7d32' : '#1565c0';
-  div.style.border = tipo === 'error' ? '2px solid #ef5350' : tipo === 'success' ? '2px solid #66bb6a' : '2px solid #42a5f5';
-}
-
-// ===== CREAR CARRERA =====
-function mostrarModalCarrera() {
-  document.getElementById('modalCarrera').style.display = 'flex';
-}
-
-function cerrarModalCarrera() {
-  document.getElementById('modalCarrera').style.display = 'none';
-  document.getElementById('formCarrera').reset();
-  document.getElementById('mensajeCarrera').style.display = 'none';
-}
-
-async function crearCarrera(event) {
-  event.preventDefault();
+  const mensajeDiv = document.getElementById("mensajeCoord");
+  if (!mensajeDiv) return;
   
-  const codigo = document.getElementById('codigoCarrera').value.trim().toUpperCase();
-  const nombre = document.getElementById('nombreCarrera').value.trim();
-  const descripcion = document.getElementById('descripcionCarrera').value.trim();
+  mensajeDiv.style.display = "block";
+  mensajeDiv.textContent = texto;
+  mensajeDiv.style.whiteSpace = "pre-line";
+  mensajeDiv.style.padding = "15px";
+  mensajeDiv.style.borderRadius = "8px";
+  mensajeDiv.style.fontWeight = "500";
   
-  // Validar código (solo letras y números)
-  if (!/^[A-Z0-9]+$/.test(codigo)) {
-    mostrarMensajeCarrera('El código solo puede contener letras y números', 'error');
-    return;
-  }
-  
-  try {
-    mostrarMensajeCarrera('Creando carrera...', 'info');
-    
-    // Verificar si el código ya existe
-    const existeDoc = await db.collection('carreras').doc(codigo).get();
-    if (existeDoc.exists) {
-      mostrarMensajeCarrera('Este código de carrera ya existe', 'error');
-      return;
-    }
-    
-    // Crear carrera
-    await db.collection('carreras').doc(codigo).set({
-      codigo: codigo,
-      nombre: nombre,
-      descripcion: descripcion || '',
-      activa: true,
-      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    mostrarMensajeCarrera('Carrera creada exitosamente', 'success');
-    
-    setTimeout(() => {
-      cerrarModalCarrera();
-    }, 2000);
-    
-  } catch (error) {
-    console.error('Error al crear carrera:', error);
-    mostrarMensajeCarrera('Error al crear la carrera: ' + error.message, 'error');
+  if (tipo === "error") {
+    mensajeDiv.style.background = "#fee";
+    mensajeDiv.style.color = "#c00";
+    mensajeDiv.style.border = "2px solid #fcc";
+  } else if (tipo === "success") {
+    mensajeDiv.style.background = "#efe";
+    mensajeDiv.style.color = "#060";
+    mensajeDiv.style.border = "2px solid #cfc";
+  } else {
+    mensajeDiv.style.background = "#e3f2fd";
+    mensajeDiv.style.color = "#0d47a1";
+    mensajeDiv.style.border = "2px solid #90caf9";
   }
 }
 
-function mostrarMensajeCarrera(texto, tipo) {
-  const div = document.getElementById('mensajeCarrera');
-  if (!div) return;
-  div.textContent = texto;
-  div.style.display = 'block';
-  div.style.background = tipo === 'error' ? '#ffebee' : tipo === 'success' ? '#e8f5e9' : '#e3f2fd';
-  div.style.color = tipo === 'error' ? '#c62828' : tipo === 'success' ? '#2e7d32' : '#1565c0';
-}
-
-// ===== CREAR CONTROL ESCOLAR =====
-function mostrarModalControlEscolar() {
+// CREAR CONTROL ESCOLAR
+async function mostrarModalControlEscolar() {
   document.getElementById('modalControlEscolar').style.display = 'flex';
 }
 
 function cerrarModalControlEscolar() {
   document.getElementById('modalControlEscolar').style.display = 'none';
   document.getElementById('formControlEscolar').reset();
-  document.getElementById('mensajeControl').style.display = 'none';
+  const mensaje = document.getElementById('mensajeControl');
+  if (mensaje) mensaje.style.display = 'none';
 }
 
 async function crearControlEscolar(event) {
   event.preventDefault();
   
-  const nombre = document.getElementById('nombreControl').value.trim();
-  const email = document.getElementById('emailControl').value.trim().toLowerCase();
-  const password = document.getElementById('passControl').value;
+  const nombre = document.getElementById("nombreControl").value.trim();
+  const email = document.getElementById("emailControl").value.trim().toLowerCase();
+  const password = document.getElementById("passControl").value;
   
   if (password.length < 6) {
-    mostrarMensajeControl('La contraseña debe tener al menos 6 caracteres', 'error');
+    mostrarMensajeControl("La contraseña debe tener al menos 6 caracteres", "error");
     return;
   }
   
   try {
-    mostrarMensajeControl('Creando usuario de control escolar...', 'info');
+    mostrarMensajeControl("Creando usuario de control escolar...", "info");
     
-    // Crear usuario en Authentication
-    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    // Usar instancia secundaria
+    const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryControl");
+    const secondaryAuth = secondaryApp.auth();
+    
+    const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
     const newUid = userCredential.user.uid;
-    console.log('Usuario creado en Authentication. UID:', newUid);
+    console.log("Control escolar creado:", newUid);
     
-    // Esperar 1 segundo
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await db.collection("usuarios").doc(newUid).set({
+      nombre: nombre,
+      email: email,
+      rol: "controlEscolar",
+      activo: true,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
     
-    // Guardar en Firestore con reintentos
-    let guardadoExitoso = false;
-    let intentos = 0;
+    console.log("Guardado en Firestore");
     
-    while (intentos < 3 && !guardadoExitoso) {
-      try {
-        await db.collection('usuarios').doc(newUid).set({
-          nombre: nombre,
-          email: email,
-          rol: 'controlEscolar',
-          activo: true,
-          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        guardadoExitoso = true;
-        console.log('Guardado exitosamente en Firestore');
-      } catch (errorFirestore) {
-        intentos++;
-        console.log(`Intento ${intentos} falló:`, errorFirestore);
-        if (intentos < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-          throw errorFirestore;
-        }
-      }
-    }
-    
-    // Esperar 1 segundo más
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Verificar
-    const verificar = await db.collection('usuarios').doc(newUid).get();
-    if (!verificar.exists) {
-      throw new Error('El documento no se pudo verificar en Firestore');
-    }
+    await secondaryAuth.signOut();
+    await secondaryApp.delete();
     
     mostrarMensajeControl(
-      `Control Escolar creado exitosamente!\n\n` +
-      `Nombre: ${nombre}\n` +
-      `Email: ${email}\n` +
-      `Password: ${password}`,
-      'success'
-    );
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    await auth.signOut();
-    
-    alert(
       "Control Escolar creado exitosamente\n\n" +
-      `Nombre: ${nombre}\n` +
-      `Email: ${email}\n` +
-      `Password: ${password}\n\n` +
-      "Debes iniciar sesión nuevamente como administrador."
+      "Nombre: " + nombre + "\n" +
+      "Email: " + email + "\n" +
+      "Password: " + password,
+      "success"
     );
     
-    window.location.href = 'login.html';
+    document.getElementById('formControlEscolar').reset();
+    
+    setTimeout(() => {
+      cerrarModalControlEscolar();
+    }, 3000);
     
   } catch (error) {
-    console.error('Error:', error);
-    let mensaje = 'Error: ';
-    if (error.code === 'auth/email-already-in-use') {
-      mensaje += 'Email ya registrado';
-    } else if (error.code === 'auth/invalid-email') {
-      mensaje += 'Email inválido';
-    } else if (error.code === 'permission-denied') {
-      mensaje += 'Error de permisos. Verifica las reglas de Firestore';
+    console.error("Error:", error);
+    
+    let mensaje = "Error: ";
+    
+    if (error.code === "auth/email-already-in-use") {
+      mensaje += "Este email ya está registrado";
+    } else if (error.code === "auth/invalid-email") {
+      mensaje += "Email inválido";
     } else {
       mensaje += error.message;
     }
-    mostrarMensajeControl(mensaje, 'error');
     
-    setTimeout(async () => {
-      try {
-        await auth.signOut();
-      } catch (e) {
-        console.error('Error al cerrar sesión:', e);
-      }
-      window.location.href = 'login.html';
-    }, 3000);
+    mostrarMensajeControl(mensaje, "error");
   }
 }
 
 function mostrarMensajeControl(texto, tipo) {
-  const div = document.getElementById('mensajeControl');
-  if (!div) return;
-  div.textContent = texto;
-  div.style.display = 'block';
-  div.style.whiteSpace = 'pre-line';
-  div.style.background = tipo === 'error' ? '#ffebee' : tipo === 'success' ? '#e8f5e9' : '#e3f2fd';
-  div.style.color = tipo === 'error' ? '#c62828' : tipo === 'success' ? '#2e7d32' : '#1565c0';
+  const mensajeDiv = document.getElementById("mensajeControl");
+  if (!mensajeDiv) return;
+  
+  mensajeDiv.style.display = "block";
+  mensajeDiv.textContent = texto;
+  mensajeDiv.style.whiteSpace = "pre-line";
+  mensajeDiv.style.padding = "15px";
+  mensajeDiv.style.borderRadius = "8px";
+  mensajeDiv.style.fontWeight = "500";
+  
+  if (tipo === "error") {
+    mensajeDiv.style.background = "#fee";
+    mensajeDiv.style.color = "#c00";
+    mensajeDiv.style.border = "2px solid #fcc";
+  } else if (tipo === "success") {
+    mensajeDiv.style.background = "#efe";
+    mensajeDiv.style.color = "#060";
+    mensajeDiv.style.border = "2px solid #cfc";
+  } else {
+    mensajeDiv.style.background = "#e3f2fd";
+    mensajeDiv.style.color = "#0d47a1";
+    mensajeDiv.style.border = "2px solid #90caf9";
+  }
 }
 
-// ===== GESTIONAR COORDINADORES =====
+// CREAR CARRERA
+async function mostrarModalCarrera() {
+  document.getElementById('modalCarrera').style.display = 'flex';
+}
+
+function cerrarModalCarrera() {
+  document.getElementById('modalCarrera').style.display = 'none';
+  document.getElementById('formCarrera').reset();
+  const mensaje = document.getElementById('mensajeCarrera');
+  if (mensaje) mensaje.style.display = 'none';
+}
+
+async function crearCarrera(event) {
+  event.preventDefault();
+  
+  const codigo = document.getElementById("codigoCarrera").value.trim().toUpperCase();
+  const nombre = document.getElementById("nombreCarrera").value.trim();
+  const descripcion = document.getElementById("descripcionCarrera").value.trim();
+  
+  try {
+    mostrarMensajeCarrera("Creando carrera...", "info");
+    
+    // Verificar que el código no exista
+    const existente = await db.collection('carreras')
+      .where('codigo', '==', codigo)
+      .get();
+    
+    if (!existente.empty) {
+      mostrarMensajeCarrera("Ya existe una carrera con el código " + codigo, "error");
+      return;
+    }
+    
+    await db.collection('carreras').add({
+      codigo: codigo,
+      nombre: nombre,
+      descripcion: descripcion,
+      activa: true,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log("Carrera creada:", codigo);
+    
+    mostrarMensajeCarrera(
+      "Carrera creada exitosamente\n\n" +
+      "Código: " + codigo + "\n" +
+      "Nombre: " + nombre,
+      "success"
+    );
+    
+    document.getElementById('formCarrera').reset();
+    
+    setTimeout(() => {
+      cerrarModalCarrera();
+    }, 2000);
+    
+  } catch (error) {
+    console.error("Error:", error);
+    mostrarMensajeCarrera("Error al crear carrera: " + error.message, "error");
+  }
+}
+
+function mostrarMensajeCarrera(texto, tipo) {
+  const mensajeDiv = document.getElementById("mensajeCarrera");
+  if (!mensajeDiv) return;
+  
+  mensajeDiv.style.display = "block";
+  mensajeDiv.textContent = texto;
+  mensajeDiv.style.whiteSpace = "pre-line";
+  mensajeDiv.style.padding = "15px";
+  mensajeDiv.style.borderRadius = "8px";
+  mensajeDiv.style.fontWeight = "500";
+  
+  if (tipo === "error") {
+    mensajeDiv.style.background = "#fee";
+    mensajeDiv.style.color = "#c00";
+    mensajeDiv.style.border = "2px solid #fcc";
+  } else if (tipo === "success") {
+    mensajeDiv.style.background = "#efe";
+    mensajeDiv.style.color = "#060";
+    mensajeDiv.style.border = "2px solid #cfc";
+  } else {
+    mensajeDiv.style.background = "#e3f2fd";
+    mensajeDiv.style.color = "#0d47a1";
+    mensajeDiv.style.border = "2px solid #90caf9";
+  }
+}
+
+// GESTIONAR COORDINADORES
 async function gestionarCoordinadores() {
   try {
-    console.log('Cargando coordinadores y carreras...');
+    // Cargar coordinadores
+    const coordSnap = await db.collection('usuarios')
+      .where('rol', '==', 'coordinador')
+      .get();
     
-    const [coordinadoresSnap, carrerasSnap] = await Promise.all([
-      db.collection('usuarios').where('rol', '==', 'coordinador').get(),
-      db.collection('carreras').get()
-    ]);
+    coordinadoresData = [];
+    coordSnap.forEach(doc => {
+      coordinadoresData.push({
+        uid: doc.id,
+        ...doc.data()
+      });
+    });
     
-    coordinadoresData = coordinadoresSnap.docs.map(doc => ({
-      uid: doc.id,
-      ...doc.data()
-    }));
+    // Cargar carreras
+    const carrerasSnap = await db.collection('carreras').get();
+    carrerasData = [];
+    carrerasSnap.forEach(doc => {
+      carrerasData.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
     
-    carrerasData = carrerasSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    console.log(`Cargados ${coordinadoresData.length} coordinadores y ${carrerasData.length} carreras`);
-    
-    if (coordinadoresData.length === 0) {
-      alert('No hay coordinadores registrados.\n\nPrimero crea un coordinador usando el botón "Crear Coordinador".');
-      return;
-    }
-    
-    if (carrerasData.length === 0) {
-      alert('No hay carreras registradas.\n\nPrimero crea una carrera usando el botón "Crear Carrera".');
-      return;
-    }
+    console.log('Coordinadores:', coordinadoresData.length);
+    console.log('Carreras:', carrerasData.length);
     
     mostrarListaCoordinadores();
     
   } catch (error) {
-    console.error('Error al cargar datos:', error);
-    alert('Error al cargar coordinadores y carreras.\n\nDetalle: ' + error.message);
+    console.error('Error:', error);
+    alert('Error al cargar datos: ' + error.message);
   }
 }
 
 function mostrarListaCoordinadores() {
-  let html = `
-    <div style="background: white; padding: 40px; border-radius: 20px; max-width: 1000px; margin: 40px auto; box-shadow: 0 25px 80px rgba(0,0,0,0.3);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #667eea;">
-        <h2 style="margin: 0; color: #667eea; font-size: 2rem;">Gestionar Coordinadores</h2>
-        <button onclick="cerrarGestionCoordinadores()" 
-          style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; padding: 0; width: 40px; height: 40px; border-radius: 50%; transition: all 0.3s;"
-          onmouseover="this.style.background='#f5f5f5'; this.style.color='#333';"
-          onmouseout="this.style.background='none'; this.style.color='#999';">
-          &times;
-        </button>
-      </div>
-      
-      <div style="background: #e3f2fd; padding: 18px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #1976d2;">
-        <strong style="color: #0d47a1;">Instrucciones:</strong>
-        <p style="margin: 8px 0 0 0; color: #1565c0; line-height: 1.6;">
-          Selecciona un coordinador para asignar o modificar las carreras que puede gestionar y sus colores distintivos.
-        </p>
-      </div>
-      
-      <div style="display: grid; gap: 15px;">
-  `;
+  if (coordinadoresData.length === 0) {
+    alert('No hay coordinadores registrados. Crea uno primero.');
+    return;
+  }
+  
+  let html = '<div style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; margin: 20px auto;">';
+  html += '<h2 style="color: #667eea; margin-bottom: 25px;">Coordinadores Registrados</h2>';
   
   coordinadoresData.forEach(coord => {
     const carrerasAsignadas = coord.carreras || [];
     const numCarreras = carrerasAsignadas.length;
     
-    let carrerasTexto = '';
-    if (numCarreras === 0) {
-      carrerasTexto = '<span style="color: #f44336; font-weight: 600;">Sin carreras asignadas</span>';
-    } else {
-      const nombresCarreras = carrerasAsignadas.map(ca => {
-        const carrera = carrerasData.find(c => c.id === ca.carreraId);
-        return carrera ? carrera.nombre : 'Desconocida';
-      }).join(', ');
-      carrerasTexto = `<span style="color: #2e7d32; font-weight: 600;">${numCarreras} carrera(s):</span> ${nombresCarreras}`;
-    }
-    
-    html += `
-      <div class="coord-item" 
-           onclick="abrirAsignacionCarreras('${coord.uid}')"
-           style="background: linear-gradient(135deg, #f9f9f9 0%, #ffffff 100%); padding: 20px; border-radius: 12px; border: 2px solid #ddd; cursor: pointer; transition: all 0.3s;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="flex: 1;">
-            <div style="font-size: 1.2rem; font-weight: 700; color: #333; margin-bottom: 6px;">
-              ${coord.nombre}
-            </div>
-            <div style="font-size: 0.95rem; color: #666; margin-bottom: 8px;">
-              ${coord.email}
-            </div>
-            <div style="font-size: 0.9rem; color: #666;">
-              ${carrerasTexto}
-            </div>
-          </div>
-          <div style="background: #667eea; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.95rem;">
-            Configurar →
-          </div>
-        </div>
-      </div>
-    `;
+    html += '<div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 15px; border-left: 5px solid #667eea;">';
+    html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+    html += '<div>';
+    html += '<h3 style="margin: 0 0 10px 0; color: #333;">' + coord.nombre + '</h3>';
+    html += '<p style="margin: 0; color: #666;">' + coord.email + '</p>';
+    html += '<p style="margin: 5px 0 0 0; color: #999; font-size: 0.9rem;">Carreras asignadas: ' + numCarreras + '</p>';
+    html += '</div>';
+    html += '<button onclick="asignarCarreras(\'' + coord.uid + '\')" style="padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Asignar Carreras</button>';
+    html += '</div>';
+    html += '</div>';
   });
   
-  html += `
-      </div>
-      
-      <div style="margin-top: 25px; text-align: center;">
-        <button onclick="cerrarGestionCoordinadores()" 
-          style="padding: 14px 40px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 10px; font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: all 0.3s;"
-          onmouseover="this.style.background='#e0e0e0';"
-          onmouseout="this.style.background='#f5f5f5';">
-          Cerrar
-        </button>
-      </div>
-    </div>
-  `;
+  html += '<button onclick="cerrarListaCoordinadores()" style="padding: 12px 24px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 20px;">Cerrar</button>';
+  html += '</div>';
   
-  const existingModal = document.getElementById('modalGestionCoordinadores');
-  if (existingModal) {
-    existingModal.remove();
-  }
+  const overlay = document.createElement('div');
+  overlay.id = 'overlayCoordinadores';
+  overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1500; overflow-y: auto;';
+  overlay.innerHTML = html;
   
-  const modal = document.createElement('div');
-  modal.id = 'modalGestionCoordinadores';
-  modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1500; overflow-y: auto; backdrop-filter: blur(3px);';
-  modal.innerHTML = html;
-  
-  document.body.appendChild(modal);
+  document.body.appendChild(overlay);
 }
 
-function cerrarGestionCoordinadores() {
-  const modal = document.getElementById('modalGestionCoordinadores');
-  if (modal) {
-    modal.remove();
-  }
+function cerrarListaCoordinadores() {
+  const overlay = document.getElementById('overlayCoordinadores');
+  if (overlay) overlay.remove();
 }
 
-async function abrirAsignacionCarreras(coordinadorUid) {
-  const coordinador = coordinadoresData.find(c => c.uid === coordinadorUid);
-  if (!coordinador) {
+async function asignarCarreras(coordUid) {
+  coordinadorActual = coordinadoresData.find(c => c.uid === coordUid);
+  
+  if (!coordinadorActual) {
     alert('Error: Coordinador no encontrado');
     return;
   }
   
-  coordinadorActual = coordinador;
+  document.getElementById('nombreCoordActual').textContent = coordinadorActual.nombre;
+  document.getElementById('emailCoordActual').textContent = coordinadorActual.email;
   
-  document.getElementById('nombreCoordActual').textContent = coordinador.nombre;
-  document.getElementById('emailCoordActual').textContent = coordinador.email;
-  
-  const carrerasAsignadas = coordinador.carreras || [];
+  const carrerasAsignadas = coordinadorActual.carreras || [];
   
   let html = '';
   
   if (carrerasData.length === 0) {
-    html = `
-      <div style="text-align: center; padding: 40px; color: #999;">
-        <p style="font-size: 1.1rem; margin-bottom: 15px;">No hay carreras disponibles</p>
-        <p>Primero crea carreras usando el botón "Crear Carrera"</p>
-      </div>
-    `;
+    html = '<div style="text-align: center; padding: 40px; color: #999;">No hay carreras disponibles. Crea carreras primero.</div>';
   } else {
     carrerasData.forEach(carrera => {
       const asignacion = carrerasAsignadas.find(c => c.carreraId === carrera.id);
       const estaAsignada = !!asignacion;
       const colorActual = asignacion ? asignacion.color : COLORES_DISPONIBLES[0].hex;
 
-      html += `
-        <div class="carrera-item" style="background: ${estaAsignada ? 'linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%)' : '#f9f9f9'}; padding: 18px; border-radius: 10px; margin-bottom: 12px; border: 2px solid ${estaAsignada ? '#667eea' : '#ddd'}; transition: all 0.3s;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-            
-            <div style="display: flex; align-items: center; flex: 1; min-width: 200px;">
-              <input type="checkbox" 
-                     id="carrera_${carrera.id}" 
-                     ${estaAsignada ? 'checked' : ''}
-                     onchange="toggleCarreraAsignacion('${carrera.id}')"
-                     style="width: 22px; height: 22px; margin-right: 15px; cursor: pointer; accent-color: #667eea;">
-              <label for="carrera_${carrera.id}" style="cursor: pointer; font-weight: 600; font-size: 1.1rem; color: #333;">
-                ${carrera.nombre}
-              </label>
-            </div>
-            
-            <div id="colorSelector_${carrera.id}" 
-                 style="display: ${estaAsignada ? 'flex' : 'none'}; align-items: center; gap: 12px; background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-              <span style="font-size: 0.95rem; color: #666; font-weight: 600;">Color:</span>
-              <select id="colorCarrera_${carrera.id}" 
-                      onchange="actualizarVistaPrevia('${carrera.id}')"
-                      style="padding: 8px 14px; border: 2px solid #ddd; border-radius: 6px; font-size: 0.95rem; cursor: pointer; background: white; font-weight: 500; min-width: 160px;">
-                ${COLORES_DISPONIBLES.map(color => `
-                  <option value="${color.hex}" ${color.hex === colorActual ? 'selected' : ''}>
-                    ${color.nombre}
-                  </option>
-                `).join('')}
-              </select>
-              <div id="preview_${carrera.id}" 
-                   title="Vista previa del color"
-                   style="width: 45px; height: 45px; border-radius: 10px; background: ${colorActual}; border: 4px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.25); transition: all 0.3s; cursor: pointer;"></div>
-            </div>
-          </div>
-        </div>
-      `;
+      html += '<div class="carrera-item" style="background: ' + (estaAsignada ? 'linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%)' : '#f9f9f9') + '; padding: 18px; border-radius: 10px; margin-bottom: 12px; border: 2px solid ' + (estaAsignada ? '#667eea' : '#ddd') + '; transition: all 0.3s;">';
+      html += '<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">';
+      
+      html += '<div style="display: flex; align-items: center; flex: 1; min-width: 200px;">';
+      html += '<input type="checkbox" id="carrera_' + carrera.id + '" ' + (estaAsignada ? 'checked' : '') + ' onchange="toggleCarreraAsignacion(\'' + carrera.id + '\')" style="width: 22px; height: 22px; margin-right: 15px; cursor: pointer; accent-color: #667eea;">';
+      html += '<label for="carrera_' + carrera.id + '" style="cursor: pointer; font-weight: 600; font-size: 1.1rem; color: #333;">' + carrera.nombre + '</label>';
+      html += '</div>';
+      
+      html += '<div id="colorSelector_' + carrera.id + '" style="display: ' + (estaAsignada ? 'flex' : 'none') + '; align-items: center; gap: 12px; background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">';
+      html += '<span style="font-size: 0.95rem; color: #666; font-weight: 600;">Color:</span>';
+      html += '<select id="colorCarrera_' + carrera.id + '" onchange="actualizarVistaPrevia(\'' + carrera.id + '\')" style="padding: 8px 14px; border: 2px solid #ddd; border-radius: 6px; font-size: 0.95rem; cursor: pointer; background: white; font-weight: 500; min-width: 160px;">';
+      
+      COLORES_DISPONIBLES.forEach(color => {
+        html += '<option value="' + color.hex + '" ' + (color.hex === colorActual ? 'selected' : '') + '>' + color.nombre + '</option>';
+      });
+      
+      html += '</select>';
+      html += '<div id="preview_' + carrera.id + '" style="width: 45px; height: 45px; border-radius: 10px; background: ' + colorActual + '; border: 4px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.25); transition: all 0.3s; cursor: pointer;"></div>';
+      html += '</div>';
+      
+      html += '</div>';
+      html += '</div>';
     });
   }
 
@@ -658,8 +535,8 @@ async function abrirAsignacionCarreras(coordinadorUid) {
 }
 
 function toggleCarreraAsignacion(carreraId) {
-  const checkbox = document.getElementById(`carrera_${carreraId}`);
-  const colorSelector = document.getElementById(`colorSelector_${carreraId}`);
+  const checkbox = document.getElementById('carrera_' + carreraId);
+  const colorSelector = document.getElementById('colorSelector_' + carreraId);
   const carreraItem = checkbox.closest('.carrera-item');
   
   if (checkbox.checked) {
@@ -675,8 +552,8 @@ function toggleCarreraAsignacion(carreraId) {
 }
 
 function actualizarVistaPrevia(carreraId) {
-  const select = document.getElementById(`colorCarrera_${carreraId}`);
-  const preview = document.getElementById(`preview_${carreraId}`);
+  const select = document.getElementById('colorCarrera_' + carreraId);
+  const preview = document.getElementById('preview_' + carreraId);
   
   if (select && preview) {
     preview.style.background = select.value;
@@ -697,9 +574,9 @@ async function guardarAsignacionCarreras() {
     const carrerasAsignadas = [];
     
     carrerasData.forEach(carrera => {
-      const checkbox = document.getElementById(`carrera_${carrera.id}`);
+      const checkbox = document.getElementById('carrera_' + carrera.id);
       if (checkbox && checkbox.checked) {
-        const colorSelect = document.getElementById(`colorCarrera_${carrera.id}`);
+        const colorSelect = document.getElementById('colorCarrera_' + carrera.id);
         carrerasAsignadas.push({
           carreraId: carrera.id,
           color: colorSelect.value
@@ -718,7 +595,6 @@ async function guardarAsignacionCarreras() {
       if (!confirmar) return;
     }
 
-    // Detectar colores duplicados
     const coloresUsados = carrerasAsignadas.map(c => c.color);
     const coloresDuplicados = coloresUsados.filter((color, index) => 
       coloresUsados.indexOf(color) !== index
@@ -758,10 +634,10 @@ async function guardarAsignacionCarreras() {
     }).join(', ');
 
     mostrarMensajeAsignacion(
-      `Asignaciones guardadas exitosamente!\n\n` +
-      `Coordinador: ${coordinadorActual.nombre}\n` +
-      `Carreras asignadas (${carrerasAsignadas.length}): ${nombresCarreras}\n\n` +
-      `El coordinador ahora puede gestionar estas carreras desde su panel.`,
+      'Asignaciones guardadas exitosamente\n\n' +
+      'Coordinador: ' + coordinadorActual.nombre + '\n' +
+      'Carreras asignadas (' + carrerasAsignadas.length + '): ' + nombresCarreras + '\n\n' +
+      'El coordinador ahora puede gestionar estas carreras desde su panel.',
       'success'
     );
 
@@ -773,9 +649,9 @@ async function guardarAsignacionCarreras() {
   } catch (error) {
     console.error('Error al guardar:', error);
     mostrarMensajeAsignacion(
-      `Error al guardar asignaciones\n\n` +
-      `Detalle: ${error.message}\n\n` +
-      `Por favor, intenta de nuevo o contacta al administrador del sistema.`,
+      'Error al guardar asignaciones\n\n' +
+      'Detalle: ' + error.message + '\n\n' +
+      'Por favor, intenta de nuevo o contacta al administrador del sistema.',
       'error'
     );
   }
@@ -803,7 +679,7 @@ function mostrarMensajeAsignacion(texto, tipo) {
   const color = colores[tipo] || colores.info;
   div.style.background = color.bg;
   div.style.color = color.text;
-  div.style.borderLeft = `5px solid ${color.border}`;
+  div.style.borderLeft = '5px solid ' + color.border;
   div.style.boxShadow = '0 3px 10px rgba(0,0,0,0.1)';
 }
 
