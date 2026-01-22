@@ -180,34 +180,51 @@
 </head>
 <body>
 
- <!-- TABS DE MODO - CORREGIDO -->
+ <!-- TABS DE MODO - MISMO COLOR -->
  <div style="background: linear-gradient(135deg, #216A32 0%, #21596A 100%); padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 0;">
  <div style="max-width: 1200px; margin: 0 auto; display: flex;">
  <button id="tabCoordinador" onclick="cambiarModo('coordinador')" 
- style="flex: 1; padding: 15px 30px; background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; border: none; border-bottom: 3px solid white; cursor: pointer; font-size: 1.1rem; font-weight: 600; transition: all 0.3s;">
+ style="flex: 1; padding: 15px 30px; background: transparent; color: white; border: none; border-bottom: 3px solid white; cursor: pointer; font-size: 1.1rem; font-weight: 600; transition: all 0.3s;">
  Modo Coordinador
  </button>
  <button id="tabProfesor" onclick="cambiarModo('profesor')" 
- style="flex: 1; padding: 15px 30px; background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: rgba(255,255,255,0.6); border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1.1rem; font-weight: 600; transition: all 0.3s;">
+ style="flex: 1; padding: 15px 30px; background: transparent; color: rgba(255,255,255,0.6); border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1.1rem; font-weight: 600; transition: all 0.3s;">
  Modo Profesor
  </button>
  </div>
  </div>
 
- <!-- HEADER CORREGIDO - MAS COMPACTO -->
- <div class="header" style="margin-top: 0;">
- <div>
- <h1>Panel de Coordinador</h1>
- <p id="carreraInfo">Cargando...</p>
+ <!-- HEADER MAS COMPACTO -->
+ <div style="background: linear-gradient(135deg, rgba(211, 47, 47, 0.9) 0%, rgba(198, 40, 40, 0.9) 100%); color: white; padding: 15px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+ 
+ <!-- Lado izquierdo: Titulo y selector de carrera -->
+ <div style="flex: 1;">
+ <h1 style="margin: 0 0 10px 0; font-size: 1.8rem; color: white;">Panel de Coordinador</h1>
+ 
+ <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+ <div style="display: flex; align-items: center; gap: 10px;">
+ <label style="font-weight: 600; color: white; font-size: 0.95rem;">Cambiar carrera:</label>
+ <select id="selectorCarrera" onchange="cambiarCarreraActiva()" 
+ style="padding: 6px 12px; border: 2px solid white; border-radius: 6px; font-size: 0.95rem; font-weight: 600; background: white; color: #333; cursor: pointer; min-width: 180px;">
+ <option value="">Cargando...</option>
+ </select>
  </div>
- <div class="user-info">
- <p><strong>Nombre:</strong> <span id="nombreUsuario">Cargando...</span></p>
- <p><strong>Email:</strong> <span id="emailUsuario">Cargando...</span></p>
- <p><strong>Carrera:</strong> <span id="carreraUsuario">Cargando...</span></p>
- <p style="background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; padding: 6px 12px; border-radius: 6px; font-weight: 600; margin-top: 8px; display: inline-block;">
+ 
+ <div style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 6px; font-size: 0.9rem;">
+ <strong>Carreras asignadas:</strong> <span id="numCarrerasAsignadas">0</span>
+ </div>
+ </div>
+ </div>
+ 
+ <!-- Lado derecho: Info del usuario -->
+ <div style="text-align: right;">
+ <p style="margin: 3px 0; font-size: 0.9rem;"><strong>Nombre:</strong> <span id="nombreUsuario">Cargando...</span></p>
+ <p style="margin: 3px 0; font-size: 0.9rem;"><strong>Email:</strong> <span id="emailUsuario">Cargando...</span></p>
+ <p style="margin: 3px 0; font-size: 0.9rem;"><strong>Carrera:</strong> <span id="carreraUsuario">Cargando...</span></p>
+ <p style="background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; padding: 5px 12px; border-radius: 6px; font-weight: 600; margin: 8px 0 8px auto; display: inline-block; font-size: 0.9rem;">
  <strong>Periodo:</strong> <span id="periodoUsuario">Cargando...</span>
  </p>
- <button onclick="cerrarSesion()" class="btn-logout">Cerrar Sesion</button>
+ <button onclick="cerrarSesion()" class="btn-logout" style="margin-top: 5px; padding: 6px 16px; font-size: 0.9rem;">Cerrar Sesion</button>
  </div>
  </div>
 
