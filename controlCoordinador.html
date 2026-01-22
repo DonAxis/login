@@ -16,7 +16,6 @@
  display: flex;
  justify-content: space-between;
  align-items: center;
- transition: background 0.5s cubic-bezier(0.4, 0, 0.2, 1);
  }
 
  .header h1 {
@@ -177,141 +176,45 @@
  padding: 40px;
  color: #999;
  }
-
- /* ESTILOS MULTI-CARRERA */
- #selectCarrera {
- transition: all 0.3s ease;
- }
-
- #selectCarrera:hover {
- box-shadow: 0 4px 12px rgba(0,0,0,0.25);
- }
-
- #selectCarrera:focus {
- outline: none;
- border-color: #ffd700;
- box-shadow: 0 0 0 3px rgba(255,215,0,0.3);
- }
-
- @keyframes pulse {
- 0%, 100% { transform: scale(1); }
- 50% { transform: scale(1.1); }
- }
-
- #cantidadCarreras.actualizado {
- animation: pulse 0.5s ease;
- }
-
- @media (max-width: 1024px) {
- .header {
- flex-direction: column;
- gap: 20px;
- }
-
- .header > div:first-child {
- width: 100%;
- }
-
- .user-info {
- text-align: left !important;
- width: 100%;
- }
-
- #selectorCarreras {
- margin-top: 20px !important;
- }
-
- #selectCarrera {
- width: 100%;
- min-width: auto;
- }
- }
-
- @media (max-width: 768px) {
- .header h1 {
- font-size: 1.8rem !important;
- }
-
- #carreraInfo {
- font-size: 1.5rem !important;
- }
-
- #selectCarrera {
- font-size: 0.9rem;
- padding: 8px 16px;
- }
- }
  </style>
 </head>
 <body>
 
- <!-- TABS DE MODO -->
- <div style="background: linear-gradient(135deg, #216A32 0%, #21596A 100%); padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+ <!-- TABS DE MODO - CORREGIDO -->
+ <div style="background: linear-gradient(135deg, #216A32 0%, #21596A 100%); padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 0;">
  <div style="max-width: 1200px; margin: 0 auto; display: flex;">
  <button id="tabCoordinador" onclick="cambiarModo('coordinador')" 
- style="flex: 1; padding: 15px 30px; background: white; color: #216A32; border: none; border-bottom: 3px solid #216A32; cursor: pointer; font-size: 1.1rem; font-weight: 600; transition: all 0.3s;">
+ style="flex: 1; padding: 15px 30px; background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; border: none; border-bottom: 3px solid white; cursor: pointer; font-size: 1.1rem; font-weight: 600; transition: all 0.3s;">
  Modo Coordinador
  </button>
  <button id="tabProfesor" onclick="cambiarModo('profesor')" 
- style="flex: 1; padding: 15px 30px; background: rgba(255,255,255,0.2); color: white; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1.1rem; font-weight: 600; transition: all 0.3s;">
+ style="flex: 1; padding: 15px 30px; background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: rgba(255,255,255,0.6); border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1.1rem; font-weight: 600; transition: all 0.3s;">
  Modo Profesor
  </button>
  </div>
  </div>
 
- <!-- HEADER ACTUALIZADO CON SISTEMA MULTI-CARRERA -->
- <div class="header" id="headerCoordinador" style="transition: background 0.5s ease;">
- <div style="flex: 1;">
- <h1 style="margin: 0 0 8px 0; font-size: 2.2rem;">Panel de Coordinador</h1>
- 
- <!-- Nombre de carrera (más grande) -->
- <p id="carreraInfo" style="margin: 0; font-size: 2rem; font-weight: 800; text-shadow: 2px 2px 6px rgba(0,0,0,0.25);">
- Cargando...
- </p>
- 
- <!-- NUEVO: Selector de carreras (solo visible si tiene múltiples carreras) -->
- <div id="selectorCarreras" style="margin-top: 15px; display: none;">
- <div style="display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.15); padding: 12px 16px; border-radius: 10px; backdrop-filter: blur(10px);">
- <label for="selectCarrera" style="font-size: 0.95rem; font-weight: 600; opacity: 0.95;">
- Cambiar carrera:
- </label>
- <select id="selectCarrera" onchange="cambiarCarreraActiva()" 
- style="padding: 10px 20px; border: 3px solid white; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.95); color: #333; min-width: 280px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
- onmouseover="this.style.background='white'; this.style.transform='scale(1.02)';"
- onmouseout="this.style.background='rgba(255,255,255,0.95)'; this.style.transform='scale(1)';">
- <option value="">Cargando carreras...</option>
- </select>
+ <!-- HEADER CORREGIDO - MAS COMPACTO -->
+ <div class="header" style="margin-top: 0;">
+ <div>
+ <h1>Panel de Coordinador</h1>
+ <p id="carreraInfo">Cargando...</p>
  </div>
- </div>
- </div>
- 
- <!-- Información del usuario -->
- <div class="user-info" style="text-align: right;">
- <p style="margin: 5px 0;"><strong>Nombre:</strong> <span id="nombreUsuario">Cargando...</span></p>
- <p style="margin: 5px 0;"><strong>Email:</strong> <span id="emailUsuario">Cargando...</span></p>
- 
- <!-- NUEVO: Mostrar cantidad de carreras -->
- <p style="margin: 5px 0;">
- <strong>Carreras asignadas:</strong> 
- <span id="cantidadCarreras" style="background: rgba(255,255,255,0.25); padding: 4px 10px; border-radius: 12px; font-weight: 700;">0</span>
- </p>
- 
- <!-- Periodo actual -->
- <p style="background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; padding: 10px 14px; border-radius: 8px; font-weight: 600; margin-top: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+ <div class="user-info">
+ <p><strong>Nombre:</strong> <span id="nombreUsuario">Cargando...</span></p>
+ <p><strong>Email:</strong> <span id="emailUsuario">Cargando...</span></p>
+ <p><strong>Carrera:</strong> <span id="carreraUsuario">Cargando...</span></p>
+ <p style="background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; padding: 6px 12px; border-radius: 6px; font-weight: 600; margin-top: 8px; display: inline-block;">
  <strong>Periodo:</strong> <span id="periodoUsuario">Cargando...</span>
  </p>
- 
- <!-- Botón cerrar sesión -->
- <button onclick="cerrarSesion()" class="btn-logout" style="width: 100%; margin-top: 12px;">
- Cerrar Sesión
- </button>
+ <button onclick="cerrarSesion()" class="btn-logout">Cerrar Sesion</button>
  </div>
  </div>
 
  <!-- CONTENEDOR MODO COORDINADOR -->
  <div id="modoCoordinador" style="display: block;">
  
- <!-- MENÚ PRINCIPAL -->
+ <!-- MENU PRINCIPAL -->
  <div id="menuPrincipal" class="menu-principal">
  <div class="menu-card" id="menuCarreras" onclick="mostrarSeccion('carreras')" style="display: none;">
  <h3>Carreras</h3>
@@ -320,7 +223,7 @@
 
  <div class="menu-card" onclick="mostrarSeccion('grupos')">
  <h3>Grupos</h3>
- <p>Gestionar grupos académicos</p>
+ <p>Gestionar grupos academicos</p>
  </div>
 
  <div class="menu-card" onclick="mostrarSeccion('materias')">
@@ -335,17 +238,17 @@
 
  <div class="menu-card" onclick="mostrarSeccion('alumnos')">
  <h3>Gestionar Alumnos</h3>
- <p>Registrar y administrar alumnos</p>
+ <p>Crear y administrar alumnos</p>
  </div>
 
  <div class="menu-card" onclick="mostrarSeccion('asignaciones')">
  <h3>Armar Grupos</h3>
- <p>Asignar profesores a materias y grupos</p>
+ <p>Asignar profesores a materias</p>
  </div>
 
  <div class="menu-card" onclick="mostrarSeccion('inscripciones')">
  <h3>Inscripciones Especiales</h3>
- <p>Inscribir alumnos fuera del grupo regular</p>
+ <p>Inscripciones fuera del grupo regular</p>
  </div>
 
  <div class="menu-card" onclick="mostrarSeccion('calificaciones')">
@@ -353,17 +256,17 @@
  <p>Ver y editar calificaciones</p>
  </div>
 
- <div class="menu-card" onclick="mostrarSeccionPeriodos()">
+ <div class="menu-card" onclick="mostrarSeccion('periodos')">
  <h3>Periodos</h3>
- <p>Gestionar periodos académicos</p>
+ <p>Gestionar periodos academicos</p>
  </div>
  </div>
 
- <!-- SECCIÓN: CARRERAS (solo para admin) -->
+ <!-- SECCION: CARRERAS -->
  <div id="seccionCarreras" class="seccion-contenido">
  <div class="seccion-header">
- <h2>Gestión de Carreras</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
+ <h2>Gestion de Carreras</h2>
+ <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
  </div>
  <div class="botones-accion">
  <button onclick="mostrarFormCarrera()" class="botAzu">Nueva Carrera</button>
@@ -371,23 +274,11 @@
  <div id="listaCarreras" class="lista-items"></div>
  </div>
 
- <!-- SECCIÓN: GRUPOS -->
- <div id="seccionGrupos" class="seccion-contenido">
- <div class="seccion-header">
- <h2>Gestión de Grupos</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
- </div>
- <div class="botones-accion">
- <button onclick="mostrarFormGrupo()" class="botAzu">Nuevo Grupo</button>
- </div>
- <div id="listaGrupos" class="lista-items"></div>
- </div>
-
- <!-- SECCIÓN: MATERIAS -->
+ <!-- SECCION: MATERIAS -->
  <div id="seccionMaterias" class="seccion-contenido">
  <div class="seccion-header">
- <h2>Gestión de Materias</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
+ <h2>Gestion de Materias</h2>
+ <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
  </div>
  <div class="botones-accion">
  <button onclick="mostrarFormMateria()" class="botAzu">Nueva Materia</button>
@@ -395,11 +286,23 @@
  <div id="listaMaterias" class="lista-items"></div>
  </div>
 
- <!-- SECCIÓN: PROFESORES -->
+ <!-- SECCION: GRUPOS -->
+ <div id="seccionGrupos" class="seccion-contenido">
+ <div class="seccion-header">
+ <h2>Gestion de Grupos</h2>
+ <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+ </div>
+ <div class="botones-accion">
+ <button onclick="mostrarGenerarGrupos()" class="botAzu">Generar Grupos</button>
+ </div>
+ <div id="listaGrupos" class="lista-items"></div>
+ </div>
+
+ <!-- SECCION: GESTIONAR PROFESORES -->
  <div id="seccionProfesores" class="seccion-contenido">
  <div class="seccion-header">
- <h2>Gestión de Profesores</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
+ <h2>Gestion de Profesores</h2>
+ <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
  </div>
  <div class="botones-accion">
  <button onclick="mostrarFormProfesor()" class="botAzu">Nuevo Profesor</button>
@@ -407,11 +310,11 @@
  <div id="listaProfesores" class="lista-items"></div>
  </div>
 
- <!-- SECCIÓN: GESTIONAR ALUMNOS -->
+ <!-- SECCION: GESTIONAR ALUMNOS -->
  <div id="seccionAlumnos" class="seccion-contenido">
  <div class="seccion-header">
  <h2>Registro de Alumnos</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
+ <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
  </div>
  <div class="botones-accion">
  <button onclick="mostrarFormAlumno()" class="botAzu">Nuevo Alumno</button>
@@ -442,35 +345,35 @@
  <div id="listaAlumnos" class="lista-items"></div>
  </div>
 
- <!-- SECCIÓN: ASIGNAR PROFESORES -->
+ <!-- SECCION: ASIGNAR PROFESORES -->
  <div id="seccionAsignaciones" class="seccion-contenido">
  <div class="seccion-header">
  <h2>Armar Grupos (Materia + Profesor + Grupo)</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
+ <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
  </div>
  <div class="botones-accion">
- <button onclick="mostrarFormAsignarProfesor()" class="botAzu">Nueva Asignación</button>
+ <button onclick="mostrarFormAsignarProfesor()" class="botAzu">Nueva Asignacion</button>
  </div>
  <div id="listaAsignaciones" class="lista-items"></div>
  </div>
 
- <!-- SECCIÓN: INSCRIBIR ALUMNOS -->
+ <!-- SECCION: INSCRIBIR ALUMNOS -->
  <div id="seccionInscripciones" class="seccion-contenido">
  <div class="seccion-header">
  <h2>Inscripciones Especiales</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
+ <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
  </div>
  <div class="botones-accion">
- <button onclick="mostrarFormInscribirAlumno()" class="botAzu">Nueva Inscripción</button>
+ <button onclick="mostrarFormInscribirAlumno()" class="botAzu">Nueva Inscripcion</button>
  </div>
  <div id="listaInscripciones" class="lista-items"></div>
  </div>
 
- <!-- SECCIÓN: CALIFICACIONES -->
+ <!-- SECCION: CALIFICACIONES -->
  <div id="seccionCalificaciones" class="seccion-contenido">
  <div class="seccion-header">
  <h2>Gestionar Calificaciones</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
+ <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
  </div>
 
  <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
@@ -494,7 +397,7 @@
  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
  <div>
  <h3 style="margin: 0;" id="tituloMateriaCalif">Materia</h3>
- <p style="margin: 5px 0; color: #666;" id="infoMateriaCalif">Información de la materia</p>
+ <p style="margin: 5px 0; color: #666;" id="infoMateriaCalif">Informacion de la materia</p>
  </div>
  <div style="display: flex; gap: 10px;">
  <button onclick="guardarTodasCalificacionesCoord()" 
@@ -512,30 +415,11 @@
  </div>
  </div>
 
- <!-- MODAL GENÉRICO -->
- <div id="modalGenerico" class="modal">
- <div class="modal-contenido">
- <span class="cerrar" onclick="cerrarModal()">&times;</span>
- <h2 id="tituloModal">Formulario</h2>
- <div id="contenidoModal"></div>
- </div>
- </div>
-
- <!-- Firebase SDK -->
- </div>
- <!-- FIN MODO COORDINADOR -->
-
- <!-- CONTENEDOR MODO PROFESOR -->
- <div id="modoProfesor" style="display: none;">
- <iframe id="iframeProfesor" src="" style="width: 100%; height: calc(100vh - 60px); border: none;"></iframe>
- </div>
- <!-- FIN MODO PROFESOR -->
-
  <!-- SECCION: PERIODOS -->
 <div id="seccionPeriodos" class="seccion-contenido">
   <div class="seccion-header">
     <h2>Periodos Academicos</h2>
-    <button onclick="volverMenu()" class="btn-volver">← Volver al Menú</button>
+    <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
   </div>
 
   <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
@@ -607,7 +491,25 @@
   </div>
 </div>
 
- <!-- jsPDF para generar PDFs -->
+ <!-- MODAL GENERICO -->
+ <div id="modalGenerico" class="modal">
+ <div class="modal-contenido">
+ <span class="cerrar" onclick="cerrarModal()">&times;</span>
+ <h2 id="tituloModal">Formulario</h2>
+ <div id="contenidoModal"></div>
+ </div>
+ </div>
+
+ </div>
+ <!-- FIN MODO COORDINADOR -->
+
+ <!-- CONTENEDOR MODO PROFESOR -->
+ <div id="modoProfesor" style="display: none;">
+ <iframe id="iframeProfesor" src="" style="width: 100%; height: calc(100vh - 60px); border: none;"></iframe>
+ </div>
+ <!-- FIN MODO PROFESOR -->
+
+ <!-- Firebase SDK -->
  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
@@ -622,13 +524,12 @@
  <script src="coordinador.js"></script>
  <script src="cambioPeriodo.js"></script>
 
- <!-- Verificar que jsPDF se cargó -->
  <script>
  window.addEventListener('load', () => {
  if (typeof window.jspdf !== 'undefined') {
  console.log('jsPDF cargado correctamente');
  } else {
- console.error('ERROR: jsPDF no se cargó');
+ console.error('ERROR: jsPDF no se cargo');
  }
  });
  </script>
