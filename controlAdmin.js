@@ -109,56 +109,142 @@ async function crearCoordinador(event) {
   }
   
   try {
-    mostrarMensaje("Creando coordinador...", "info");
+    mostrarMensaje("Creando coordinador en Firebase Authentication...", "info");
+    
+    // 1. Crear el nuevo usuario en Authentication
     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
     const newUid = userCredential.user.uid;
     console.log("Usuario creado en Authentication. UID:", newUid);
     
-    // Esperar un momento para que Firebase propague permisos
-    await new Promise(resolve => setTimeout(resolve, 500));
+    mostrarMensaje("Usuario creado en Authentication. Guardando en Firestore...", "info");
+    
+    // 2. ESPERAR 1 SEGUNDO para que Firebase propague permisos
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     console.log("Guardando en Firestore...");
     
-    // NUEVO SISTEMA: Crear con array carreras y color por defecto
-    await db.collection("usuarios").doc(newUid).set({
-      nombre: nombre,
-      email: email,
-      rol: "coordinador",
-      carreraId: carreraId,  // Mantener para compatibilidad
-      carreras: [{  // NUEVO: Array de carreras
-        carreraId: carreraId,
-        color: "#43a047"  // Color verde por defecto
-      }],
-      carreraActual: carreraId,  // NUEVO: Carrera actualmente seleccionada
-      esProfesor: true,
-      activo: true,
-      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    // 3. Crear documento en Firestore CON MÚLTIPLES INTENTOS
+    let intentos = 0;
+    let guardadoExitoso = false;
     
-    console.log("Guardado exitosamente en Firestore");
-    
-    // Verificar que se guardó
-    const verificar = await db.collection("usuarios").doc(newUid).get();
-    if (!verificar.exists) {
-      throw new Error("El documento no se guardó en Firestore");
+    while (intentos < 3 && !guardadoExitoso) {
+      try {
+        await db.collection("usuarios").doc(newUid).set({
+          nombre: nombre,
+          email: email,
+          rol: "coordinador",
+          carreraId: carreraId,
+          carreras: [{
+            carreraId: carreraId,
+            color: "#43a047"
+          }],
+          carreraActual: carreraId,
+          esProfesor: true,
+          activo: true,
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        guardadoExitoso = true;
+        console.log("Guardado exitosamente en Firestore");
+        
+      } catch (errorFirestore) {
+        intentos++;
+        console.log(`Intento ${intentos} de guardar falló:`, errorFirestore);
+        
+        if (intentos < 3) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          throw errorFirestore;
+        }
+      }
     }
-    console.log("Documento verificado en Firestore");
     
+    mostrarMensaje("Guardado en Firestore. Verificando...", "info");
+    
+    // 4. ESPERAR OTRO SEGUNDO antes de verificar
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 5. Verificar que se guardó (con reintentos)
+    let verificado = false;
+    intentos = 0;
+    
+    while (intentos < 3 && !verificado) {
+      const verificar = await db.collection("usuarios").doc(newUid).get();
+      
+      if (verificar.exists) {
+        verificado = true;
+        console.log("Documento verificado en Firestore");
+        console.log("Datos guardados:", verificar.data());
+      } else {
+        intentos++;
+        console.log(`Intento ${intentos} de verificar - documento no existe aún`);
+        
+        if (intentos < 3) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    
+    if (!verificado) {
+      throw new Error("El documento no se pudo verificar en Firestore después de 3 intentos");
+    }
+    
+    mostrarMensaje(
+      `¡Coordinador creado exitosamente!\n\n` +
+      `Nombre: ${nombre}\n` +
+      `Email: ${email}\n` +
+      `Password: ${password}\n\n` +
+      `El documento se ha guardado en Firestore.\n` +
+      `Ahora puedes cerrar sesión y el coordinador podrá iniciar sesión.`,
+      "success"
+    );
+    
+    // 6. ESPERAR 2 SEGUNDOS antes de cerrar sesión
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // 7. Cerrar sesión del coordinador recién creado
+    console.log("Cerrando sesión del coordinador...");
     await auth.signOut();
-    alert("Coordinador creado exitosamente\n\nNombre: " + nombre + "\nEmail: " + email + "\nPassword: " + password + "\n\nAhora inicia sesión de nuevo.");
+    
+    // 8. Mostrar alert y redirigir
+    alert(
+      "Coordinador creado exitosamente\n\n" +
+      `Nombre: ${nombre}\n` +
+      `Email: ${email}\n` +
+      `Password: ${password}\n\n` +
+      "IMPORTANTE: Debes iniciar sesión nuevamente como administrador."
+    );
+    
     window.location.href = "login.html";
     
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error completo:", error);
+    
     let mensaje = "Error: ";
-    if (error.code === "auth/email-already-in-use") mensaje += "Email ya registrado";
-    else if (error.code === "auth/invalid-email") mensaje += "Email inválido";
-    else if (error.code === "permission-denied") mensaje += "Error de permisos. Actualiza reglas de Firestore";
-    else mensaje += error.message;
+    if (error.code === "auth/email-already-in-use") {
+      mensaje += "Este email ya está registrado en el sistema";
+    } else if (error.code === "auth/invalid-email") {
+      mensaje += "Email inválido";
+    } else if (error.code === "permission-denied") {
+      mensaje += "Error de permisos en Firestore.\n\n" +
+                "Verifica que las reglas de Firestore permitan escribir en la colección 'usuarios'.\n\n" +
+                "Regla sugerida:\n" +
+                "allow write: if request.auth != null;";
+    } else {
+      mensaje += error.message;
+    }
+    
     mostrarMensaje(mensaje, "error");
+    
+    // Esperar 3 segundos antes de cerrar sesión en caso de error
     setTimeout(async () => {
-      await auth.signOut();
-      window.location.href = "login.html";
+      try {
+        await auth.signOut();
+        window.location.href = "login.html";
+      } catch (e) {
+        console.error("Error al cerrar sesión:", e);
+        window.location.href = "login.html";
+      }
     }, 3000);
   }
 }
@@ -168,8 +254,12 @@ function mostrarMensaje(texto, tipo) {
   if (!div) return;
   div.textContent = texto;
   div.style.display = 'block';
+  div.style.whiteSpace = 'pre-line';
+  div.style.padding = '15px';
+  div.style.borderRadius = '8px';
   div.style.background = tipo === 'error' ? '#ffebee' : tipo === 'success' ? '#e8f5e9' : '#e3f2fd';
   div.style.color = tipo === 'error' ? '#c62828' : tipo === 'success' ? '#2e7d32' : '#1565c0';
+  div.style.border = tipo === 'error' ? '2px solid #ef5350' : tipo === 'success' ? '2px solid #66bb6a' : '2px solid #42a5f5';
 }
 
 // ===== CREAR CARRERA =====
@@ -215,168 +305,25 @@ async function crearCarrera(event) {
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    alert(`Carrera creada exitosamente\n\nCódigo: ${codigo}\nNombre: ${nombre}`);
-    cerrarModalCarrera();
+    mostrarMensajeCarrera('Carrera creada exitosamente', 'success');
+    
+    setTimeout(() => {
+      cerrarModalCarrera();
+    }, 2000);
     
   } catch (error) {
-    console.error('Error:', error);
-    mostrarMensajeCarrera('Error al crear carrera', 'error');
+    console.error('Error al crear carrera:', error);
+    mostrarMensajeCarrera('Error al crear la carrera: ' + error.message, 'error');
   }
 }
 
 function mostrarMensajeCarrera(texto, tipo) {
   const div = document.getElementById('mensajeCarrera');
+  if (!div) return;
   div.textContent = texto;
   div.style.display = 'block';
   div.style.background = tipo === 'error' ? '#ffebee' : tipo === 'success' ? '#e8f5e9' : '#e3f2fd';
   div.style.color = tipo === 'error' ? '#c62828' : tipo === 'success' ? '#2e7d32' : '#1565c0';
-}
-
-// ===== CONTROL DE PERIODOS =====
-async function mostrarControlPeriodos() {
-  try {
-    // Generar lista de periodos
-    const periodos = [];
-    for (let year = 2024; year <= 2030; year++) {
-      periodos.push(`${year}-1`);
-      periodos.push(`${year}-2`);
-    }
-
-    // Obtener periodo actual
-    const periodoDoc = await db.collection('config').doc('periodoActual').get();
-    const periodoActual = periodoDoc.exists ? periodoDoc.data().periodo : '2026-1';
-
-    const periodosHtml = periodos.map(p => 
-      `<option value="${p}" ${p === periodoActual ? 'selected' : ''}>${p}</option>`
-    ).join('');
-
-    const modal = document.createElement('div');
-    modal.id = 'modalControlPeriodos';
-    modal.style.cssText = 'display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; overflow-y: auto;';
-    
-    modal.innerHTML = `
-      <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; width: 90%; margin: 40px auto; box-shadow: 0 25px 80px rgba(0,0,0,0.4);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-          <h2 style="margin: 0; color: #ff9800;">Control de Periodos (ADMIN)</h2>
-          <button onclick="cerrarModalControlPeriodos()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999;">&times;</button>
-        </div>
-
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <h3 style="margin-top: 0; color: #333;">Periodo Actual del Sistema</h3>
-          <div style="font-size: 2rem; font-weight: bold; color: #216A32; margin: 10px 0;">${periodoActual}</div>
-        </div>
-
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Selecciona nuevo periodo:</label>
-          <select id="selectPeriodoAdmin" style="width: 100%; padding: 12px; border: 2px solid #ff9800; border-radius: 8px; font-size: 1.1rem;">
-            ${periodosHtml}
-          </select>
-        </div>
-
-        <div style="background: #ffebee; padding: 15px; border-radius: 8px; border-left: 4px solid #f44336; margin-bottom: 20px;">
-          <strong>IMPORTANTE:</strong>
-          <ul style="margin: 10px 0; padding-left: 20px;">
-            <li>Este cambio NO avanza alumnos automáticamente</li>
-            <li>Los alumnos mantienen su periodo actual</li>
-            <li>Solo cambia el periodo global del sistema</li>
-            <li>Útil para pruebas y resetear el sistema</li>
-          </ul>
-        </div>
-
-        <div style="display: flex; gap: 10px;">
-          <button onclick="cambiarPeriodoAdmin()" 
-            style="flex: 1; padding: 12px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-            Cambiar Periodo (Sin Avanzar Alumnos)
-          </button>
-          <button onclick="cerrarModalControlPeriodos()" 
-            style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
-            Cancelar
-          </button>
-        </div>
-
-        <div id="mensajeControlPeriodo" style="margin-top: 15px; padding: 15px; border-radius: 8px; display: none;"></div>
-      </div>
-    `;
-
-    document.body.appendChild(modal);
-    
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Error al cargar control de periodos');
-  }
-}
-
-async function cambiarPeriodoAdmin() {
-  const nuevoPeriodo = document.getElementById('selectPeriodoAdmin').value;
-  
-  if (!nuevoPeriodo) {
-    alert('Selecciona un periodo');
-    return;
-  }
-
-  const password = prompt('Por seguridad, ingresa tu contraseña de administrador:');
-  if (!password) {
-    alert('Cambio cancelado');
-    return;
-  }
-
-  try {
-    // Verificar contraseña
-    const user = firebase.auth().currentUser;
-    const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
-    await user.reauthenticateWithCredential(credential);
-
-    const confirmacion = confirm(
-      `CONFIRMAR CAMBIO DE PERIODO (ADMIN)\n\n` +
-      `Nuevo periodo: ${nuevoPeriodo}\n\n` +
-      `IMPORTANTE:\n` +
-      `- Solo cambia el periodo global\n` +
-      `- NO avanza alumnos automáticamente\n` +
-      `- Los alumnos mantienen su periodo actual\n` +
-      `- Las asignaciones NO se desactivan\n\n` +
-      `Esto es útil para:\n` +
-      `- Resetear el sistema a 2026-1\n` +
-      `- Hacer pruebas de desarrollo\n` +
-      `- Volver a un periodo anterior\n\n` +
-      `¿Continuar?`
-    );
-
-    if (!confirmacion) return;
-
-    // Actualizar solo el periodo global
-    await db.collection('config').doc('periodoActual').set({
-      periodo: nuevoPeriodo,
-      periodoAnterior: null,
-      fechaCambio: firebase.firestore.FieldValue.serverTimestamp(),
-      cambiadoPorAdmin: true,
-      adminUid: user.uid
-    }, { merge: true });
-
-    alert(
-      `Periodo cambiado exitosamente\n\n` +
-      `Nuevo periodo: ${nuevoPeriodo}\n\n` +
-      `IMPORTANTE:\n` +
-      `- El sistema ahora usa el periodo ${nuevoPeriodo}\n` +
-      `- Los alumnos NO se movieron\n` +
-      `- Las asignaciones NO se desactivaron\n\n` +
-      `La página se recargará.`
-    );
-
-    location.reload();
-
-  } catch (error) {
-    console.error('Error:', error);
-    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-      alert('Contraseña incorrecta');
-    } else {
-      alert('Error: ' + error.message);
-    }
-  }
-}
-
-function cerrarModalControlPeriodos() {
-  const modal = document.getElementById('modalControlPeriodos');
-  if (modal) modal.remove();
 }
 
 // ===== CREAR CONTROL ESCOLAR =====
@@ -387,64 +334,109 @@ function mostrarModalControlEscolar() {
 function cerrarModalControlEscolar() {
   document.getElementById('modalControlEscolar').style.display = 'none';
   document.getElementById('formControlEscolar').reset();
-  const mensajeDiv = document.getElementById('mensajeControl');
-  if (mensajeDiv) mensajeDiv.style.display = 'none';
+  document.getElementById('mensajeControl').style.display = 'none';
 }
 
 async function crearControlEscolar(event) {
   event.preventDefault();
   
-  const nombre = document.getElementById("nombreControl").value.trim();
-  const email = document.getElementById("emailControl").value.trim().toLowerCase();
-  const password = document.getElementById("passControl").value;
+  const nombre = document.getElementById('nombreControl').value.trim();
+  const email = document.getElementById('emailControl').value.trim().toLowerCase();
+  const password = document.getElementById('passControl').value;
   
   if (password.length < 6) {
-    mostrarMensajeControl("La contraseña debe tener al menos 6 caracteres", "error");
+    mostrarMensajeControl('La contraseña debe tener al menos 6 caracteres', 'error');
     return;
   }
   
   try {
-    mostrarMensajeControl("Creando Control Escolar...", "info");
+    mostrarMensajeControl('Creando usuario de control escolar...', 'info');
+    
+    // Crear usuario en Authentication
     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
     const newUid = userCredential.user.uid;
-    console.log("Usuario creado en Authentication. UID:", newUid);
+    console.log('Usuario creado en Authentication. UID:', newUid);
     
-    // Esperar un momento para que Firebase propague permisos
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Esperar 1 segundo
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    console.log("Guardando en Firestore...");
-    await db.collection("usuarios").doc(newUid).set({
-      nombre: nombre,
-      email: email,
-      rol: "controlEscolar",
-      activo: true,
-      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    // Guardar en Firestore con reintentos
+    let guardadoExitoso = false;
+    let intentos = 0;
     
-    console.log("Guardado exitosamente en Firestore");
-    
-    // Verificar que se guardó
-    const verificar = await db.collection("usuarios").doc(newUid).get();
-    if (!verificar.exists) {
-      throw new Error("El documento no se guardó en Firestore");
+    while (intentos < 3 && !guardadoExitoso) {
+      try {
+        await db.collection('usuarios').doc(newUid).set({
+          nombre: nombre,
+          email: email,
+          rol: 'controlEscolar',
+          activo: true,
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        guardadoExitoso = true;
+        console.log('Guardado exitosamente en Firestore');
+      } catch (errorFirestore) {
+        intentos++;
+        console.log(`Intento ${intentos} falló:`, errorFirestore);
+        if (intentos < 3) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          throw errorFirestore;
+        }
+      }
     }
-    console.log("Documento verificado en Firestore");
     
+    // Esperar 1 segundo más
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Verificar
+    const verificar = await db.collection('usuarios').doc(newUid).get();
+    if (!verificar.exists) {
+      throw new Error('El documento no se pudo verificar en Firestore');
+    }
+    
+    mostrarMensajeControl(
+      `Control Escolar creado exitosamente!\n\n` +
+      `Nombre: ${nombre}\n` +
+      `Email: ${email}\n` +
+      `Password: ${password}`,
+      'success'
+    );
+    
+    await new Promise(resolve => setTimeout(resolve, 2000));
     await auth.signOut();
-    alert("Control Escolar creado exitosamente\n\nNombre: " + nombre + "\nEmail: " + email + "\nPassword: " + password + "\n\nAhora inicia sesión de nuevo.");
-    window.location.href = "login.html";
+    
+    alert(
+      "Control Escolar creado exitosamente\n\n" +
+      `Nombre: ${nombre}\n` +
+      `Email: ${email}\n` +
+      `Password: ${password}\n\n` +
+      "Debes iniciar sesión nuevamente como administrador."
+    );
+    
+    window.location.href = 'login.html';
     
   } catch (error) {
-    console.error("Error:", error);
-    let mensaje = "Error: ";
-    if (error.code === "auth/email-already-in-use") mensaje += "Email ya registrado";
-    else if (error.code === "auth/invalid-email") mensaje += "Email inválido";
-    else if (error.code === "permission-denied") mensaje += "Error de permisos. Actualiza reglas de Firestore";
-    else mensaje += error.message;
-    mostrarMensajeControl(mensaje, "error");
+    console.error('Error:', error);
+    let mensaje = 'Error: ';
+    if (error.code === 'auth/email-already-in-use') {
+      mensaje += 'Email ya registrado';
+    } else if (error.code === 'auth/invalid-email') {
+      mensaje += 'Email inválido';
+    } else if (error.code === 'permission-denied') {
+      mensaje += 'Error de permisos. Verifica las reglas de Firestore';
+    } else {
+      mensaje += error.message;
+    }
+    mostrarMensajeControl(mensaje, 'error');
+    
     setTimeout(async () => {
-      await auth.signOut();
-      window.location.href = "login.html";
+      try {
+        await auth.signOut();
+      } catch (e) {
+        console.error('Error al cerrar sesión:', e);
+      }
+      window.location.href = 'login.html';
     }, 3000);
   }
 }
@@ -454,225 +446,168 @@ function mostrarMensajeControl(texto, tipo) {
   if (!div) return;
   div.textContent = texto;
   div.style.display = 'block';
+  div.style.whiteSpace = 'pre-line';
   div.style.background = tipo === 'error' ? '#ffebee' : tipo === 'success' ? '#e8f5e9' : '#e3f2fd';
   div.style.color = tipo === 'error' ? '#c62828' : tipo === 'success' ? '#2e7d32' : '#1565c0';
 }
 
-// ============================================
-// SISTEMA MULTI-CARRERA PARA COORDINADORES
-// ============================================
-
+// ===== GESTIONAR COORDINADORES =====
 async function gestionarCoordinadores() {
   try {
-    console.log('Cargando gestión de coordinadores...');
+    console.log('Cargando coordinadores y carreras...');
     
-    // Cargar coordinadores
-    const coordSnap = await db.collection('usuarios')
-      .where('rol', '==', 'coordinador')
-      .orderBy('nombre')
-      .get();
+    const [coordinadoresSnap, carrerasSnap] = await Promise.all([
+      db.collection('usuarios').where('rol', '==', 'coordinador').get(),
+      db.collection('carreras').get()
+    ]);
     
-    coordinadoresData = [];
-    coordSnap.forEach(doc => {
-      coordinadoresData.push({
-        uid: doc.id,
-        ...doc.data()
-      });
-    });
-
-    console.log(`${coordinadoresData.length} coordinadores cargados`);
-
-    // Cargar carreras
-    const carrerasSnap = await db.collection('carreras')
-      .where('activa', '==', true)
-      .get();
+    coordinadoresData = coordinadoresSnap.docs.map(doc => ({
+      uid: doc.id,
+      ...doc.data()
+    }));
     
-    carrerasData = [];
-    carrerasSnap.forEach(doc => {
-      carrerasData.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-
-    console.log(`${carrerasData.length} carreras cargadas`);
-
+    carrerasData = carrerasSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    console.log(`Cargados ${coordinadoresData.length} coordinadores y ${carrerasData.length} carreras`);
+    
+    if (coordinadoresData.length === 0) {
+      alert('No hay coordinadores registrados.\n\nPrimero crea un coordinador usando el botón "Crear Coordinador".');
+      return;
+    }
+    
+    if (carrerasData.length === 0) {
+      alert('No hay carreras registradas.\n\nPrimero crea una carrera usando el botón "Crear Carrera".');
+      return;
+    }
+    
     mostrarListaCoordinadores();
     
   } catch (error) {
-    console.error('Error:', error);
-    alert('Error al cargar coordinadores: ' + error.message);
+    console.error('Error al cargar datos:', error);
+    alert('Error al cargar coordinadores y carreras.\n\nDetalle: ' + error.message);
   }
 }
 
 function mostrarListaCoordinadores() {
   let html = `
-    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1200px; margin: 0 auto;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
-        <h2 style="margin: 0; color: #667eea; font-size: 2rem;">Gestión de Coordinadores</h2>
-        <button onclick="volverMenuAdmin()" 
-          style="padding: 10px 20px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s;">
-          Volver al Menu
+    <div style="background: white; padding: 40px; border-radius: 20px; max-width: 1000px; margin: 40px auto; box-shadow: 0 25px 80px rgba(0,0,0,0.3);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #667eea;">
+        <h2 style="margin: 0; color: #667eea; font-size: 2rem;">Gestionar Coordinadores</h2>
+        <button onclick="cerrarGestionCoordinadores()" 
+          style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; padding: 0; width: 40px; height: 40px; border-radius: 50%; transition: all 0.3s;"
+          onmouseover="this.style.background='#f5f5f5'; this.style.color='#333';"
+          onmouseout="this.style.background='none'; this.style.color='#999';">
+          &times;
         </button>
       </div>
-
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; color: white;">
-        <h3 style="margin: 0 0 10px 0; font-size: 1.3rem;">Instrucciones</h3>
-        <ul style="margin: 10px 0; padding-left: 25px; line-height: 1.8;">
-          <li>Haz clic en "Asignar Carreras" para configurar qué carreras gestiona cada coordinador</li>
-          <li>Asigna un <strong>color único</strong> a cada carrera para distinguirlas visualmente</li>
-          <li>Los coordinadores verán el header de su panel en el color de la carrera activa</li>
-          <li>Si un coordinador tiene múltiples carreras, podrá cambiar entre ellas desde su panel</li>
-        </ul>
-      </div>
-  `;
-
-  if (coordinadoresData.length === 0) {
-    html += `
-      <div style="text-align: center; padding: 80px 20px; background: #f9f9f9; border-radius: 10px;">
-        <h3 style="color: #999; margin: 0 0 10px 0;">No hay coordinadores registrados</h3>
-        <p style="color: #666;">Crea coordinadores desde el panel principal</p>
-        <button onclick="volverMenuAdmin()" 
-          style="margin-top: 20px; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
-          Volver al Menu
-        </button>
-      </div>
-    `;
-  } else {
-    html += '<div style="display: grid; gap: 15px;">';
-    
-    coordinadoresData.forEach(coord => {
-      let carrerasHTML = '';
-      let sistemaHTML = '';
       
-      if (coord.carreras && Array.isArray(coord.carreras) && coord.carreras.length > 0) {
-        // Sistema nuevo
-        carrerasHTML = coord.carreras.map(c => {
-          const carrera = carrerasData.find(ca => ca.id === c.carreraId);
-          const nombreCarrera = carrera ? carrera.nombre : 'Carrera Eliminada';
-          return `
-            <div style="display: inline-flex; align-items: center; background: ${c.color}; color: white; padding: 6px 14px; border-radius: 20px; margin: 3px; font-size: 0.9rem; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-              <span style="width: 10px; height: 10px; background: white; border-radius: 50%; margin-right: 8px;"></span>
-              ${nombreCarrera}
-            </div>
-          `;
-        }).join('');
-        
-        sistemaHTML = `
-          <span style="background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">
-            Sistema Nuevo
-          </span>
-        `;
-      } else if (coord.carreraId) {
-        // Sistema antiguo
-        const carrera = carrerasData.find(c => c.id === coord.carreraId);
-        const nombreCarrera = carrera ? carrera.nombre : 'Carrera Eliminada';
-        carrerasHTML = `
-          <div style="display: inline-block; background: #e0e0e0; color: #555; padding: 6px 14px; border-radius: 20px; font-size: 0.9rem; font-weight: 500;">
-            ${nombreCarrera}
-          </div>
-        `;
-        
-        sistemaHTML = `
-          <span style="background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">
-            Sistema Antiguo
-          </span>
-        `;
-      } else {
-        carrerasHTML = '<span style="color: #f44336; font-weight: 600;">Sin carreras asignadas</span>';
-      }
-
-      html += `
-        <div style="background: white; border: 2px solid #e0e0e0; padding: 22px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+      <div style="background: #e3f2fd; padding: 18px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #1976d2;">
+        <strong style="color: #0d47a1;">Instrucciones:</strong>
+        <p style="margin: 8px 0 0 0; color: #1565c0; line-height: 1.6;">
+          Selecciona un coordinador para asignar o modificar las carreras que puede gestionar y sus colores distintivos.
+        </p>
+      </div>
+      
+      <div style="display: grid; gap: 15px;">
+  `;
+  
+  coordinadoresData.forEach(coord => {
+    const carrerasAsignadas = coord.carreras || [];
+    const numCarreras = carrerasAsignadas.length;
+    
+    let carrerasTexto = '';
+    if (numCarreras === 0) {
+      carrerasTexto = '<span style="color: #f44336; font-weight: 600;">Sin carreras asignadas</span>';
+    } else {
+      const nombresCarreras = carrerasAsignadas.map(ca => {
+        const carrera = carrerasData.find(c => c.id === ca.carreraId);
+        return carrera ? carrera.nombre : 'Desconocida';
+      }).join(', ');
+      carrerasTexto = `<span style="color: #2e7d32; font-weight: 600;">${numCarreras} carrera(s):</span> ${nombresCarreras}`;
+    }
+    
+    html += `
+      <div class="coord-item" 
+           onclick="abrirAsignacionCarreras('${coord.uid}')"
+           style="background: linear-gradient(135deg, #f9f9f9 0%, #ffffff 100%); padding: 20px; border-radius: 12px; border: 2px solid #ddd; cursor: pointer; transition: all 0.3s;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
           <div style="flex: 1;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-              <h3 style="margin: 0; color: #333; font-size: 1.3rem;">${coord.nombre}</h3>
-              ${sistemaHTML}
+            <div style="font-size: 1.2rem; font-weight: 700; color: #333; margin-bottom: 6px;">
+              ${coord.nombre}
             </div>
-            
-            <p style="margin: 0 0 12px 0; color: #666; font-size: 0.95rem;">
+            <div style="font-size: 0.95rem; color: #666; margin-bottom: 8px;">
               ${coord.email}
-            </p>
-            
-            <div style="margin-top: 12px;">
-              <strong style="color: #555; font-size: 0.95rem; display: block; margin-bottom: 6px;">
-                Carreras asignadas:
-              </strong>
-              <div style="margin-top: 6px;">
-                ${carrerasHTML}
-              </div>
+            </div>
+            <div style="font-size: 0.9rem; color: #666;">
+              ${carrerasTexto}
             </div>
           </div>
-          
-          <div>
-            <button onclick="abrirModalAsignarCarreras('${coord.uid}')" 
-              style="padding: 14px 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 1.05rem; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); transition: all 0.3s;">
-              Asignar Carreras
-            </button>
+          <div style="background: #667eea; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.95rem;">
+            Configurar →
           </div>
         </div>
-      `;
-    });
-
-    html += '</div>';
-  }
-
-  html += '</div>';
-
-  // Crear contenedor
-  let container = document.getElementById('contenedorCoordinadores');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'contenedorCoordinadores';
-    container.style.padding = '20px';
-    document.body.appendChild(container);
-  }
-
-  container.innerHTML = html;
-  
-  // Ocultar menú principal
-  const elementosOcultar = document.querySelectorAll('.header, .menu-opciones');
-  elementosOcultar.forEach(el => {
-    el.style.display = 'none';
+      </div>
+    `;
   });
+  
+  html += `
+      </div>
+      
+      <div style="margin-top: 25px; text-align: center;">
+        <button onclick="cerrarGestionCoordinadores()" 
+          style="padding: 14px 40px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 10px; font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: all 0.3s;"
+          onmouseover="this.style.background='#e0e0e0';"
+          onmouseout="this.style.background='#f5f5f5';">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  `;
+  
+  const existingModal = document.getElementById('modalGestionCoordinadores');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  const modal = document.createElement('div');
+  modal.id = 'modalGestionCoordinadores';
+  modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1500; overflow-y: auto; backdrop-filter: blur(3px);';
+  modal.innerHTML = html;
+  
+  document.body.appendChild(modal);
 }
 
-function volverMenuAdmin() {
-  const container = document.getElementById('contenedorCoordinadores');
-  if (container) container.remove();
-  
-  const elementosMostrar = document.querySelectorAll('.header, .menu-opciones');
-  elementosMostrar.forEach(el => {
-    el.style.display = '';
-  });
+function cerrarGestionCoordinadores() {
+  const modal = document.getElementById('modalGestionCoordinadores');
+  if (modal) {
+    modal.remove();
+  }
 }
 
-async function abrirModalAsignarCarreras(coordinadorUid) {
-  coordinadorActual = coordinadoresData.find(c => c.uid === coordinadorUid);
-  
-  if (!coordinadorActual) {
-    alert('Coordinador no encontrado');
+async function abrirAsignacionCarreras(coordinadorUid) {
+  const coordinador = coordinadoresData.find(c => c.uid === coordinadorUid);
+  if (!coordinador) {
+    alert('Error: Coordinador no encontrado');
     return;
   }
-
-  console.log('Abriendo modal para:', coordinadorActual.nombre);
-
-  document.getElementById('nombreCoordActual').textContent = coordinadorActual.nombre;
-  document.getElementById('emailCoordActual').textContent = coordinadorActual.email;
-
-  const carrerasAsignadas = coordinadorActual.carreras || [];
+  
+  coordinadorActual = coordinador;
+  
+  document.getElementById('nombreCoordActual').textContent = coordinador.nombre;
+  document.getElementById('emailCoordActual').textContent = coordinador.email;
+  
+  const carrerasAsignadas = coordinador.carreras || [];
   
   let html = '';
   
   if (carrerasData.length === 0) {
     html = `
-      <div style="text-align: center; padding: 40px; background: #fff3cd; border-radius: 8px; border: 2px dashed #ffc107;">
-        <p style="margin: 0; color: #856404; font-weight: 600;">
-          No hay carreras disponibles en el sistema
-        </p>
-        <p style="margin: 10px 0 0 0; color: #856404;">
-          Crea carreras primero desde el panel principal
-        </p>
+      <div style="text-align: center; padding: 40px; color: #999;">
+        <p style="font-size: 1.1rem; margin-bottom: 15px;">No hay carreras disponibles</p>
+        <p>Primero crea carreras usando el botón "Crear Carrera"</p>
       </div>
     `;
   } else {
@@ -807,7 +742,7 @@ async function guardarAsignacionCarreras() {
     await db.collection('usuarios').doc(coordinadorActual.uid).update({
       carreras: carrerasAsignadas,
       carreraActual: carreraActual,
-      carreraId: carreraActual,  // Compatibilidad
+      carreraId: carreraActual,
       fechaActualizacionCarreras: firebase.firestore.FieldValue.serverTimestamp()
     });
 
