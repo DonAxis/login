@@ -6,18 +6,18 @@ let carrerasData = [];
 let coordinadorActual = null;
 
 const COLORES_DISPONIBLES = [
-  { hex: "#43a047", nombre: "Verde Esmeralda" },
-  { hex: "#1976d2", nombre: "Azul Océano" },
-  { hex: "#d32f2f", nombre: "Rojo Carmesí" },
-  { hex: "#f57c00", nombre: "Naranja Vibrante" },
-  { hex: "#7b1fa2", nombre: "Púrpura Imperial" },
-  { hex: "#0097a7", nombre: "Cian Profundo" },
-  { hex: "#c2185b", nombre: "Rosa Magenta" },
-  { hex: "#5d4037", nombre: "Café Chocolate" },
-  { hex: "#00796b", nombre: "Verde Jade" },
-  { hex: "#303f9f", nombre: "Índigo Profundo" },
-  { hex: "#f9a825", nombre: "Amarillo Dorado" },
-  { hex: "#e64a19", nombre: "Naranja Ardiente" }
+  { hex: "#43a047", nombre: "Verde" },
+  { hex: "#00796b", nombre: "Verde feo" },
+  { hex: "#1976d2", nombre: "Azul" },
+  { hex: "#0097a7", nombre: "Azul Claro" },
+  { hex: "#303f9f", nombre: "Azul fuerte" },
+  { hex: "#d32f2f", nombre: "Rojo" },
+  { hex: "#f57c00", nombre: "Naranja" },
+  { hex: "#e64a19", nombre: "Naranja Oscuro" },
+  { hex: "#7b1fa2", nombre: "Púrpura" },
+  { hex: "#c2185b", nombre: "Rosa" },
+  { hex: "#5d4037", nombre: "Café" },
+  { hex: "#f9a825", nombre: "Amarillo" }
 ];
 
 // Proteger la página - solo admin
