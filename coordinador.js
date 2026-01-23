@@ -257,15 +257,15 @@ async function establecerCarreraActual(carreraId, color) {
 
     // Actualizar color del header
     const header = document.getElementById('headerCoordinador');
-    if (header) {
-      const colorOscuro = ajustarColorOscuro(color);
-      header.style.background = `linear-gradient(135deg, ${color} 0%, ${colorOscuro} 100%)`;
-      header.style.transition = 'background 0.5s ease';
-      console.log(`Header actualizado con color ${color}`);
-    } else {
-      console.warn('Elemento headerCoordinador no encontrado');
-    }
-
+      if (header) {
+        const colorOscuro = ajustarColorOscuro(color);
+        header.style.background = `linear-gradient(135deg, ${color} 0%, ${colorOscuro} 100%)`;
+        header.style.opacity = '1'; // AÑADIR ESTA LINEA
+        header.style.transition = 'all 0.5s ease';
+        console.log(`Header actualizado con color ${color}`);
+      } else {
+        console.warn('Elemento headerCoordinador no encontrado');
+      }
     // Actualizar nombre de carrera en el header (con tamaño más grande)
     const carreraInfo = document.getElementById('carreraInfo');
     if (carreraInfo) {
