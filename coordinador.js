@@ -2106,13 +2106,13 @@ function cambiarModo(modo) {
  
  if (modo === 'coordinador') {
  // Activar modo coordinador
- tabCoord.style.background = 'white';
- tabCoord.style.color = '#667eea';
- tabCoord.style.borderBottom = '3px solid #667eea';
+ tabCoord.style.background = 'transparent';
+ tabCoord.style.color = 'white';
+ tabCoord.style.borderBottom = '4px solid white';
  
- tabProf.style.background = 'rgba(255,255,255,0.2)';
- tabProf.style.color = 'white';
- tabProf.style.borderBottom = '3px solid transparent';
+ tabProf.style.background = 'transparent';
+ tabProf.style.color = 'rgba(255,255,255,0.6)';
+ tabProf.style.borderBottom = '4px solid transparent';
  
  modoCoord.style.display = 'block';
  modoProf.style.display = 'none';
