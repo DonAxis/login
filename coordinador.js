@@ -1198,30 +1198,50 @@ async function mostrarFormAsignarProfesor() {
  coordinadoresSnap.forEach(doc => {
  const data = doc.data();
  
+ console.log('Evaluando coordinador:', data.nombre, {
+ uid: doc.id,
+ roles: data.roles,
+ carreras: data.carreras,
+ carreraId: data.carreraId
+ });
+ 
  // Verificar que tenga el rol de profesor
- if (!data.roles || !data.roles.includes('profesor')) return;
+ if (!data.roles || !data.roles.includes('profesor')) {
+ console.log(`  -> ${data.nombre} NO tiene rol profesor. Roles:`, data.roles);
+ return;
+ }
+ 
+ console.log(`  -> ${data.nombre} SÍ tiene rol profesor`);
  
  // Verificar si tiene acceso a esta carrera
  let tieneAcceso = false;
  
  // Verificar campo carreras (puede ser array de objetos o array de strings)
  if (data.carreras && Array.isArray(data.carreras)) {
+ console.log(`  -> Verificando carreras (array):`, data.carreras);
  tieneAcceso = data.carreras.some(c => {
  if (typeof c === 'string') {
+ console.log(`    -> Comparando string "${c}" con "${usuarioActual.carreraId}"`);
  return c === usuarioActual.carreraId;
  } else if (typeof c === 'object' && c.carreraId) {
+ console.log(`    -> Comparando objeto carreraId "${c.carreraId}" con "${usuarioActual.carreraId}"`);
  return c.carreraId === usuarioActual.carreraId;
  }
+ console.log(`    -> Formato desconocido:`, c);
  return false;
  });
  }
  // Sistema antiguo: carreraId (string único)
  else if (data.carreraId === usuarioActual.carreraId) {
+ console.log(`  -> Verificando carreraId: "${data.carreraId}" === "${usuarioActual.carreraId}"`);
  tieneAcceso = true;
  }
  
  if (tieneAcceso) {
+ console.log(`  -> ${data.nombre} AGREGADO a profesoresValidos`);
  profesoresValidos.push({ id: doc.id, ...data });
+ } else {
+ console.log(`  -> ${data.nombre} NO tiene acceso a esta carrera`);
  }
  });
  
@@ -1313,16 +1333,16 @@ async function mostrarFormAsignarProfesor() {
 async function actualizarGrupoDesdeMateria() {
  const materiaSelect = document.getElementById('materiaAsignar');
  const grupoInput = document.getElementById('grupoAsignar');
- const grupoIdInput = document.getElementById('grupoAsignarId');
+ // const grupoIdInput = document.getElementById('grupoAsignarId');
  
  const grupoId = materiaSelect.options[materiaSelect.selectedIndex].getAttribute('data-codigo');
  
  if (grupoId) {
  grupoInput.value = grupoId;
- grupoIdInput.value = grupoId;
+ // grupoIdInput.value = grupoId;
  } else {
  grupoInput.value = '';
- grupoIdInput.value = '';
+ // grupoIdInput.value = '';
  }
 }
 
@@ -1332,7 +1352,7 @@ async function guardarAsignacionProfesor(event) {
  const materiaSelect = document.getElementById('materiaAsignar');
  const profesorSelect = document.getElementById('profesorAsignar');
  const grupoInput = document.getElementById('grupoAsignar');
- const grupoIdInput = document.getElementById('grupoAsignarId');
+ // const grupoIdInput = document.getElementById('grupoAsignarId');
  
  const materiaId = materiaSelect.value;
  const materiaNombre = materiaSelect.options[materiaSelect.selectedIndex].dataset.nombre;
