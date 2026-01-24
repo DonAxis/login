@@ -1394,7 +1394,7 @@ async function guardarAsignacionProfesor(event) {
  
  try {
  await db.collection('profesorMaterias').add(asignacion);
- alert(' Profesor asignado correctamente');
+ alert(' Profesor asignado');
  cerrarModal();
  cargarAsignaciones();
  } catch (error) {
@@ -1828,7 +1828,7 @@ async function guardarProfesor(event, profesorId) {
  await secondaryApp.delete();
  
  // Mostrar éxito SIN cerrar sesión del coordinador
- alert(`Profesor creado exitosamente\n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}\n\nPuedes seguir creando más profesores.`);
+ alert(`Profesor creado \n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}`);
  
  } catch (authError) {
  if (authError.code === 'auth/email-already-in-use') {
