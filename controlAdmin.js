@@ -383,7 +383,8 @@ async function crearCarrera(event) {
       return;
     }
     
-    await db.collection('carreras').add({
+    // Usar el código como ID del documento
+    await db.collection('carreras').doc(codigo).set({
       codigo: codigo,
       nombre: nombre,
       descripcion: descripcion,
