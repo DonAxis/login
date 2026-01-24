@@ -322,22 +322,9 @@ async function cambiarCarreraActiva() {
     return;
   }
 
-  console.log(`Usuario solicita cambio de carrera a: ${carrera.nombre}`);
+  //console.log(`Usuario solicita cambio de carrera a: ${carrera.nombre}`);
 
-  // Confirmar cambio con el usuario
-  const confirmar = confirm(
-    `¿CAMBIAR DE CARRERA?\n\n` +
-    `De: ${carreraActualData ? carreraActualData.nombre : 'Actual'}\n` +
-    `A: ${carrera.nombre}\n\n` +
-    `Se recargará la página para aplicar los cambios.`
-  );
-
-  if (!confirmar) {
-    // Revertir selección en el dropdown
-    select.value = usuarioActual.carreraActual;
-    console.log('Cambio de carrera cancelado por el usuario');
-    return;
-  }
+  console.log(`Cambiando de carrera a: ${carrera.nombre}`);
 
   // Mostrar indicador de carga
   const loadingOverlay = document.createElement('div');
