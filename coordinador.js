@@ -1171,8 +1171,20 @@ async function mostrarFormAsignarProfesor() {
  
  profesoresPurosSnap.forEach(doc => {
  const data = doc.data();
- if (data.carreras && Array.isArray(data.carreras) && data.carreras.includes(usuarioActual.carreraId)) {
+ if (data.carreras && Array.isArray(data.carreras)) {
+ // Verificar si carreras es array de strings o array de objetos
+ const tieneCarrera = data.carreras.some(c => {
+ if (typeof c === 'string') {
+ return c === usuarioActual.carreraId;
+ } else if (typeof c === 'object' && c.carreraId) {
+ return c.carreraId === usuarioActual.carreraId;
+ }
+ return false;
+ });
+ 
+ if (tieneCarrera) {
  profesoresValidos.push({ id: doc.id, ...data });
+ }
  }
  });
  
@@ -1192,11 +1204,18 @@ async function mostrarFormAsignarProfesor() {
  // Verificar si tiene acceso a esta carrera
  let tieneAcceso = false;
  
- // Sistema nuevo multi-carrera: carreras = [{carreraId, color}, ...]
+ // Verificar campo carreras (puede ser array de objetos o array de strings)
  if (data.carreras && Array.isArray(data.carreras)) {
- tieneAcceso = data.carreras.some(c => c.carreraId === usuarioActual.carreraId);
- } 
- // Sistema antiguo: carreraId = 'ID_STRING'
+ tieneAcceso = data.carreras.some(c => {
+ if (typeof c === 'string') {
+ return c === usuarioActual.carreraId;
+ } else if (typeof c === 'object' && c.carreraId) {
+ return c.carreraId === usuarioActual.carreraId;
+ }
+ return false;
+ });
+ }
+ // Sistema antiguo: carreraId (string único)
  else if (data.carreraId === usuarioActual.carreraId) {
  tieneAcceso = true;
  }
@@ -1288,6 +1307,7 @@ async function mostrarFormAsignarProfesor() {
  alert('Error al cargar el formulario: ' + error.message);
  }
 }
+
 
 
 async function actualizarGrupoDesdeMateria() {

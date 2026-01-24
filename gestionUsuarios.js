@@ -247,7 +247,22 @@ async function guardarUsuario(event) {
       alert('Debes asignar una carrera al coordinador');
       return;
     }
+    
+    // Buscar color de la carrera
+    const carrera = carrerasData.find(c => c.id === carreraId);
+    const colorCarrera = carrera ? carrera.color : '#43a047';
+    
+    // Sistema NUEVO: usar array carreras con objetos {carreraId, color}
+    userData.carreras = [{
+      carreraId: carreraId,
+      color: colorCarrera
+    }];
+    
+    // Mantener carreraId para compatibilidad con código antiguo
     userData.carreraId = carreraId;
+    userData.carreraActual = carreraId;
+    
+    console.log(`Coordinador con carrera ${carreraId} (${colorCarrera})`);
   } else {
     // Otros roles solo tienen su rol principal
     userData.roles = [rol];

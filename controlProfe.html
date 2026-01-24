@@ -278,14 +278,27 @@
         }
 
         const nombresCarreras = [];
-        for (const carreraId of usuarioActual.carreras) {
+        for (const carrera of usuarioActual.carreras) {
           try {
+            // Determinar el ID de la carrera
+            let carreraId;
+            if (typeof carrera === 'string') {
+              // Array de strings simples
+              carreraId = carrera;
+            } else if (typeof carrera === 'object' && carrera.carreraId) {
+              // Array de objetos {carreraId, color}
+              carreraId = carrera.carreraId;
+            } else {
+              console.warn('Formato de carrera desconocido:', carrera);
+              continue;
+            }
+            
             const doc = await db.collection('carreras').doc(carreraId).get();
             if (doc.exists) {
               nombresCarreras.push(doc.data().nombre);
             }
           } catch (err) {
-            console.error('Error con carrera:', carreraId, err);
+            console.error('Error con carrera:', carrera, err);
           }
         }
         
@@ -779,3 +792,5 @@ async function guardarCalificacionesProfe() {
   }
 }
 </script>
+</body>
+</html>
