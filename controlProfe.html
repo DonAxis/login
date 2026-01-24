@@ -278,14 +278,14 @@
         }
 
         const nombresCarreras = [];
-        for (const carreraId of usuarioActual.carreras) {
+        for (const carrera of usuarioActual.carreras) {
           try {
-            const doc = await db.collection('carreras').doc(carreraId).get();
+            const doc = await db.collection('carreras').doc(typeof carrera === 'string' ? carrera : carrera.carreraId).get();
             if (doc.exists) {
               nombresCarreras.push(doc.data().nombre);
             }
           } catch (err) {
-            console.error('Error con carrera:', carreraId, err);
+            console.error('Error con carrera:', carrera, err);
           }
         }
         
@@ -309,7 +309,7 @@
         });
         
         const nombresCarreras = usuarioActual.carreras
-          .map(id => carrerasMap[id] || id)
+          .map(c => { const id = typeof c === 'string' ? c : c.carreraId; return carrerasMap[id] || id; })
           .join(', ');
         
         document.getElementById('configCarreras').textContent = nombresCarreras || 'Sin carreras';
