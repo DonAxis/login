@@ -1361,7 +1361,7 @@ async function guardarAsignacionProfesor(event) {
  const profesorId = profesorSelect.value;
  const profesorNombre = profesorSelect.options[profesorSelect.selectedIndex].dataset.nombre;
  
- const grupoId = grupoIdInput.value;
+ const grupoId = grupoInput.value;
  const grupoNombre = grupoInput.value;
  
  const periodo = document.getElementById('periodoAsignar').value.trim();
