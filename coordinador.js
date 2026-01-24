@@ -1364,7 +1364,7 @@ async function guardarAsignacionProfesor(event) {
  const grupoId = grupoInput.value;
  const grupoNombre = grupoInput.value;
  
- const periodo = document.getElementById('periodoAsignar').value.trim();
+ const periodo = periodoActualCarrera; // Usar el periodo global actual
  
  // Verificar si ya existe esta asignación activa
  const existe = await db.collection('profesorMaterias')
