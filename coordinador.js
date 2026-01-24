@@ -1158,27 +1158,66 @@ async function cargarAsignacionesPorPeriodo(periodo) {
 async function mostrarFormAsignarProfesor() {
  document.getElementById('tituloModal').textContent = 'Asignar Profesor a Materia';
  
- // Cargar profesores de la carrera
- // Buscar profesores Y coordinadores que también sean profesores
- const profesoresSnap = await db.collection('usuarios')
- .where('carreras', 'array-contains', usuarioActual.carreraId)
- .get();
- 
- // Filtrar solo profesores y coordinadores con esProfesor: true
+ try {
+ // CORREGIDO: Cargar profesores de la carrera del coordinador actual
  const profesoresValidos = [];
- profesoresSnap.forEach(doc => {
+ 
+ // 1. Buscar profesores puros
+ const profesoresPurosQuery = db.collection('usuarios')
+ .where('rol', '==', 'profesor')
+ .where('activo', '==', true);
+ 
+ const profesoresPurosSnap = await profesoresPurosQuery.get();
+ 
+ profesoresPurosSnap.forEach(doc => {
  const data = doc.data();
- if (data.rol === 'profesor' || (data.rol === 'coordinador' && data.esProfesor === true)) {
+ if (data.carreras && Array.isArray(data.carreras) && data.carreras.includes(usuarioActual.carreraId)) {
  profesoresValidos.push({ id: doc.id, ...data });
  }
  });
  
- // CAMBIO: Usar profesoresValidos en lugar de profesoresSnap
+ // 2. Buscar coordinadores que también son profesores
+ const coordinadoresQuery = db.collection('usuarios')
+ .where('rol', '==', 'coordinador')
+ .where('activo', '==', true);
+ 
+ const coordinadoresSnap = await coordinadoresQuery.get();
+ 
+ coordinadoresSnap.forEach(doc => {
+ const data = doc.data();
+ 
+ // Verificar que tenga el rol de profesor
+ if (!data.roles || !data.roles.includes('profesor')) return;
+ 
+ // Verificar si tiene acceso a esta carrera
+ let tieneAcceso = false;
+ 
+ // Sistema nuevo multi-carrera: carreras = [{carreraId, color}, ...]
+ if (data.carreras && Array.isArray(data.carreras)) {
+ tieneAcceso = data.carreras.some(c => c.carreraId === usuarioActual.carreraId);
+ } 
+ // Sistema antiguo: carreraId = 'ID_STRING'
+ else if (data.carreraId === usuarioActual.carreraId) {
+ tieneAcceso = true;
+ }
+ 
+ if (tieneAcceso) {
+ profesoresValidos.push({ id: doc.id, ...data });
+ }
+ });
+ 
+ console.log(`Profesores encontrados para ${usuarioActual.carreraId}: ${profesoresValidos.length}`);
+ 
+ // Ordenar por nombre
+ profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+ 
+ // Generar HTML del selector de profesores
  let profesoresHtml = '<option value="">Seleccionar profesor...</option>';
- profesoresValidos.forEach(item => {
- const prof = item;
+ profesoresValidos.forEach(prof => {
  const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
- profesoresHtml += `<option value="${item.id}" data-nombre="${prof.nombre}">${prof.nombre}${rolDisplay} (${prof.email})</option>`;
+ profesoresHtml += `<option value="${prof.id}" data-nombre="${prof.nombre}">${prof.nombre}${rolDisplay} (${prof.email})</option>`;
+ });
+
  });
  
  // Cargar materias de la carrera con información del grupo
