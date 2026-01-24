@@ -1,5 +1,5 @@
 // gestionUsuarios.js
-// Sistema de Gestión de Usuarios para Admin
+// Sistema de Gestión de Usuarios para Admin - CON ROLES AUTOMÁTICOS
 
 const auth = firebase.auth();
 let usuariosData = [];
@@ -23,7 +23,7 @@ auth.onAuthStateChanged(async (user) => {
       return;
     }
 
-    console.log(' Admin autorizado');
+    console.log('Admin autorizado');
     await cargarCarreras();
     await cargarUsuarios();
     
@@ -47,7 +47,7 @@ async function cargarCarreras() {
       });
     });
     
-    console.log(` ${carrerasData.length} carreras cargadas`);
+    console.log(`${carrerasData.length} carreras cargadas`);
   } catch (error) {
     console.error('Error al cargar carreras:', error);
   }
@@ -66,7 +66,7 @@ async function cargarUsuarios() {
       });
     });
     
-    console.log(` ${usuariosData.length} usuarios cargados`);
+    console.log(`${usuariosData.length} usuarios cargados`);
     mostrarUsuarios();
     
   } catch (error) {
@@ -95,9 +95,9 @@ function mostrarUsuarios() {
   usuariosFiltrados.forEach(usuario => {
     const rolClass = `rol-${usuario.rol}`;
     const rolTexto = {
-      'admin': ' Admin',
-      'coordinador': ' Coordinador',
-      'profesor': ' Profesor',
+      'admin': 'Admin',
+      'coordinador': 'Coordinador',
+      'profesor': 'Profesor',
       'alumno': 'Alumno',
       'controlEscolar': 'Control Escolar'
     }[usuario.rol] || usuario.rol;
@@ -106,34 +106,41 @@ function mostrarUsuarios() {
     let carreraInfo = '';
     if (usuario.rol === 'coordinador' && usuario.carreraId) {
       const carrera = carrerasData.find(c => c.id === usuario.carreraId);
-      carreraInfo = carrera ? `<p> ${carrera.nombre}</p>` : '<p> Carrera no encontrada</p>';
+      carreraInfo = carrera ? `<p>Carrera: ${carrera.nombre}</p>` : '<p>Carrera no encontrada</p>';
     }
     
     // Mostrar matrícula si es alumno
     let matriculaInfo = '';
     if (usuario.rol === 'alumno' && usuario.matricula) {
-      matriculaInfo = `<p> ${usuario.matricula}</p>`;
+      matriculaInfo = `<p>Matrícula: ${usuario.matricula}</p>`;
+    }
+    
+    // NUEVO: Mostrar si tiene acceso a profesor
+    let rolesInfo = '';
+    if (usuario.rol === 'coordinador' && usuario.roles && usuario.roles.includes('profesor')) {
+      rolesInfo = '<p style="color: #ff9800; font-weight: 600;">También: Profesor</p>';
     }
     
     html += `
       <div class="usuario-card">
         <div class="usuario-info">
           <h3>${usuario.nombre}</h3>
-          <p> ${usuario.email}</p>
+          <p>Email: ${usuario.email}</p>
           ${carreraInfo}
           ${matriculaInfo}
+          ${rolesInfo}
           <p>
             <span class="rol-badge ${rolClass}">${rolTexto}</span>
             ${usuario.activo ? '<span style="color: #4caf50;">●</span> Activo' : '<span style="color: #f44336;">●</span> Inactivo'}
           </p>
         </div>
         <div class="usuario-acciones">
-          <button onclick="editarUsuario('${usuario.uid}')" class="btn-editar"> Editar</button>
+          <button onclick="editarUsuario('${usuario.uid}')" class="btn-editar">Editar</button>
           <button onclick="toggleActivo('${usuario.uid}', ${!usuario.activo})" 
                   class="botAzu" style="font-size: 0.9rem;">
-            ${usuario.activo ? ' Desactivar' : ' Activar'}
+            ${usuario.activo ? 'Desactivar' : 'Activar'}
           </button>
-          <button onclick="eliminarUsuario('${usuario.uid}')" class="btn-eliminar">🗑️</button>
+          <button onclick="eliminarUsuario('${usuario.uid}')" class="btn-eliminar">Eliminar</button>
         </div>
       </div>
     `;
@@ -229,14 +236,21 @@ async function guardarUsuario(event) {
     fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
   };
   
-  // Agregar carreraId si es coordinador
+  // NUEVO: Asignar roles automáticamente según el rol
   if (rol === 'coordinador') {
+    // TODOS los coordinadores son también profesores
+    userData.roles = ['coordinador', 'profesor'];
+    console.log('Coordinador creado con roles: coordinador y profesor');
+    
     const carreraId = document.getElementById('carreraId').value;
     if (!carreraId) {
       alert('Debes asignar una carrera al coordinador');
       return;
     }
     userData.carreraId = carreraId;
+  } else {
+    // Otros roles solo tienen su rol principal
+    userData.roles = [rol];
   }
   
   // Agregar matrícula si es alumno
@@ -252,22 +266,19 @@ async function guardarUsuario(event) {
   try {
     if (usuarioId) {
       // EDITAR USUARIO EXISTENTE
-      console.log(' Actualizando usuario...');
+      console.log('Actualizando usuario...');
       
       // Actualizar solo en Firestore
       const updateData = { ...userData };
-      delete updateData.fechaCreacion; // No actualizar fecha de creación
+      delete updateData.fechaCreacion;
       
       await db.collection('usuarios').doc(usuarioId).update(updateData);
       
-      // TODO: Si se cambió el password, actualizar en Authentication
-      // Esto requeriría Cloud Functions o Admin SDK
-      
-      alert(' Usuario actualizado en Firestore\n\n Si cambiaste el password, debes actualizarlo manualmente en Authentication');
+      alert('Usuario actualizado en Firestore\n\nSi cambiaste el password, debes actualizarlo manualmente en Authentication');
       
     } else {
       // CREAR NUEVO USUARIO
-      console.log(' Creando usuario en Authentication...');
+      console.log('Creando usuario en Authentication...');
       
       // Guardar el usuario actual admin
       const adminUser = auth.currentUser;
@@ -276,24 +287,30 @@ async function guardarUsuario(event) {
       const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       const newUid = userCredential.user.uid;
       
-      console.log(' Usuario creado en Auth. UID:', newUid);
+      console.log('Usuario creado en Auth. UID:', newUid);
       
       // 2. Guardar en Firestore
       await db.collection('usuarios').doc(newUid).set(userData);
-      console.log(' Usuario guardado en Firestore');
+      console.log('Usuario guardado en Firestore');
       
       // 3. Cerrar sesión del usuario recién creado y restaurar admin
       await auth.signOut();
       await auth.signInWithEmailAndPassword(adminUser.email, prompt('Por seguridad, ingresa tu contraseña de admin para continuar:'));
       
-      alert(` Usuario creado exitosamente!\n\nEmail: ${email}\nPassword: ${password}\nUID: ${newUid}\n\nEl usuario ya puede hacer login.`);
+      let mensaje = `Usuario creado exitosamente!\n\nEmail: ${email}\nPassword: ${password}\nUID: ${newUid}`;
+      if (rol === 'coordinador') {
+        mensaje += '\n\nEste coordinador también tiene acceso como profesor.';
+      }
+      mensaje += '\n\nEl usuario ya puede hacer login.';
+      
+      alert(mensaje);
     }
     
     cerrarModal();
     await cargarUsuarios();
     
   } catch (error) {
-    console.error(' Error:', error);
+    console.error('Error:', error);
     
     let mensaje = 'Error al guardar usuario';
     
@@ -314,7 +331,7 @@ async function guardarUsuario(event) {
         mensaje = error.message;
     }
     
-    alert(' ' + mensaje);
+    alert(mensaje);
   }
 }
 
@@ -371,7 +388,7 @@ async function toggleActivo(uid, nuevoEstado) {
 async function eliminarUsuario(uid) {
   const usuario = usuariosData.find(u => u.uid === uid);
   
-  if (!confirm(`¿Eliminar a ${usuario.nombre}?\n\n Esta acción NO eliminará el usuario de Authentication.\nDeberás eliminarlo manualmente allí también.`)) {
+  if (!confirm(`¿Eliminar a ${usuario.nombre}?\n\nEsta acción NO eliminará el usuario de Authentication.\nDeberás eliminarlo manualmente allí también.`)) {
     return;
   }
   
@@ -398,4 +415,4 @@ window.onclick = function(event) {
   }
 }
 
-console.log(' Sistema de Gestión de Usuarios cargado');
+console.log('Sistema de Gestión de Usuarios cargado - Coordinadores son automáticamente profesores');

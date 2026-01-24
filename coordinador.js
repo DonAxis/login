@@ -1174,10 +1174,10 @@ async function mostrarFormAsignarProfesor() {
  });
  
  // CAMBIO: Usar profesoresValidos en lugar de profesoresSnap
-let profesoresHtml = '<option value="">Seleccionar profesor...</option>';
+ let profesoresHtml = '<option value="">Seleccionar profesor...</option>';
  profesoresValidos.forEach(item => {
  const prof = item;
- const rolDisplay = prof.rol === 'coordinador' ? ' [Coordinador]' : '';
+ const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
  profesoresHtml += `<option value="${item.id}" data-nombre="${prof.nombre}">${prof.nombre}${rolDisplay} (${prof.email})</option>`;
  });
  
