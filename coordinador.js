@@ -1217,8 +1217,6 @@ async function mostrarFormAsignarProfesor() {
  const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
  profesoresHtml += `<option value="${prof.id}" data-nombre="${prof.nombre}">${prof.nombre}${rolDisplay} (${prof.email})</option>`;
  });
-
- });
  
  // Cargar materias de la carrera con información del grupo
  let materiasQuery = db.collection('materias');
@@ -1284,7 +1282,13 @@ async function mostrarFormAsignarProfesor() {
  
  document.getElementById('contenidoModal').innerHTML = html;
  document.getElementById('modalGenerico').style.display = 'flex';
+ 
+ } catch (error) {
+ console.error('Error al cargar formulario de asignación:', error);
+ alert('Error al cargar el formulario: ' + error.message);
+ }
 }
+
 
 async function actualizarGrupoDesdeMateria() {
  const materiaSelect = document.getElementById('materiaAsignar');
