@@ -1801,31 +1801,34 @@ async function guardarProfesor(event, profesorId) {
  return;
  }
  
- // Guardar usuario admin actual
- const adminUser = auth.currentUser;
+ // Usar instancia secundaria de Firebase para crear sin cerrar sesión
+ const secondaryApp = firebase.initializeApp(firebaseConfig, 'SecondaryProfesor_' + Date.now());
+ const secondaryAuth = secondaryApp.auth();
  
  try {
- // Crear en Authentication
- const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+ // Crear en Authentication con instancia secundaria
+ const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
  const newUid = userCredential.user.uid;
+ 
+ console.log('Profesor creado en Authentication:', newUid);
  
  // Guardar en Firestore CON carreras
  userData.carreras = [usuarioActual.carreraId];
+ userData.roles = ['profesor']; // Agregar roles
  userData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
  
- console.log(' Guardando profesor en Firestore...', newUid);
+ console.log('Guardando profesor en Firestore...', newUid);
  await db.collection('usuarios').doc(newUid).set(userData);
  console.log('Profesor guardado en Firestore');
  
- // Guardar info del coordinador para re-login automático
- sessionStorage.setItem('returnToCoord', 'true');
- sessionStorage.setItem('coordEmail', usuarioActual.email);
+ // Cerrar sesión de la instancia secundaria
+ await secondaryAuth.signOut();
  
- // Usuario creado - redirigir a login
- await auth.signOut();
- alert(`Profesor creado exitosamente\n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}\n\nDebes iniciar sesión de nuevo como coordinador.`);
- window.location.href = 'login.html';
- return;
+ // Eliminar la app secundaria
+ await secondaryApp.delete();
+ 
+ // Mostrar éxito SIN cerrar sesión del coordinador
+ alert(`Profesor creado exitosamente\n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}\n\nPuedes seguir creando más profesores.`);
  
  } catch (authError) {
  if (authError.code === 'auth/email-already-in-use') {
