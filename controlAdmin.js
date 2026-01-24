@@ -117,18 +117,23 @@ async function crearCoordinador(event) {
     const newUid = userCredential.user.uid;
     console.log("Usuario creado en Authentication:", newUid);
     
+    // Buscar color de la carrera
+    const carreraDoc = await db.collection('carreras').doc(carreraId).get();
+    const colorCarrera = carreraDoc.exists ? carreraDoc.data().color : '#43a047';
+    
     // Guardar en Firestore usando la instancia principal
     await db.collection("usuarios").doc(newUid).set({
       nombre: nombre,
       email: email,
       rol: "coordinador",
+      roles: ["coordinador", "profesor"], // NUEVO: Array de roles
       carreraId: carreraId,
       carreras: [{
         carreraId: carreraId,
-        color: "#43a047"
+        color: colorCarrera // Usar color real de la carrera
       }],
       carreraActual: carreraId,
-      esProfesor: true,
+      // esProfesor: true, // ELIMINADO: Ya no se usa
       activo: true,
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     });
