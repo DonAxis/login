@@ -99,10 +99,28 @@ async function crearCoordinador(event) {
   const password = document.getElementById("passCoord").value;
   const carreraId = document.getElementById("carreraCoord").value;
   
+  // Validaciones
+  if (!nombre) {
+    mostrarMensaje("El nombre es obligatorio", "error");
+    return;
+  }
+  
+  if (!email) {
+    mostrarMensaje("El email es obligatorio", "error");
+    return;
+  }
+  
+  if (!carreraId) {
+    mostrarMensaje("Debes seleccionar una carrera", "error");
+    return;
+  }
+  
   if (password.length < 6) {
     mostrarMensaje("La contraseña debe tener al menos 6 caracteres", "error");
     return;
   }
+  
+  console.log('Valores capturados:', {nombre, email, password: '***', carreraId});
   
   try {
     mostrarMensaje("Creando coordinador...", "info");
@@ -118,25 +136,36 @@ async function crearCoordinador(event) {
     console.log("Usuario creado en Authentication:", newUid);
     
     // Buscar color de la carrera
-    const carreraDoc = await db.collection('carreras').doc(carreraId).get();
-    const colorCarrera = carreraDoc.exists ? carreraDoc.data().color : '#43a047';
+    let colorCarrera = '#43a047'; // Color por defecto
+    try {
+      const carreraDoc = await db.collection('carreras').doc(carreraId).get();
+      if (carreraDoc.exists && carreraDoc.data().color) {
+        colorCarrera = carreraDoc.data().color;
+      }
+    } catch (error) {
+      console.warn('Error al obtener color de carrera, usando default:', error);
+    }
     
-    // Guardar en Firestore usando la instancia principal
-    await db.collection("usuarios").doc(newUid).set({
-      nombre: nombre,
-      email: email,
+    // Preparar datos del usuario (asegurar que ningún campo sea undefined)
+    const userData = {
+      nombre: nombre || "",
+      email: email || "",
       rol: "coordinador",
-      roles: ["coordinador", "profesor"], // NUEVO: Array de roles
-      carreraId: carreraId,
+      roles: ["coordinador", "profesor"],
+      carreraId: carreraId || "",
       carreras: [{
-        carreraId: carreraId,
-        color: colorCarrera // Usar color real de la carrera
+        carreraId: carreraId || "",
+        color: colorCarrera || '#43a047'
       }],
-      carreraActual: carreraId,
-      // esProfesor: true, // ELIMINADO: Ya no se usa
+      carreraActual: carreraId || "",
       activo: true,
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    
+    console.log('Guardando usuario con datos:', userData);
+    
+    // Guardar en Firestore usando la instancia principal
+    await db.collection("usuarios").doc(newUid).set(userData);
     
     console.log("Guardado exitosamente en Firestore");
     
