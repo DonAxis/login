@@ -344,6 +344,227 @@
  <button onclick="mostrarHistorialAlumnos()" class="botAzu" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);">
  Ver Historial
  </button>
+ <!-- MODAL PARA REGISTRO MASIVO DE ALUMNOS -->
+<!-- Este código se debe integrar en controlCoordinador.html -->
+
+<!-- AGREGAR AL HTML, después de la línea 343 (después del botón "Ver Historial") -->
+
+<button onclick="mostrarFormRegistroMasivo()" class="botAzu" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+  Multiples Alumnos
+</button>
+
+<!-- MODAL PARA REGISTRO MASIVO (agregar después del modalGenerico existente) -->
+<div id="modalRegistroMasivo" class="modal" style="display: none;">
+  <div class="modal-contenido" style="max-width: 900px;">
+    <span class="cerrar" onclick="cerrarModalMasivo()">&times;</span>
+    
+    <h2 style="color: #667eea; margin-bottom: 10px;">Registro Masivo de Alumnos</h2>
+    <p style="color: #666; margin-bottom: 20px;">Copia y pega desde Excel los datos de los alumnos</p>
+    
+    <form id="formRegistroMasivo" onsubmit="procesarRegistroMasivo(event)">
+      
+      <!-- SELECTOR DE GRUPO -->
+      <div class="form-grupo" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <label for="grupoMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
+          Grupo al que pertenecen: *
+        </label>
+        <select id="grupoMasivo" required 
+                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+          <option value="">Seleccionar grupo...</option>
+        </select>
+        <small style="color: #666; display: block; margin-top: 8px;">
+          Todos los alumnos seran asignados a este grupo
+        </small>
+      </div>
+
+      <!-- INSTRUCCIONES -->
+      <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+        <strong style="color: #1565c0;">Instrucciones:</strong>
+        <ol style="margin: 10px 0 0 0; padding-left: 20px; color: #333;">
+          <li>Abre tu archivo de Excel con la lista de alumnos</li>
+          <li>Selecciona las columnas: <strong>Nombre</strong>, <strong>Matricula</strong> y <strong>Email</strong></li>
+          <li>Copia las celdas (Ctrl+C)</li>
+          <li>Pega en los campos de abajo (Ctrl+V)</li>
+        </ol>
+      </div>
+
+      <!-- EJEMPLO VISUAL -->
+      <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <strong style="display: block; margin-bottom: 10px;">Ejemplo de formato esperado:</strong>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+          <thead>
+            <tr style="background: #667eea; color: white;">
+              <th style="padding: 8px; border: 1px solid #ddd;">Nombre</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Matricula</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background: white;">
+              <td style="padding: 8px; border: 1px solid #ddd;">Ana Sofia Martinez Lopez</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">A20231045</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">ana.martinez@ejemplo.edu</td>
+            </tr>
+            <tr style="background: #f9f9f9;">
+              <td style="padding: 8px; border: 1px solid #ddd;">Luis Fernando Gomez Ruiz</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">A20231046</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">luis.gomez@ejemplo.edu</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- CAMPOS PARA PEGAR DATOS -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+        
+        <!-- NOMBRES -->
+        <div>
+          <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
+            Nombres Completos *
+          </label>
+          <textarea id="nombresMasivo" required rows="12" 
+                    placeholder="Ana Sofia Martinez Lopez&#10;Luis Fernando Gomez Ruiz&#10;Maria Fernanda Torres Silva&#10;..."
+                    style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+          <small style="color: #666; display: block; margin-top: 5px;">
+            Un nombre por linea
+          </small>
+        </div>
+
+        <!-- MATRICULAS -->
+        <div>
+          <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
+            Matriculas *
+          </label>
+          <textarea id="matriculasMasivo" required rows="12" 
+                    placeholder="A20231045&#10;A20231046&#10;A20231047&#10;..."
+                    style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+          <small style="color: #666; display: block; margin-top: 5px;">
+            Una matricula por linea
+          </small>
+        </div>
+
+        <!-- EMAILS -->
+        <div>
+          <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
+            Correos Electronicos *
+          </label>
+          <textarea id="emailsMasivo" required rows="12" 
+                    placeholder="ana.martinez@ejemplo.edu&#10;luis.gomez@ejemplo.edu&#10;maria.torres@ejemplo.edu&#10;..."
+                    style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+          <small style="color: #666; display: block; margin-top: 5px;">
+            Un email por linea
+          </small>
+        </div>
+
+      </div>
+
+      <!-- AREA DE VISTA PREVIA -->
+      <div id="vistaPrevia" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; max-height: 300px; overflow-y: auto;">
+        <h3 style="margin-top: 0; color: #333;">Vista Previa:</h3>
+        <div id="contenidoVistaPrevia"></div>
+      </div>
+
+      <!-- BOTONES DE ACCION -->
+      <div class="form-botones" style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" onclick="previsualizarDatos()" class="botAzu" 
+                style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+          Vista Previa
+        </button>
+        <button type="submit" class="botAzu" 
+                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          Guardar Todos
+        </button>
+        <button type="button" onclick="cerrarModalMasivo()" class="botAzu" 
+                style="background: #e0e0e0; color: #333;">
+          Cancelar
+        </button>
+      </div>
+
+    </form>
+
+    <!-- BARRA DE PROGRESO -->
+    <div id="barraProgreso" style="display: none; margin-top: 20px;">
+      <div style="background: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden;">
+        <div id="barraProgresoFill" 
+             style="height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+          0%
+        </div>
+      </div>
+      <p id="textoProgreso" style="text-align: center; margin-top: 10px; color: #666;">
+        Procesando...
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<style>
+/* Estilos adicionales para el modal masivo */
+#modalRegistroMasivo .modal-contenido {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+#modalRegistroMasivo textarea {
+  font-family: 'Courier New', monospace;
+  line-height: 1.5;
+}
+
+#modalRegistroMasivo textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.mensaje-exito-masivo {
+  background: #d4edda;
+  border: 2px solid #28a745;
+  color: #155724;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.mensaje-error-masivo {
+  background: #f8d7da;
+  border: 2px solid #dc3545;
+  color: #721c24;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.tabla-preview {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.tabla-preview th {
+  background: #667eea;
+  color: white;
+  padding: 8px;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+.tabla-preview td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  background: white;
+}
+
+.tabla-preview tr:nth-child(even) td {
+  background: #f9f9f9;
+}
+
+.error-row {
+  background: #ffebee !important;
+  color: #c62828;
+}
+</style>
  </div>
  
  <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -545,6 +766,7 @@
  <script src="HistorialAlumnoPDF.js"></script>
  <script src="coordinador.js"></script>
  <script src="cambioPeriodo.js"></script>
+ <script src="registroMasivoAlumno.js"></script>
 
  <script>
  window.addEventListener('load', () => {

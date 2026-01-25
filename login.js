@@ -95,7 +95,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         mensajeError = 'Error de conexión. Verifica tu internet';
         break;
       case 'auth/invalid-login-credentials':
-        mensajeError = 'Correo o contraseña incorrecto';
+        mensajeError = 'Correo o contraseña incorrectos';
         break;
 
       default:
