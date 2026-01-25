@@ -1,5 +1,5 @@
 // registroMasivoAlumno.js
-// Sistema de Registro Masivo de Alumnos desde Excel
+// Sistema de Registro Masivo de Alumnos desde Excel - SOLO FIRESTORE
 
 // ===== MOSTRAR FORMULARIO DE REGISTRO MASIVO =====
 async function mostrarFormRegistroMasivo() {
@@ -181,7 +181,7 @@ async function procesarRegistroMasivo(event) {
   }
   
   // Confirmar
-  if (!confirm(`Registrar ${nombres.length} alumnos?\n\nSe crearan cuentas en Authentication y Firestore.`)) {
+  if (!confirm(`Registrar ${nombres.length} alumnos en Firestore?\n\nTodos seran asignados al grupo seleccionado.`)) {
     return;
   }
   
@@ -194,20 +194,28 @@ async function procesarRegistroMasivo(event) {
   let fallidos = 0;
   const erroresDetallados = [];
   
-  // Obtener datos del grupo
+  // Obtener datos del grupo para extraer semestre
   let grupoNombre = '';
+  let semestreActual = 1;
+  
   try {
     const grupoDoc = await db.collection('grupos').doc(grupoId).get();
     if (grupoDoc.exists) {
       grupoNombre = grupoDoc.data().nombre;
+      // Extraer semestre del nombre del grupo (formato: TSGG-SIGLA, donde S es el semestre)
+      if (grupoNombre && grupoNombre.length >= 4) {
+        const semestreChar = grupoNombre.charAt(1);
+        semestreActual = parseInt(semestreChar) || 1;
+      }
     }
   } catch (error) {
     console.error('Error al obtener grupo:', error);
   }
   
-  // Guardar admin actual
-  const adminUser = auth.currentUser;
-  const adminEmail = adminUser.email;
+  console.log('Iniciando registro masivo...');
+  console.log('Grupo:', grupoNombre);
+  console.log('Semestre extraido:', semestreActual);
+  console.log('Total alumnos:', nombres.length);
   
   // Procesar cada alumno
   for (let i = 0; i < nombres.length; i++) {
@@ -219,48 +227,32 @@ async function procesarRegistroMasivo(event) {
     const porcentaje = Math.round(((i + 1) / nombres.length) * 100);
     barraFill.style.width = porcentaje + '%';
     barraFill.textContent = porcentaje + '%';
-    textoProgreso.textContent = `Procesando ${i + 1}/${nombres.length}: ${nombre}`;
+    textoProgreso.textContent = `Guardando ${i + 1}/${nombres.length}: ${nombre}`;
     
     try {
-      // Generar password temporal
-      const passwordTemporal = generarPasswordTemporal();
-      
-      // 1. Crear usuario en Authentication
-      let userCredential;
-      try {
-        userCredential = await auth.createUserWithEmailAndPassword(email, passwordTemporal);
-      } catch (authError) {
-        throw new Error(`Auth: ${authError.message}`);
-      }
-      
-      const uid = userCredential.user.uid;
-      
-      // 2. Crear documento en Firestore
+      // Crear documento en Firestore - IGUAL que el registro individual
       const alumnoData = {
         nombre: nombre,
-        email: email,
         matricula: matricula,
+        email: email,
         rol: 'alumno',
-        roles: ['alumno'],
-        carreraId: usuarioActual.carreraId,
         grupoId: grupoId,
-        grupoNombre: grupoNombre,
-        periodo: periodoActualCarrera,
+        carreraId: usuarioActual.carreraId,
         activo: true,
+        periodo: periodoActualCarrera,
+        semestreActual: semestreActual,
+        generacion: periodoActualCarrera,
+        graduado: false,
         fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
-        creadoPor: usuarioActual.uid,
-        passwordTemporal: passwordTemporal,
         registroMasivo: true,
         fechaRegistroMasivo: new Date().toISOString()
       };
       
-      await db.collection('usuarios').doc(uid).set(alumnoData);
-      
-      // Cerrar sesion del alumno recien creado
-      await auth.signOut();
+      // Guardar en Firestore con ID autogenerado
+      await db.collection('usuarios').add(alumnoData);
       
       exitosos++;
-      console.log(`Alumno ${i + 1}/${nombres.length} creado: ${nombre}`);
+      console.log(`[${i + 1}/${nombres.length}] Alumno creado: ${nombre}`);
       
     } catch (error) {
       fallidos++;
@@ -271,49 +263,24 @@ async function procesarRegistroMasivo(event) {
         email: email,
         error: error.message
       });
-      console.error(`Error en alumno ${i + 1}:`, error);
-      
-      // Si hubo error, asegurar que estamos deslogueados para el siguiente
-      try {
-        await auth.signOut();
-      } catch (e) {
-        // Ignorar
-      }
+      console.error(`[${i + 1}/${nombres.length}] ERROR:`, error);
     }
     
-    // Pequena pausa para no saturar Firebase
-    await new Promise(resolve => setTimeout(resolve, 300));
-  }
-  
-  // Restaurar sesion del admin
-  textoProgreso.textContent = 'Restaurando sesion del coordinador...';
-  
-  try {
-    const adminPassword = prompt('Por seguridad, ingresa tu contrasena de coordinador para continuar:');
-    if (!adminPassword) {
-      alert('Debes ingresar tu contrasena para completar el proceso');
-      window.location.reload();
-      return;
-    }
-    
-    await auth.signInWithEmailAndPassword(adminEmail, adminPassword);
-    console.log('Sesion de coordinador restaurada');
-    
-  } catch (error) {
-    console.error('Error al restaurar sesion:', error);
-    alert('Error al restaurar sesion. Seras redirigido al login.');
-    window.location.href = 'login.html';
-    return;
+    // Pausa breve para no saturar Firestore
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
   
   // Mostrar resumen final
-  let mensaje = `\nRESUMEN DE REGISTRO MASIVO\n\n`;
+  let mensaje = `RESUMEN DE REGISTRO MASIVO\n\n`;
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
-  mensaje += `Total procesados: ${nombres.length}\n\n`;
+  mensaje += `Total procesados: ${nombres.length}\n`;
+  mensaje += `Grupo: ${grupoNombre}\n`;
+  mensaje += `Semestre asignado: ${semestreActual}\n`;
+  mensaje += `Periodo: ${periodoActualCarrera}\n\n`;
   
   if (erroresDetallados.length > 0) {
-    mensaje += `\nERRORES DETALLADOS:\n\n`;
+    mensaje += `ERRORES DETALLADOS:\n\n`;
     erroresDetallados.forEach(err => {
       mensaje += `#${err.numero} - ${err.nombre} (${err.email})\n`;
       mensaje += `   Error: ${err.error}\n\n`;
@@ -327,23 +294,6 @@ async function procesarRegistroMasivo(event) {
   
   // Cerrar modal
   cerrarModalMasivo();
-}
-
-// ===== GENERAR PASSWORD TEMPORAL =====
-function generarPasswordTemporal() {
-  const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  const especiales = '!@#$%&*';
-  let password = '';
-  
-  // 8 caracteres alfanumericos
-  for (let i = 0; i < 8; i++) {
-    password += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
-  }
-  
-  // Agregar un caracter especial
-  password += especiales.charAt(Math.floor(Math.random() * especiales.length));
-  
-  return password;
 }
 
 // ===== CERRAR MODAL =====
@@ -367,4 +317,4 @@ window.addEventListener('click', function(event) {
   }
 });
 
-console.log('Sistema de Registro Masivo cargado');
+console.log('Sistema de Registro Masivo cargado - Solo Firestore');
