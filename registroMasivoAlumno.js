@@ -1,4 +1,4 @@
-// registroMasivoAlumnos.js
+// registroMasivoAlumno.js
 // Sistema de Registro Masivo de Alumnos desde Excel
 
 // ===== MOSTRAR FORMULARIO DE REGISTRO MASIVO =====
@@ -24,18 +24,29 @@ async function cargarGruposParaMasivo() {
     const snapshot = await db.collection('grupos')
       .where('carreraId', '==', usuarioActual.carreraId)
       .where('activo', '==', true)
-      .orderBy('nombre')
       .get();
     
     const select = document.getElementById('grupoMasivo');
     select.innerHTML = '<option value="">Seleccionar grupo...</option>';
     
+    // Convertir a array y ordenar manualmente
+    const grupos = [];
     snapshot.forEach(doc => {
-      const grupo = doc.data();
-      select.innerHTML += `<option value="${doc.id}">${grupo.nombre}</option>`;
+      grupos.push({
+        id: doc.id,
+        ...doc.data()
+      });
     });
     
-    console.log(`${snapshot.size} grupos cargados para registro masivo`);
+    // Ordenar por nombre
+    grupos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    
+    // Agregar opciones al select
+    grupos.forEach(grupo => {
+      select.innerHTML += `<option value="${grupo.id}">${grupo.nombre}</option>`;
+    });
+    
+    console.log(`${grupos.length} grupos cargados para registro masivo`);
     
   } catch (error) {
     console.error('Error al cargar grupos:', error);
@@ -238,7 +249,7 @@ async function procesarRegistroMasivo(event) {
         activo: true,
         fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
         creadoPor: usuarioActual.uid,
-        passwordTemporal: passwordTemporal, // Guardar para referencia
+        passwordTemporal: passwordTemporal,
         registroMasivo: true,
         fechaRegistroMasivo: new Date().toISOString()
       };
