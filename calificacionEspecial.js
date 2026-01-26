@@ -172,7 +172,7 @@ function generarTablaCalificaciones() {
     
     // Badge de tipo
     const tipoBadge = alumno.tipoInscripcion === 'especial' 
-      ? '<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px; font-weight: 600;">ESPECIAL</span>'
+      ? '<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px; font-weight: 600;">E</span>'
       : '';
     
     // Estilo de fila
@@ -211,13 +211,7 @@ function generarTablaCalificaciones() {
       </table>
     </div>
     
-    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #2196f3;">
-      <strong>Nota:</strong>
-      <p style="margin: 5px 0 0 0; font-size: 0.9rem;">
-        Los alumnos marcados como <span style="background: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem;">ESPECIAL</span> 
-        estan inscritos individualmente en esta materia desde "Inscripciones Especiales".
-      </p>
-    </div>
+
     
     <p style="text-align: center; color: #999; font-size: 0.85rem; margin-top: 10px;">
       Desliza horizontalmente para ver todas las columnas en movil
