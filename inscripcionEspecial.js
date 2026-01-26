@@ -4,14 +4,7 @@ async function mostrarFormCrearAlumnoEspecial() {
   document.getElementById('tituloModal').textContent = 'Crear Alumno Especial';
   
   const html = `
-    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-      <strong>Que es un Alumno Especial?</strong>
-      <p style="margin: 10px 0 0 0; font-size: 0.9rem;">
-        Alumnos que regresan, vienen de otra escuela, o necesitan tomar materias 
-        de diferentes grupos. NO se inscribiran en Registro de Alumnos.
-      </p>
-    </div>
-    
+   
     <form onsubmit="guardarAlumnoEspecial(event)">
       <div class="form-grupo">
         <label>Nombre Completo: *</label>
