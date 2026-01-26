@@ -363,19 +363,7 @@
     
     <form id="formRegistroMasivo" onsubmit="procesarRegistroMasivo(event)">
       
-      <!-- SELECTOR DE GRUPO -->
-      <div class="form-grupo" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <label for="grupoMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
-          Grupo al que pertenecen: *
-        </label>
-        <select id="grupoMasivo" required 
-                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
-          <option value="">Seleccionar grupo...</option>
-        </select>
-        <small style="color: #666; display: block; margin-top: 8px;">
-          Todos los alumnos seran asignados a este grupo
-        </small>
-      </div>
+ 
 
       <!-- INSTRUCCIONES -->
        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
@@ -408,15 +396,29 @@
             <tr style="background: white;">
               <td style="padding: 8px; border: 1px solid #ddd;">Ana Sofia Martinez Lopez</td>
               <td style="padding: 8px; border: 1px solid #ddd;">A20231045</td>
-              <td style="padding: 8px; border: 1px solid #ddd;">ana.martinez@ejemplo.edu</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">ana.martinez@ilb.edu.mx</td>
             </tr>
             <tr style="background: #f9f9f9;">
               <td style="padding: 8px; border: 1px solid #ddd;">Luis Fernando Gomez Ruiz</td>
               <td style="padding: 8px; border: 1px solid #ddd;">A20231046</td>
-              <td style="padding: 8px; border: 1px solid #ddd;">luis.gomez@ejemplo.edu</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">luis.gomez@ilb.edu.mx</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+           <!-- SELECTOR DE GRUPO -->
+      <div class="form-grupo" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <label for="grupoMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
+          Grupo al que pertenecen: *
+        </label>
+        <select id="grupoMasivo" required 
+                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+          <option value="">Seleccionar grupo...</option>
+        </select>
+        <small style="color: #666; display: block; margin-top: 8px;">
+          Todos los alumnos seran asignados a este grupo
+        </small>
       </div>
 
       <!-- CAMPOS PARA PEGAR DATOS -->
@@ -448,7 +450,7 @@
             Correos Electronicos *
           </label>
           <textarea id="emailsMasivo" required rows="12" 
-                    placeholder="ana.martinez@ejemplo.edu&#10;luis.gomez@ejemplo.edu&#10;..."
+                    placeholder="ana.martinez@ilb.edu.mx&#10;luis.gomez@ilb.edu.mx&#10;..."
                     style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
         </div>
 
