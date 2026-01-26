@@ -378,15 +378,20 @@
       </div>
 
       <!-- INSTRUCCIONES -->
-      <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+       <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
         <strong style="color: #1565c0;">Instrucciones:</strong>
-        <ol style="margin: 10px 0 0 0; padding-left: 20px; color: #333;">
-          <li>Abre tu archivo de Excel con la lista de alumnos</li>
-          <li>Selecciona las columnas: <strong>Nombre</strong>, <strong>Matricula</strong> y <strong>Email</strong></li>
-          <li>Copia las celdas (Ctrl+C)</li>
-          <li>Pega en los campos de abajo (Ctrl+V)</li>
-        </ol>
+        <p style="margin: 10px 0 0 0; color: #333;">
+          Abajo observarás <strong>3 columnas</strong>: <strong>Nombre completo</strong>, <strong>Matrícula</strong> y <strong>Correo</strong>.
+          Coloca los datos en ese orden y con coherencia.
+        </p>
+        <p style="margin: 8px 0 0 0; color: #333;">
+          Antes de darle a <strong>“Guardar todos”</strong>, revisa los datos en la sección de <strong>“Vista previa”</strong> para asegurarte de que sean correctos.
+        </p>
+        <p style="margin: 8px 0 0 0; color: #333;">
+          Observa el <strong>ejemplo</strong> para verificar cómo deberán verse los datos en la <strong>“Vista previa”</strong>.
+        </p>
       </div>
+
 
       <!-- EJEMPLO VISUAL -->
       <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -601,16 +606,51 @@
  </div>
 
  <!-- SECCION: INSCRIBIR ALUMNOS -->
- <div id="seccionInscripciones" class="seccion-contenido">
- <div class="seccion-header">
- <h2>Inscripciones Especiales</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
- </div>
- <div class="botones-accion">
- <button onclick="mostrarFormInscribirAlumno()" class="botAzu">Nueva Inscripcion</button>
- </div>
- <div id="listaInscripciones" class="lista-items"></div>
- </div>
+
+  <!-- SECCION: INSCRIPCIONES ESPECIALES -->
+  <div id="seccionInscripciones" class="seccion-contenido">
+  <div class="seccion-header">
+    <h2>Inscripciones Especiales</h2>
+    <button onclick="volverMenu()" class="btn-volver">Volver al Menu</button>
+  </div>
+  
+  <!-- Informacion explicativa -->
+  <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+      <h3 style="margin: 0 0 10px 0; color: #856404;">
+        Que son las Inscripciones Especiales?
+      </h3>
+      <p style="margin: 0; color: #856404; line-height: 1.6;">
+        Son alumnos que <strong>no pertenecen a un grupo fijo</strong> y pueden tomar materias 
+        de diferentes grupos. Por ejemplo:
+      </p>
+      <ul style="margin: 10px 0 0 20px; color: #856404;">
+        <li>Alumnos que regresan despues de ausencia</li>
+        <li>Alumnos que vienen de otra institucion</li>
+        <li>Alumnos que necesitan recursamiento en varios grupos</li>
+      </ul>
+    </div>
+    
+    <!-- Botones de accion -->
+    <div class="botones-accion" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+      <button onclick="mostrarFormCrearAlumnoEspecial()" 
+              style="padding: 15px 20px; background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 12px rgba(67, 160, 71, 0.3);">
+        + Crear Alumno Especial
+      </button>
+      
+      <button onclick="mostrarFormInscribirAlumno()" 
+              style="padding: 15px 20px; background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);">
+        Inscribir en Materia
+      </button>
+    </div>
+    
+    <!-- Lista de inscripciones -->
+    <div id="listaInscripciones" class="lista-items">
+      <div class="sin-datos">
+        <p>Cargando inscripciones especiales...</p>
+      </div>
+    </div>
+  </div>
+
 
  <!-- SECCION: CALIFICACIONES -->
  <div id="seccionCalificaciones" class="seccion-contenido">
@@ -753,20 +793,25 @@
  <!-- FIN MODO PROFESOR -->
 
  <!-- Firebase SDK -->
- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
- <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
- <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
- <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
- 
- <script src="firebase.js"></script>
- <script src="logoPdf.js"></script>
- <script src="HistorialCoorPDF.js"></script>
- <script src="HistorialAlumnoPDF.js"></script>
- <script src="coordinador.js"></script>
- <script src="cambioPeriodo.js"></script>
- <script src="registroMasivoAlumno.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase.js"></script>
+
+
+  <script src="logoPdf.js"></script>
+  <script src="HistorialCoorPDF.js"></script>
+  <script src="HistorialAlumnoPDF.js"></script>
+  <script src="coordinador.js"></script>   
+  <script src="inscripcionEspecial.js"></script>
+  <script src="calificacionEspecial.js"></script>
+  <script src="cambioPeriodo.js"></script>
+  <script src="registroMasivoAlumno.js"></script>
+
 
  <script>
  window.addEventListener('load', () => {
