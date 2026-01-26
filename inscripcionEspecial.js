@@ -1,10 +1,21 @@
 //inscripciones especiales de alumnos sin grupos
+// inscripcionEspecial.js
+// Sistema completo de inscripciones especiales - VERSION CORREGIDA
+// Muestra alumnos especiales aunque no tengan materias inscritas
 
+// PASO 1: Crear alumno especial (NUEVO)
 async function mostrarFormCrearAlumnoEspecial() {
   document.getElementById('tituloModal').textContent = 'Crear Alumno Especial';
   
   const html = `
-   
+    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+      <strong>Que es un Alumno Especial?</strong>
+      <p style="margin: 10px 0 0 0; font-size: 0.9rem;">
+        Alumnos que regresan, vienen de otra escuela, o necesitan tomar materias 
+        de diferentes grupos. NO se inscribiran en Registro de Alumnos.
+      </p>
+    </div>
+    
     <form onsubmit="guardarAlumnoEspecial(event)">
       <div class="form-grupo">
         <label>Nombre Completo: *</label>
@@ -118,7 +129,7 @@ async function guardarAlumnoEspecial(event) {
   }
 }
 
-// PASO 2: REEMPLAZAR mostrarFormInscribirAlumno (CON SISTEMA DUAL)
+// PASO 2: Inscribir materia por materia
 async function mostrarFormInscribirAlumno() {
   document.getElementById('tituloModal').textContent = 'Inscribir Alumno a Materia';
   
@@ -307,7 +318,6 @@ async function cargarProfesorDelGrupo() {
   }
 }
 
-// PASO 3: REEMPLAZAR guardarInscripcionAlumno
 async function guardarInscripcionAlumno(event) {
   event.preventDefault();
   
@@ -406,74 +416,89 @@ async function guardarInscripcionAlumno(event) {
   }
 }
 
-// PASO 4: REEMPLAZAR cargarInscripciones
+// PASO 3: CARGAR INSCRIPCIONES - VERSION CORREGIDA
+// Muestra TODOS los alumnos especiales, tengan o no materias inscritas
 async function cargarInscripciones() {
   try {
     const container = document.getElementById('listaInscripciones');
     
-    // Cargar todas las inscripciones especiales de la carrera
-    const snapshot = await db.collection('inscripcionesEspeciales')
+    // 1. Cargar TODOS los alumnos especiales de la carrera
+    const alumnosSnap = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('tipoAlumno', '==', 'especial')
       .where('carreraId', '==', usuarioActual.carreraId)
-      .where('periodo', '==', periodoActualCarrera)
-      .where('activa', '==', true)
+      .where('activo', '==', true)
       .get();
     
-    if (snapshot.empty) {
+    if (alumnosSnap.empty) {
       container.innerHTML = `
         <div class="sin-datos">
-          <p>No hay inscripciones especiales en este periodo</p>
+          <p>No hay alumnos especiales creados</p>
           <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
-            Crea un alumno especial e inscribelo en materias especificas
+            Crea un alumno especial para comenzar
           </p>
         </div>
       `;
       return;
     }
     
-    // Agrupar por alumno
-    const inscripcionesPorAlumno = {};
+    // 2. Cargar inscripciones del periodo actual
+    const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
+      .where('carreraId', '==', usuarioActual.carreraId)
+      .where('periodo', '==', periodoActualCarrera)
+      .where('activa', '==', true)
+      .get();
     
-    snapshot.forEach(doc => {
+    // 3. Agrupar inscripciones por alumno
+    const inscripcionesPorAlumno = {};
+    inscripcionesSnap.forEach(doc => {
       const insc = doc.data();
       if (!inscripcionesPorAlumno[insc.alumnoId]) {
-        inscripcionesPorAlumno[insc.alumnoId] = {
-          alumnoNombre: insc.alumnoNombre,
-          alumnoMatricula: insc.alumnoMatricula,
-          inscripciones: []
-        };
+        inscripcionesPorAlumno[insc.alumnoId] = [];
       }
-      inscripcionesPorAlumno[insc.alumnoId].inscripciones.push({
+      inscripcionesPorAlumno[insc.alumnoId].push({
         id: doc.id,
         ...insc
       });
     });
     
-    // Generar HTML
+    // 4. Generar HTML para TODOS los alumnos
     let html = '<div style="display: flex; flex-direction: column; gap: 20px;">';
     
-    // Ordenar alumnos alfabeticamente
-    const alumnosOrdenados = Object.entries(inscripcionesPorAlumno)
-      .sort((a, b) => a[1].alumnoNombre.localeCompare(b[1].alumnoNombre));
+    const alumnosArray = [];
+    alumnosSnap.forEach(doc => {
+      alumnosArray.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
     
-    alumnosOrdenados.forEach(([alumnoId, datos]) => {
+    // Ordenar alfabeticamente
+    alumnosArray.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    
+    alumnosArray.forEach(alumno => {
+      const inscripciones = inscripcionesPorAlumno[alumno.id] || [];
+      
       html += `
         <div style="background: white; border: 2px solid #43a047; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
           <div style="background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
             <div>
               <div style="font-size: 1.2rem; font-weight: bold;">
-                ${datos.alumnoNombre}
+                ${alumno.nombre}
                 <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; margin-left: 10px;">ESPECIAL</span>
               </div>
               <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 5px;">
-                Matricula: ${datos.alumnoMatricula} | ${datos.inscripciones.length} materia(s) inscrita(s)
+                Matricula: ${alumno.matricula} | ${inscripciones.length} materia(s) inscrita(s)
               </div>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button onclick="verTodasMateriasAlumnoEspecial('${alumnoId}', '${datos.alumnoNombre}')" 
-                      style="background: white; color: #43a047; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                Ver Todas
-              </button>
-              <button onclick="inscribirOtraMateriaAlumno('${alumnoId}')" 
+              ${inscripciones.length > 0 ? `
+                <button onclick="verTodasMateriasAlumnoEspecial('${alumno.id}', '${alumno.nombre}')" 
+                        style="background: white; color: #43a047; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                  Ver Todas
+                </button>
+              ` : ''}
+              <button onclick="inscribirOtraMateriaAlumno('${alumno.id}')" 
                       style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">
                 + Agregar Materia
               </button>
@@ -481,35 +506,46 @@ async function cargarInscripciones() {
           </div>
           
           <div style="padding: 20px;">
-            <div style="display: grid; gap: 12px;">
       `;
       
-      // Ordenar materias alfabeticamente
-      datos.inscripciones.sort((a, b) => a.materiaNombre.localeCompare(b.materiaNombre));
-      
-      datos.inscripciones.forEach(insc => {
+      if (inscripciones.length === 0) {
         html += `
-          <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-            <div style="flex: 1;">
-              <div style="font-weight: bold; color: #333;">
-                ${insc.materiaNombre}
-                ${insc.materiaCodigo ? '<span style="color: #666; font-size: 0.9rem;">(' + insc.materiaCodigo + ')</span>' : ''}
-              </div>
-              <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
-                Grupo: ${insc.grupoNombre} | 
-                Profesor: ${insc.profesorNombre || 'Sin asignar'}
-              </div>
-            </div>
-            <button onclick="darDeBajaInscripcionEspecial('${insc.id}', '${insc.materiaNombre}')" 
-                    style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-              Dar de Baja
-            </button>
+          <div style="text-align: center; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+            <p style="color: #666; margin: 0;">Este alumno aun no tiene materias inscritas</p>
+            <p style="color: #999; font-size: 0.9rem; margin: 10px 0 0 0;">Haz clic en "+ Agregar Materia" para inscribirlo</p>
           </div>
         `;
-      });
+      } else {
+        html += '<div style="display: grid; gap: 12px;">';
+        
+        // Ordenar materias alfabeticamente
+        inscripciones.sort((a, b) => a.materiaNombre.localeCompare(b.materiaNombre));
+        
+        inscripciones.forEach(insc => {
+          html += `
+            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="flex: 1;">
+                <div style="font-weight: bold; color: #333;">
+                  ${insc.materiaNombre}
+                  ${insc.materiaCodigo ? '<span style="color: #666; font-size: 0.9rem;">(' + insc.materiaCodigo + ')</span>' : ''}
+                </div>
+                <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
+                  Grupo: ${insc.grupoNombre} | 
+                  Profesor: ${insc.profesorNombre || 'Sin asignar'}
+                </div>
+              </div>
+              <button onclick="darDeBajaInscripcionEspecial('${insc.id}', '${insc.materiaNombre}')" 
+                      style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                Dar de Baja
+              </button>
+            </div>
+          `;
+        });
+        
+        html += '</div>';
+      }
       
       html += `
-            </div>
           </div>
         </div>
       `;
@@ -519,7 +555,7 @@ async function cargarInscripciones() {
     
     container.innerHTML = html;
     
-    console.log(snapshot.size + ' inscripciones especiales cargadas');
+    console.log(alumnosSnap.size + ' alumnos especiales cargados');
     
   } catch (error) {
     console.error('Error al cargar inscripciones:', error);
@@ -658,4 +694,4 @@ async function verTodasMateriasAlumnoEspecial(alumnoId, alumnoNombre) {
   }
 }
 
-console.log('Sistema de Inscripciones Especiales cargado');
+console.log('Sistema de Inscripciones Especiales cargado - VERSION CORREGIDA');
