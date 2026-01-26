@@ -3,7 +3,6 @@
 // Sistema completo de inscripciones especiales - VERSION CORREGIDA
 // Muestra alumnos especiales aunque no tengan materias inscritas
 
-// PASO 1: Crear alumno especial (NUEVO)
 async function mostrarFormCrearAlumnoEspecial() {
   document.getElementById('tituloModal').textContent = 'Crear Alumno Especial';
   
@@ -47,7 +46,7 @@ async function mostrarFormCrearAlumnoEspecial() {
       <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-top: 15px;">
         <strong>Despues de crear al alumno:</strong>
         <p style="margin: 5px 0 0 0; font-size: 0.9rem;">
-          Podras inscribirlo materia por materia en diferentes grupos.
+          Podras inscribirlo materia por materia (el grupo se detecta automaticamente).
         </p>
       </div>
       
@@ -71,7 +70,6 @@ async function guardarAlumnoEspecial(event) {
   const periodo = document.getElementById('periodoAlumnoEsp').value.trim();
   
   try {
-    // Verificar si la matricula ya existe
     const matriculaExiste = await db.collection('usuarios')
       .where('matricula', '==', matricula)
       .get();
@@ -81,7 +79,6 @@ async function guardarAlumnoEspecial(event) {
       return;
     }
     
-    // Verificar si el email ya existe
     const emailExiste = await db.collection('usuarios')
       .where('email', '==', email)
       .get();
@@ -91,7 +88,6 @@ async function guardarAlumnoEspecial(event) {
       return;
     }
     
-    // Crear alumno especial en usuarios
     const alumnoData = {
       nombre: nombre,
       matricula: matricula,
@@ -118,7 +114,7 @@ async function guardarAlumnoEspecial(event) {
           'Nombre: ' + nombre + '\n' +
           'Matricula: ' + matricula + '\n' +
           'Email: ' + email + '\n\n' +
-          'Ahora puedes inscribirlo en materias especificas.');
+          'Ahora puedes inscribirlo en materias.');
     
     cerrarModal();
     await cargarInscripciones();
@@ -129,7 +125,7 @@ async function guardarAlumnoEspecial(event) {
   }
 }
 
-// PASO 2: Inscribir materia por materia
+// PASO 2: FORMULARIO MEJORADO - Solo selecciona materia, el grupo se detecta automaticamente
 async function mostrarFormInscribirAlumno() {
   document.getElementById('tituloModal').textContent = 'Inscribir Alumno a Materia';
   
@@ -161,53 +157,43 @@ async function mostrarFormInscribirAlumno() {
     return;
   }
   
-  // Cargar materias de la carrera
-  const materiasSnap = await db.collection('materias')
+  // Cargar ASIGNACIONES activas (materia + grupo + profesor)
+  const asignacionesSnap = await db.collection('profesorMaterias')
     .where('carreraId', '==', usuarioActual.carreraId)
+    .where('periodo', '==', periodoActualCarrera)
+    .where('activa', '==', true)
     .get();
   
   let materiasHtml = '<option value="">Seleccionar materia...</option>';
   
-  const materiasArray = [];
-  materiasSnap.forEach(doc => {
-    materiasArray.push({ id: doc.id, ...doc.data() });
+  const asignacionesArray = [];
+  asignacionesSnap.forEach(doc => {
+    asignacionesArray.push({ 
+      id: doc.id,
+      ...doc.data() 
+    });
   });
   
-  materiasArray.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  // Ordenar por nombre de materia
+  asignacionesArray.sort((a, b) => a.materiaNombre.localeCompare(b.materiaNombre));
   
-  materiasArray.forEach(materia => {
-    materiasHtml += `<option value="${materia.id}" data-nombre="${materia.nombre}" data-codigo="${materia.codigo || ''}">
-      ${materia.nombre} ${materia.codigo ? '(' + materia.codigo + ')' : ''}
+  asignacionesArray.forEach(asig => {
+    materiasHtml += `<option value="${asig.id}">
+      ${asig.materiaNombre} (${asig.grupoNombre}) - Prof. ${asig.profesorNombre}
     </option>`;
   });
   
-  // Cargar grupos activos de la carrera
-  const gruposSnap = await db.collection('grupos')
-    .where('carreraId', '==', usuarioActual.carreraId)
-    .where('activo', '==', true)
-    .get();
-  
-  let gruposHtml = '<option value="">Seleccionar grupo...</option>';
-  
-  const gruposArray = [];
-  gruposSnap.forEach(doc => {
-    gruposArray.push({ id: doc.id, ...doc.data() });
-  });
-  
-  gruposArray.sort((a, b) => (a.ordenamiento || 0) - (b.ordenamiento || 0));
-  
-  gruposArray.forEach(grupo => {
-    gruposHtml += `<option value="${grupo.id}" data-nombre="${grupo.nombre}">
-      ${grupo.nombre}
-    </option>`;
-  });
+  if (asignacionesArray.length === 0) {
+    alert('No hay materias armadas en este periodo.\n\nPrimero arma grupos (Materia + Profesor + Grupo).');
+    return;
+  }
   
   const html = `
     <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
       <strong>Inscripcion por Materia</strong>
       <p style="margin: 10px 0 0 0; font-size: 0.9rem;">
-        Cada alumno especial puede tomar materias de diferentes grupos.
-        Esta inscripcion es para UNA materia en UN grupo especifico.
+        Selecciona la materia y el grupo se detectara automaticamente.
+        Similar a como funciona "Armar Grupos".
       </p>
     </div>
     
@@ -222,28 +208,21 @@ async function mostrarFormInscribirAlumno() {
       </div>
       
       <div class="form-grupo">
-        <label>Materia: *</label>
-        <select id="materiaInscribir" required>
+        <label>Materia (Grupo - Profesor): *</label>
+        <select id="asignacionInscribir" required onchange="mostrarInfoAsignacion()">
           ${materiasHtml}
         </select>
+        <small style="color: #666;">El grupo y profesor ya estan asignados a la materia</small>
       </div>
       
-      <div class="form-grupo">
-        <label>Grupo (donde tomara ESTA materia): *</label>
-        <select id="grupoInscribir" required onchange="cargarProfesorDelGrupo()">
-          ${gruposHtml}
-        </select>
-        <small style="color: #666;">El grupo especifico para esta materia</small>
-      </div>
-      
-      <div id="infoProfesorGrupo" style="display: none; background: #e3f2fd; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 0.9rem;">
+      <div id="infoAsignacion" style="display: none; background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #2196f3;">
       </div>
       
       <div class="form-grupo">
         <label>Periodo: *</label>
         <input type="text" id="periodoInscribir" required 
                value="${periodoActualCarrera}"
-               placeholder="Ej: 2026-1">
+               placeholder="Ej: 2026-1" readonly>
       </div>
       
       <div class="form-botones" style="margin-top: 20px;">
@@ -285,30 +264,31 @@ async function mostrarInfoAlumnoEspecial(select) {
   }
 }
 
-async function cargarProfesorDelGrupo() {
-  const grupoId = document.getElementById('grupoInscribir').value;
-  const materiaId = document.getElementById('materiaInscribir').value;
-  const infoDiv = document.getElementById('infoProfesorGrupo');
+// NUEVA FUNCION: Mostrar info de la asignacion seleccionada
+async function mostrarInfoAsignacion() {
+  const asignacionId = document.getElementById('asignacionInscribir').value;
+  const infoDiv = document.getElementById('infoAsignacion');
   
-  if (!grupoId || !materiaId) {
+  if (!asignacionId) {
     infoDiv.style.display = 'none';
     return;
   }
   
   try {
-    const asignacionSnap = await db.collection('profesorMaterias')
-      .where('grupoId', '==', grupoId)
-      .where('materiaId', '==', materiaId)
-      .where('activa', '==', true)
-      .limit(1)
-      .get();
+    const asigDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
     
-    if (!asignacionSnap.empty) {
-      const asignacion = asignacionSnap.docs[0].data();
-      infoDiv.innerHTML = '<strong>Profesor:</strong> ' + (asignacion.profesorNombre || 'No especificado');
-      infoDiv.style.display = 'block';
-    } else {
-      infoDiv.innerHTML = '<strong style="color: #ff9800;">No hay profesor asignado a esta materia en este grupo</strong>';
+    if (asigDoc.exists) {
+      const asig = asigDoc.data();
+      
+      infoDiv.innerHTML = `
+        <strong>Detalles de la asignacion:</strong><br>
+        <div style="margin-top: 10px; display: grid; gap: 5px;">
+          <div><strong>Materia:</strong> ${asig.materiaNombre} (${asig.materiaCodigo || 'Sin codigo'})</div>
+          <div><strong>Grupo:</strong> ${asig.grupoNombre}</div>
+          <div><strong>Profesor:</strong> ${asig.profesorNombre}</div>
+          <div><strong>Periodo:</strong> ${asig.periodo}</div>
+        </div>
+      `;
       infoDiv.style.display = 'block';
     }
     
@@ -318,73 +298,59 @@ async function cargarProfesorDelGrupo() {
   }
 }
 
+// PASO 3: GUARDAR - VERSION SIMPLIFICADA
 async function guardarInscripcionAlumno(event) {
   event.preventDefault();
   
   const alumnoSelect = document.getElementById('alumnoInscribir');
-  const materiaSelect = document.getElementById('materiaInscribir');
-  const grupoSelect = document.getElementById('grupoInscribir');
+  const asignacionId = document.getElementById('asignacionInscribir').value;
+  const periodo = document.getElementById('periodoInscribir').value.trim();
   
   const alumnoId = alumnoSelect.value;
   const alumnoNombre = alumnoSelect.options[alumnoSelect.selectedIndex].dataset.nombre;
   const alumnoMatricula = alumnoSelect.options[alumnoSelect.selectedIndex].dataset.matricula;
   
-  const materiaId = materiaSelect.value;
-  const materiaNombre = materiaSelect.options[materiaSelect.selectedIndex].dataset.nombre;
-  const materiaCodigo = materiaSelect.options[materiaSelect.selectedIndex].dataset.codigo;
-  
-  const grupoId = grupoSelect.value;
-  const grupoNombre = grupoSelect.options[grupoSelect.selectedIndex].dataset.nombre;
-  
-  const periodo = document.getElementById('periodoInscribir').value.trim();
-  
   try {
-    // Verificar si ya esta inscrito en esta materia y grupo
+    // Obtener datos completos de la asignacion
+    const asigDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+    
+    if (!asigDoc.exists) {
+      alert('Error: Asignacion no encontrada');
+      return;
+    }
+    
+    const asignacion = asigDoc.data();
+    
+    // Verificar si ya esta inscrito en esta materia
     const existe = await db.collection('inscripcionesEspeciales')
       .where('alumnoId', '==', alumnoId)
-      .where('materiaId', '==', materiaId)
-      .where('grupoId', '==', grupoId)
+      .where('materiaId', '==', asignacion.materiaId)
       .where('periodo', '==', periodo)
       .where('activa', '==', true)
       .get();
     
     if (!existe.empty) {
-      alert('Este alumno ya esta inscrito en esta materia y grupo.\n\nVerifica los datos.');
+      alert('Este alumno ya esta inscrito en esta materia en este periodo.\n\nVerifica los datos.');
       return;
     }
     
-    // Buscar datos del profesor si existe asignacion
-    let profesorId = null;
-    let profesorNombre = null;
-    
-    const asignacionSnap = await db.collection('profesorMaterias')
-      .where('grupoId', '==', grupoId)
-      .where('materiaId', '==', materiaId)
-      .where('activa', '==', true)
-      .limit(1)
-      .get();
-    
-    if (!asignacionSnap.empty) {
-      const asignacion = asignacionSnap.docs[0].data();
-      profesorId = asignacion.profesorId;
-      profesorNombre = asignacion.profesorNombre;
-    }
-    
-    // Crear inscripcion especial
+    // Crear inscripcion especial con TODOS los datos de la asignacion
     const inscripcionData = {
       alumnoId: alumnoId,
       alumnoNombre: alumnoNombre,
       alumnoMatricula: alumnoMatricula,
       
-      materiaId: materiaId,
-      materiaNombre: materiaNombre,
-      materiaCodigo: materiaCodigo,
+      materiaId: asignacion.materiaId,
+      materiaNombre: asignacion.materiaNombre,
+      materiaCodigo: asignacion.materiaCodigo || '',
       
-      grupoId: grupoId,
-      grupoNombre: grupoNombre,
+      grupoId: asignacion.grupoId,
+      grupoNombre: asignacion.grupoNombre,
       
-      profesorId: profesorId,
-      profesorNombre: profesorNombre,
+      profesorId: asignacion.profesorId,
+      profesorNombre: asignacion.profesorNombre,
+      
+      profesorMateriaId: asignacionId,  // Referencia a la asignacion original
       
       carreraId: usuarioActual.carreraId,
       periodo: periodo,
@@ -403,9 +369,9 @@ async function guardarInscripcionAlumno(event) {
     
     alert('Inscripcion Exitosa!\n\n' +
           'Alumno: ' + alumnoNombre + '\n' +
-          'Materia: ' + materiaNombre + '\n' +
-          'Grupo: ' + grupoNombre + '\n' +
-          'Profesor: ' + (profesorNombre || 'Sin asignar'));
+          'Materia: ' + asignacion.materiaNombre + '\n' +
+          'Grupo: ' + asignacion.grupoNombre + '\n' +
+          'Profesor: ' + asignacion.profesorNombre);
     
     cerrarModal();
     await cargarInscripciones();
@@ -416,13 +382,11 @@ async function guardarInscripcionAlumno(event) {
   }
 }
 
-// PASO 3: CARGAR INSCRIPCIONES - VERSION CORREGIDA
-// Muestra TODOS los alumnos especiales, tengan o no materias inscritas
+// PASO 4: CARGAR INSCRIPCIONES (sin cambios de la version FIXED)
 async function cargarInscripciones() {
   try {
     const container = document.getElementById('listaInscripciones');
     
-    // 1. Cargar TODOS los alumnos especiales de la carrera
     const alumnosSnap = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
       .where('tipoAlumno', '==', 'especial')
@@ -442,14 +406,12 @@ async function cargarInscripciones() {
       return;
     }
     
-    // 2. Cargar inscripciones del periodo actual
     const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
       .where('carreraId', '==', usuarioActual.carreraId)
       .where('periodo', '==', periodoActualCarrera)
       .where('activa', '==', true)
       .get();
     
-    // 3. Agrupar inscripciones por alumno
     const inscripcionesPorAlumno = {};
     inscripcionesSnap.forEach(doc => {
       const insc = doc.data();
@@ -462,7 +424,6 @@ async function cargarInscripciones() {
       });
     });
     
-    // 4. Generar HTML para TODOS los alumnos
     let html = '<div style="display: flex; flex-direction: column; gap: 20px;">';
     
     const alumnosArray = [];
@@ -473,7 +434,6 @@ async function cargarInscripciones() {
       });
     });
     
-    // Ordenar alfabeticamente
     alumnosArray.sort((a, b) => a.nombre.localeCompare(b.nombre));
     
     alumnosArray.forEach(alumno => {
@@ -518,7 +478,6 @@ async function cargarInscripciones() {
       } else {
         html += '<div style="display: grid; gap: 12px;">';
         
-        // Ordenar materias alfabeticamente
         inscripciones.sort((a, b) => a.materiaNombre.localeCompare(b.materiaNombre));
         
         inscripciones.forEach(insc => {
@@ -564,7 +523,6 @@ async function cargarInscripciones() {
   }
 }
 
-// Dar de baja inscripcion especial
 async function darDeBajaInscripcionEspecial(inscripcionId, materiaNombre) {
   if (!confirm('Dar de baja la inscripcion de:\n\n' + materiaNombre + '?\n\nEsta accion no se puede deshacer.')) {
     return;
@@ -586,7 +544,6 @@ async function darDeBajaInscripcionEspecial(inscripcionId, materiaNombre) {
   }
 }
 
-// Inscribir otra materia a alumno existente
 async function inscribirOtraMateriaAlumno(alumnoId) {
   await mostrarFormInscribirAlumno();
   
@@ -599,7 +556,6 @@ async function inscribirOtraMateriaAlumno(alumnoId) {
   }, 100);
 }
 
-// Ver todas las materias de un alumno especial
 async function verTodasMateriasAlumnoEspecial(alumnoId, alumnoNombre) {
   try {
     const snapshot = await db.collection('inscripcionesEspeciales')
@@ -694,4 +650,4 @@ async function verTodasMateriasAlumnoEspecial(alumnoId, alumnoNombre) {
   }
 }
 
-console.log('Sistema de Inscripciones Especiales cargado - VERSION CORREGIDA');
+console.log('Sistema de Inscripciones Especiales - VERSION AUTO cargado');
