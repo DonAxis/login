@@ -1,22 +1,20 @@
-// boletaPDF.js - ACTUALIZADO para alumnos especiales
-// Genera PDF de boleta de calificaciones
+// boletaPDF.js - Función para generar PDF de la boleta actual
+// SOPORTA alumnos especiales SIN cambiar el formato visual
 
 async function generarPDFBoletaActual() {
+  if (!alumnoActual || !alumnoActual.id) {
+    alert('No hay datos de alumno cargados');
+    return;
+  }
+  
   try {
     console.log('=== GENERANDO PDF BOLETA ===');
-    
-    if (!alumnoActual) {
-      alert('No hay datos del alumno');
-      return;
-    }
-    
     console.log('Alumno:', alumnoActual.nombre);
     console.log('Tipo:', alumnoActual.tipoAlumno);
-    console.log('Grupo:', alumnoActual.grupoId);
     
-    // Verificar jsPDF
+    // Verificar que jsPDF esté cargado
     if (typeof window.jspdf === 'undefined') {
-      alert('Error: jsPDF no esta cargado. Recarga la pagina.');
+      alert('Error: jsPDF no está cargado. Recarga la página.');
       return;
     }
     
@@ -26,14 +24,15 @@ async function generarPDFBoletaActual() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     
-    // DETECTAR TIPO DE ALUMNO
+    // DETECTAR TIPO DE ALUMNO (sin cambiar visualización)
     const esAlumnoEspecial = alumnoActual.tipoAlumno === 'especial';
     console.log('Es alumno especial:', esAlumnoEspecial);
     
     let materias = [];
     
+    // Obtener materias según tipo de alumno
     if (esAlumnoEspecial) {
-      // ===== ALUMNO ESPECIAL =====
+      // ===== ALUMNO ESPECIAL: Cargar desde inscripcionesEspeciales =====
       console.log('Cargando materias de inscripciones especiales...');
       
       const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
@@ -44,7 +43,7 @@ async function generarPDFBoletaActual() {
       console.log('Inscripciones encontradas:', inscripcionesSnap.size);
       
       if (inscripcionesSnap.empty) {
-        alert('No tienes materias inscritas');
+        alert('No hay materias para generar el PDF');
         return;
       }
       
@@ -55,7 +54,7 @@ async function generarPDFBoletaActual() {
         console.log('Procesando materia:', inscripcion.materiaNombre);
         
         // Buscar calificaciones
-        const docId = alumnoActual.id + '_' + inscripcion.materiaId;
+        const docId = `${alumnoActual.id}_${inscripcion.materiaId}`;
         const calDoc = await db.collection('calificaciones').doc(docId).get();
         
         let parcial1 = '-';
@@ -73,7 +72,7 @@ async function generarPDFBoletaActual() {
           nombre: inscripcion.materiaNombre,
           codigo: inscripcion.materiaCodigo || '',
           profesor: inscripcion.profesorNombre || 'Sin asignar',
-          grupo: inscripcion.grupoNombre,  // IMPORTANTE: incluir grupo
+          periodo: inscripcion.periodo,
           parcial1: parcial1,
           parcial2: parcial2,
           parcial3: parcial3
@@ -81,13 +80,8 @@ async function generarPDFBoletaActual() {
       }
       
     } else {
-      // ===== ALUMNO NORMAL =====
+      // ===== ALUMNO NORMAL: Cargar desde profesorMaterias =====
       console.log('Cargando materias del grupo:', alumnoActual.grupoId);
-      
-      if (!alumnoActual.grupoId) {
-        alert('No estas asignado a ningun grupo');
-        return;
-      }
       
       const materiasSnap = await db.collection('profesorMaterias')
         .where('grupoId', '==', alumnoActual.grupoId)
@@ -97,17 +91,18 @@ async function generarPDFBoletaActual() {
       console.log('Materias del grupo encontradas:', materiasSnap.size);
       
       if (materiasSnap.empty) {
-        alert('Tu grupo no tiene materias asignadas');
+        alert('No hay materias para generar el PDF');
         return;
       }
       
+      // Procesar cada materia
       for (const doc of materiasSnap.docs) {
         const materia = doc.data();
         
         console.log('Procesando materia:', materia.materiaNombre);
         
         // Buscar calificaciones
-        const docId = alumnoActual.id + '_' + materia.materiaId;
+        const docId = `${alumnoActual.id}_${materia.materiaId}`;
         const calDoc = await db.collection('calificaciones').doc(docId).get();
         
         let parcial1 = '-';
@@ -123,8 +118,9 @@ async function generarPDFBoletaActual() {
         
         materias.push({
           nombre: materia.materiaNombre,
-          codigo: materia.materiaCodigo || '',
+          codigo: materia.materiaCodigo,
           profesor: materia.profesorNombre,
+          periodo: materia.periodo,
           parcial1: parcial1,
           parcial2: parcial2,
           parcial3: parcial3
@@ -132,71 +128,77 @@ async function generarPDFBoletaActual() {
       }
     }
     
-    console.log('Total materias procesadas:', materias.length);
+    console.log('Total materias cargadas:', materias.length);
     
     if (materias.length === 0) {
       alert('No hay materias para generar el PDF');
       return;
     }
     
-    // Ordenar materias alfabeticamente
-    materias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    // Agregar logos si existen
+    if (typeof logosEscuela !== 'undefined') {
+      try {
+        if (logosEscuela.logoIzquierdo) {
+          doc.addImage(logosEscuela.logoIzquierdo, 'PNG', 15, 8, 25, 25);
+        }
+      } catch (e) {
+        console.log('Error al cargar logo izquierdo:', e);
+      }
+      
+      try {
+        if (logosEscuela.logoDerecho) {
+          doc.addImage(logosEscuela.logoDerecho, 'PNG', pageWidth - 40, 8, 25, 15);
+        }
+      } catch (e) {
+        console.log('Error al cargar logo derecho:', e);
+      }
+    }
     
-    // Fecha actual
+    // Título
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('BOLETA DE CALIFICACIONES', pageWidth / 2, 25, { align: 'center' });
+    
+    // Línea separadora
+    doc.setLineWidth(0.5);
+    doc.line(30, 40, pageWidth - 30, 40);
+    
+    // Información del alumno
+    let y = 50;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    
+    // Fecha
     const fecha = new Date().toLocaleDateString('es-MX', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
+    doc.text(`Fecha: ${fecha}`, pageWidth - 20, y, { align: 'right' });
+    y += 7;
     
-    // Agregar logos
-    if (typeof logosEscuela !== 'undefined') {
-      if (typeof agregarLogosAlPDF === 'function') {
-        agregarLogosAlPDF(doc);
-      } else if (typeof logosEscuela.agregarLogosAlPDF === 'function') {
-        logosEscuela.agregarLogosAlPDF(doc);
-      } else if (logosEscuela.logoIzquierdo || logosEscuela.logoDerecho) {
-        try {
-          if (logosEscuela.logoIzquierdo) {
-            doc.addImage(logosEscuela.logoIzquierdo, 'PNG', 15, 8, 25, 15);
-          }
-        } catch (e) {
-          console.log('Error logo izquierdo:', e);
+    doc.text(`Alumno: ${alumnoActual.nombre}`, 20, y);
+    y += 7;
+    
+    if (alumnoActual.matricula) {
+      doc.text(`Matrícula: ${alumnoActual.matricula}`, 20, y);
+      y += 7;
+    }
+    
+    // Cargar grupo
+    if (alumnoActual.grupoId) {
+      try {
+        const grupoDoc = await db.collection('grupos').doc(alumnoActual.grupoId).get();
+        if (grupoDoc.exists) {
+          doc.text(`Grupo: ${grupoDoc.data().nombre}`, 20, y);
+          y += 7;
         }
-        
-        try {
-          if (logosEscuela.logoDerecho) {
-            doc.addImage(logosEscuela.logoDerecho, 'PNG', pageWidth - 40, 8, 25, 15);
-          }
-        } catch (e) {
-          console.log('Error logo derecho:', e);
-        }
+      } catch (error) {
+        console.error('Error al cargar grupo:', error);
       }
     }
     
-    // Encabezado
-    doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
-    doc.text('BOLETA DE CALIFICACIONES', pageWidth / 2, 25, { align: 'center' });
-    
-    // Linea separadora
-    doc.setLineWidth(0.5);
-    doc.line(20, 30, pageWidth - 20, 30);
-    
-    // Informacion del alumno
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    
-    let y = 40;
-    
-    doc.text(`Fecha: ${fecha}`, pageWidth - 20, y, { align: 'right' });
-    y += 7;
-    doc.text(`Alumno: ${alumnoActual.nombre}`, 20, y);
-    y += 7;
-    doc.text(`Matricula: ${alumnoActual.matricula || 'N/A'}`, 20, y);
-    y += 7;
-    
-    // Carrera
+    // Cargar carrera
     if (alumnoActual.carreraId) {
       try {
         const carreraDoc = await db.collection('carreras').doc(alumnoActual.carreraId).get();
@@ -209,29 +211,15 @@ async function generarPDFBoletaActual() {
       }
     }
     
-    // Grupo
-    if (esAlumnoEspecial) {
-      doc.setTextColor(255, 152, 0); // Naranja
-      doc.setFont(undefined, 'bold');
-      
-      doc.setTextColor(0, 0, 0);
-      doc.setFont(undefined, 'normal');
+    // Periodo (obtener del primer materia)
+    if (materias.length > 0 && materias[0].periodo) {
+      doc.text(`Periodo: ${materias[0].periodo}`, 20, y);
       y += 7;
-    } else if (alumnoActual.grupoId) {
-      try {
-        const grupoDoc = await db.collection('grupos').doc(alumnoActual.grupoId).get();
-        if (grupoDoc.exists) {
-          doc.text(`Grupo: ${grupoDoc.data().nombre}`, 20, y);
-          y += 7;
-        }
-      } catch (error) {
-        console.error('Error al cargar grupo:', error);
-      }
     }
     
     y += 5;
     
-    // Preparar datos de la tabla
+    // Preparar datos para la tabla
     const tableData = [];
     let sumaPromedios = 0;
     let countPromedios = 0;
@@ -263,66 +251,23 @@ async function generarPDFBoletaActual() {
         }
       }
       
-      // Construir fila segun tipo de alumno
-      if (esAlumnoEspecial) {
-        // Alumno especial: incluir columna de grupo
-        tableData.push([
-          materia.nombre,
-          materia.grupo,  // Columna extra
-          p1.toString(),
-          p2.toString(),
-          p3.toString(),
-          promedio
-        ]);
-      } else {
-        // Alumno normal: sin columna de grupo
-        tableData.push([
-          materia.nombre,
-          p1.toString(),
-          p2.toString(),
-          p3.toString(),
-          promedio
-        ]);
-      }
+      tableData.push([
+        `${materia.nombre}\n${materia.profesor}`,
+        p1.toString(),
+        p2.toString(),
+        p3.toString(),
+        promedio
+      ]);
     });
     
-    // Promedio general
-    const promedioGeneral = countPromedios > 0 
-      ? (sumaPromedios / countPromedios).toFixed(1) 
-      : '-';
-    
-    // Configuracion de columnas segun tipo de alumno
-    let headConfig, columnConfig;
-    
-    if (esAlumnoEspecial) {
-      headConfig = [['Materia', 'Grupo', 'P1', 'P2', 'P3', 'Promedio']];
-      columnConfig = {
-        0: { halign: 'left', cellWidth: 70 },
-        1: { halign: 'center', cellWidth: 30 },  // Columna grupo
-        2: { halign: 'center', cellWidth: 18 },
-        3: { halign: 'center', cellWidth: 18 },
-        4: { halign: 'center', cellWidth: 18 },
-        5: { halign: 'center', cellWidth: 26, fontStyle: 'bold' }
-      };
-    } else {
-      headConfig = [['Materia', 'P1', 'P2', 'P3', 'Promedio']];
-      columnConfig = {
-        0: { halign: 'left', cellWidth: 90 },
-        1: { halign: 'center', cellWidth: 20 },
-        2: { halign: 'center', cellWidth: 20 },
-        3: { halign: 'center', cellWidth: 20 },
-        4: { halign: 'center', cellWidth: 30, fontStyle: 'bold' }
-      };
-    }
-    
-    // Generar tabla
+    // Generar tabla (MISMO FORMATO para ambos tipos)
     doc.autoTable({
       startY: y,
-      head: headConfig,
+      head: [['Materia / Profesor', 'P1', 'P2', 'P3', 'Promedio']],
       body: tableData,
       theme: 'grid',
       headStyles: {
-        fillColor: [106, 33, 53], // Color IPN
+        fillColor: [106, 33, 53],
         textColor: 255,
         fontStyle: 'bold',
         halign: 'center',
@@ -332,17 +277,38 @@ async function generarPDFBoletaActual() {
         fontSize: 9,
         cellPadding: 4
       },
-      columnStyles: columnConfig
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 90 },
+        1: { halign: 'center', cellWidth: 20 },
+        2: { halign: 'center', cellWidth: 20 },
+        3: { halign: 'center', cellWidth: 20 },
+        4: { halign: 'center', cellWidth: 30, fontStyle: 'bold' }
+      }
     });
     
     // Promedio general
     y = doc.lastAutoTable.finalY + 10;
+    const promedioGeneral = countPromedios > 0 
+      ? (sumaPromedios / countPromedios).toFixed(1) 
+      : '-';
     
     doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
-    doc.text(`PROMEDIO GENERAL: ${promedioGeneral}`, pageWidth / 2, y, { align: 'center' });
+    doc.text(`Promedio General: ${promedioGeneral}`, 20, y);
     
-    // Pie de pagina
+    // Mensaje de no validez
+    y = pageHeight - 25;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(200, 0, 0); // Rojo
+    doc.text(
+      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL Y NO CONTIENE LAS FIRMAS Y SELLOS NECESARIOS',
+      pageWidth / 2,
+      y,
+      { align: 'center' }
+    );
+    
+    // Pie de página
     doc.setFontSize(8);
     doc.setFont(undefined, 'normal');
     doc.setTextColor(128);
@@ -363,9 +329,8 @@ async function generarPDFBoletaActual() {
     
   } catch (error) {
     console.error('Error al generar PDF:', error);
-    console.error('Stack trace:', error.stack);
     alert('Error al generar PDF: ' + error.message);
   }
 }
 
-console.log('boletaPDF.js cargado - soporte para alumnos especiales ACTIVADO');
+console.log('Función generarPDFBoletaActual cargada - soporte alumnos especiales SIN cambios visuales');
