@@ -1,37 +1,15 @@
-// ===== FUNCIONES DE PERIODO - MODIFICADO PARA SOPORTAR DIFERENTES TIPOS =====
 
-// MODIFICADO: Generar lista de periodos disponibles según el tipo de carrera
-function generarPeriodos(periodosAnio = 2) {
+
+// ===== FUNCIONES DE PERIODO =====
+
+// Generar lista de periodos disponibles
+function generarPeriodos() {
   const periodos = [];
   for (let year = 2024; year <= 2030; year++) {
-    for (let periodo = 1; periodo <= periodosAnio; periodo++) {
-      periodos.push(`${year}-${periodo}`);
-    }
+    periodos.push(`${year}-1`);
+    periodos.push(`${year}-2`);
   }
   return periodos;
-}
-
-// NUEVA FUNCIÓN: Calcular siguiente periodo basado en el tipo de carrera
-function calcularSiguientePeriodo(periodoActual, periodosAnio = 2) {
-  const [year, periodo] = periodoActual.split('-').map(n => parseInt(n));
-  
-  if (periodo < periodosAnio) {
-    // Todavía hay periodos en el año actual
-    return `${year}-${periodo + 1}`;
-  } else {
-    // Pasar al primer periodo del siguiente año
-    return `${year + 1}-1`;
-  }
-}
-
-// NUEVA FUNCIÓN: Obtener nombre del periodo según el tipo
-function obtenerNombrePeriodo(periodosAnio) {
-  switch(periodosAnio) {
-    case 2: return 'Semestre';
-    case 3: return 'Cuatrimestre';
-    case 4: return 'Trimestre';
-    default: return 'Periodo';
-  }
 }
 
 // Cargar periodo actual de la carrera
@@ -58,119 +36,94 @@ async function cargarPeriodoCarrera(carreraId) {
   }
 }
 
-// MODIFICADO: Mostrar modal de cambio de periodo con cálculo automático según tipo de carrera
+// Mostrar modal de cambio de periodo (CON CALCULO AUTOMATICO)
 async function mostrarCambioPeriodo(carreraId, periodoActual) {
-  try {
-    // Obtener información de la carrera para saber el tipo de periodo
-    const carreraDoc = await db.collection('carreras').doc(carreraId).get();
-    
-    if (!carreraDoc.exists) {
-      alert('Error: Carrera no encontrada');
-      return;
-    }
-    
-    const carreraData = carreraDoc.data();
-    const periodosAnio = carreraData.periodosAnio || 2; // Por defecto semestral
-    const tipoPeriodoNombre = carreraData.tipoPeriodoNombre || 'Semestral';
-    const nombrePeriodo = obtenerNombrePeriodo(periodosAnio);
-    
-    // Calcular siguiente periodo automáticamente según el tipo de carrera
-    const siguientePeriodo = calcularSiguientePeriodo(periodoActual, periodosAnio);
-    
-    const html = `
-      <div style="background: white; padding: 30px; border-radius: 15px; max-width: 700px; margin: 20px auto;">
-        <h3 style="margin: 0 0 20px 0; color: #216A32;">Cambiar Periodo Académico</h3>
-        
-        <div style="background: #f0f4ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #667eea;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <strong style="color: #333;">Carrera:</strong>
-            <span style="color: #666;">${carreraData.nombre}</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-            <strong style="color: #333;">Tipo de periodo:</strong>
-            <span style="color: #666;">${tipoPeriodoNombre} (${periodosAnio} ${periodosAnio > 1 ? 'periodos' : 'periodo'} por año)</span>
-          </div>
-        </div>
-        
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <div style="display: flex; align-items: center; justify-content: space-around; gap: 20px;">
-            <div style="text-align: center;">
-              <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">${nombrePeriodo} actual:</div>
-              <div style="font-size: 2rem; font-weight: bold; color: #216A32;">${periodoActual}</div>
-            </div>
-            
-            <div style="font-size: 3rem; color: #999;">→</div>
-            
-            <div style="text-align: center;">
-              <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Siguiente ${nombrePeriodo.toLowerCase()}:</div>
-              <div style="font-size: 2rem; font-weight: bold; color: #1976d2;">${siguientePeriodo}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-          <strong>Acciones al cambiar periodo:</strong>
-          <ul style="margin: 10px 0; padding-left: 20px;">
-            <li>Los alumnos avanzarán al siguiente semestre (Ej: 1101-MAT → 1201-MAT)</li>
-            <li>Los alumnos sin grupo disponible se mostrarán como "Alumno inactivo académico"</li>
-            <li>Se archivarán los grupos actuales en el historial</li>
-            <li>Las asignaciones de profesores se desactivarán</li>
-            <li>Las calificaciones se guardarán en el historial general</li>
-          </ul>
-        </div>
-        
-        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-          <strong>IMPORTANTE:</strong>
-          <p style="margin: 5px 0 0 0;">Esta acción solo afectará a tu carrera. Otras carreras mantienen su periodo independiente.</p>
-        </div>
-        
-        <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-          <strong>ADVERTENCIA:</strong>
-          <p style="margin: 5px 0 0 0;">Esta acción no se puede deshacer. Verifica que todo esté correcto antes de continuar.</p>
-        </div>
-        
-        <form onsubmit="ejecutarCambioPeriodoCarrera(event, '${carreraId}', '${periodoActual}', '${siguientePeriodo}', ${periodosAnio})">
-          <div style="display: flex; gap: 10px;">
-            <button type="submit" style="flex: 1; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.1rem;">
-              Avanzar a ${siguientePeriodo}
-            </button>
-            <button type="button" onclick="cerrarModal()" style="flex: 1; padding: 14px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.1rem;">
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-    `;
-    
-    document.getElementById('contenidoModal').innerHTML = html;
-    document.getElementById('modalGenerico').style.display = 'flex';
-    
-  } catch (error) {
-    console.error('Error al mostrar modal de cambio de periodo:', error);
-    alert('Error al cargar información de la carrera');
+  // Calcular siguiente periodo automaticamente
+  const [year, semestre] = periodoActual.split('-').map(n => parseInt(n));
+  let siguientePeriodo;
+  
+  if (semestre === 1) {
+    siguientePeriodo = `${year}-2`;
+  } else {
+    siguientePeriodo = `${year + 1}-1`;
   }
+  
+  const html = `
+    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 700px; margin: 20px auto;">
+      <h3 style="margin: 0 0 20px 0; color: #216A32;">Cambiar Periodo Academico</h3>
+      
+      <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-around; gap: 20px;">
+          <div style="text-align: center;">
+            <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Periodo actual:</div>
+            <div style="font-size: 2rem; font-weight: bold; color: #216A32;">${periodoActual}</div>
+          </div>
+          
+          <div style="font-size: 3rem; color: #999;">→</div>
+          
+          <div style="text-align: center;">
+            <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Siguiente periodo:</div>
+            <div style="font-size: 2rem; font-weight: bold; color: #1976d2;">${siguientePeriodo}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+        <strong>Acciones al cambiar periodo:</strong>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          <li>Los alumnos avanzaran al siguiente semestre (Ej: 1101-MAT → 1201-MAT)</li>
+          <li>Los alumnos sin grupo disponible se mostraran como "Alumno inactivo académico"</li>
+          <li>Se archivaran los grupos actuales en el historial</li>
+          <li>Las asignaciones de profesores se desactivaran</li>
+          <li>Las calificaciones se guardaran en el historial general</li>
+        </ul>
+      </div>
+      
+      <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+        <strong>IMPORTANTE:</strong>
+        <p style="margin: 5px 0 0 0;">Esta accion solo afectara a tu carrera. Otras carreras mantienen su periodo independiente.</p>
+      </div>
+      
+      <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+        <strong>ADVERTENCIA:</strong>
+        <p style="margin: 5px 0 0 0;">Esta accion no se puede deshacer. Verifica que todo este correcto antes de continuar.</p>
+      </div>
+      
+      <form onsubmit="ejecutarCambioPeriodoCarrera(event, '${carreraId}', '${periodoActual}', '${siguientePeriodo}')">
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" style="flex: 1; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.1rem;">
+            Avanzar a ${siguientePeriodo}
+          </button>
+          <button type="button" onclick="cerrarModal()" style="flex: 1; padding: 14px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.1rem;">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+  
+  document.getElementById('contenidoModal').innerHTML = html;
+  document.getElementById('modalGenerico').style.display = 'flex';
 }
 
-// MODIFICADO: Ejecutar cambio de periodo con validación del tipo de periodo
-async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, siguientePeriodo, periodosAnio) {
+// Ejecutar cambio de periodo (CON SIGUIENTE PERIODO YA CALCULADO Y VERIFICACIÓN DE GRUPOS)
+async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, siguientePeriodo) {
   event.preventDefault();
   
   // El nuevoPeriodo ya viene como parámetro calculado
   const nuevoPeriodo = siguientePeriodo;
-  const nombrePeriodo = obtenerNombrePeriodo(periodosAnio);
   
   const confirmacion = confirm(
     `CONFIRMAR CAMBIO DE PERIODO\n\n` +
     `De: ${periodoActual}\n` +
-    `A: ${nuevoPeriodo}\n` +
-    `Tipo: ${nombrePeriodo} (${periodosAnio} periodos por año)\n\n` +
-    `Esta acción:\n` +
-    `- Avanzará todos los alumnos al siguiente semestre\n` +
-    `- Actualizará grupos automáticamente\n` +
-    `- Archivará grupos en historial\n` +
-    `- Desactivará asignaciones del periodo anterior\n` +
-    `- Guardará calificaciones en historial\n\n` +
-    `Los alumnos sin grupo disponible se mostrarán como "Alumno inactivo académico"\n\n` +
+    `A: ${nuevoPeriodo}\n\n` +
+    `Esta accion:\n` +
+    `- Avanzara todos los alumnos al siguiente semestre\n` +
+    `- Actualizara grupos automaticamente\n` +
+    `- Archivara grupos en historial\n` +
+    `- Desactivara asignaciones del periodo anterior\n` +
+    `- Guardara calificaciones en historial\n\n` +
+    `Los alumnos sin grupo disponible se mostraran como "Alumno inactivo academico"\n\n` +
     `¿Continuar?`
   );
   
@@ -346,7 +299,7 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
         <div style="background: #ffebee; border-left: 4px solid #f44336; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
           <p style="margin: 0; color: #c62828;">${error.message}</p>
         </div>
-        <button onclick="cerrarModal()" style="width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+        <button onclick="cerrarModal()" style="width: 100%; padding: 12px; background: #f44336; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
           Cerrar
         </button>
       </div>
@@ -354,37 +307,47 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
   }
 }
 
-// Función auxiliar: Calcular nuevo grupo basado en semestre
-function calcularNuevoGrupo(grupoIdActual, nuevoSemestre) {
-  if (!grupoIdActual) return null;
+// Calcular nuevo grupo basado en el semestre
+function calcularNuevoGrupo(grupoActual, nuevoSemestre) {
+  if (!grupoActual) {
+    return null;
+  }
   
-  // Formato esperado: SSGG-XXX donde SS es semestre, GG es grupo, XXX es carrera
-  // Ejemplo: 1101-MAT (semestre 11, grupo 01, carrera MAT)
+  // Formato: TSGG-SIGLA (Ej: 1201-MAT, 1402-LI)
+  // T = Turno (1, 2 o 3)
+  // S = Semestre (1-9)
+  // GG = Número de grupo (01, 02, 03, etc)
+  // SIGLA = Carrera (MAT, LI, etc)
   
-  const partes = grupoIdActual.split('-');
-  if (partes.length !== 2) return grupoIdActual; // No se puede calcular
+  const match = grupoActual.match(/^([123])(\d)(\d{2})-(.+)$/);
   
-  const codigo = partes[0]; // Ejemplo: "1101"
-  const carrera = partes[1]; // Ejemplo: "MAT"
+  if (match) {
+    const turno = match[1];      // 1, 2 o 3
+    const semestreViejo = match[2]; // Semestre anterior (no se usa)
+    const numeroGrupo = match[3];   // 01, 02, 03, etc - MANTENER ESTE
+    const sigla = match[4];      // MAT, LI, etc
+    
+    // CORREGIDO: Mantener el número de grupo original
+    return `${turno}${nuevoSemestre}${numeroGrupo}-${sigla}`;
+  }
   
-  if (codigo.length < 4) return grupoIdActual;
+  // Fallback: mantener turno y sigla originales
+  const turnoMatch = grupoActual.match(/^([123])/);
+  const siglaMatch = grupoActual.match(/-(.+)$/);
   
-  // Extraer las partes del código
-  const grupoNumero = codigo.substring(2, 4); // Los últimos 2 dígitos (grupo)
+  const turno = turnoMatch ? turnoMatch[1] : '1';
+  const sigla = siglaMatch ? siglaMatch[1] : 'MAT';
   
-  // Formatear nuevo semestre a 2 dígitos
-  const nuevoSemestreStr = nuevoSemestre.toString().padStart(2, '0');
-  
-  // Construir nuevo grupoId
-  return `${nuevoSemestreStr}${grupoNumero}-${carrera}`;
+  return `${turno}${nuevoSemestre}01-${sigla}`;
 }
 
-// Archivar grupos del periodo que termina
+// ===== HISTORIAL DE GRUPOS =====
+
+// Archivar grupos del periodo actual
 async function archivarGrupos(carreraId, periodoActual) {
   try {
     const gruposSnap = await db.collection('grupos')
       .where('carreraId', '==', carreraId)
-      .where('periodo', '==', periodoActual)
       .where('activo', '==', true)
       .get();
     
@@ -398,15 +361,14 @@ async function archivarGrupos(carreraId, periodoActual) {
       batch.set(historialRef, {
         ...grupo,
         grupoOriginalId: grupoDoc.id,
-        periodoArchivado: periodoActual,
+        periodo: periodoActual,
         fechaArchivado: firebase.firestore.FieldValue.serverTimestamp()
       });
       
-      // Marcar grupo como archivado
+      // Desactivar grupo actual
       batch.update(grupoDoc.ref, {
         activo: false,
-        archivado: true,
-        fechaArchivado: firebase.firestore.FieldValue.serverTimestamp()
+        fechaDesactivacion: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
     
@@ -424,7 +386,7 @@ async function contarGruposArchivados(carreraId, periodo) {
   try {
     const snap = await db.collection('historialGrupos')
       .where('carreraId', '==', carreraId)
-      .where('periodoArchivado', '==', periodo)
+      .where('periodo', '==', periodo)
       .get();
     
     return snap.size;
@@ -434,7 +396,91 @@ async function contarGruposArchivados(carreraId, periodo) {
   }
 }
 
-// Archivar calificaciones
+// Ver historial de grupos
+async function verHistorialGrupos(carreraId) {
+  try {
+    const snap = await db.collection('historialGrupos')
+      .where('carreraId', '==', carreraId)
+      .orderBy('fechaArchivado', 'desc')
+      .get();
+    
+    if (snap.empty) {
+      mostrarMensajeModal('No hay grupos archivados', 'info');
+      return;
+    }
+    
+    // Agrupar por periodo
+    const gruposPorPeriodo = {};
+    snap.forEach(doc => {
+      const data = doc.data();
+      const periodo = data.periodo;
+      
+      if (!gruposPorPeriodo[periodo]) {
+        gruposPorPeriodo[periodo] = [];
+      }
+      
+      gruposPorPeriodo[periodo].push(data);
+    });
+    
+    // Construir HTML
+    let html = `
+      <div style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; margin: 20px auto; max-height: 80vh; overflow-y: auto;">
+        <h3 style="margin: 0 0 20px 0; color: #216A32;">Historial de Grupos</h3>
+    `;
+    
+    const periodos = Object.keys(gruposPorPeriodo).sort().reverse();
+    
+    for (const periodo of periodos) {
+      const grupos = gruposPorPeriodo[periodo];
+      
+      html += `
+        <div style="margin-bottom: 30px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+          <div style="background: #667eea; color: white; padding: 15px; font-weight: 600; font-size: 18px;">
+            Periodo: ${periodo}
+          </div>
+          <div style="padding: 15px;">
+            <div style="display: grid; gap: 10px;">
+      `;
+      
+      grupos.forEach(grupo => {
+        html += `
+          <div style="background: #f5f5f5; padding: 12px; border-radius: 6px; border-left: 4px solid #667eea;">
+            <div style="font-weight: 600; margin-bottom: 5px;">${grupo.nombre || grupo.grupoOriginalId}</div>
+            <div style="font-size: 0.85rem; color: #666;">
+              Semestre: ${grupo.semestre || '-'} | 
+              Turno: ${grupo.turno || '-'} |
+              Fecha archivo: ${grupo.fechaArchivado ? new Date(grupo.fechaArchivado.toDate()).toLocaleDateString() : '-'}
+            </div>
+          </div>
+        `;
+      });
+      
+      html += `
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    html += `
+        <button onclick="cerrarModal()" style="width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 20px;">
+          Cerrar
+        </button>
+      </div>
+    `;
+    
+    document.getElementById('contenidoModal').innerHTML = html;
+    document.getElementById('modalGenerico').style.display = 'flex';
+    
+  } catch (error) {
+    console.error('Error al ver historial de grupos:', error);
+    alert('Error al cargar historial de grupos');
+  }
+}
+
+// ===== HISTORIAL DE CALIFICACIONES =====
+
+// Archivar calificaciones del periodo actual
 async function archivarCalificaciones(carreraId, periodoActual, nuevoPeriodo) {
   try {
     // Obtener todas las calificaciones del periodo actual
@@ -522,7 +568,7 @@ async function verHistorialCalificacionesAlumno(alumnoId) {
         <h3 style="margin: 0 0 10px 0; color: #216A32;">Historial de Calificaciones</h3>
         <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
           <strong>Alumno:</strong> ${alumno.nombre}<br>
-          <strong>Matrícula:</strong> ${alumno.matricula}
+          <strong>Matricula:</strong> ${alumno.matricula}
         </div>
     `;
     
@@ -632,4 +678,4 @@ function mostrarMensajeModal(mensaje, tipo) {
   document.getElementById('modalGenerico').style.display = 'flex';
 }
 
-console.log('Sistema de Cambio de Periodo cargado con soporte para diferentes tipos de periodos (Semestral, Cuatrimestral, Trimestral)');
+console.log('Sistema de Cambio de Periodo cargado');
