@@ -213,7 +213,7 @@ async function generarPDFBoletaActual() {
     if (esAlumnoEspecial) {
       doc.setTextColor(255, 152, 0); // Naranja
       doc.setFont(undefined, 'bold');
-      doc.text('Tipo: ALUMNO ESPECIAL', 20, y);
+      
       doc.setTextColor(0, 0, 0);
       doc.setFont(undefined, 'normal');
       y += 7;
