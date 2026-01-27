@@ -184,8 +184,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   
   <script src="firebase.js"></script>
-  
-<script src="controlAlumnoEspecial.js"></script>
+
+
   <script>
     const auth = firebase.auth();
     let usuarioActual = null;
@@ -707,8 +707,7 @@ function volverMaterias() {
 }
 
   </script>
-</body>
-</html>
+
 
 <script>
 // Función para guardar calificaciones (solo las vacías)
@@ -788,9 +787,13 @@ async function guardarCalificacionesProfe() {
       alert('No hay calificaciones nuevas para guardar.\n\nLas calificaciones ya registradas solo pueden ser modificadas por el coordinador.');
     }
     
-  } catch (error) {
+ } catch (error) {
     console.error('Error:', error);
     alert('Error al guardar calificaciones');
   }
 }
 </script>
+<script src="controlAlumnoEspecial.js"></script>
+
+</body>
+</html>
