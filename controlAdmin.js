@@ -20,6 +20,28 @@ const COLORES_DISPONIBLES = [
   { hex: "#f9a825", nombre: "Amarillo" }
 ];
 
+// NUEVO: Tipos de periodos disponibles
+const TIPOS_PERIODO = [
+  { 
+    valor: 2, 
+    nombre: "Semestral (2 periodos por año)", 
+    descripcion: "Ejemplo: 2026-1, 2026-2",
+    ejemplo: "2026-1 → 2026-2 → 2027-1"
+  },
+  { 
+    valor: 3, 
+    nombre: "Cuatrimestral (3 periodos por año)", 
+    descripcion: "Ejemplo: 2026-1, 2026-2, 2026-3",
+    ejemplo: "2026-1 → 2026-2 → 2026-3 → 2027-1"
+  },
+  { 
+    valor: 4, 
+    nombre: "Trimestral (4 periodos por año)", 
+    descripcion: "Ejemplo: 2026-1, 2026-2, 2026-3, 2026-4",
+    ejemplo: "2026-1 → 2026-2 → 2026-3 → 2026-4 → 2027-1"
+  }
+];
+
 // Proteger la página - solo admin
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
@@ -351,14 +373,132 @@ function mostrarMensajeControl(texto, tipo) {
   }
 }
 
-// CREAR CARRERA
+// ========================================
+// CREAR CARRERA - MODIFICADO CON TIPO DE PERIODO
+// ========================================
 async function mostrarModalCarrera() {
+  // Generar opciones de tipo de periodo
+  let opcionesPeriodo = '';
+  TIPOS_PERIODO.forEach(tipo => {
+    opcionesPeriodo += `
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 2px solid #e0e0e0; margin-bottom: 10px; cursor: pointer; transition: all 0.3s;" 
+           onclick="seleccionarTipoPeriodo(${tipo.valor}, this)" 
+           id="tipoPeriodo_${tipo.valor}">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="radio" name="tipoPeriodo" value="${tipo.valor}" id="radio_${tipo.valor}" style="width: 20px; height: 20px; cursor: pointer;">
+          <div style="flex: 1;">
+            <strong style="display: block; color: #333; margin-bottom: 5px;">${tipo.nombre}</strong>
+            <div style="font-size: 0.85rem; color: #666;">${tipo.descripcion}</div>
+            <div style="font-size: 0.8rem; color: #999; margin-top: 5px;">
+              <strong>Flujo:</strong> ${tipo.ejemplo}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  // Actualizar contenido del modal
+  const modalContent = `
+    <h3 style="margin: 0 0 20px 0; color: #667eea;">Crear Nueva Carrera</h3>
+    
+    <form id="formCarrera" onsubmit="crearCarrera(event)">
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+          Código de la Carrera <span style="color: red;">*</span>
+        </label>
+        <input 
+          type="text" 
+          id="codigoCarrera" 
+          required 
+          style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;"
+          placeholder="Ejemplo: ING-SIS"
+        >
+        <small style="color: #666; font-size: 0.85rem;">Este código será único e inmutable</small>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+          Nombre de la Carrera <span style="color: red;">*</span>
+        </label>
+        <input 
+          type="text" 
+          id="nombreCarrera" 
+          required 
+          style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;"
+          placeholder="Ejemplo: Ingeniería en Sistemas Computacionales"
+        >
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+          Descripción
+        </label>
+        <textarea 
+          id="descripcionCarrera" 
+          rows="3" 
+          style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; resize: vertical;"
+          placeholder="Descripción breve de la carrera (opcional)"
+        ></textarea>
+      </div>
+      
+      <div style="margin-bottom: 25px;">
+        <label style="display: block; margin-bottom: 12px; font-weight: 600; color: #333;">
+          Tipo de Periodo Académico <span style="color: red;">*</span>
+        </label>
+        <div style="background: #fff8e1; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
+          <strong style="color: #856404;">Importante:</strong>
+          <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #856404;">
+            Esta configuración determina cuántos periodos académicos tendrá la carrera por año.
+            No se puede cambiar después de crear la carrera.
+          </p>
+        </div>
+        ${opcionesPeriodo}
+      </div>
+      
+      <div id="mensajeCarrera" style="display: none; margin-bottom: 15px;"></div>
+      
+      <div style="display: flex; gap: 10px;">
+        <button 
+          type="submit" 
+          style="flex: 1; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
+          Crear Carrera
+        </button>
+        <button 
+          type="button" 
+          onclick="cerrarModalCarrera()" 
+          style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  `;
+  
+  document.getElementById('modalCarrera').querySelector('.modal-content').innerHTML = modalContent;
   document.getElementById('modalCarrera').style.display = 'flex';
+}
+
+// NUEVA FUNCIÓN: Seleccionar tipo de periodo visualmente
+function seleccionarTipoPeriodo(valor, elemento) {
+  // Desmarcar todos
+  document.querySelectorAll('[id^="tipoPeriodo_"]').forEach(el => {
+    el.style.borderColor = '#e0e0e0';
+    el.style.background = '#f8f9fa';
+  });
+  
+  // Desmarcar todos los radios
+  document.querySelectorAll('[name="tipoPeriodo"]').forEach(radio => {
+    radio.checked = false;
+  });
+  
+  // Marcar el seleccionado
+  elemento.style.borderColor = '#667eea';
+  elemento.style.background = '#f0f4ff';
+  document.getElementById(`radio_${valor}`).checked = true;
 }
 
 function cerrarModalCarrera() {
   document.getElementById('modalCarrera').style.display = 'none';
-  document.getElementById('formCarrera').reset();
   const mensaje = document.getElementById('mensajeCarrera');
   if (mensaje) mensaje.style.display = 'none';
 }
@@ -369,6 +509,16 @@ async function crearCarrera(event) {
   const codigo = document.getElementById("codigoCarrera").value.trim().toUpperCase();
   const nombre = document.getElementById("nombreCarrera").value.trim();
   const descripcion = document.getElementById("descripcionCarrera").value.trim();
+  
+  // NUEVO: Obtener tipo de periodo seleccionado
+  const tipoPeriodoRadio = document.querySelector('[name="tipoPeriodo"]:checked');
+  
+  if (!tipoPeriodoRadio) {
+    mostrarMensajeCarrera("Debes seleccionar un tipo de periodo académico", "error");
+    return;
+  }
+  
+  const periodosAnio = parseInt(tipoPeriodoRadio.value);
   
   try {
     mostrarMensajeCarrera("Creando carrera...", "info");
@@ -383,29 +533,34 @@ async function crearCarrera(event) {
       return;
     }
     
-    // Usar el código como ID del documento
+    // Obtener el nombre del tipo de periodo
+    const tipoInfo = TIPOS_PERIODO.find(t => t.valor === periodosAnio);
+    const tipoNombre = tipoInfo ? tipoInfo.nombre : 'Semestral';
+    
+    // MODIFICADO: Agregar campo periodosAnio
     await db.collection('carreras').doc(codigo).set({
       codigo: codigo,
       nombre: nombre,
       descripcion: descripcion,
       activa: true,
+      periodosAnio: periodosAnio, // NUEVO CAMPO
+      tipoPeriodoNombre: tipoNombre, // NUEVO CAMPO (descripción legible)
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    console.log("Carrera creada:", codigo);
+    console.log("Carrera creada:", codigo, "con", periodosAnio, "periodos por año");
     
     mostrarMensajeCarrera(
       "Carrera creada exitosamente\n\n" +
       "Código: " + codigo + "\n" +
-      "Nombre: " + nombre,
+      "Nombre: " + nombre + "\n" +
+      "Tipo: " + tipoNombre,
       "success"
     );
     
-    document.getElementById('formCarrera').reset();
-    
     setTimeout(() => {
       cerrarModalCarrera();
-    }, 2000);
+    }, 2500);
     
   } catch (error) {
     console.error("Error:", error);
@@ -734,4 +889,4 @@ window.addEventListener('click', (event) => {
   }
 });
 
-console.log('Sistema multi-carrera para coordinadores cargado');
+console.log('Sistema multi-carrera para coordinadores cargado con soporte para periodos configurables');

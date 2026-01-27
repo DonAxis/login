@@ -147,7 +147,7 @@ async function generarPDFBoletaActual() {
       
       try {
         if (logosEscuela.logoDerecho) {
-          doc.addImage(logosEscuela.logoDerecho, 'PNG', pageWidth - 40, 8, 25, 25);
+          doc.addImage(logosEscuela.logoDerecho, 'PNG', pageWidth - 40, 8, 25, 30);
         }
       } catch (e) {
         console.log('Error al cargar logo derecho:', e);
