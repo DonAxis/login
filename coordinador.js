@@ -89,7 +89,7 @@ async function cargarPeriodoActual() {
       console.error('Error al obtener tipo de periodo:', error);
       const tipoPeriodoElem = document.getElementById('tipoPeriodoDisplay');
       if (tipoPeriodoElem) {
-        tipoPeriodoElem.textContent = 'No disponible';S
+        tipoPeriodoElem.textContent = 'No disponible';
       }
     }
     
@@ -1189,310 +1189,351 @@ async function cargarAsignacionesPorPeriodo(periodo) {
 }
 
 
+
 async function mostrarFormAsignarProfesor() {
- document.getElementById('tituloModal').textContent = 'Asignar Profesor a Materia';
- 
- try {
- // CORREGIDO: Cargar profesores de la carrera del coordinador actual
- const profesoresValidos = [];
- 
- // 1. Buscar profesores puros
- const profesoresPurosQuery = db.collection('usuarios')
- .where('rol', '==', 'profesor')
- .where('activo', '==', true);
- 
- const profesoresPurosSnap = await profesoresPurosQuery.get();
- 
- profesoresPurosSnap.forEach(doc => {
- const data = doc.data();
- if (data.carreras && Array.isArray(data.carreras)) {
- // Verificar si carreras es array de strings o array de objetos
- const tieneCarrera = data.carreras.some(c => {
- if (typeof c === 'string') {
- return c === usuarioActual.carreraId;
- } else if (typeof c === 'object' && c.carreraId) {
- return c.carreraId === usuarioActual.carreraId;
- }
- return false;
- });
- 
- if (tieneCarrera) {
- profesoresValidos.push({ id: doc.id, ...data });
- }
- }
- });
- 
- // 2. Buscar coordinadores que también son profesores
- const coordinadoresQuery = db.collection('usuarios')
- .where('rol', '==', 'coordinador')
- .where('activo', '==', true);
- 
- const coordinadoresSnap = await coordinadoresQuery.get();
- 
- coordinadoresSnap.forEach(doc => {
- const data = doc.data();
- 
- console.log('Evaluando coordinador:', data.nombre, {
- uid: doc.id,
- roles: data.roles,
- carreras: data.carreras,
- carreraId: data.carreraId
- });
- 
- // Verificar que tenga el rol de profesor
- if (!data.roles || !data.roles.includes('profesor')) {
- console.log(`  -> ${data.nombre} NO tiene rol profesor. Roles:`, data.roles);
- return;
- }
- 
- console.log(`  -> ${data.nombre} SÍ tiene rol profesor`);
- 
- // Verificar si tiene acceso a esta carrera
- let tieneAcceso = false;
- 
- // Verificar campo carreras (puede ser array de objetos o array de strings)
- if (data.carreras && Array.isArray(data.carreras)) {
- console.log(`  -> Verificando carreras (array):`, data.carreras);
- tieneAcceso = data.carreras.some(c => {
- if (typeof c === 'string') {
- console.log(`    -> Comparando string "${c}" con "${usuarioActual.carreraId}"`);
- return c === usuarioActual.carreraId;
- } else if (typeof c === 'object' && c.carreraId) {
- console.log(`    -> Comparando objeto carreraId "${c.carreraId}" con "${usuarioActual.carreraId}"`);
- return c.carreraId === usuarioActual.carreraId;
- }
- console.log(`    -> Formato desconocido:`, c);
- return false;
- });
- }
- // Sistema antiguo: carreraId (string único)
- else if (data.carreraId === usuarioActual.carreraId) {
- console.log(`  -> Verificando carreraId: "${data.carreraId}" === "${usuarioActual.carreraId}"`);
- tieneAcceso = true;
- }
- 
- if (tieneAcceso) {
- console.log(`  -> ${data.nombre} AGREGADO a profesoresValidos`);
- profesoresValidos.push({ id: doc.id, ...data });
- } else {
- console.log(`  -> ${data.nombre} NO tiene acceso a esta carrera`);
- }
- });
- 
- console.log(`Profesores encontrados para ${usuarioActual.carreraId}: ${profesoresValidos.length}`);
- 
- // Ordenar por nombre
- profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
- 
- // Generar HTML del selector de profesores
- let profesoresHtml = '<option value="">Seleccionar profesor...</option>';
- profesoresValidos.forEach(prof => {
- const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
- profesoresHtml += `<option value="${prof.id}" data-nombre="${prof.nombre}">${prof.nombre}${rolDisplay} (${prof.email})</option>`;
- });
- 
- // Cargar materias de la carrera con información del grupo
- let materiasQuery = db.collection('materias');
- if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
- materiasQuery = materiasQuery.where('carreraId', '==', usuarioActual.carreraId);
- }
- const materiasSnap = await materiasQuery.get();
- let materiasHtml = '<option value="">Seleccionar materia...</option>';
- materiasSnap.forEach(doc => {
- const mat = doc.data();
- materiasHtml += `<option value="${doc.id}" data-nombre="${mat.nombre}" data-codigo="${mat.codigo}" data-grupo="${mat.codigo}">${mat.nombre} (${mat.codigo})</option>`;
- });
- 
- // Cargar grupos de la carrera
- let gruposQuery = db.collection('grupos');
- if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
- gruposQuery = gruposQuery.where('carreraId', '==', usuarioActual.carreraId);
- }
- gruposQuery = gruposQuery.where('activo', '==', true);
- const gruposSnap = await gruposQuery.get();
- 
- // Ordenar en cliente
- const gruposArray = [];
- gruposSnap.forEach(doc => {
- gruposArray.push({ id: doc.id, data: doc.data() });
- });
- gruposArray.sort((a, b) => (a.data.ordenamiento || 0) - (b.data.ordenamiento || 0));
- 
- let gruposHtml = '<option value="">Seleccionar grupo...</option>';
- gruposArray.forEach(item => {
- gruposHtml += `<option value="${item.id}" data-nombre="${item.data.nombre}">${item.data.nombre}</option>`;
- });
- 
- const html = `
- <form onsubmit="guardarAsignacionProfesor(event)">
- <div class="form-grupo">
- <label>Materia: *</label>
- <select id="materiaAsignar" required onchange="actualizarGrupoDesdeMateria()">
- ${materiasHtml}
- </select>
- </div>
- 
- <div class="form-grupo">
- <label>Profesor: *</label>
- <select id="profesorAsignar" required>
- ${profesoresHtml}
- </select>
- </div>
- 
- <div class="form-grupo">
- <label>Grupo: *</label>
- <input type="text" id="grupoAsignar" required readonly
- style="padding: 10px; border: 2px solid #ddd; border-radius: 5px; background: #f5f5f5; cursor: not-allowed;"
- placeholder="Se autocompletará con la materia">
- </div>
- 
- <div class="botones-formulario">
- <button type="submit" class="botAzu">Guardar Asignación</button>
- <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
- </div>
- </form>
- `;
- 
- document.getElementById('contenidoModal').innerHTML = html;
- document.getElementById('modalGenerico').style.display = 'flex';
- 
- } catch (error) {
- console.error('Error al cargar formulario de asignación:', error);
- alert('Error al cargar el formulario: ' + error.message);
- }
-}
-
-
-
-async function actualizarGrupoDesdeMateria() {
- const materiaSelect = document.getElementById('materiaAsignar');
- const grupoInput = document.getElementById('grupoAsignar');
- // const grupoIdInput = document.getElementById('grupoAsignarId');
- 
- const grupoId = materiaSelect.options[materiaSelect.selectedIndex].getAttribute('data-codigo');
- 
- if (grupoId) {
- grupoInput.value = grupoId;
- // grupoIdInput.value = grupoId;
- } else {
- grupoInput.value = '';
- // grupoIdInput.value = '';
- }
+  document.getElementById('tituloModal').textContent = 'Asignar Profesor';
+  
+  try {
+    // ====== CARGAR PROFESORES ======
+    const profesoresValidos = [];
+    
+    // 1. Buscar profesores puros
+    const profesoresPurosQuery = db.collection('usuarios')
+      .where('rol', '==', 'profesor')
+      .where('activo', '==', true);
+    
+    const profesoresPurosSnap = await profesoresPurosQuery.get();
+    
+    profesoresPurosSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.carreras && Array.isArray(data.carreras)) {
+        const tieneCarrera = data.carreras.some(c => {
+          if (typeof c === 'string') {
+            return c === usuarioActual.carreraId;
+          } else if (typeof c === 'object' && c.carreraId) {
+            return c.carreraId === usuarioActual.carreraId;
+          }
+          return false;
+        });
+        
+        if (tieneCarrera) {
+          profesoresValidos.push({ id: doc.id, ...data });
+        }
+      }
+    });
+    
+    // 2. Buscar coordinadores que también son profesores
+    const coordinadoresQuery = db.collection('usuarios')
+      .where('rol', '==', 'coordinador')
+      .where('activo', '==', true);
+    
+    const coordinadoresSnap = await coordinadoresQuery.get();
+    
+    coordinadoresSnap.forEach(doc => {
+      const data = doc.data();
+      
+      console.log('Evaluando coordinador:', data.nombre, {
+        uid: doc.id,
+        roles: data.roles,
+        carreras: data.carreras,
+        carreraId: data.carreraId
+      });
+      
+      // Verificar que tenga el rol de profesor
+      if (!data.roles || !data.roles.includes('profesor')) {
+        console.log(`  -> ${data.nombre} NO tiene rol profesor. Roles:`, data.roles);
+        return;
+      }
+      
+      console.log(`  -> ${data.nombre} SÍ tiene rol profesor`);
+      
+      // Verificar si tiene acceso a esta carrera
+      let tieneAcceso = false;
+      
+      // Verificar campo carreras (puede ser array de objetos o array de strings)
+      if (data.carreras && Array.isArray(data.carreras)) {
+        console.log(`  -> Verificando carreras (array):`, data.carreras);
+        tieneAcceso = data.carreras.some(c => {
+          if (typeof c === 'string') {
+            console.log(`    -> Comparando string "${c}" con "${usuarioActual.carreraId}"`);
+            return c === usuarioActual.carreraId;
+          } else if (typeof c === 'object' && c.carreraId) {
+            console.log(`    -> Comparando objeto carreraId "${c.carreraId}" con "${usuarioActual.carreraId}"`);
+            return c.carreraId === usuarioActual.carreraId;
+          }
+          console.log(`    -> Formato desconocido:`, c);
+          return false;
+        });
+      }
+      // Sistema antiguo: carreraId (string único)
+      else if (data.carreraId === usuarioActual.carreraId) {
+        console.log(`  -> Verificando carreraId: "${data.carreraId}" === "${usuarioActual.carreraId}"`);
+        tieneAcceso = true;
+      }
+      
+      if (tieneAcceso) {
+        console.log(`  -> ${data.nombre} AGREGADO a profesoresValidos`);
+        profesoresValidos.push({ id: doc.id, ...data });
+      } else {
+        console.log(`  -> ${data.nombre} NO tiene acceso a esta carrera`);
+      }
+    });
+    
+    console.log(`Profesores encontrados para ${usuarioActual.carreraId}: ${profesoresValidos.length}`);
+    
+    // Ordenar por nombre
+    profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    
+    // Generar HTML del selector de profesores
+    let profesoresHtml = '<option value="">Seleccionar profesor...</option>';
+    profesoresValidos.forEach(prof => {
+      const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
+      profesoresHtml += `<option value="${prof.id}" data-nombre="${prof.nombre}">${prof.nombre}${rolDisplay}</option>`;
+    });
+    
+    // ====== CARGAR MATERIAS CON SUS GRUPOS ======
+    let materiasQuery = db.collection('materias');
+    if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
+      materiasQuery = materiasQuery.where('carreraId', '==', usuarioActual.carreraId);
+    }
+    
+    const materiasSnap = await materiasQuery.get();
+    
+    // Agrupar materias con info del grupo
+    const materiasConGrupo = [];
+    
+    for (const doc of materiasSnap.docs) {
+      const materia = doc.data();
+      
+      // Obtener información del grupo
+      let grupoInfo = { nombre: 'Sin grupo', turno: '' };
+      if (materia.grupoId) {
+        try {
+          const grupoDoc = await db.collection('grupos').doc(materia.grupoId).get();
+          if (grupoDoc.exists) {
+            const grupoData = grupoDoc.data();
+            grupoInfo = {
+              nombre: grupoData.nombre || 'Sin nombre',
+              turno: grupoData.turno || ''
+            };
+          }
+        } catch (error) {
+          console.error('Error al obtener grupo:', error);
+        }
+      }
+      
+      materiasConGrupo.push({
+        id: doc.id,
+        nombre: materia.nombre,
+        codigo: materia.codigo,
+        creditos: materia.creditos,
+        semestre: materia.semestre,
+        grupoId: materia.grupoId,
+        grupoNombre: grupoInfo.nombre,
+        grupoTurno: grupoInfo.turno
+      });
+    }
+    
+    // Ordenar por semestre, grupo y nombre
+    materiasConGrupo.sort((a, b) => {
+      if (a.semestre !== b.semestre) return a.semestre - b.semestre;
+      if (a.grupoNombre !== b.grupoNombre) return a.grupoNombre.localeCompare(b.grupoNombre);
+      return a.nombre.localeCompare(b.nombre);
+    });
+    
+    console.log('Materias con grupo:', materiasConGrupo.length);
+    
+    // Generar HTML del selector combinado
+    let materiasGrupoHtml = '<option value="">Seleccionar materia + grupo...</option>';
+    
+    // Agrupar por semestre para mejor visualización
+    let semestreActual = null;
+    materiasConGrupo.forEach(mat => {
+      if (mat.semestre !== semestreActual) {
+        if (semestreActual !== null) {
+          materiasGrupoHtml += '</optgroup>';
+        }
+        materiasGrupoHtml += `<optgroup label="Semestre ${mat.semestre}">`;
+        semestreActual = mat.semestre;
+      }
+      
+      const displayText = `${mat.nombre} - ${mat.grupoNombre} ${mat.grupoTurno}`;
+      materiasGrupoHtml += `<option value="${mat.id}" 
+        data-nombre="${mat.nombre}" 
+        data-codigo="${mat.codigo}"
+        data-grupo-id="${mat.grupoId}"
+        data-grupo-nombre="${mat.grupoNombre}"
+        data-grupo-turno="${mat.grupoTurno}">${displayText}</option>`;
+    });
+    
+    if (semestreActual !== null) {
+      materiasGrupoHtml += '</optgroup>';
+    }
+    
+    // ====== GENERAR FORMULARIO ======
+    const html = `
+      <form onsubmit="guardarAsignacionProfesor(event)">
+        
+        <!-- SELECTOR COMBINADO: MATERIA + GRUPO -->
+        <div class="form-grupo">
+          <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+            Materia + Grupo: *
+          </label>
+          <select id="materiaGrupoAsignar" required 
+                  style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+            ${materiasGrupoHtml}
+          </select>
+          <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 5px;">
+            Selecciona la materia y el grupo específico al que asignarás el profesor
+          </small>
+        </div>
+        
+        <!-- SELECTOR DE PROFESOR -->
+        <div class="form-grupo">
+          <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+            Profesor: *
+          </label>
+          <select id="profesorAsignar" required
+                  style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+            ${profesoresHtml}
+          </select>
+        </div>
+        
+        <!-- MENSAJE DE ADVERTENCIA -->
+        <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <strong style="color: #856404; font-size: 0.95rem;">Nota Importante:</strong>
+          <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.85rem; line-height: 1.6;">
+            Esta asignación es <strong>solo para el grupo seleccionado</strong>. Si la misma materia se imparte en 
+            otros turnos (Matutino, Vespertino, Nocturno) y quieres asignar al mismo profesor, 
+            deberás repetir este proceso para cada grupo.
+          </p>
+        </div>
+        
+        <!-- BOTONES -->
+        <div class="botones-formulario">
+          <button type="submit" class="botAzu">Asignar Profesor</button>
+          <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
+        </div>
+      </form>
+    `;
+    
+    document.getElementById('contenidoModal').innerHTML = html;
+    document.getElementById('modalGenerico').style.display = 'flex';
+    
+  } catch (error) {
+    console.error('Error al cargar formulario:', error);
+    alert('Error al cargar el formulario: ' + error.message);
+  }
 }
 
 async function guardarAsignacionProfesor(event) {
- event.preventDefault();
- 
- const materiaSelect = document.getElementById('materiaAsignar');
- const profesorSelect = document.getElementById('profesorAsignar');
- const grupoInput = document.getElementById('grupoAsignar');
- // const grupoIdInput = document.getElementById('grupoAsignarId');
- 
- const materiaId = materiaSelect.value;
- const materiaNombre = materiaSelect.options[materiaSelect.selectedIndex].dataset.nombre;
- const materiaCodigo = materiaSelect.options[materiaSelect.selectedIndex].dataset.codigo;
- 
- const profesorId = profesorSelect.value;
- const profesorNombre = profesorSelect.options[profesorSelect.selectedIndex].dataset.nombre;
- 
- const grupoId = grupoInput.value;
- const grupoNombre = grupoInput.value;
- 
- const periodo = periodoActualCarrera; // Usar el periodo global actual
- 
- // Verificar si ya existe esta asignación activa
- const existe = await db.collection('profesorMaterias')
- .where('materiaId', '==', materiaId)
- .where('grupoId', '==', grupoId)
- .where('periodo', '==', periodo)
- .where('activa', '==', true)
- .get();
- 
- if (!existe.empty) {
- if (!confirm('Ya existe un profesor asignado a esta materia y grupo en este periodo.\n¿Deseas desactivar la asignación anterior y crear una nueva?')) {
- return;
- }
- 
- // Desactivar asignaciones anteriores
- const batch = db.batch();
- existe.forEach(doc => {
- batch.update(doc.ref, { 
- activa: false,
- fechaFin: firebase.firestore.FieldValue.serverTimestamp()
- });
- });
- await batch.commit();
- }
- 
- // Crear nueva asignación
- const asignacion = {
- materiaId: materiaId,
- materiaNombre: materiaNombre,
- materiaCodigo: materiaCodigo,
- profesorId: profesorId,
- profesorNombre: profesorNombre,
- grupoId: grupoId,
- grupoNombre: grupoNombre,
- carreraId: usuarioActual.carreraId || null,
- periodo: periodo,
- activa: true,
- fechaAsignacion: firebase.firestore.FieldValue.serverTimestamp()
- };
- 
- try {
- await db.collection('profesorMaterias').add(asignacion);
- alert(' Profesor asignado');
- cerrarModal();
- cargarAsignaciones();
- } catch (error) {
- console.error('Error:', error);
- alert('Error al asignar profesor');
- }
-}
-
-async function eliminarAsignacion(asignacionId) {
- if (!confirm('¿Eliminar esta asignación?\n\nEsta acción no se puede deshacer.')) {
- return;
- }
- 
- try {
- await db.collection('profesorMaterias').doc(asignacionId).delete();
- 
- alert('Asignación eliminada correctamente');
- cargarAsignaciones();
- } catch (error) {
- console.error('Error:', error);
- alert('Error al eliminar la asignación');
- }
-}
-
-// MANTENER LA FUNCIÓN DESACTIVAR PARA CUANDO SE USA REASIGNAR
-async function desactivarAsignacionInterna(asignacionId) {
- try {
- await db.collection('profesorMaterias').doc(asignacionId).update({
- activa: false,
- fechaFin: firebase.firestore.FieldValue.serverTimestamp()
- });
- } catch (error) {
- console.error('Error al desactivar:', error);
- throw error;
- }
+  event.preventDefault();
+  
+  const materiaGrupoSelect = document.getElementById('materiaGrupoAsignar');
+  const profesorSelect = document.getElementById('profesorAsignar');
+  
+  // Obtener datos del selector combinado
+  const materiaId = materiaGrupoSelect.value;
+  const selectedOption = materiaGrupoSelect.options[materiaGrupoSelect.selectedIndex];
+  
+  const materiaNombre = selectedOption.dataset.nombre;
+  const materiaCodigo = selectedOption.dataset.codigo;
+  const grupoId = selectedOption.dataset.grupoId;
+  const grupoNombre = selectedOption.dataset.grupoNombre;
+  const grupoTurno = selectedOption.dataset.grupoTurno;
+  
+  // Obtener datos del profesor
+  const profesorId = profesorSelect.value;
+  const profesorNombre = profesorSelect.options[profesorSelect.selectedIndex].dataset.nombre;
+  
+  const periodo = periodoActualCarrera;
+  
+  console.log('Asignando:', {
+    materiaNombre,
+    grupoNombre,
+    grupoTurno,
+    profesorNombre,
+    periodo
+  });
+  
+  // Verificar si ya existe una asignación activa
+  const existe = await db.collection('profesorMaterias')
+    .where('materiaId', '==', materiaId)
+    .where('periodo', '==', periodo)
+    .where('activa', '==', true)
+    .get();
+  
+  if (!existe.empty) {
+    const asignacionActual = existe.docs[0].data();
+    if (!confirm(`Ya existe un profesor asignado:\n\nProfesor actual: ${asignacionActual.profesorNombre}\nMateria: ${asignacionActual.materiaNombre}\nGrupo: ${asignacionActual.grupoNombre}\n\nDeseas reemplazar esta asignacion?`)) {
+      return;
+    }
+    
+    // Desactivar asignación anterior
+    const batch = db.batch();
+    existe.forEach(doc => {
+      batch.update(doc.ref, { 
+        activa: false,
+        fechaFin: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+  }
+  
+  // Crear nueva asignación
+  const asignacion = {
+    materiaId: materiaId,
+    materiaNombre: materiaNombre,
+    materiaCodigo: materiaCodigo || '',
+    profesorId: profesorId,
+    profesorNombre: profesorNombre,
+    grupoId: grupoId,
+    grupoNombre: grupoNombre,
+    grupoTurno: grupoTurno || '',
+    carreraId: usuarioActual.carreraId || null,
+    periodo: periodo,
+    activa: true,
+    fechaAsignacion: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  
+  try {
+    await db.collection('profesorMaterias').add(asignacion);
+    alert(`Profesor asignado correctamente\n\n${profesorNombre} → ${materiaNombre}\nGrupo: ${grupoNombre} ${grupoTurno}`);
+    cerrarModal();
+    cargarAsignaciones();
+  } catch (error) {
+    console.error('Error al asignar:', error);
+    alert('Error al guardar: ' + error.message);
+  }
 }
 
 async function reasignarProfesor(asignacionId) {
- // Obtener datos de la asignación actual
- const asignDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
- const asignActual = asignDoc.data();
- 
- if (!confirm(`Reasignar profesor para:\n\nMateria: ${asignActual.materiaNombre}\nGrupo: ${asignActual.grupoNombre}\nProfesor actual: ${asignActual.profesorNombre}\n\n¿Continuar?`)) {
- return;
- }
- 
- // Desactivar asignación actual (para mantener historial)
- await desactivarAsignacionInterna(asignacionId);
- 
- // Mostrar formulario para nueva asignación
- mostrarFormAsignarProfesor();
+  // Obtener datos de la asignación actual
+  const asignDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+  
+  if (!asignDoc.exists) {
+    alert('No se encontró la asignación');
+    return;
+  }
+  
+  const asignActual = asignDoc.data();
+  
+  if (!confirm(`Reasignar profesor para:\n\nMateria: ${asignActual.materiaNombre}\nGrupo: ${asignActual.grupoNombre}\nProfesor actual: ${asignActual.profesorNombre}\n\nContinuar?`)) {
+    return;
+  }
+  
+  // Desactivar asignación actual (para mantener historial)
+  try {
+    await db.collection('profesorMaterias').doc(asignacionId).update({
+      activa: false,
+      fechaFin: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error al desactivar asignación:', error);
+  }
+  
+  // Mostrar formulario para nueva asignación
+  mostrarFormAsignarProfesor();
 }
 
 // ===== INSCRIBIR ALUMNOS A MATERIAS =====

@@ -597,16 +597,30 @@
  </div>
 
  <!-- SECCION: ASIGNAR PROFESORES -->
- <div id="seccionAsignaciones" class="seccion-contenido">
- <div class="seccion-header">
- <h2>Armar Grupos (Materia + Profesor + Grupo)</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
- </div>
- <div class="botones-accion">
- <button onclick="mostrarFormAsignarProfesor()" class="botAzu">Nueva Asignacion</button>
- </div>
- <div id="listaAsignaciones" class="lista-items"></div>
- </div>
+ 
+
+  <div id="seccionAsignaciones" class="seccion-contenido">
+    <div class="seccion-header">
+      <h2>Asignar Profesores</h2>
+      <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+    </div>
+    
+    <!-- NUEVO: Mensaje explicativo -->
+    <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+      <strong style="color: #1565c0; font-size: 1rem;">Como funciona:</strong>
+      <p style="margin: 8px 0 0 0; color: #1565c0; font-size: 0.9rem; line-height: 1.6;">
+        Asigna un profesor a una materia en un grupo específico. Si la misma materia se imparte 
+        en varios turnos (Matutino, Vespertino, Nocturno), deberás hacer una asignación para cada turno.
+      </p>
+    </div>
+    
+    <div class="botones-accion">
+      <button onclick="mostrarFormAsignarProfesor()" class="botAzu">+ Asignar Profesor</button>
+    </div>
+    <div id="listaAsignaciones" class="lista-items"></div>
+  </div>
+
+
 
  <!-- SECCION: INSCRIBIR ALUMNOS -->
 
