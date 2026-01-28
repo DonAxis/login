@@ -121,7 +121,7 @@ async function mostrarModalMateriasMasivas() {
               <textarea id="nombresMateriasMasivo" required rows="15" 
                         placeholder="Calculo Diferencial&#10;Algebra Lineal&#10;Programacion Estructurada&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-              <small style="color: #666; font-size: 0.8rem;">Una materia por linea</small>
+              <small style="color: #666; font-size: 0.8rem;">Una materia por renglon</small>
             </div>
 
             <!-- CREDITOS -->
