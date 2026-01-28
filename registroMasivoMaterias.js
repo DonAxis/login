@@ -8,6 +8,7 @@ async function mostrarModalMateriasMasivas() {
   
   // Cargar grupos disponibles
   let gruposHTML = '<option value="">Seleccionar grupo...</option>';
+  let gruposData = {}; // Almacenar datos de grupos para la vista previa
   
   try {
     const gruposSnap = await db.collection('grupos')
@@ -17,10 +18,12 @@ async function mostrarModalMateriasMasivas() {
     
     const grupos = [];
     gruposSnap.forEach(doc => {
+      const data = doc.data();
       grupos.push({
         id: doc.id,
-        ...doc.data()
+        ...data
       });
+      gruposData[doc.id] = data; // Guardar para usar despues
     });
     
     // Ordenar por semestre y turno
@@ -33,6 +36,9 @@ async function mostrarModalMateriasMasivas() {
     grupos.forEach(grupo => {
       gruposHTML += `<option value="${grupo.id}">${grupo.nombre} - ${grupo.turno} (Semestre ${grupo.semestre})</option>`;
     });
+    
+    // Guardar en variable global temporal para acceso en preview
+    window.gruposDataTemp = gruposData;
     
   } catch (error) {
     console.error('Error al cargar grupos:', error);
@@ -56,60 +62,51 @@ async function mostrarModalMateriasMasivas() {
                     style="width: 100%; padding: 12px; border: 2px solid #4caf50; border-radius: 8px; font-size: 1rem; background: white; font-weight: 600;">
               ${gruposHTML}
             </select>
-            <div style="background: #fff3cd; padding: 12px; border-radius: 6px; margin-top: 15px; border-left: 3px solid #ff9800;">
-              <strong style="color: #856404; font-size: 0.95rem;">Sistema de Grupos Paralelos:</strong>
-              <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.85rem;">
-                Si seleccionas un grupo (ejemplo: 1101-Matutino), las materias se registraran automaticamente en TODOS los turnos del mismo semestre:
-              </p>
-              <ul style="margin: 8px 0 0 20px; color: #856404; font-size: 0.85rem; line-height: 1.6;">
-                <li>1101 (Matutino)</li>
-                <li>2101 (Vespertino)</li>
-                <li>3101 (Nocturno)</li>
-              </ul>
-              <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.85rem;">
-                <strong>Esto garantiza que todos los turnos tengan las mismas materias.</strong>
-              </p>
-            </div>
+           
           </div>
 
           <!-- INSTRUCCIONES -->
           <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
-            <ol style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
+            <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
               <li>Selecciona el grupo donde se registraran las materias</li>
-              <li>Pega los datos de Excel/Sheets: cada materia en una linea</li>
-              <li>Las columnas deben coincidir en numero de filas</li>
-              <li>Creditos: por defecto es 6 (puedes dejarlo vacio o cambiarlo)</li>
-              <li>Las materias se registraran automaticamente en todos los turnos (Matutino, Vespertino, Nocturno)</li>
-              <li>Revisa la vista previa antes de guardar</li>
-            </ol>
+              <li>Pega los datos en orden espaciados por enter</li>
+              <li>Las materias se sincronizaran automaticamente en todos los turnos del mismo semestre</li>
+            </ul>
           </div>
 
-          <!-- EJEMPLO -->
+          <!-- EJEMPLO CON 3 COLUMNAS -->
           <div style="background: #fff8e1; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 1rem;">Ejemplo de datos:</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
               <thead style="background: #f5f5f5;">
                 <tr>
                   <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Nombres de Materias</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Creditos (opcional)</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Creditos</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Grupo</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td style="padding: 8px; border: 1px solid #ddd;">Calculo Diferencial</td>
-                  <td style="padding: 8px; border: 1px solid #ddd;">6</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; color: #4caf50; font-weight: 600;">1101-Matutino</td>
                 </tr>
                 <tr style="background: #f9f9f9;">
                   <td style="padding: 8px; border: 1px solid #ddd;">Algebra Lineal</td>
-                  <td style="padding: 8px; border: 1px solid #ddd;">6</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; color: #4caf50; font-weight: 600;">1101-Matutino</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px; border: 1px solid #ddd;">Programacion Estructurada</td>
-                  <td style="padding: 8px; border: 1px solid #ddd;">8</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">8</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; color: #4caf50; font-weight: 600;">1101-Matutino</td>
                 </tr>
               </tbody>
             </table>
+            <p style="margin: 10px 0 0 0; color: #856404; font-size: 0.85rem;">
+              <strong>Nota:</strong> El grupo seleccionado arriba se mostrara aqui automaticamente
+            </p>
           </div>
 
           <!-- CAMPOS PARA PEGAR DATOS -->
@@ -205,7 +202,7 @@ async function obtenerGruposParalelos(grupoId) {
     const grupoDoc = await db.collection('grupos').doc(grupoId).get();
     if (!grupoDoc.exists) {
       console.error('Grupo no encontrado');
-      return [grupoId]; // Solo el grupo original
+      return [grupoId];
     }
     
     const grupoData = grupoDoc.data();
@@ -234,15 +231,15 @@ async function obtenerGruposParalelos(grupoId) {
       console.log('  -', g.nombre, g.turno);
     });
     
-    return gruposParalelos.map(g => g.id);
+    return gruposParalelos;
     
   } catch (error) {
     console.error('Error al obtener grupos paralelos:', error);
-    return [grupoId]; // Solo el grupo original si hay error
+    return [{id: grupoId}];
   }
 }
 
-// Funcion: Previsualizar datos
+// Funcion: Previsualizar datos CON 3 COLUMNAS
 async function previsualizarMaterias() {
   const grupoId = document.getElementById('grupoMateriasMasivo').value;
   const nombresText = document.getElementById('nombresMateriasMasivo').value.trim();
@@ -271,23 +268,23 @@ async function previsualizarMaterias() {
   // Obtener grupos paralelos
   const gruposParalelos = await obtenerGruposParalelos(grupoId);
   
-  // Obtener datos de los grupos para mostrar
-  let infoGrupos = '';
-  try {
-    for (const gId of gruposParalelos) {
-      const gDoc = await db.collection('grupos').doc(gId).get();
-      if (gDoc.exists) {
-        const gData = gDoc.data();
-        infoGrupos += `<div style="display: inline-block; background: #e8f5e9; padding: 5px 10px; border-radius: 5px; margin: 3px; font-size: 0.85rem;">
-          ${gData.nombre} - ${gData.turno}
-        </div>`;
-      }
-    }
-  } catch (error) {
-    console.error('Error al obtener info de grupos:', error);
+  // Obtener datos del grupo seleccionado
+  let grupoSeleccionado = '';
+  const grupoDoc = await db.collection('grupos').doc(grupoId).get();
+  if (grupoDoc.exists) {
+    const gData = grupoDoc.data();
+    grupoSeleccionado = `${gData.nombre}-${gData.turno}`;
   }
   
-  // Generar tabla de vista previa
+  // Obtener datos de los grupos para mostrar
+  let infoGrupos = '';
+  gruposParalelos.forEach(g => {
+    infoGrupos += `<div style="display: inline-block; background: #e8f5e9; padding: 5px 10px; border-radius: 5px; margin: 3px; font-size: 0.85rem;">
+      ${g.nombre} - ${g.turno}
+    </div>`;
+  });
+  
+  // Generar tabla de vista previa CON 3 COLUMNAS
   let html = `
     <div style="background: #fff3cd; padding: 12px; border-radius: 6px; margin: 15px 0; border-left: 3px solid #ff9800;">
       <strong style="color: #856404;">Las materias se registraran en los siguientes grupos:</strong>
@@ -306,6 +303,7 @@ async function previsualizarMaterias() {
   html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">#</th>';
   html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Nombre Materia</th>';
   html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Creditos</th>';
+  html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Grupo Seleccionado</th>';
   html += '</tr>';
   html += '</thead>';
   html += '<tbody>';
@@ -318,6 +316,7 @@ async function previsualizarMaterias() {
     html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${i + 1}</td>`;
     html += `<td style="padding: 8px; border: 1px solid #ddd;"><strong>${nombre}</strong></td>`;
     html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${creditoVal}</td>`;
+    html += `<td style="padding: 8px; border: 1px solid #ddd; color: #4caf50; font-weight: 600;">${grupoSeleccionado}</td>`;
     html += '</tr>';
   });
   
@@ -399,14 +398,14 @@ async function guardarMateriasMasivas(event) {
       const codigo = nombreMateria.substring(0, 3).toUpperCase() + '-' + semestreGrupo;
       
       // Registrar materia en TODOS los grupos paralelos
-      for (const gId of gruposParalelos) {
+      for (const grupo of gruposParalelos) {
         try {
           await db.collection('materias').add({
             nombre: nombreMateria,
             codigo: codigo,
             creditos: creditosMateria,
             semestre: semestreGrupo,
-            grupoId: gId,
+            grupoId: grupo.id,
             carreraId: usuarioActual.carreraId || null,
             fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
             fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
@@ -414,7 +413,7 @@ async function guardarMateriasMasivas(event) {
           
           exitosos++;
         } catch (error) {
-          console.error(`Error al crear materia ${nombreMateria} en grupo ${gId}:`, error);
+          console.error(`Error al crear materia ${nombreMateria} en grupo ${grupo.id}:`, error);
           errores++;
         }
         
@@ -455,3 +454,4 @@ async function guardarMateriasMasivas(event) {
 
 console.log('=== REGISTRO MASIVO DE MATERIAS V2.0 CARGADO ===');
 console.log('Con sincronizacion automatica de grupos paralelos');
+console.log('Ahora muestra 3 columnas: Nombre, Creditos, Grupo');
