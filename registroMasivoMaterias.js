@@ -63,12 +63,12 @@ async function mostrarModalMateriasMasivas() {
             <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
               <li>Selecciona el grupo donde se registraran las materias</li>
               <li>Pega los datos en orden espaciados por enter</li>
-             
+            
             </ul>
          
 
           <!-- EJEMPLO CON 3 COLUMNAS -->
-          
+         
             <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo de datos:</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
               <thead style="background: #f5f5f5;">
