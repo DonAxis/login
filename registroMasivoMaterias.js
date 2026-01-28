@@ -82,21 +82,21 @@ async function mostrarModalMateriasMasivas() {
                 <tr>
                   <td style="padding: 8px; border: 1px solid #ddd;">Calculo Diferencial</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
-                  <td style="padding: 8px; border: 1px solid #ddd; color: #4caf50; font-weight: 600;">1101-Matutino</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; color: #000000; font-weight: 600;">1101-Matutino</td>
                 </tr>
                 <tr style="background: #f9f9f9;">
                   <td style="padding: 8px; border: 1px solid #ddd;">Algebra Lineal</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
-                  <td style="padding: 8px; border: 1px solid #ddd; color: #4caf50; font-weight: 600;">1101-Matutino</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; color: #000000; font-weight: 600;">1101-Matutino</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px; border: 1px solid #ddd;">Programacion Estructurada</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">8</td>
-                  <td style="padding: 8px; border: 1px solid #ddd; color: #4caf50; font-weight: 600;">1101-Matutino</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; color: #000000; font-weight: 600;">1101-Matutino</td>
                 </tr>
               </tbody>
             </table>
-            <p style="margin: 10px 0 0 0; color: #856404; font-size: 0.85rem;">
+            <p style="margin: 10px 0 0 0; color: #1565c0; font-size: 0.85rem;">
               <strong>Nota:</strong> El grupo seleccionado arriba se mostrara aqui automaticamente
             </p>
           </div>
