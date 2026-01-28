@@ -73,9 +73,9 @@ async function mostrarModalMateriasMasivas() {
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
               <thead style="background: #f5f5f5;">
                 <tr>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Nombres de Materias</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Creditos</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Grupo</th>
+                  <th style="padding: 8px; border: 1px solid #000000; text-align: left;">Nombres de Materias</th>
+                  <th style="padding: 8px; border: 1px solid #000000; text-align: center;">Creditos</th>
+                  <th style="padding: 8px; border: 1px solid #000000; text-align: left;">Grupo</th>
                 </tr>
               </thead>
               <tbody>
