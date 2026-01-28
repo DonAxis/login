@@ -75,7 +75,7 @@ async function mostrarModalMateriasMasivas() {
                 <tr>
                   <th style="padding: 8px; border: 1px solid #000000; text-align: left;">Nombres de Materias</th>
                   <th style="padding: 8px; border: 1px solid #000000; text-align: center;">Creditos</th>
-                  <th style="padding: 8px; border: 1px solid #000000; text-align: left;">Grupo</th>
+                  <th style="padding: 8px; border: 1px solid #000000; text-align: center;">Grupo</th>
                 </tr>
               </thead>
               <tbody>
@@ -96,9 +96,7 @@ async function mostrarModalMateriasMasivas() {
                 </tr>
               </tbody>
             </table>
-            <p style="margin: 10px 0 0 0; color: #1565c0; font-size: 0.85rem;">
-              <strong>Nota:</strong> El grupo seleccionado arriba se mostrara aqui automaticamente
-            </p>
+           
           </div>
 
 
