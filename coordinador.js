@@ -21,6 +21,8 @@ function generarPeriodos() {
 }
 
 // Cargar periodo actual desde Firebase o usar default
+
+
 async function cargarPeriodoActual() {
   try {
     // Cargar periodo especifico de la carrera del coordinador
@@ -47,16 +49,61 @@ async function cargarPeriodoActual() {
       if (elem) elem.textContent = periodoActualCarrera;
     });
     
+    // NUEVO: Obtener y mostrar tipo de periodo de la carrera
+    try {
+      const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+      
+      if (carreraDoc.exists) {
+        const carreraData = carreraDoc.data();
+        const periodosAnio = carreraData.periodosAnio || 2; // Default: Semestral
+        
+        // Determinar el tipo de periodo
+        let tipoPeriodo = '';
+        switch(periodosAnio) {
+          case 2:
+            tipoPeriodo = 'Semestral (2 periodos por año)';
+            break;
+          case 3:
+            tipoPeriodo = 'Cuatrimestral (3 periodos por año)';
+            break;
+          case 4:
+            tipoPeriodo = 'Trimestral (4 periodos por año)';
+            break;
+          default:
+            tipoPeriodo = `${periodosAnio} periodos por año`;
+        }
+        
+        // Actualizar display del tipo de periodo
+        const tipoPeriodoElem = document.getElementById('tipoPeriodoDisplay');
+        if (tipoPeriodoElem) {
+          tipoPeriodoElem.textContent = tipoPeriodo;
+        }
+      } else {
+        // Si no existe la carrera, mostrar mensaje
+        const tipoPeriodoElem = document.getElementById('tipoPeriodoDisplay');
+        if (tipoPeriodoElem) {
+          tipoPeriodoElem.textContent = 'Semestral (por defecto)';
+        }
+      }
+    } catch (error) {
+      console.error('Error al obtener tipo de periodo:', error);
+      const tipoPeriodoElem = document.getElementById('tipoPeriodoDisplay');
+      if (tipoPeriodoElem) {
+        tipoPeriodoElem.textContent = 'No disponible';S
+      }
+    }
+    
     // Cargar estadisticas del periodo
     await cargarEstadisticasPeriodo();
     
   } catch (error) {
     console.error('Error al cargar periodo:', error);
-    periodoActualCarrera = '2026-5';
+    periodoActualCarrera = '2026-1';
     const elem = document.getElementById('periodoActualDisplay');
     if (elem) elem.textContent = periodoActualCarrera;
   }
 }
+
 
 
 // NUEVA FUNCION: Cargar estadisticas del periodo actual
