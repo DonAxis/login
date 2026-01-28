@@ -55,15 +55,7 @@ async function mostrarModalMateriasMasivas() {
 
         <form id="formMateriasMasivas" onsubmit="guardarMateriasMasivas(event)">
 
-          <!-- SELECTOR DE GRUPO -->
-          <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-            <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 1.2rem;">Selecciona el Grupo</h3>
-            <select id="grupoMateriasMasivo" required 
-                    style="width: 100%; padding: 12px; border: 2px solid #4caf50; border-radius: 8px; font-size: 1rem; background: white; font-weight: 600;">
-              ${gruposHTML}
-            </select>
-           
-          </div>
+        
 
           <!-- INSTRUCCIONES -->
           <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -71,13 +63,13 @@ async function mostrarModalMateriasMasivas() {
             <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
               <li>Selecciona el grupo donde se registraran las materias</li>
               <li>Pega los datos en orden espaciados por enter</li>
-              <li>Las materias se sincronizaran automaticamente en todos los turnos del mismo semestre</li>
+             
             </ul>
-          </div>
+         
 
           <!-- EJEMPLO CON 3 COLUMNAS -->
-          <div style="background: #fff8e1; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 1rem;">Ejemplo de datos:</h3>
+          
+            <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo de datos:</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
               <thead style="background: #f5f5f5;">
                 <tr>
@@ -107,6 +99,17 @@ async function mostrarModalMateriasMasivas() {
             <p style="margin: 10px 0 0 0; color: #856404; font-size: 0.85rem;">
               <strong>Nota:</strong> El grupo seleccionado arriba se mostrara aqui automaticamente
             </p>
+          </div>
+
+
+        <!-- SELECTOR DE GRUPO -->
+          <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 1.2rem;">Selecciona el Grupo</h3>
+            <select id="grupoMateriasMasivo" required 
+                    style="width: 100%; padding: 12px; border: 2px solid #4caf50; border-radius: 8px; font-size: 1rem; background: white; font-weight: 600;">
+              ${gruposHTML}
+            </select>
+           
           </div>
 
           <!-- CAMPOS PARA PEGAR DATOS -->
