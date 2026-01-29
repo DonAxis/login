@@ -1,5 +1,8 @@
 // registroMasivoAlumno.js
-// Sistema de Registro Masivo de Alumnos desde Excel - SOLO FIRESTORE
+// Sistema de Registro Masivo de Alumnos - MODIFICADO PARA GRUPOS BASE
+// Version 2.0 - Con selector de turno
+
+console.log('=== Registro Masivo de Alumnos v2.0 - Grupos Base ===');
 
 // ===== MOSTRAR FORMULARIO DE REGISTRO MASIVO =====
 async function mostrarFormRegistroMasivo() {
@@ -10,7 +13,8 @@ async function mostrarFormRegistroMasivo() {
   document.getElementById('nombresMasivo').value = '';
   document.getElementById('matriculasMasivo').value = '';
   document.getElementById('emailsMasivo').value = '';
-  document.getElementById('grupoMasivo').value = '';
+  document.getElementById('grupoBaseMasivo').value = '';
+  document.getElementById('turnoMasivo').value = '';
   document.getElementById('vistaPrevia').style.display = 'none';
   document.getElementById('barraProgreso').style.display = 'none';
   
@@ -18,7 +22,7 @@ async function mostrarFormRegistroMasivo() {
   document.getElementById('modalRegistroMasivo').style.display = 'block';
 }
 
-// ===== CARGAR GRUPOS PARA EL SELECTOR =====
+// ===== CARGAR GRUPOS BASE PARA EL SELECTOR =====
 async function cargarGruposParaMasivo() {
   try {
     const snapshot = await db.collection('grupos')
@@ -26,10 +30,10 @@ async function cargarGruposParaMasivo() {
       .where('activo', '==', true)
       .get();
     
-    const select = document.getElementById('grupoMasivo');
-    select.innerHTML = '<option value="">Seleccionar grupo...</option>';
+    const select = document.getElementById('grupoBaseMasivo');
+    select.innerHTML = '<option value="">Seleccionar grupo base...</option>';
     
-    // Convertir a array y ordenar manualmente
+    // Convertir a array y ordenar
     const grupos = [];
     snapshot.forEach(doc => {
       grupos.push({
@@ -38,15 +42,23 @@ async function cargarGruposParaMasivo() {
       });
     });
     
-    // Ordenar por nombre
-    grupos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    // Ordenar por semestre y sección
+    grupos.sort((a, b) => {
+      if (a.semestre !== b.semestre) return a.semestre - b.semestre;
+      return (a.seccion || 1) - (b.seccion || 1);
+    });
     
     // Agregar opciones al select
     grupos.forEach(grupo => {
-      select.innerHTML += `<option value="${grupo.id}">${grupo.nombre}</option>`;
+      const semestreNombres = ['', 'Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto', 
+                               'Sexto', 'Séptimo', 'Octavo', 'Noveno'];
+      const semestreNombre = semestreNombres[grupo.semestre] || `Semestre ${grupo.semestre}`;
+      const nombreDisplay = `${semestreNombre} - Sección ${grupo.seccion || 1}`;
+      
+      select.innerHTML += `<option value="${grupo.id}">${nombreDisplay}</option>`;
     });
     
-    console.log(`${grupos.length} grupos cargados para registro masivo`);
+    console.log(`${grupos.length} grupos base cargados para registro masivo`);
     
   } catch (error) {
     console.error('Error al cargar grupos:', error);
@@ -59,6 +71,19 @@ function previsualizarDatos() {
   const nombres = document.getElementById('nombresMasivo').value.trim().split('\n').filter(n => n.trim());
   const matriculas = document.getElementById('matriculasMasivo').value.trim().split('\n').filter(m => m.trim());
   const emails = document.getElementById('emailsMasivo').value.trim().split('\n').filter(e => e.trim());
+  const grupoBaseId = document.getElementById('grupoBaseMasivo').value;
+  const turno = document.getElementById('turnoMasivo').value;
+  
+  // Validar grupo y turno
+  if (!grupoBaseId) {
+    alert('Debes seleccionar un grupo base');
+    return;
+  }
+  
+  if (!turno) {
+    alert('Debes seleccionar un turno');
+    return;
+  }
   
   // Validar que todos tengan la misma cantidad
   if (nombres.length !== matriculas.length || nombres.length !== emails.length) {
@@ -75,11 +100,21 @@ function previsualizarDatos() {
     return;
   }
   
+  // Obtener nombre del grupo y turno
+  const grupoSelect = document.getElementById('grupoBaseMasivo');
+  const grupoNombre = grupoSelect.options[grupoSelect.selectedIndex].text;
+  
   // Construir vista previa
   let html = `
     <div class="mensaje-exito-masivo">
       Se encontraron ${nombres.length} alumnos validos
     </div>
+    
+    <div style="background: #e8f5e9; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #4caf50;">
+      <strong>Grupo Base:</strong> ${grupoNombre}<br>
+      <strong>Turno:</strong> ${GrupoHelpers.generarBadgeTurno(turno)}
+    </div>
+    
     <table class="tabla-preview">
       <thead>
         <tr>
@@ -155,14 +190,20 @@ function previsualizarDatos() {
 async function procesarRegistroMasivo(event) {
   event.preventDefault();
   
-  const grupoId = document.getElementById('grupoMasivo').value;
+  const grupoBaseId = document.getElementById('grupoBaseMasivo').value;
+  const turno = document.getElementById('turnoMasivo').value;
   const nombres = document.getElementById('nombresMasivo').value.trim().split('\n').filter(n => n.trim());
   const matriculas = document.getElementById('matriculasMasivo').value.trim().split('\n').filter(m => m.trim());
   const emails = document.getElementById('emailsMasivo').value.trim().split('\n').filter(e => e.trim());
   
   // Validaciones
-  if (!grupoId) {
-    alert('Debes seleccionar un grupo');
+  if (!grupoBaseId) {
+    alert('Debes seleccionar un grupo base');
+    return;
+  }
+  
+  if (!turno) {
+    alert('Debes seleccionar un turno');
     return;
   }
   
@@ -180,8 +221,30 @@ async function procesarRegistroMasivo(event) {
     return;
   }
   
+  // Obtener datos del grupo base
+  let grupoData = null;
+  try {
+    const grupoDoc = await db.collection('grupos').doc(grupoBaseId).get();
+    if (grupoDoc.exists) {
+      grupoData = grupoDoc.data();
+    } else {
+      alert('Grupo base no encontrado');
+      return;
+    }
+  } catch (error) {
+    console.error('Error al obtener grupo:', error);
+    alert('Error al cargar datos del grupo');
+    return;
+  }
+  
+  const semestreActual = grupoData.semestre || 1;
+  const seccionActual = grupoData.seccion || 1;
+  
   // Confirmar
-  if (!confirm(`Registrar ${nombres.length} alumnos en Firestore?\n\nTodos seran asignados al grupo seleccionado.`)) {
+  if (!confirm(`Registrar ${nombres.length} alumnos en Firestore?\n\n` +
+               `Grupo: Semestre ${semestreActual} - Sección ${seccionActual}\n` +
+               `Turno: ${turno}\n\n` +
+               `Los alumnos se guardarán con grupoBase + turno.`)) {
     return;
   }
   
@@ -194,27 +257,11 @@ async function procesarRegistroMasivo(event) {
   let fallidos = 0;
   const erroresDetallados = [];
   
-  // Obtener datos del grupo para extraer semestre
-  let grupoNombre = '';
-  let semestreActual = 1;
-  
-  try {
-    const grupoDoc = await db.collection('grupos').doc(grupoId).get();
-    if (grupoDoc.exists) {
-      grupoNombre = grupoDoc.data().nombre;
-      // Extraer semestre del nombre del grupo (formato: TSGG-SIGLA, donde S es el semestre)
-      if (grupoNombre && grupoNombre.length >= 4) {
-        const semestreChar = grupoNombre.charAt(1);
-        semestreActual = parseInt(semestreChar) || 1;
-      }
-    }
-  } catch (error) {
-    console.error('Error al obtener grupo:', error);
-  }
-  
   console.log('Iniciando registro masivo...');
-  console.log('Grupo:', grupoNombre);
-  console.log('Semestre extraido:', semestreActual);
+  console.log('Grupo Base:', grupoBaseId);
+  console.log('Turno:', turno);
+  console.log('Semestre:', semestreActual);
+  console.log('Sección:', seccionActual);
   console.log('Total alumnos:', nombres.length);
   
   // Procesar cada alumno
@@ -230,17 +277,19 @@ async function procesarRegistroMasivo(event) {
     textoProgreso.textContent = `Guardando ${i + 1}/${nombres.length}: ${nombre}`;
     
     try {
-      // Crear documento en Firestore - IGUAL que el registro individual
+      // Crear documento en Firestore con NUEVO SISTEMA
       const alumnoData = {
         nombre: nombre,
         matricula: matricula,
         email: email,
         rol: 'alumno',
-        grupoId: grupoId,
+        grupoBase: grupoBaseId,        // NUEVO
+        turno: turno,                   // NUEVO
+        semestre: semestreActual,       // NUEVO (denormalizado)
+        seccion: seccionActual,         // NUEVO (denormalizado)
         carreraId: usuarioActual.carreraId,
         activo: true,
         periodo: periodoActualCarrera,
-        semestreActual: semestreActual,
         generacion: periodoActualCarrera,
         graduado: false,
         fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
@@ -248,7 +297,7 @@ async function procesarRegistroMasivo(event) {
         fechaRegistroMasivo: new Date().toISOString()
       };
       
-      // Guardar en Firestore con ID autogenerado
+      // Guardar en Firestore
       await db.collection('usuarios').add(alumnoData);
       
       exitosos++;
@@ -275,8 +324,8 @@ async function procesarRegistroMasivo(event) {
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
   mensaje += `Total procesados: ${nombres.length}\n`;
-  mensaje += `Grupo: ${grupoNombre}\n`;
-  mensaje += `Semestre asignado: ${semestreActual}\n`;
+  mensaje += `Grupo Base: Semestre ${semestreActual} - Sección ${seccionActual}\n`;
+  mensaje += `Turno: ${turno}\n`;
   mensaje += `Periodo: ${periodoActualCarrera}\n\n`;
   
   if (erroresDetallados.length > 0) {
@@ -290,7 +339,9 @@ async function procesarRegistroMasivo(event) {
   alert(mensaje);
   
   // Recargar lista de alumnos
-  await cargarAlumnos();
+  if (typeof cargarAlumnos === 'function') {
+    await cargarAlumnos();
+  }
   
   // Cerrar modal
   cerrarModalMasivo();
@@ -305,7 +356,8 @@ function cerrarModalMasivo() {
   document.getElementById('nombresMasivo').value = '';
   document.getElementById('matriculasMasivo').value = '';
   document.getElementById('emailsMasivo').value = '';
-  document.getElementById('grupoMasivo').value = '';
+  document.getElementById('grupoBaseMasivo').value = '';
+  document.getElementById('turnoMasivo').value = '';
   document.getElementById('vistaPrevia').style.display = 'none';
 }
 
@@ -317,4 +369,4 @@ window.addEventListener('click', function(event) {
   }
 });
 
-console.log('Sistema de Registro Masivo cargado - Solo Firestore');
+console.log('Sistema de Registro Masivo v2.0 cargado - Grupos Base con Turnos');

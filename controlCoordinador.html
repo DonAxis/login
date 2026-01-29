@@ -360,75 +360,155 @@
 </button>
 
 <!-- MODAL PARA REGISTRO MASIVO (agregar después del modalGenerico existente) -->
-<div id="modalRegistroMasivo" class="modal" style="display: none;">
-  <div class="modal-contenido" style="max-width: 900px;">
-    <span class="cerrar" onclick="cerrarModalMasivo()">&times;</span>
-    
-    <h2 style="color: #667eea; margin-bottom: 10px;">Registro Masivo de Alumnos</h2>
-    <p style="color: #666; margin-bottom: 20px;">Copia y pega desde Excel los datos de los alumnos</p>
-    
-    <form id="formRegistroMasivo" onsubmit="procesarRegistroMasivo(event)">
+
+
+  <div id="modalRegistroMasivo" class="modal" style="display: none;">
+    <div class="modal-contenido" style="max-width: 900px;">
+      <span class="cerrar" onclick="cerrarModalMasivo()">&times;</span>
       
- 
+      <h2 style="color: #667eea; margin-bottom: 10px;">Registro Masivo de Alumnos</h2>
+      <p style="color: #666; margin-bottom: 20px;">Copia y pega desde Excel los datos de los alumnos</p>
+      
+      <form id="formRegistroMasivo" onsubmit="procesarRegistroMasivo(event)">
+        
+        <!-- INSTRUCCIONES -->
+        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+          <strong style="color: #1565c0;">Instrucciones:</strong>
+          <p style="margin: 10px 0 0 0; color: #333;">
+            Abajo observarás 3 columnas: <strong>Nombre completo</strong>, <strong>Matrícula</strong> y <strong>Correo</strong>.
+            Coloca los datos en ese orden y con coherencia.
+          </p>
+          <p style="margin: 8px 0 0 0; color: #333;">
+            <strong>NUEVO:</strong> También debes seleccionar el <strong>Grupo Base</strong> y el <strong>Turno</strong>.
+          </p>
+        </div>
 
-      <!-- INSTRUCCIONES -->
-       <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-        <strong style="color: #1565c0;">Instrucciones:</strong>
-        <p style="margin: 10px 0 0 0; color: #333;">
-          Abajo observarás 3 columnas: <strong>Nombre completo</strong>, <strong>Matrícula</strong> y <strong>Correo</strong>.
-          Coloca los datos en ese orden y con coherencia.
-        </p>
-        <p style="margin: 8px 0 0 0; color: #333;">
-          Antes de darle a <strong>“Guardar todos”</strong>, revisa los datos en la sección de <strong>“Vista previa”</strong> para asegurarte de que sean correctos.
-        </p>
-        <p style="margin: 8px 0 0 0; color: #333;">
-          Se agregó un <strong>ejemplo</strong> para que puedas ver cómo llenar los datos correctamente.
-        </p>
-
-
-
-      <!-- EJEMPLO VISUAL -->
-        <br>
+        <!-- EJEMPLO VISUAL -->
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <strong style="display: block; margin-bottom: 10px;">Ejemplo de formato esperado:</strong>
           <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
             <thead>
               <tr style="background: #667eea; color: white;">
                 <th style="padding: 8px; border: 1px solid #ddd;">Nombre</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Matricula</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Matrícula</th>
                 <th style="padding: 8px; border: 1px solid #ddd;">Email</th>
               </tr>
             </thead>
             <tbody>
               <tr style="background: white;">
-                <td style="padding: 8px; border: 1px solid #ddd;">Ana Sofia Martinez Lopez</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">Ana Sofía Martínez López</td>
                 <td style="padding: 8px; border: 1px solid #ddd;">A20231045</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">ana.martinez@ilb.edu.mx</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">ana.martinez@alumno.com</td>
               </tr>
               <tr style="background: #f9f9f9;">
-                <td style="padding: 8px; border: 1px solid #ddd;">Luis Fernando Gomez Ruiz</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">Luis Fernando Gómez Ruiz</td>
                 <td style="padding: 8px; border: 1px solid #ddd;">A20231046</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">luis.gomez@ilb.edu.mx</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">luis.gomez@alumno.com</td>
               </tr>
             </tbody>
           </table>
-        
+        </div>
 
+        <!-- NUEVO: SELECTOR DE GRUPO BASE Y TURNO -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+          
+          <!-- GRUPO BASE -->
+          <div class="form-grupo">
+            <label for="grupoBaseMasivo" style="font-weight: 600; font-size: 1rem; color: #333; display: block; margin-bottom: 10px;">
+              Grupo Base: *
+            </label>
+            <select id="grupoBaseMasivo" required 
+                    style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+              <option value="">Seleccionar grupo base...</option>
+            </select>
+            <small style="color: #666; display: block; margin-top: 8px;">
+              Ejemplo: Primero - Sección 1
+            </small>
+          </div>
+
+          <!-- TURNO -->
+          <div class="form-grupo">
+            <label for="turnoMasivo" style="font-weight: 600; font-size: 1rem; color: #333; display: block; margin-bottom: 10px;">
+              Turno: *
+            </label>
+            <select id="turnoMasivo" required 
+                    style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+              <option value="">Seleccionar turno...</option>
+              <option value="Matutino">Matutino</option>
+              <option value="Vespertino">Vespertino</option>
+              <option value="Nocturno">Nocturno</option>
+            </select>
+            <small style="color: #666; display: block; margin-top: 8px;">
+              Todos los alumnos serán de este turno
+            </small>
+          </div>
+        </div>
+
+        <!-- CAMPOS PARA PEGAR DATOS -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          
+          <!-- NOMBRES -->
+          <div>
+            <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
+              Nombres Completos *
+            </label>
+            <textarea id="nombresMasivo" required rows="12" 
+                      placeholder="Ana Sofía Martínez López&#10;Luis Fernando Gómez Ruiz&#10;..."
+                      style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+          </div>
+
+          <!-- MATRICULAS -->
+          <div>
+            <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
+              Matrículas *
+            </label>
+            <textarea id="matriculasMasivo" required rows="12" 
+                      placeholder="A20231045&#10;A20231046&#10;..."
+                      style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+          </div>
+
+          <!-- EMAILS -->
+          <div>
+            <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
+              Correos *
+            </label>
+            <textarea id="emailsMasivo" required rows="12" 
+                      placeholder="ana.martinez@alumno.com&#10;luis.gomez@alumno.com&#10;..."
+                      style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+          </div>
+        </div>
+
+        <!-- BOTONES -->
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" onclick="previsualizarDatos()" class="btn-preview"
+                  style="padding: 12px 24px; background: #4caf50; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+            Vista Previa
+          </button>
+          <button type="submit" class="botAzu"
+                  style="padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+            Guardar Todos
+          </button>
+        </div>
+      </form>
+
+      <!-- VISTA PREVIA -->
+      <div id="vistaPrevia" style="display: none; margin-top: 30px;">
+        <h3 style="color: #667eea; margin-bottom: 15px;">Vista Previa</h3>
+        <div id="contenidoVistaPrevia"></div>
       </div>
 
-
-           <!-- SELECTOR DE GRUPO -->
-      <div class="form-grupo" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <label for="grupoMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
-          Grupo al que pertenecen: *
-        </label>
-        <select id="grupoMasivo" required 
-                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
-          <option value="">Seleccionar grupo...</option>
-        </select>
-        <small style="color: #666; display: block; margin-top: 8px;">
-          Todos los alumnos seran asignados a este grupo
-        </small>
+      <!-- BARRA DE PROGRESO -->
+      <div id="barraProgreso" style="display: none; margin-top: 20px;">
+        <p id="textoProgreso" style="margin-bottom: 10px; font-weight: 600; color: #333;">Guardando...</p>
+        <div style="width: 100%; background: #e0e0e0; border-radius: 10px; overflow: hidden; height: 30px;">
+          <div id="barraProgresoFill" style="width: 0%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; transition: width 0.3s;">
+            0%
+          </div>
+        </div>
       </div>
+    </div>
+  </div>
+
 
       <!-- CAMPOS PARA PEGAR DATOS -->
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
@@ -801,6 +881,10 @@
  <iframe id="iframeProfesor" src="" style="width: 100%; height: calc(100vh - 60px); border: none;"></iframe>
  </div>
  <!-- FIN MODO PROFESOR -->
+
+   <!-- Estructura de turnos-->
+  <script src="controlHelper.js"></script> 
+  
 
  <!-- Firebase SDK -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

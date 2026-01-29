@@ -907,43 +907,166 @@ async function guardarMateria(event, materiaId) {
 
 // ===== GESTIÓN DE GRUPOS =====
 async function cargarGrupos() {
- try {
- let query = db.collection('grupos');
- 
- if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
- query = query.where('carreraId', '==', usuarioActual.carreraId);
- }
- 
- const snapshot = await query.get();
- const container = document.getElementById('listaGrupos');
- 
- if (snapshot.empty) {
- container.innerHTML = '<div class="sin-datos">No hay grupos registrados</div>';
- return;
- }
- 
- let html = '';
- snapshot.forEach(doc => {
- const grupo = doc.data();
- html += `
- <div class="item">
- <div class="item-info">
- <h4>${grupo.nombre}</h4>
- <p>Semestre: ${grupo.semestre} | Turno: ${grupo.turno || 'N/A'}</p>
- </div>
- <div class="item-acciones">
- <button onclick="editarGrupo('${doc.id}')" class="btn-editar"> Editar</button>
- <button onclick="eliminarGrupo('${doc.id}')" class="btn-eliminar"></button>
- </div>
- </div>
- `;
- });
- 
- container.innerHTML = html;
- } catch (error) {
- console.error('Error:', error);
- alert('Error al cargar grupos');
- }
+  try {
+    let query = db.collection('grupos');
+    
+    if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
+      query = query.where('carreraId', '==', usuarioActual.carreraId);
+    }
+    
+    const snapshot = await query.get();
+    const container = document.getElementById('listaGrupos');
+    
+    if (snapshot.empty) {
+      container.innerHTML = '<div class="sin-datos">No hay grupos registrados</div>';
+      return;
+    }
+    
+    // Ordenar grupos
+    const grupos = [];
+    snapshot.forEach(doc => {
+      grupos.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    grupos.sort((a, b) => (a.ordenamiento || 0) - (b.ordenamiento || 0));
+    
+    let html = '';
+    grupos.forEach(grupo => {
+      // Generar nombre display
+      const semestreNombre = ['', 'Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto', 
+                              'Sexto', 'Séptimo', 'Octavo', 'Noveno'][grupo.semestre] || `Semestre ${grupo.semestre}`;
+      
+      const nombreDisplay = `${semestreNombre} - Sección ${grupo.seccion}`;
+      
+      // Generar códigos de display para los 3 turnos
+      const gruposDisplay = GrupoHelpers.obtenerTodosLosGruposDisplay(grupo.semestre, grupo.seccion);
+      
+      html += `
+        <div class="item">
+          <div class="item-info">
+            <h4>${nombreDisplay}</h4>
+            <p style="margin: 5px 0;">
+              <strong>Grupos:</strong>
+              <span style="background: #e3f2fd; padding: 3px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">${gruposDisplay.matutino}</span>
+              <span style="background: #fff3e0; padding: 3px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">${gruposDisplay.vespertino}</span>
+              <span style="background: #f3e5f5; padding: 3px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">${gruposDisplay.nocturno}</span>
+            </p>
+            <p style="font-size: 0.85rem; color: #666;">
+              Los turnos se asignan al registrar alumnos
+            </p>
+          </div>
+          <div class="item-acciones">
+            <button onclick="verDetalleGrupoBase('${grupo.id}')" class="btn-ver">Ver Detalle</button>
+            ${grupo.activo 
+              ? `<button onclick="desactivarGrupo('${grupo.id}')" class="btn-editar">Desactivar</button>`
+              : `<button onclick="activarGrupo('${grupo.id}')" class="btn-editar">Activar</button>`
+            }
+          </div>
+        </div>
+      `;
+    });
+    
+    container.innerHTML = html;
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cargar grupos');
+  }
+}
+
+// ===== 2. VER DETALLE DE GRUPO BASE =====
+// Nueva función
+async function verDetalleGrupoBase(grupoBaseId) {
+  try {
+    const grupoDoc = await db.collection('grupos').doc(grupoBaseId).get();
+    
+    if (!grupoDoc.exists) {
+      alert('Grupo no encontrado');
+      return;
+    }
+    
+    const grupo = grupoDoc.data();
+    
+    // Contar alumnos por turno
+    const alumnosSnap = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('grupoBase', '==', grupoBaseId)
+      .get();
+    
+    const alumnosPorTurno = {
+      'Matutino': 0,
+      'Vespertino': 0,
+      'Nocturno': 0
+    };
+    
+    alumnosSnap.forEach(doc => {
+      const alumno = doc.data();
+      const turno = alumno.turno || 'Matutino';
+      if (alumnosPorTurno[turno] !== undefined) {
+        alumnosPorTurno[turno]++;
+      }
+    });
+    
+    const totalAlumnos = alumnosSnap.size;
+    const gruposDisplay = GrupoHelpers.obtenerTodosLosGruposDisplay(grupo.semestre, grupo.seccion);
+    
+    const semestreNombre = ['', 'Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto', 
+                            'Sexto', 'Séptimo', 'Octavo', 'Noveno'][grupo.semestre] || `Semestre ${grupo.semestre}`;
+    
+    document.getElementById('tituloModal').textContent = 'Detalle del Grupo Base';
+    
+    const html = `
+      <div style="padding: 10px;">
+        <h3 style="margin-top: 0;">${semestreNombre} - Sección ${grupo.seccion}</h3>
+        
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <h4 style="margin-top: 0;">Códigos de Grupo por Turno:</h4>
+          <div style="display: grid; gap: 10px;">
+            <div style="background: white; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Matutino:</span>
+              <strong style="font-family: monospace; font-size: 1.2rem; color: #2196F3;">${gruposDisplay.matutino}</strong>
+              <span style="background: #e3f2fd; padding: 3px 10px; border-radius: 4px;">${alumnosPorTurno.Matutino} alumnos</span>
+            </div>
+            <div style="background: white; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Vespertino:</span>
+              <strong style="font-family: monospace; font-size: 1.2rem; color: #FF9800;">${gruposDisplay.vespertino}</strong>
+              <span style="background: #fff3e0; padding: 3px 10px; border-radius: 4px;">${alumnosPorTurno.Vespertino} alumnos</span>
+            </div>
+            <div style="background: white; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Nocturno:</span>
+              <strong style="font-family: monospace; font-size: 1.2rem; color: #9C27B0;">${gruposDisplay.nocturno}</strong>
+              <span style="background: #f3e5f5; padding: 3px 10px; border-radius: 4px;">${alumnosPorTurno.Nocturno} alumnos</span>
+            </div>
+          </div>
+        </div>
+        
+        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #4caf50;">
+          <h4 style="margin-top: 0;">Total de Alumnos: ${totalAlumnos}</h4>
+        </div>
+        
+        <div style="background: #fff3cd; padding: 12px; border-radius: 6px; border-left: 4px solid #ff9800;">
+          <strong>Nota:</strong>
+          <p style="margin: 5px 0 0 0; font-size: 0.9rem;">
+            Este es un grupo base. Los alumnos se distribuyen automáticamente
+            en los 3 turnos según se registren.
+          </p>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: right;">
+          <button onclick="cerrarModal()" class="botAzu">Cerrar</button>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('contenidoModal').innerHTML = html;
+    document.getElementById('modalGenerico').style.display = 'flex';
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cargar detalle del grupo');
+  }
 }
 
 function mostrarFormGrupo(grupoId = null) {
@@ -3886,58 +4009,59 @@ async function regenerarEstructura() {
 // ===== GENERAR GRUPOS SIMPLE =====
 
 function mostrarGenerarGrupos() {
-  // Obtener la sigla de la carrera del coordinador
-  const siglaCarrera = carreraActual?.codigo || 'Error';
+  document.getElementById('tituloModal').textContent = 'Generar Grupos Base';
   
   const html = `
-    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; margin: 20px auto;">
-      <h3 style="margin: 0 0 20px 0; color: #667eea;">Generar Grupos</h3>
+    <form onsubmit="generarGruposSimple(event)">
       
-      <form onsubmit="generarGruposSimple(event)">
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Sigla de carrera:</label>
-          <input type="text" id="siglaCarrera" required 
-                 value="${siglaCarrera}"
-                 readonly
-                 style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; text-transform: uppercase; background-color: #f5f5f5; color: #666; cursor: not-allowed;">
-          <small style="display: block; margin-top: 5px; color: #666; font-size: 0.85rem;">
-            Sigla automática de tu carrera (no editable)
-          </small>
-        </div>
-        
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Turno:</label>
-          <select id="turnoGrupos" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
-            <option value="">Seleccionar...</option>
-            <option value="1">Matutino (1000)</option>
-            <option value="2">Vespertino (2000)</option>
-            <option value="3">Nocturno (3000)</option>
-          </select>
-        </div>
-        
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Número de semestres en tu carrera:</label>
-          <select id="numSemestres" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
-            <option value="">Seleccionar...</option>
-            <option value="4">4 semestres</option>
-            <option value="5">5 semestres</option>
-            <option value="6">6 semestres</option>
-            <option value="7">7 semestres</option>
-            <option value="8">8 semestres</option>
-            <option value="9">9 semestres</option>
-          </select>
-        </div>
-        
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-          <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-            Generar
-          </button>
-          <button type="button" onclick="cerrarModal()" style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
-            Cancelar
-          </button>
-        </div>
-      </form>
-    </div>
+      <div class="form-grupo">
+        <label>Sigla de la Carrera: *</label>
+        <input type="text" id="siglaCarrera" required placeholder="ING-SIS">
+        <small style="display: block; margin-top: 5px; color: #666;">
+          Ejemplo: ING-SIS, LIC-ADM, etc.
+        </small>
+      </div>
+      
+      <div class="form-grupo">
+        <label>Número de Semestres: *</label>
+        <select id="numSemestres" required>
+          <option value="">Seleccionar...</option>
+          <option value="4">4 semestres (Cuatrimestral)</option>
+          <option value="6">6 semestres (Semestral)</option>
+          <option value="8">8 semestres (Semestral)</option>
+          <option value="9">9 semestres (Semestral)</option>
+        </select>
+      </div>
+      
+      <div class="form-grupo">
+        <label>Secciones por Semestre: *</label>
+        <select id="numSecciones" required>
+          <option value="1">1 sección</option>
+          <option value="2">2 secciones</option>
+          <option value="3">3 secciones</option>
+          <option value="4">4 secciones</option>
+          <option value="5">5 secciones</option>
+        </select>
+        <small style="display: block; margin-top: 5px; color: #666;">
+          Número de grupos paralelos por semestre
+        </small>
+      </div>
+      
+      <!-- YA NO MOSTRAMOS SELECTOR DE TURNO -->
+      
+      <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
+        <strong style="color: #1565c0;">Nuevo Sistema de Grupos Base:</strong>
+        <p style="margin: 8px 0 0 0; color: #1565c0; font-size: 0.9rem; line-height: 1.6;">
+          Los grupos se crean sin especificar turno. Los turnos (Matutino, Vespertino, Nocturno)
+          se asignan automáticamente al registrar alumnos. Esto evita duplicar datos.
+        </p>
+      </div>
+      
+      <div class="botones-formulario">
+        <button type="submit" class="botAzu">Generar Grupos</button>
+        <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
+      </div>
+    </form>
   `;
   
   document.getElementById('contenidoModal').innerHTML = html;
@@ -3948,20 +4072,15 @@ async function generarGruposSimple(event) {
   event.preventDefault();
   
   const sigla = document.getElementById('siglaCarrera').value.trim().toUpperCase();
-  const turno = document.getElementById('turnoGrupos').value;
   const numSemestres = parseInt(document.getElementById('numSemestres').value);
+  const numSecciones = parseInt(document.getElementById('numSecciones')?.value || 1);
   
-  if (!sigla || !turno || !numSemestres) {
+  if (!sigla || !numSemestres) {
     alert('Completa todos los campos');
     return;
   }
   
-  const turnosNombres = {
-    '1': 'Matutino',
-    '2': 'Vespertino',
-    '3': 'Nocturno'
-  };
-  const turnoNombre = turnosNombres[turno];
+  // Ya NO preguntamos por turno - se manejan automáticamente
   
   // Verificar si ya existen grupos
   const gruposExistentes = await db.collection('grupos')
@@ -3976,12 +4095,15 @@ async function generarGruposSimple(event) {
     }
   }
   
+  const totalGrupos = numSemestres * numSecciones;
+  
   const confirmacion = confirm(
-    `Se generarán ${numSemestres} grupos ${turnoNombre}:\n\n` +
-    `${turno}101-${sigla}\n` +
-    `${turno}201-${sigla}\n` +
-    `...\n` +
-    `${turno}${numSemestres}01-${sigla}\n\n` +
+    `NUEVO SISTEMA DE GRUPOS BASE\n\n` +
+    `Se generarán ${totalGrupos} grupos base:\n\n` +
+    `Semestres: 1 a ${numSemestres}\n` +
+    `Secciones por semestre: ${numSecciones}\n\n` +
+    `NOTA: Los turnos (Matutino/Vespertino/Nocturno) se manejan\n` +
+    `automáticamente al registrar alumnos.\n\n` +
     `¿Continuar?`
   );
   
@@ -3989,35 +4111,51 @@ async function generarGruposSimple(event) {
   
   try {
     const batch = db.batch();
+    let gruposCreados = 0;
     
     for (let sem = 1; sem <= numSemestres; sem++) {
-      const nombreGrupo = `${turno}${sem}01-${sigla}`;
-      
-      const nuevoGrupo = {
-        nombre: nombreGrupo,
-        carreraId: usuarioActual.carreraId,
-        semestre: sem,
-        turno: turnoNombre,
-        activo: true,
-        ordenamiento: parseInt(`${turno}${sem}01`),
-        fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      
-      // Usar el nombre del grupo como ID del documento
-      const ref = db.collection('grupos').doc(nombreGrupo);
-      batch.set(ref, nuevoGrupo);
+      for (let sec = 1; sec <= numSecciones; sec++) {
+        // Generar ID del grupo base
+        const grupoBaseId = GrupoHelpers.generarGrupoBaseId(
+          usuarioActual.carreraId,
+          sem,
+          sec
+        );
+        
+        const nuevoGrupo = {
+          semestre: sem,
+          seccion: sec,
+          carreraId: usuarioActual.carreraId,
+          activo: true,
+          ordenamiento: (sem * 100) + sec,
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+          sistemaBase: true  // Marca que usa el nuevo sistema
+        };
+        
+        const ref = db.collection('grupos').doc(grupoBaseId);
+        batch.set(ref, nuevoGrupo);
+        gruposCreados++;
+      }
     }
     
     await batch.commit();
     
-    alert(`${numSemestres} grupos creados exitosamente`);
+    alert(
+      `✓ ${gruposCreados} grupos base creados exitosamente\n\n` +
+      `Los grupos se mostrarán como:\n` +
+      `• Primero - Sección 1\n` +
+      `• Primero - Sección 2\n` +
+      `• Segundo - Sección 1\n` +
+      `etc.\n\n` +
+      `Los turnos se asignan al registrar alumnos.`
+    );
     
     cerrarModal();
     cargarGrupos();
     
   } catch (error) {
     console.error('Error:', error);
-    alert('Error al generar grupos');
+    alert('Error al generar grupos: ' + error.message);
   }
 }
 
