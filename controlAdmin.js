@@ -402,13 +402,7 @@ async function mostrarModalCarrera() {
         Tipo de Periodo Académico: <span style="color: red;">*</span>
       </label>
       
-      <div style="background: #fff8e1; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
-        <strong style="color: #856404; font-size: 0.9rem;">⚠️ Importante:</strong>
-        <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: #856404;">
-          Esta configuración determina cuántos periodos académicos tendrá la carrera por año.
-          <strong>No se puede cambiar después de crear la carrera.</strong>
-        </p>
-      </div>
+
     `;
     
     TIPOS_PERIODO.forEach(tipo => {
