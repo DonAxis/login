@@ -14,35 +14,13 @@ const COLORES_DISPONIBLES = [
   { hex: "#d32f2f", nombre: "Rojo" },
   { hex: "#f57c00", nombre: "Naranja" },
   { hex: "#e64a19", nombre: "Naranja Oscuro" },
-  { hex: "#7b1fa2", nombre: "Púrpura" },
+  { hex: "#7b1fa2", nombre: "Purpura" },
   { hex: "#c2185b", nombre: "Rosa" },
-  { hex: "#5d4037", nombre: "Café" },
+  { hex: "#5d4037", nombre: "Cafe" },
   { hex: "#f9a825", nombre: "Amarillo" }
 ];
 
-// NUEVO: Tipos de periodos disponibles
-const TIPOS_PERIODO = [
-  { 
-    valor: 2, 
-    nombre: "Semestral (2 periodos por año)", 
-    descripcion: "Ejemplo: 2026-1, 2026-2",
-    ejemplo: "2026-1 → 2026-2 → 2027-1"
-  },
-  { 
-    valor: 3, 
-    nombre: "Cuatrimestral (3 periodos por año)", 
-    descripcion: "Ejemplo: 2026-1, 2026-2, 2026-3",
-    ejemplo: "2026-1 → 2026-2 → 2026-3 → 2027-1"
-  },
-  { 
-    valor: 4, 
-    nombre: "Trimestral (4 periodos por año)", 
-    descripcion: "Ejemplo: 2026-1, 2026-2, 2026-3, 2026-4",
-    ejemplo: "2026-1 → 2026-2 → 2026-3 → 2026-4 → 2027-1"
-  }
-];
-
-// Proteger la página - solo admin
+// Proteger la pagina - solo admin
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     console.log('No hay usuario autenticado');
@@ -63,7 +41,7 @@ auth.onAuthStateChanged(async (user) => {
 
   if (userData.rol !== 'admin') {
     console.log('No tienes permisos de administrador');
-    alert('No tienes permisos para acceder a esta página');
+    alert('No tienes permisos para acceder a esta pagina');
     window.location.href = 'login.html';
     return;
   }
@@ -75,14 +53,14 @@ auth.onAuthStateChanged(async (user) => {
 });
 
 async function cerrarSesion() {
-  if (confirm('¿Estás seguro de cerrar sesión?')) {
+  if (confirm('Estas seguro de cerrar sesion?')) {
     try {
       await auth.signOut();
       sessionStorage.clear();
       window.location.href = 'login.html';
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-      alert('Error al cerrar sesión');
+      console.error('Error al cerrar sesion:', error);
+      alert('Error al cerrar sesion');
     }
   }
 }
@@ -138,7 +116,7 @@ async function crearCoordinador(event) {
   }
   
   if (password.length < 6) {
-    mostrarMensaje("La contraseña debe tener al menos 6 caracteres", "error");
+    mostrarMensaje("La contrasena debe tener al menos 6 caracteres", "error");
     return;
   }
   
@@ -148,7 +126,7 @@ async function crearCoordinador(event) {
     mostrarMensaje("Creando coordinador...", "info");
     
     // SOLUCION: Crear una segunda instancia de Firebase Auth
-    // Esto permite crear el usuario sin cerrar la sesión del admin
+    // Esto permite crear el usuario sin cerrar la sesion del admin
     const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
     const secondaryAuth = secondaryApp.auth();
     
@@ -168,7 +146,7 @@ async function crearCoordinador(event) {
       console.warn('Error al obtener color de carrera, usando default:', error);
     }
     
-    // Preparar datos del usuario (asegurar que ningún campo sea undefined)
+    // Preparar datos del usuario (asegurar que ningun campo sea undefined)
     const userData = {
       nombre: nombre || "",
       email: email || "",
@@ -191,16 +169,16 @@ async function crearCoordinador(event) {
     
     console.log("Guardado exitosamente en Firestore");
     
-    // Verificar que se guardó
+    // Verificar que se guardo
     const verificar = await db.collection("usuarios").doc(newUid).get();
     
     if (!verificar.exists) {
-      throw new Error("El documento no se guardó en Firestore");
+      throw new Error("El documento no se guardo en Firestore");
     }
     
     console.log("Documento verificado:", verificar.data());
     
-    // Cerrar sesión de la instancia secundaria
+    // Cerrar sesion de la instancia secundaria
     await secondaryAuth.signOut();
     
     // Eliminar la app secundaria
@@ -211,7 +189,7 @@ async function crearCoordinador(event) {
       "Nombre: " + nombre + "\n" +
       "Email: " + email + "\n" +
       "Password: " + password + "\n\n" +
-      "El coordinador ya puede iniciar sesión",
+      "El coordinador ya puede iniciar sesion",
       "success"
     );
     
@@ -227,11 +205,11 @@ async function crearCoordinador(event) {
     let mensaje = "Error: ";
     
     if (error.code === "auth/email-already-in-use") {
-      mensaje += "Este email ya está registrado";
+      mensaje += "Este email ya esta registrado";
     } else if (error.code === "auth/invalid-email") {
-      mensaje += "Email inválido";
+      mensaje += "Email invalido";
     } else if (error.code === "auth/weak-password") {
-      mensaje += "La contraseña es muy débil";
+      mensaje += "La contrasena es muy debil";
     } else if (error.code === "permission-denied") {
       mensaje += "Error de permisos en Firestore";
     } else {
@@ -288,7 +266,7 @@ async function crearControlEscolar(event) {
   const password = document.getElementById("passControl").value;
   
   if (password.length < 6) {
-    mostrarMensajeControl("La contraseña debe tener al menos 6 caracteres", "error");
+    mostrarMensajeControl("La contrasena debe tener al menos 6 caracteres", "error");
     return;
   }
   
@@ -336,9 +314,9 @@ async function crearControlEscolar(event) {
     let mensaje = "Error: ";
     
     if (error.code === "auth/email-already-in-use") {
-      mensaje += "Este email ya está registrado";
+      mensaje += "Este email ya esta registrado";
     } else if (error.code === "auth/invalid-email") {
-      mensaje += "Email inválido";
+      mensaje += "Email invalido";
     } else {
       mensaje += error.message;
     }
@@ -374,7 +352,7 @@ function mostrarMensajeControl(texto, tipo) {
 }
 
 // ========================================
-// CREAR CARRERA - MODIFICADO CON TIPO DE PERIODO
+// CREAR CARRERA - MODIFICADO PARA SOLO PREGUNTAR NUMERO DE PERIODOS
 // ========================================
 async function mostrarModalCarrera() {
   // Limpiar formulario primero
@@ -385,81 +363,37 @@ async function mostrarModalCarrera() {
   const mensaje = document.getElementById('mensajeCarrera');
   if (mensaje) mensaje.style.display = 'none';
   
-  // Agregar campo de tipo de periodo DESPUÉS del campo de descripción
+  // Agregar campo de numero de periodos DESPUES del campo de descripcion
   const descripcionDiv = document.querySelector('#descripcionCarrera').parentElement;
   
-  // Verificar si ya existe el div de tipo de periodo
-  let tipoPeriodoDiv = document.getElementById('divTipoPeriodo');
+  // Verificar si ya existe el div de numero de periodos
+  let numPeriodosDiv = document.getElementById('divNumPeriodos');
   
-  if (!tipoPeriodoDiv) {
-    // Crear div para tipo de periodo
-    tipoPeriodoDiv = document.createElement('div');
-    tipoPeriodoDiv.id = 'divTipoPeriodo';
-    tipoPeriodoDiv.style.marginBottom = '20px';
+  if (!numPeriodosDiv) {
+    // Crear div para numero de periodos
+    numPeriodosDiv = document.createElement('div');
+    numPeriodosDiv.id = 'divNumPeriodos';
+    numPeriodosDiv.style.marginBottom = '20px';
     
     let html = `
       <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
-        Tipo de Periodo Académico: <span style="color: red;">*</span>
+        Numero de Periodos: <span style="color: red;">*</span>
       </label>
-      
-
+      <input type="number" id="numeroPeriodos" min="2" max="12" value="4" required
+             style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+      <small style="display: block; margin-top: 5px; color: #666;">
+        Cantidad de periodos academicos en la carrera (ejemplo: 4, 6, 8, 9, etc.)
+      </small>
     `;
     
-    TIPOS_PERIODO.forEach(tipo => {
-      html += `
-        <div class="periodo-opcion" 
-             onclick="seleccionarTipoPeriodo(${tipo.valor})" 
-             id="tipoPeriodo_${tipo.valor}"
-             style="background: #f8f9fa; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0; margin-bottom: 10px; cursor: pointer; transition: all 0.3s;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <input type="radio" name="tipoPeriodo" value="${tipo.valor}" id="radio_${tipo.valor}" 
-                   style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
-            <div style="flex: 1;">
-              <strong style="display: block; color: #333; font-size: 0.95rem; margin-bottom: 3px;">${tipo.nombre}</strong>
-              <div style="font-size: 0.8rem; color: #666;">${tipo.descripcion}</div>
-              <div style="font-size: 0.75rem; color: #999; margin-top: 3px;">
-                <strong>Flujo:</strong> ${tipo.ejemplo}
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    });
+    numPeriodosDiv.innerHTML = html;
     
-    tipoPeriodoDiv.innerHTML = html;
-    
-    // Insertar después de descripción
-    descripcionDiv.parentNode.insertBefore(tipoPeriodoDiv, descripcionDiv.nextSibling);
+    // Insertar despues de descripcion
+    descripcionDiv.parentNode.insertBefore(numPeriodosDiv, descripcionDiv.nextSibling);
   }
   
   // Mostrar modal
   document.getElementById('modalCarrera').style.display = 'flex';
-}
-
-// NUEVA FUNCIÓN: Seleccionar tipo de periodo visualmente
-function seleccionarTipoPeriodo(valor) {
-  // Desmarcar todos
-  document.querySelectorAll('[id^="tipoPeriodo_"]').forEach(el => {
-    el.style.borderColor = '#e0e0e0';
-    el.style.background = '#f8f9fa';
-  });
-  
-  // Desmarcar todos los radios
-  document.querySelectorAll('[name="tipoPeriodo"]').forEach(radio => {
-    radio.checked = false;
-  });
-  
-  // Marcar el seleccionado
-  const elemento = document.getElementById(`tipoPeriodo_${valor}`);
-  if (elemento) {
-    elemento.style.borderColor = '#667eea';
-    elemento.style.background = '#f0f4ff';
-  }
-  
-  const radio = document.getElementById(`radio_${valor}`);
-  if (radio) {
-    radio.checked = true;
-  }
 }
 
 function cerrarModalCarrera() {
@@ -468,12 +402,6 @@ function cerrarModalCarrera() {
   // Limpiar formulario
   const form = document.getElementById('formCarrera');
   if (form) form.reset();
-  
-  // Limpiar selección de tipo de periodo
-  document.querySelectorAll('[id^="tipoPeriodo_"]').forEach(el => {
-    el.style.borderColor = '#e0e0e0';
-    el.style.background = '#f8f9fa';
-  });
   
   const mensaje = document.getElementById('mensajeCarrera');
   if (mensaje) mensaje.style.display = 'none';
@@ -486,61 +414,109 @@ async function crearCarrera(event) {
   const nombre = document.getElementById("nombreCarrera").value.trim();
   const descripcion = document.getElementById("descripcionCarrera").value.trim();
   
-  // NUEVO: Obtener tipo de periodo seleccionado
-  const tipoPeriodoRadio = document.querySelector('[name="tipoPeriodo"]:checked');
+  // NUEVO: Obtener numero de periodos
+  const numeroPeriodos = parseInt(document.getElementById("numeroPeriodos").value);
   
-  if (!tipoPeriodoRadio) {
-    mostrarMensajeCarrera("Debes seleccionar un tipo de periodo académico", "error");
+  if (!numeroPeriodos || numeroPeriodos < 2 || numeroPeriodos > 12) {
+    mostrarMensajeCarrera("El numero de periodos debe estar entre 2 y 12", "error");
     return;
   }
-  
-  const periodosAnio = parseInt(tipoPeriodoRadio.value);
   
   try {
     mostrarMensajeCarrera("Creando carrera...", "info");
     
-    // Verificar que el código no exista
+    // Verificar que el codigo no exista
     const existente = await db.collection('carreras')
       .where('codigo', '==', codigo)
       .get();
     
     if (!existente.empty) {
-      mostrarMensajeCarrera("Ya existe una carrera con el código " + codigo, "error");
+      mostrarMensajeCarrera("Ya existe una carrera con el codigo " + codigo, "error");
       return;
     }
     
-    // Obtener el nombre del tipo de periodo
-    const tipoInfo = TIPOS_PERIODO.find(t => t.valor === periodosAnio);
-    const tipoNombre = tipoInfo ? tipoInfo.nombre : 'Semestral';
-    
-    // MODIFICADO: Agregar campo periodosAnio
+    // MODIFICADO: Crear documento de carrera con numeroPeriodos
     await db.collection('carreras').doc(codigo).set({
       codigo: codigo,
       nombre: nombre,
       descripcion: descripcion,
       activa: true,
-      periodosAnio: periodosAnio, // NUEVO CAMPO
-      tipoPeriodoNombre: tipoNombre, // NUEVO CAMPO (descripción legible)
+      numeroPeriodos: numeroPeriodos,
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    console.log("Carrera creada:", codigo, "con", periodosAnio, "periodos por año");
+    console.log("Carrera creada:", codigo, "con", numeroPeriodos, "periodos");
+    
+    // NUEVO: Generar documento de grupos base
+    await generarGruposBase(codigo, numeroPeriodos);
     
     mostrarMensajeCarrera(
       "Carrera creada exitosamente\n\n" +
-      "Código: " + codigo + "\n" +
+      "Codigo: " + codigo + "\n" +
       "Nombre: " + nombre + "\n" +
-      "Tipo: " + tipoNombre,
+      "Periodos: " + numeroPeriodos + "\n\n" +
+      "Se han generado los codigos de grupo base.",
       "success"
     );
     
     setTimeout(() => {
       cerrarModalCarrera();
-    }, 2500);
+    }, 3000);
     
   } catch (error) {
     console.error("Error:", error);
     mostrarMensajeCarrera("Error al crear carrera: " + error.message, "error");
+  }
+}
+
+// NUEVA FUNCION: Generar grupos base
+async function generarGruposBase(carreraId, numeroPeriodos) {
+  try {
+    console.log(`Generando grupos base para ${carreraId} con ${numeroPeriodos} periodos...`);
+    
+    const turnos = [
+      { codigo: '1', nombre: 'Matutino' },
+      { codigo: '2', nombre: 'Vespertino' },
+      { codigo: '3', nombre: 'Nocturno' },
+      { codigo: '4', nombre: 'Sabatino' }
+    ];
+    
+    const gruposBase = [];
+    
+    // Generar todos los grupos base (sin poblacion)
+    for (const turno of turnos) {
+      for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
+        // Codigo base: turno + periodo + 00
+        const codigoGrupo = `${turno.codigo}${periodo}00`;
+        
+        gruposBase.push({
+          codigo: codigoGrupo,
+          codigoCompleto: `${carreraId}-${codigoGrupo}`,
+          turno: turno.nombre,
+          periodo: periodo,
+          carreraId: carreraId,
+          activo: false, // Inactivo por defecto
+          esBase: true, // Marca que es un grupo base
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    }
+    
+    // Guardar en Firestore usando batch
+    const batch = db.batch();
+    
+    gruposBase.forEach(grupo => {
+      const ref = db.collection('grupos').doc();
+      batch.set(ref, grupo);
+    });
+    
+    await batch.commit();
+    
+    console.log(`${gruposBase.length} grupos base creados para ${carreraId}`);
+    
+  } catch (error) {
+    console.error('Error al generar grupos base:', error);
+    throw error;
   }
 }
 
@@ -700,20 +676,18 @@ async function asignarCarreras(coordUid) {
   document.getElementById('modalAsignarCarreras').style.display = 'flex';
 }
 
+function cerrarModalAsignarCarreras() {
+  document.getElementById('modalAsignarCarreras').style.display = 'none';
+}
+
 function toggleCarreraAsignacion(carreraId) {
   const checkbox = document.getElementById('carrera_' + carreraId);
-  const colorSelector = document.getElementById('colorSelector_' + carreraId);
-  const carreraItem = checkbox.closest('.carrera-item');
+  const selector = document.getElementById('colorSelector_' + carreraId);
   
   if (checkbox.checked) {
-    colorSelector.style.display = 'flex';
-    carreraItem.style.background = 'linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%)';
-    carreraItem.style.borderColor = '#667eea';
-    actualizarVistaPrevia(carreraId);
+    selector.style.display = 'flex';
   } else {
-    colorSelector.style.display = 'none';
-    carreraItem.style.background = '#f9f9f9';
-    carreraItem.style.borderColor = '#ddd';
+    selector.style.display = 'none';
   }
 }
 
@@ -723,10 +697,6 @@ function actualizarVistaPrevia(carreraId) {
   
   if (select && preview) {
     preview.style.background = select.value;
-    preview.style.transform = 'scale(1.1)';
-    setTimeout(() => {
-      preview.style.transform = 'scale(1)';
-    }, 200);
   }
 }
 
@@ -735,134 +705,40 @@ async function guardarAsignacionCarreras() {
     alert('Error: No hay coordinador seleccionado');
     return;
   }
-
+  
   try {
-    const carrerasAsignadas = [];
+    const carrerasSeleccionadas = [];
     
     carrerasData.forEach(carrera => {
       const checkbox = document.getElementById('carrera_' + carrera.id);
       if (checkbox && checkbox.checked) {
         const colorSelect = document.getElementById('colorCarrera_' + carrera.id);
-        carrerasAsignadas.push({
+        carrerasSeleccionadas.push({
           carreraId: carrera.id,
-          color: colorSelect.value
+          color: colorSelect ? colorSelect.value : COLORES_DISPONIBLES[0].hex
         });
       }
     });
-
-    if (carrerasAsignadas.length === 0) {
-      const confirmar = confirm(
-        'ADVERTENCIA\n\n' +
-        'No has seleccionado ninguna carrera.\n\n' +
-        'El coordinador NO podrá acceder a su panel sin carreras asignadas.\n\n' +
-        '¿Deseas continuar de todos modos?'
-      );
-      
-      if (!confirmar) return;
-    }
-
-    const coloresUsados = carrerasAsignadas.map(c => c.color);
-    const coloresDuplicados = coloresUsados.filter((color, index) => 
-      coloresUsados.indexOf(color) !== index
-    );
     
-    if (coloresDuplicados.length > 0) {
-      const confirmar = confirm(
-        'COLORES DUPLICADOS\n\n' +
-        'Has asignado el mismo color a múltiples carreras.\n' +
-        'Esto puede causar confusión para el coordinador.\n\n' +
-        '¿Deseas continuar de todos modos?'
-      );
-      
-      if (!confirmar) return;
+    if (carrerasSeleccionadas.length === 0) {
+      alert('Debes seleccionar al menos una carrera');
+      return;
     }
-
-    const carreraActual = carrerasAsignadas.length > 0 ? carrerasAsignadas[0].carreraId : null;
-
-    mostrarMensajeAsignacion('Guardando asignaciones...', 'info');
-
+    
+    // Actualizar documento del coordinador
     await db.collection('usuarios').doc(coordinadorActual.uid).update({
-      carreras: carrerasAsignadas,
-      carreraActual: carreraActual,
-      carreraId: carreraActual,
-      fechaActualizacionCarreras: firebase.firestore.FieldValue.serverTimestamp()
+      carreras: carrerasSeleccionadas,
+      carreraActual: carrerasSeleccionadas[0].carreraId
     });
-
-    console.log('Asignaciones guardadas:', {
-      coordinador: coordinadorActual.nombre,
-      carreras: carrerasAsignadas.length,
-      carreraActual: carreraActual
-    });
-
-    const nombresCarreras = carrerasAsignadas.map(c => {
-      const carrera = carrerasData.find(ca => ca.id === c.carreraId);
-      return carrera ? carrera.nombre : 'Desconocida';
-    }).join(', ');
-
-    mostrarMensajeAsignacion(
-      'Asignaciones guardadas exitosamente\n\n' +
-      'Coordinador: ' + coordinadorActual.nombre + '\n' +
-      'Carreras asignadas (' + carrerasAsignadas.length + '): ' + nombresCarreras + '\n\n' +
-      'El coordinador ahora puede gestionar estas carreras desde su panel.',
-      'success'
-    );
-
-    setTimeout(() => {
-      cerrarModalAsignarCarreras();
-      gestionarCoordinadores();
-    }, 2500);
-
-  } catch (error) {
-    console.error('Error al guardar:', error);
-    mostrarMensajeAsignacion(
-      'Error al guardar asignaciones\n\n' +
-      'Detalle: ' + error.message + '\n\n' +
-      'Por favor, intenta de nuevo o contacta al administrador del sistema.',
-      'error'
-    );
-  }
-}
-
-function mostrarMensajeAsignacion(texto, tipo) {
-  const div = document.getElementById('mensajeAsignacion');
-  if (!div) return;
-  
-  div.textContent = texto;
-  div.style.display = 'block';
-  div.style.whiteSpace = 'pre-line';
-  div.style.padding = '18px';
-  div.style.borderRadius = '10px';
-  div.style.fontSize = '0.95rem';
-  div.style.lineHeight = '1.6';
-  div.style.fontWeight = '500';
-  
-  const colores = {
-    info: { bg: '#e3f2fd', border: '#1976d2', text: '#0d47a1' },
-    success: { bg: '#e8f5e9', border: '#4caf50', text: '#2e7d32' },
-    error: { bg: '#ffebee', border: '#f44336', text: '#c62828' }
-  };
-  
-  const color = colores[tipo] || colores.info;
-  div.style.background = color.bg;
-  div.style.color = color.text;
-  div.style.borderLeft = '5px solid ' + color.border;
-  div.style.boxShadow = '0 3px 10px rgba(0,0,0,0.1)';
-}
-
-function cerrarModalAsignarCarreras() {
-  document.getElementById('modalAsignarCarreras').style.display = 'none';
-  
-  const mensajeDiv = document.getElementById('mensajeAsignacion');
-  if (mensajeDiv) mensajeDiv.style.display = 'none';
-  
-  coordinadorActual = null;
-}
-
-window.addEventListener('click', (event) => {
-  const modal = document.getElementById('modalAsignarCarreras');
-  if (event.target === modal) {
+    
+    alert('Carreras asignadas correctamente');
     cerrarModalAsignarCarreras();
+    cerrarListaCoordinadores();
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al guardar: ' + error.message);
   }
-});
+}
 
-console.log('Sistema multi-carrera para coordinadores cargado con soporte para periodos configurables');
+console.log('controlAdmin.js modificado cargado - Sistema de periodos simple');
