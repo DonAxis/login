@@ -2107,142 +2107,225 @@ async function cargarAlumnos() {
 }
 
 async function mostrarFormAlumno(alumnoId = null) {
-    const esEdicion = alumnoId !== null;
-    document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Alumno' : 'Nuevo Alumno';
-
-    // Cargar grupos de la carrera del coordinador
-    let gruposHtml = '<option value="">Sin grupo asignado</option>';
-    try {
-        const gruposSnap = await db.collection('grupos')
-            .where('carreraId', '==', usuarioActual.carreraId)
-            .get();
-
-        gruposSnap.forEach(doc => {
-            const grupo = doc.data();
-            gruposHtml += `<option value="${doc.id}">${grupo.nombre} (Semestre ${grupo.semestre})</option>`;
-        });
-    } catch (error) {
-        console.error('Error al cargar grupos:', error);
+  const esEdicion = alumnoId !== null;
+  document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Alumno' : 'Nuevo Alumno';
+  
+  // Cargar datos de la carrera
+  let numeroPeriodos = 8; // Default
+  try {
+    const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+    if (carreraDoc.exists) {
+      numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
     }
+  } catch (error) {
+    console.error('Error al cargar carrera:', error);
+  }
+  
+  // Generar opciones de periodo
+  let periodosHtml = '<option value="">Seleccionar periodo...</option>';
+  for (let i = 1; i <= numeroPeriodos; i++) {
+    periodosHtml += `<option value="${i}">${i}°</option>`;
+  }
+  
+  const html = `
+    <form onsubmit="guardarAlumno(event, '${alumnoId || ''}')">
+      <div class="form-grupo">
+        <label>Nombre Completo: *</label>
+        <input type="text" id="nombreAlumno" required placeholder="Nombre completo">
+      </div>
+      
+      <div class="form-grupo">
+        <label>Matricula: *</label>
+        <input type="text" id="matriculaAlumno" required placeholder="Ej: 2024001">
+      </div>
+      
+      <div class="form-grupo">
+        <label>Email: *</label>
+        <input type="email" id="emailAlumno" required placeholder="alumno@escuela.com">
+      </div>
+      
+      <h4 style="margin: 20px 0 10px 0; color: #667eea;">Informacion de Grupo</h4>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div class="form-grupo">
+          <label>Periodo: *</label>
+          <select id="periodoAlumno" required onchange="actualizarPreviewGrupoCoord()">
+            ${periodosHtml}
+          </select>
+        </div>
+        
+        <div class="form-grupo">
+          <label>Turno: *</label>
+          <select id="turnoAlumno" required onchange="actualizarPreviewGrupoCoord()">
+            <option value="1">Matutino</option>
+            <option value="2">Vespertino</option>
+            <option value="3">Nocturno</option>
+            <option value="4">Sabatino</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-grupo">
+        <label>Orden del Grupo:</label>
+        <input type="text" id="ordenAlumno" value="01" maxlength="2" onchange="actualizarPreviewGrupoCoord()"
+          style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+        <small style="color: #666;">Numero de grupo dentro del periodo/turno (01, 02, 03...)</small>
+      </div>
+      
+      <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #1976d2; text-align: center;" id="previewGrupoCoord">
+        <em style="color: #999;">Selecciona periodo y turno para ver el codigo de grupo</em>
+      </div>
+      
+      <div class="form-grupo">
+        <label>
+          <input type="checkbox" id="activoAlumno" checked>
+          Alumno activo
+        </label>
+      </div>
+      
+      <div class="form-botones">
+        <button type="submit" class="btn-guardar">Guardar</button>
+        ${esEdicion ? `<button type="button" onclick="eliminarAlumnoDesdeEdicion('${alumnoId}')" style="background: #dc3545;">Eliminar Alumno</button>` : ''}
+        <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
+      </div>
+    </form>
+  `;
+  
+  document.getElementById('contenidoModal').innerHTML = html;
+  document.getElementById('modalGenerico').style.display = 'block';
+  
+  if (esEdicion) {
+    cargarDatosAlumno(alumnoId);
+  }
+}
 
-    const html = `
- <form onsubmit="guardarAlumno(event, '${alumnoId || ''}')">
- <div class="form-grupo">
- <label>Nombre Completo: *</label>
- <input type="text" id="nombreAlumno" required placeholder="Nombre completo">
- </div>
- 
- <div class="form-grupo">
- <label>Matrícula: *</label>
- <input type="text" id="matriculaAlumno" required placeholder="Ej: 2024001">
- </div>
- 
- <div class="form-grupo">
- <label>Email: *</label>
- <input type="email" id="emailAlumno" required placeholder="alumno@escuela.com">
- </div>
- 
- <div class="form-grupo">
- <label>Grupo: *</label>
- <select id="grupoAlumno" required>
- ${gruposHtml}
- </select>
- <small style="color: #666;">El grupo determina las materias del alumno</small>
- </div>
- 
- <div class="form-grupo">
- <label>
- <input type="checkbox" id="activoAlumno" checked>
- Alumno activo
- </label>
- </div>
- 
- <div class="form-botones">
- <button type="submit" class="btn-guardar"> Guardar</button>
- ` + (esEdicion ? `<button type="button" onclick="eliminarAlumnoDesdeEdicion('` + alumnoId + `')" style="background: #dc3545;"> Eliminar Alumno</button>` : '') + `
- <button type="button" onclick="cerrarModal()" class="btn-cancelar"> Cancelar</button>
- </div>
- </form>
- `;
 
-    document.getElementById('contenidoModal').innerHTML = html;
-    document.getElementById('modalGenerico').style.display = 'block';
-
-    if (esEdicion) {
-        cargarDatosAlumno(alumnoId);
-    }
+function actualizarPreviewGrupoCoord() {
+  const periodo = document.getElementById('periodoAlumno').value;
+  const turno = document.getElementById('turnoAlumno').value;
+  const orden = document.getElementById('ordenAlumno').value || '01';
+  
+  const previewDiv = document.getElementById('previewGrupoCoord');
+  
+  if (!periodo || !turno) {
+    previewDiv.innerHTML = '<em style="color: #999;">Selecciona periodo y turno para ver el codigo</em>';
+    return;
+  }
+  
+  if (!carreraActualData || !carreraActualData.codigo) {
+    previewDiv.innerHTML = '<em style="color: #f44336;">Error: Carrera no cargada</em>';
+    return;
+  }
+  
+  const ordenFormateado = orden.toString().padStart(2, '0');
+  const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
+  
+  const turnosNombres = {
+    '1': 'Matutino',
+    '2': 'Vespertino',
+    '3': 'Nocturno',
+    '4': 'Sabatino'
+  };
+  
+  previewDiv.innerHTML = `
+    <strong style="color: #667eea; font-size: 1.2rem;">${codigoGrupo}</strong>
+    <div style="font-size: 0.85rem; color: #666; margin-top: 5px;">
+      ${turnosNombres[turno]} - Periodo ${periodo} - Grupo ${ordenFormateado}
+    </div>
+  `;
 }
 
 async function cargarDatosAlumno(alumnoId) {
-    try {
-        const doc = await db.collection('usuarios').doc(alumnoId).get();
-        if (doc.exists) {
-            const alumno = doc.data();
-            document.getElementById('nombreAlumno').value = alumno.nombre;
-            document.getElementById('matriculaAlumno').value = alumno.matricula || '';
-            document.getElementById('emailAlumno').value = alumno.email;
-            document.getElementById('grupoAlumno').value = alumno.grupoId || '';
-            document.getElementById('activoAlumno').checked = alumno.activo;
-        }
-    } catch (error) {
-        console.error('Error:', error);
+  try {
+    const doc = await db.collection('usuarios').doc(alumnoId).get();
+    if (doc.exists) {
+      const alumno = doc.data();
+      document.getElementById('nombreAlumno').value = alumno.nombre;
+      document.getElementById('matriculaAlumno').value = alumno.matricula || '';
+      document.getElementById('emailAlumno').value = alumno.email;
+      document.getElementById('periodoAlumno').value = alumno.periodo || '';
+      document.getElementById('turnoAlumno').value = alumno.turno || '1';
+      document.getElementById('ordenAlumno').value = alumno.orden || '01';
+      document.getElementById('activoAlumno').checked = alumno.activo;
+      
+      // Actualizar preview
+      setTimeout(() => {
+        actualizarPreviewGrupoCoord();
+      }, 100);
     }
+  } catch (error) {
+    console.error('Error:', error);
+  }
 }
+
 
 async function guardarAlumno(event, alumnoId) {
-    event.preventDefault();
-
-    const nombre = document.getElementById('nombreAlumno').value.trim();
-    const matricula = document.getElementById('matriculaAlumno').value.trim();
-    const email = document.getElementById('emailAlumno').value.trim();
-    const grupoId = document.getElementById('grupoAlumno').value;
-    const activo = document.getElementById('activoAlumno').checked;
-
-    const userData = {
-        nombre: nombre,
-        matricula: matricula,
-        email: email.toLowerCase(),
-        rol: 'alumno',
-        grupoId: grupoId || null,
-        carreraId: usuarioActual.carreraId,
-        activo: activo
-    };
-
-    // IMPORTANTE: Asignar periodo, semestre y generación al crear alumno
-    if (!alumnoId) {
-        // Extraer semestre del grupoId (formato: TSGG-SIGLA, donde S es el semestre)
-        let semestreActual = 1;
-        if (grupoId && grupoId.length >= 4) {
-            const semestreChar = grupoId.charAt(1);
-            semestreActual = parseInt(semestreChar) || 1;
-        }
-
-        userData.periodo = periodoActualCarrera;
-        userData.semestreActual = semestreActual;
-        userData.generacion = periodoActualCarrera;
-        userData.graduado = false;
+  event.preventDefault();
+  
+  const nombre = document.getElementById('nombreAlumno').value.trim();
+  const matricula = document.getElementById('matriculaAlumno').value.trim();
+  const email = document.getElementById('emailAlumno').value.trim();
+  const periodo = parseInt(document.getElementById('periodoAlumno').value);
+  const turno = document.getElementById('turnoAlumno').value;
+  const orden = document.getElementById('ordenAlumno').value || '01';
+  const activo = document.getElementById('activoAlumno').checked;
+  
+  if (!periodo || !turno) {
+    alert('Debes seleccionar periodo y turno');
+    return;
+  }
+  
+  // Generar codigo de grupo
+  const ordenFormateado = orden.toString().padStart(2, '0');
+  const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
+  
+  const userData = {
+    nombre: nombre,
+    matricula: matricula,
+    email: email.toLowerCase(),
+    rol: 'alumno',
+    periodo: periodo,
+    turno: turno,
+    orden: ordenFormateado,
+    codigoGrupo: codigoGrupo,
+    carreraId: usuarioActual.carreraId,
+    activo: activo
+  };
+  
+  // Si es nuevo alumno, agregar info adicional
+  if (!alumnoId) {
+    userData.periodoIngreso = periodoActualCarrera;
+    userData.generacion = periodoActualCarrera;
+    userData.graduado = false;
+    userData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
+  }
+  
+  try {
+    if (alumnoId) {
+      // Editar
+      await db.collection('usuarios').doc(alumnoId).update(userData);
+      alert('Alumno actualizado');
+    } else {
+      // Crear nuevo
+      await db.collection('usuarios').add(userData);
+      
+      alert(
+        `Alumno registrado!\n\n` +
+        `Nombre: ${nombre}\n` +
+        `Matricula: ${matricula}\n` +
+        `Codigo de Grupo: ${codigoGrupo}\n` +
+        `Periodo: ${periodoActualCarrera}`
+      );
     }
-
-    try {
-        if (alumnoId) {
-            // Editar
-            await db.collection('usuarios').doc(alumnoId).update(userData);
-            alert('Alumno actualizado');
-        } else {
-            // Crear nuevo - SOLO en Firestore (sin Authentication)
-            userData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('usuarios').add(userData);
-
-            alert(`Alumno registrado!\n\nNombre: ${nombre}\nMatrícula: ${matricula}\nPeriodo: ${periodoActualCarrera}\nSemestre: ${userData.semestreActual}`);
-        }
-
-        cerrarModal();
-        cargarAlumnos();
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error al guardar alumno');
-    }
+    
+    cerrarModal();
+    cargarAlumnos();
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al guardar alumno: ' + error.message);
+  }
 }
+
 
 function editarAlumno(alumnoId) {
     mostrarFormAlumno(alumnoId);
