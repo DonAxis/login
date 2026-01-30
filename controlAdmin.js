@@ -20,6 +20,31 @@ const COLORES_DISPONIBLES = [
   { hex: "#f9a825", nombre: "Amarillo" }
 ];
 
+// TIPOS DE PERIODO ACADEMICO
+const TIPOS_PERIODO = [
+  { 
+    valor: 'semestral',
+    periodosAnio: 2,
+    nombre: "Semestral (2 periodos por año)", 
+    descripcion: "Ejemplo: 2026-1, 2026-2",
+    ejemplo: "2026-1 → 2026-2 → 2027-1"
+  },
+  { 
+    valor: 'cuatrimestral',
+    periodosAnio: 3,
+    nombre: "Cuatrimestral (3 periodos por año)", 
+    descripcion: "Ejemplo: 2026-1, 2026-2, 2026-3",
+    ejemplo: "2026-1 → 2026-2 → 2026-3 → 2027-1"
+  },
+  { 
+    valor: 'trimestral',
+    periodosAnio: 4,
+    nombre: "Trimestral (4 periodos por año)", 
+    descripcion: "Ejemplo: 2026-1, 2026-2, 2026-3, 2026-4",
+    ejemplo: "2026-1 → 2026-2 → 2026-3 → 2026-4 → 2027-1"
+  }
+];
+
 // Proteger la pagina - solo admin
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
@@ -125,18 +150,14 @@ async function crearCoordinador(event) {
   try {
     mostrarMensaje("Creando coordinador...", "info");
     
-    // SOLUCION: Crear una segunda instancia de Firebase Auth
-    // Esto permite crear el usuario sin cerrar la sesion del admin
     const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
     const secondaryAuth = secondaryApp.auth();
     
-    // Crear usuario en la instancia secundaria
     const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
     const newUid = userCredential.user.uid;
     console.log("Usuario creado en Authentication:", newUid);
     
-    // Buscar color de la carrera
-    let colorCarrera = '#43a047'; // Color por defecto
+    let colorCarrera = '#43a047';
     try {
       const carreraDoc = await db.collection('carreras').doc(carreraId).get();
       if (carreraDoc.exists && carreraDoc.data().color) {
@@ -146,7 +167,6 @@ async function crearCoordinador(event) {
       console.warn('Error al obtener color de carrera, usando default:', error);
     }
     
-    // Preparar datos del usuario (asegurar que ningun campo sea undefined)
     const userData = {
       nombre: nombre || "",
       email: email || "",
@@ -164,12 +184,10 @@ async function crearCoordinador(event) {
     
     console.log('Guardando usuario con datos:', userData);
     
-    // Guardar en Firestore usando la instancia principal
     await db.collection("usuarios").doc(newUid).set(userData);
     
     console.log("Guardado exitosamente en Firestore");
     
-    // Verificar que se guardo
     const verificar = await db.collection("usuarios").doc(newUid).get();
     
     if (!verificar.exists) {
@@ -178,10 +196,7 @@ async function crearCoordinador(event) {
     
     console.log("Documento verificado:", verificar.data());
     
-    // Cerrar sesion de la instancia secundaria
     await secondaryAuth.signOut();
-    
-    // Eliminar la app secundaria
     await secondaryApp.delete();
     
     mostrarMensaje(
@@ -273,7 +288,6 @@ async function crearControlEscolar(event) {
   try {
     mostrarMensajeControl("Creando usuario de control escolar...", "info");
     
-    // Usar instancia secundaria
     const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryControl");
     const secondaryAuth = secondaryApp.auth();
     
@@ -352,56 +366,103 @@ function mostrarMensajeControl(texto, tipo) {
 }
 
 // ========================================
-// CREAR CARRERA - MODIFICADO PARA SOLO PREGUNTAR NUMERO DE PERIODOS
+// CREAR CARRERA - CON TIPO Y NUMERO DE PERIODOS
 // ========================================
 async function mostrarModalCarrera() {
-  // Limpiar formulario primero
   const form = document.getElementById('formCarrera');
   if (form) form.reset();
   
-  // Ocultar mensaje
   const mensaje = document.getElementById('mensajeCarrera');
   if (mensaje) mensaje.style.display = 'none';
   
-  // Agregar campo de numero de periodos DESPUES del campo de descripcion
   const descripcionDiv = document.querySelector('#descripcionCarrera').parentElement;
   
-  // Verificar si ya existe el div de numero de periodos
-  let numPeriodosDiv = document.getElementById('divNumPeriodos');
+  let configDiv = document.getElementById('divConfigPeriodos');
   
-  if (!numPeriodosDiv) {
-    // Crear div para numero de periodos
-    numPeriodosDiv = document.createElement('div');
-    numPeriodosDiv.id = 'divNumPeriodos';
-    numPeriodosDiv.style.marginBottom = '20px';
+  if (!configDiv) {
+    configDiv = document.createElement('div');
+    configDiv.id = 'divConfigPeriodos';
+    configDiv.style.marginBottom = '20px';
     
     let html = `
       <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
-        Numero de Periodos: <span style="color: red;">*</span>
+        Tipo de Periodo Academico: <span style="color: red;">*</span>
       </label>
-      <input type="number" id="numeroPeriodos" min="2" max="12" value="4" required
-             style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
-      <small style="display: block; margin-top: 5px; color: #666;">
-        Cantidad de periodos academicos en la carrera (ejemplo: 4, 6, 8, 9, etc.)
-      </small>
     `;
     
-    numPeriodosDiv.innerHTML = html;
+    TIPOS_PERIODO.forEach(tipo => {
+      html += `
+        <div class="periodo-opcion" 
+             onclick="seleccionarTipoPeriodo('${tipo.valor}')" 
+             id="tipoPeriodo_${tipo.valor}"
+             style="background: #f8f9fa; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0; margin-bottom: 10px; cursor: pointer; transition: all 0.3s;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="radio" name="tipoPeriodo" value="${tipo.valor}" id="radio_${tipo.valor}" 
+                   style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+            <div style="flex: 1;">
+              <strong style="display: block; color: #333; font-size: 0.95rem; margin-bottom: 3px;">${tipo.nombre}</strong>
+              <div style="font-size: 0.8rem; color: #666;">${tipo.descripcion}</div>
+              <div style="font-size: 0.75rem; color: #999; margin-top: 3px;">
+                <strong>Flujo:</strong> ${tipo.ejemplo}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
     
-    // Insertar despues de descripcion
-    descripcionDiv.parentNode.insertBefore(numPeriodosDiv, descripcionDiv.nextSibling);
+    html += `
+      <div style="margin-top: 15px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+          Numero de Periodos: <span style="color: red;">*</span>
+        </label>
+        <input type="number" id="numeroPeriodos" min="2" max="12" value="8" required
+               style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+        <small style="display: block; margin-top: 5px; color: #666;">
+          Cantidad total de periodos academicos en la carrera (ejemplo: 4, 6, 8, 9, etc.)
+        </small>
+      </div>
+    `;
+    
+    configDiv.innerHTML = html;
+    descripcionDiv.parentNode.insertBefore(configDiv, descripcionDiv.nextSibling);
   }
   
-  // Mostrar modal
   document.getElementById('modalCarrera').style.display = 'flex';
+}
+
+function seleccionarTipoPeriodo(valor) {
+  document.querySelectorAll('[id^="tipoPeriodo_"]').forEach(el => {
+    el.style.borderColor = '#e0e0e0';
+    el.style.background = '#f8f9fa';
+  });
+  
+  document.querySelectorAll('[name="tipoPeriodo"]').forEach(radio => {
+    radio.checked = false;
+  });
+  
+  const elemento = document.getElementById(`tipoPeriodo_${valor}`);
+  if (elemento) {
+    elemento.style.borderColor = '#667eea';
+    elemento.style.background = '#f0f4ff';
+  }
+  
+  const radio = document.getElementById(`radio_${valor}`);
+  if (radio) {
+    radio.checked = true;
+  }
 }
 
 function cerrarModalCarrera() {
   document.getElementById('modalCarrera').style.display = 'none';
   
-  // Limpiar formulario
   const form = document.getElementById('formCarrera');
   if (form) form.reset();
+  
+  document.querySelectorAll('[id^="tipoPeriodo_"]').forEach(el => {
+    el.style.borderColor = '#e0e0e0';
+    el.style.background = '#f8f9fa';
+  });
   
   const mensaje = document.getElementById('mensajeCarrera');
   if (mensaje) mensaje.style.display = 'none';
@@ -414,7 +475,14 @@ async function crearCarrera(event) {
   const nombre = document.getElementById("nombreCarrera").value.trim();
   const descripcion = document.getElementById("descripcionCarrera").value.trim();
   
-  // NUEVO: Obtener numero de periodos
+  const tipoPeriodoRadio = document.querySelector('[name="tipoPeriodo"]:checked');
+  
+  if (!tipoPeriodoRadio) {
+    mostrarMensajeCarrera("Debes seleccionar un tipo de periodo academico", "error");
+    return;
+  }
+  
+  const tipoPeriodo = tipoPeriodoRadio.value;
   const numeroPeriodos = parseInt(document.getElementById("numeroPeriodos").value);
   
   if (!numeroPeriodos || numeroPeriodos < 2 || numeroPeriodos > 12) {
@@ -425,7 +493,6 @@ async function crearCarrera(event) {
   try {
     mostrarMensajeCarrera("Creando carrera...", "info");
     
-    // Verificar que el codigo no exista
     const existente = await db.collection('carreras')
       .where('codigo', '==', codigo)
       .get();
@@ -435,25 +502,31 @@ async function crearCarrera(event) {
       return;
     }
     
-    // MODIFICADO: Crear documento de carrera con numeroPeriodos
+    const tipoInfo = TIPOS_PERIODO.find(t => t.valor === tipoPeriodo);
+    const tipoNombre = tipoInfo ? tipoInfo.nombre : 'Semestral';
+    const periodosAnio = tipoInfo ? tipoInfo.periodosAnio : 2;
+    
     await db.collection('carreras').doc(codigo).set({
       codigo: codigo,
       nombre: nombre,
       descripcion: descripcion,
       activa: true,
+      tipoPeriodo: tipoPeriodo,
+      tipoPeriodoNombre: tipoNombre,
+      periodosAnio: periodosAnio,
       numeroPeriodos: numeroPeriodos,
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    console.log("Carrera creada:", codigo, "con", numeroPeriodos, "periodos");
+    console.log("Carrera creada:", codigo, "- Tipo:", tipoPeriodo, "- Periodos:", numeroPeriodos);
     
-    // NUEVO: Generar documento de grupos base
     await generarGruposBase(codigo, numeroPeriodos);
     
     mostrarMensajeCarrera(
       "Carrera creada exitosamente\n\n" +
       "Codigo: " + codigo + "\n" +
       "Nombre: " + nombre + "\n" +
+      "Tipo: " + tipoNombre + "\n" +
       "Periodos: " + numeroPeriodos + "\n\n" +
       "Se han generado los codigos de grupo base.",
       "success"
@@ -469,7 +542,6 @@ async function crearCarrera(event) {
   }
 }
 
-// NUEVA FUNCION: Generar grupos base
 async function generarGruposBase(carreraId, numeroPeriodos) {
   try {
     console.log(`Generando grupos base para ${carreraId} con ${numeroPeriodos} periodos...`);
@@ -483,10 +555,8 @@ async function generarGruposBase(carreraId, numeroPeriodos) {
     
     const gruposBase = [];
     
-    // Generar todos los grupos base (sin poblacion)
     for (const turno of turnos) {
       for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
-        // Codigo base: turno + periodo + 00
         const codigoGrupo = `${turno.codigo}${periodo}00`;
         
         gruposBase.push({
@@ -495,14 +565,13 @@ async function generarGruposBase(carreraId, numeroPeriodos) {
           turno: turno.nombre,
           periodo: periodo,
           carreraId: carreraId,
-          activo: false, // Inactivo por defecto
-          esBase: true, // Marca que es un grupo base
+          activo: false,
+          esBase: true,
           fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
         });
       }
     }
     
-    // Guardar en Firestore usando batch
     const batch = db.batch();
     
     gruposBase.forEach(grupo => {
@@ -546,10 +615,9 @@ function mostrarMensajeCarrera(texto, tipo) {
   }
 }
 
-// GESTIONAR COORDINADORES
+// GESTIONAR COORDINADORES (codigo igual al anterior...)
 async function gestionarCoordinadores() {
   try {
-    // Cargar coordinadores
     const coordSnap = await db.collection('usuarios')
       .where('rol', '==', 'coordinador')
       .get();
@@ -562,7 +630,6 @@ async function gestionarCoordinadores() {
       });
     });
     
-    // Cargar carreras
     const carrerasSnap = await db.collection('carreras').get();
     carrerasData = [];
     carrerasSnap.forEach(doc => {
@@ -676,18 +743,20 @@ async function asignarCarreras(coordUid) {
   document.getElementById('modalAsignarCarreras').style.display = 'flex';
 }
 
-function cerrarModalAsignarCarreras() {
-  document.getElementById('modalAsignarCarreras').style.display = 'none';
-}
-
 function toggleCarreraAsignacion(carreraId) {
   const checkbox = document.getElementById('carrera_' + carreraId);
-  const selector = document.getElementById('colorSelector_' + carreraId);
+  const colorSelector = document.getElementById('colorSelector_' + carreraId);
+  const carreraItem = checkbox.closest('.carrera-item');
   
   if (checkbox.checked) {
-    selector.style.display = 'flex';
+    colorSelector.style.display = 'flex';
+    carreraItem.style.background = 'linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%)';
+    carreraItem.style.borderColor = '#667eea';
+    actualizarVistaPrevia(carreraId);
   } else {
-    selector.style.display = 'none';
+    colorSelector.style.display = 'none';
+    carreraItem.style.background = '#f9f9f9';
+    carreraItem.style.borderColor = '#ddd';
   }
 }
 
@@ -697,6 +766,10 @@ function actualizarVistaPrevia(carreraId) {
   
   if (select && preview) {
     preview.style.background = select.value;
+    preview.style.transform = 'scale(1.1)';
+    setTimeout(() => {
+      preview.style.transform = 'scale(1)';
+    }, 200);
   }
 }
 
@@ -705,40 +778,48 @@ async function guardarAsignacionCarreras() {
     alert('Error: No hay coordinador seleccionado');
     return;
   }
-  
+
   try {
-    const carrerasSeleccionadas = [];
+    const carrerasAsignadas = [];
     
     carrerasData.forEach(carrera => {
       const checkbox = document.getElementById('carrera_' + carrera.id);
       if (checkbox && checkbox.checked) {
         const colorSelect = document.getElementById('colorCarrera_' + carrera.id);
-        carrerasSeleccionadas.push({
+        carrerasAsignadas.push({
           carreraId: carrera.id,
-          color: colorSelect ? colorSelect.value : COLORES_DISPONIBLES[0].hex
+          color: colorSelect.value
         });
       }
     });
-    
-    if (carrerasSeleccionadas.length === 0) {
+
+    if (carrerasAsignadas.length === 0) {
       alert('Debes seleccionar al menos una carrera');
       return;
     }
-    
-    // Actualizar documento del coordinador
+
+    const carreraActual = carrerasAsignadas[0].carreraId;
+
     await db.collection('usuarios').doc(coordinadorActual.uid).update({
-      carreras: carrerasSeleccionadas,
-      carreraActual: carrerasSeleccionadas[0].carreraId
+      carreras: carrerasAsignadas,
+      carreraActual: carreraActual,
+      carreraId: carreraActual,
+      fechaActualizacionCarreras: firebase.firestore.FieldValue.serverTimestamp()
     });
-    
+
     alert('Carreras asignadas correctamente');
     cerrarModalAsignarCarreras();
-    cerrarListaCoordinadores();
-    
+    gestionarCoordinadores();
+
   } catch (error) {
     console.error('Error:', error);
     alert('Error al guardar: ' + error.message);
   }
 }
 
-console.log('controlAdmin.js modificado cargado - Sistema de periodos simple');
+function cerrarModalAsignarCarreras() {
+  document.getElementById('modalAsignarCarreras').style.display = 'none';
+  coordinadorActual = null;
+}
+
+console.log('controlAdmin.js cargado - Sistema con tipo y numero de periodos');

@@ -768,17 +768,18 @@ async function cargarMaterias() {
         snapshot.forEach(doc => {
             const materia = doc.data();
             html += `
- <div class="item">
- <div class="item-info">
- <h4>${materia.nombre}</h4>
- <p>Codigo: ${materia.codigo} | Creditos: ${materia.creditos || 0} | Periodo: ${materia.periodo || 'N/A'}</p>
- </div>
- <div class="item-acciones">
- <button onclick="editarMateria('${doc.id}')" class="btn-editar"> Editar</button>
- <button onclick="eliminarMateria('${doc.id}')" class="btn-eliminar"></button>
- </div>
- </div>
- `;
+              <div class="item">
+                <div class="item-info">
+                  <h4>${materia.nombre}</h4>
+                  <p>Periodo: ${materia.periodo || 'N/A'} | Creditos: ${materia.creditos || 0}</p>
+                  <small style="color: #666;">Codigos: ${(materia.codigos || []).join(', ')}</small>
+                </div>
+                <div class="item-acciones">
+                  <button onclick="editarMateria('${doc.id}')" class="btn-editar">Editar</button>
+                  <button onclick="eliminarMateria('${doc.id}')" class="btn-eliminar"></button>
+                </div>
+              </div>
+            `;
         });
 
         container.innerHTML = html;
@@ -788,126 +789,187 @@ async function cargarMaterias() {
     }
 }
 
+
 function mostrarFormMateria(materiaId = null) {
-    const esEdicion = materiaId !== null;
-    document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Materia' : 'Nueva Materia';
-
-    const html = `
- <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; margin: 20px auto;">
- <h3 style="margin: 0 0 20px 0; color: #667eea;">${esEdicion ? 'Editar Materia' : 'Nueva Materia'}</h3>
- <form onsubmit="guardarMateria(event, '${materiaId || ''}')">
- <div style="margin-bottom: 15px;">
- <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nombre de la Materia:</label>
- <input type="text" id="nombreMateria" required placeholder="Ej: Programación Web"
- style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
- </div>
- <div style="margin-bottom: 15px;">
-  <label style="display: block; margin-bottom: 5px; font-weight: 600;">Codigo Interno:</label>
-  <input type="text" id="codigoInterno" required placeholder="Ej: MAT101, HIS205"
-    style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; text-transform: uppercase;">
-  <small style="color: #666; display: block; margin-top: 5px;">Codigo unico de la materia</small>
-</div>
-<div style="margin-bottom: 15px;">
-  <label style="display: block; margin-bottom: 5px; font-weight: 600;">Periodo:</label>
-  <select id="periodo" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
-    <option value="">Seleccionar periodo...</option>
-  </select>
-  <small style="color: #666; display: block; margin-top: 5px;">Periodo academico al que pertenece la materia</small>
-</div>
- <div style="margin-bottom: 15px;">
- <label style="display: block; margin-bottom: 5px; font-weight: 600;">Semestre:</label>
- <input type="number" id="semestre" min="1" max="12" value="1" readonly
- style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; background: #f5f5f5;">
- <small style="color: #666; display: block; margin-top: 5px;">Se asigna automáticamente según el grupo seleccionado</small>
- </div>
- <div style="display: flex; gap: 10px; margin-top: 20px;">
- <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
- Guardar
- </button>
- <button type="button" onclick="cerrarModal()" style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
- Cancelar
- </button>
- </div>
- </form>
- </div>
- `;
-
-    document.getElementById('contenidoModal').innerHTML = html;
-    document.getElementById('modalGenerico').style.display = 'flex';
-
-    // Cargar periodos disponibles de la carrera
-    setTimeout(async () => {
-        try {
-            const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
-
-            if (carreraDoc.exists) {
-                const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
-                const selectPeriodo = document.getElementById('periodo');
-
-                if (selectPeriodo) {
-                    selectPeriodo.innerHTML = '<option value="">Seleccionar periodo...</option>';
-
-                    for (let i = 1; i <= numeroPeriodos; i++) {
-                        const option = document.createElement('option');
-                        option.value = i;
-                        option.textContent = `Periodo ${i}`;
-                        selectPeriodo.appendChild(option);
-                    }
-                }
+  const esEdicion = materiaId !== null;
+  document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Materia' : 'Nueva Materia';
+  
+  const html = `
+    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; margin: 20px auto;">
+      <h3 style="margin: 0 0 20px 0; color: #667eea;">${esEdicion ? 'Editar Materia' : 'Nueva Materia'}</h3>
+      
+      <form onsubmit="guardarMateria(event, '${materiaId || ''}')">
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nombre de la Materia:</label>
+          <input type="text" id="nombreMateria" required placeholder="Ej: Calculo Diferencial"
+            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Creditos:</label>
+          <input type="number" id="creditos" min="1" max="12" value="6"
+            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Periodo:</label>
+          <select id="periodo" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+            <option value="">Seleccionar periodo...</option>
+          </select>
+          <small style="color: #666; display: block; margin-top: 5px;">
+            El sistema generara automaticamente los codigos para cada turno
+          </small>
+        </div>
+        
+        <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #1976d2;">
+          <strong style="color: #0d47a1; font-size: 0.9rem;">Codigos que se generaran:</strong>
+          <div id="codigosPreview" style="margin-top: 8px; font-family: monospace; font-size: 0.85rem; color: #555;">
+            Selecciona un periodo para ver los codigos
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+            Guardar
+          </button>
+          <button type="button" onclick="cerrarModal()" style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
+            Cancelar
+          </button>
+        </div>
+        
+      </form>
+    </div>
+  `;
+  
+  document.getElementById('contenidoModal').innerHTML = html;
+  document.getElementById('modalGenerico').style.display = 'flex';
+  
+  // Cargar periodos disponibles de la carrera
+  setTimeout(async () => {
+    try {
+      const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+      
+      if (carreraDoc.exists) {
+        const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
+        const codigoCarrera = carreraDoc.data().codigo || 'XXX';
+        const selectPeriodo = document.getElementById('periodo');
+        
+        if (selectPeriodo) {
+          selectPeriodo.innerHTML = '<option value="">Seleccionar periodo...</option>';
+          
+          for (let i = 1; i <= numeroPeriodos; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `Periodo ${i}`;
+            selectPeriodo.appendChild(option);
+          }
+          
+          // Listener para mostrar preview de codigos
+          selectPeriodo.addEventListener('change', function() {
+            const periodo = this.value;
+            const previewDiv = document.getElementById('codigosPreview');
+            
+            if (periodo && previewDiv) {
+              const turnos = [
+                { cod: '1', nombre: 'Matutino' },
+                { cod: '2', nombre: 'Vespertino' },
+                { cod: '3', nombre: 'Nocturno' },
+                { cod: '4', nombre: 'Sabatino' }
+              ];
+              
+              let html = '';
+              turnos.forEach(turno => {
+                const codigo = `${codigoCarrera}-${turno.cod}${periodo}00`;
+                html += `<div style="margin: 4px 0;">${turno.nombre}: <strong>${codigo}</strong></div>`;
+              });
+              
+              previewDiv.innerHTML = html;
             }
-        } catch (error) {
-            console.error('Error al cargar periodos:', error);
+          });
         }
-    }, 500);
-
-    if (esEdicion) {
-        cargarDatosMateria(materiaId);
+      }
+    } catch (error) {
+      console.error('Error al cargar periodos:', error);
     }
+  }, 500);
+  
+  if (esEdicion) {
+    cargarDatosMateria(materiaId);
+  }
 }
+
 
 async function cargarDatosMateria(materiaId) {
-    try {
-        const doc = await db.collection('materias').doc(materiaId).get();
-        if (doc.exists) {
-            const materia = doc.data();
-            document.getElementById('nombreMateria').value = materia.nombre;
-            document.getElementById('codigoInterno').value = materia.codigo || '';
-            document.getElementById('creditos').value = materia.creditos || 6;
-            document.getElementById('periodo').value = materia.periodo || 1;
-        }
-    } catch (error) {
-        console.error('Error:', error);
+  try {
+    const doc = await db.collection('materias').doc(materiaId).get();
+    if (doc.exists) {
+      const materia = doc.data();
+      document.getElementById('nombreMateria').value = materia.nombre;
+      document.getElementById('creditos').value = materia.creditos || 6;
+      document.getElementById('periodo').value = materia.periodo || 1;
+      
+      // Disparar evento change para mostrar preview
+      const periodoSelect = document.getElementById('periodo');
+      if (periodoSelect) {
+        periodoSelect.dispatchEvent(new Event('change'));
+      }
     }
+  } catch (error) {
+    console.error('Error:', error);
+  }
 }
+
 
 async function guardarMateria(event, materiaId) {
-    event.preventDefault();
-
-    const data = {
-        nombre: document.getElementById('nombreMateria').value.trim(),
-        codigo: document.getElementById('codigoInterno').value.trim().toUpperCase(),
-        creditos: parseInt(document.getElementById('creditos').value),
-        periodo: parseInt(document.getElementById('periodo').value),
-        carreraId: usuarioActual.carreraId || null,
-        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    try {
-        if (materiaId) {
-            await db.collection('materias').doc(materiaId).update(data);
-            alert('Materia actualizada');
-        } else {
-            await db.collection('materias').add(data);
-            alert('Materia creada');
-        }
-
-        cerrarModal();
-        cargarMaterias();
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error al guardar');
+  event.preventDefault();
+  
+  const nombre = document.getElementById('nombreMateria').value.trim();
+  const creditos = parseInt(document.getElementById('creditos').value);
+  const periodo = parseInt(document.getElementById('periodo').value);
+  
+  try {
+    // Obtener codigo de carrera
+    const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+    if (!carreraDoc.exists) {
+      alert('Error: No se encontro la carrera');
+      return;
     }
+    
+    const codigoCarrera = carreraDoc.data().codigo;
+    
+    // Generar los 4 codigos (uno por turno)
+    const turnos = ['1', '2', '3', '4'];
+    const codigos = turnos.map(turno => `${codigoCarrera}-${turno}${periodo}00`);
+    
+    const materiaData = {
+      nombre: nombre,
+      codigos: codigos, // Array con los 4 codigos
+      periodo: periodo,
+      creditos: creditos,
+      carreraId: usuarioActual.carreraId,
+      fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    if (materiaId) {
+      // Actualizar materia existente
+      await db.collection('materias').doc(materiaId).update(materiaData);
+      alert('Materia actualizada correctamente');
+    } else {
+      // Crear nueva materia
+      await db.collection('materias').add(materiaData);
+      alert('Materia creada correctamente\n\nCodigos generados:\n' + codigos.join('\n'));
+    }
+    
+    cerrarModal();
+    cargarMaterias();
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al guardar: ' + error.message);
+  }
 }
+
 
 // ===== GESTIÓN DE GRUPOS =====
 async function cargarGrupos() {
