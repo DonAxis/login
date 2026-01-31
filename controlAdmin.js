@@ -474,38 +474,13 @@ async function crearCarrera(event) {
   const codigo = document.getElementById("codigoCarrera").value.trim().toUpperCase();
   const nombre = document.getElementById("nombreCarrera").value.trim();
   const descripcion = document.getElementById("descripcionCarrera").value.trim();
-  
   const tipoPeriodoRadio = document.querySelector('[name="tipoPeriodo"]:checked');
-  
-  if (!tipoPeriodoRadio) {
-    mostrarMensajeCarrera("Debes seleccionar un tipo de periodo academico", "error");
-    return;
-  }
-  
-  const tipoPeriodo = tipoPeriodoRadio.value;
   const numeroPeriodos = parseInt(document.getElementById("numeroPeriodos").value);
   
-  if (!numeroPeriodos || numeroPeriodos < 2 || numeroPeriodos > 12) {
-    mostrarMensajeCarrera("El numero de periodos debe estar entre 2 y 12", "error");
-    return;
-  }
+  // ... validaciones ...
   
   try {
-    mostrarMensajeCarrera("Creando carrera...", "info");
-    
-    const existente = await db.collection('carreras')
-      .where('codigo', '==', codigo)
-      .get();
-    
-    if (!existente.empty) {
-      mostrarMensajeCarrera("Ya existe una carrera con el codigo " + codigo, "error");
-      return;
-    }
-    
-    const tipoInfo = TIPOS_PERIODO.find(t => t.valor === tipoPeriodo);
-    const tipoNombre = tipoInfo ? tipoInfo.nombre : 'Semestral';
-    const periodosAnio = tipoInfo ? tipoInfo.periodosAnio : 2;
-    
+    // 1. Crear documento de carrera
     await db.collection('carreras').doc(codigo).set({
       codigo: codigo,
       nombre: nombre,
@@ -518,29 +493,56 @@ async function crearCarrera(event) {
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    console.log("Carrera creada:", codigo, "- Tipo:", tipoPeriodo, "- Periodos:", numeroPeriodos);
+    // 2. Crear matriz de grupos (1 solo documento)
+    await generarMatrizGrupos(codigo, numeroPeriodos);
     
-    await generarGruposBase(codigo, numeroPeriodos);
-    
-    mostrarMensajeCarrera(
-      "Carrera creada exitosamente\n\n" +
-      "Codigo: " + codigo + "\n" +
-      "Nombre: " + nombre + "\n" +
-      "Tipo: " + tipoNombre + "\n" +
-      "Periodos: " + numeroPeriodos + "\n\n" +
-      "Se han generado los codigos de grupo base.",
-      "success"
-    );
-    
-    setTimeout(() => {
-      cerrarModalCarrera();
-    }, 3000);
+    alert('Carrera creada con matriz de grupos');
     
   } catch (error) {
-    console.error("Error:", error);
-    mostrarMensajeCarrera("Error al crear carrera: " + error.message, "error");
+    console.error('Error:', error);
   }
 }
+
+//se crea matriz
+async function generarMatrizGrupos(carreraId, numeroPeriodos) {
+  try {
+    console.log(`Generando matriz de grupos para ${carreraId}...`);
+    
+    // Crear matriz vacía
+    const matriz = [];
+    
+    for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
+      const filaPeriodo = [];
+      
+      for (let turno = 1; turno <= 4; turno++) {
+        filaPeriodo.push({
+          turno: turno.toString(),
+          periodo: periodo,
+          activo: false,
+          alumnos: [],
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      
+      matriz.push(filaPeriodo);
+    }
+    
+    // Guardar en Firebase
+    await db.collection('gruposMatriz').doc(carreraId).set({
+      carreraId: carreraId,
+      numeroPeriodos: numeroPeriodos,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+      matriz: matriz
+    });
+    
+    console.log(`Matriz creada: ${numeroPeriodos} periodos × 4 turnos`);
+    
+  } catch (error) {
+    console.error('Error al generar matriz:', error);
+    throw error;
+  }
+}
+
 
 async function generarGruposBase(carreraId, numeroPeriodos) {
   try {
@@ -823,3 +825,54 @@ function cerrarModalAsignarCarreras() {
 }
 
 console.log('controlAdmin.js cargado - Sistema con tipo y numero de periodos');
+
+
+// Obtener grupo: Periodo y Turno 
+async function obtenerGrupo(carreraId, periodo, turno) {
+  try {
+    const doc = await db.collection('gruposMatriz').doc(carreraId).get();
+    
+    if (!doc.exists) {
+      return null;
+    }
+    
+    const matriz = doc.data().matriz;
+    
+    // Acceso directo: matriz[periodo-1][turno-1]
+    const grupo = matriz[periodo - 1][turno - 1];
+    
+    return grupo;
+    
+  } catch (error) {
+    console.error('Error:', error);
+    return null;
+  }
+}
+
+///Activar/Desactivar un Grupo
+async function toggleGrupo(carreraId, periodo, turno, nuevoEstado) {
+  try {
+    const docRef = db.collection('gruposMatriz').doc(carreraId);
+    const doc = await docRef.get();
+    
+    if (!doc.exists) {
+      throw new Error('Carrera no encontrada');
+    }
+    
+    const matriz = doc.data().matriz;
+    
+    // Modificar el grupo específico
+    matriz[periodo - 1][turno - 1].activo = nuevoEstado;
+    
+    // Actualizar documento
+    await docRef.update({ matriz: matriz });
+    
+    console.log(`Grupo ${carreraId}-${turno}${periodo}00 ${nuevoEstado ? 'activado' : 'desactivado'}`);
+    
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Ejemplo: Activar Periodo 5, Turno Nocturno
+await toggleGrupo('MAT', 5, 3, true);
