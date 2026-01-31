@@ -713,36 +713,34 @@ function cerrarModalAsignarCarreras() {
 }
 
 // ============================================
-// FUNCIÓN CORREGIDA: GENERAR MATRIZ BIDIMENSIONAL
-// ============================================
+// 
+// FUNCION CORREGIDA: Usar objeto plano en lugar de arrays anidados
 async function generarMatrizGrupos(carreraId, numeroPeriodos) {
   try {
     console.log(`Generando matriz de grupos para ${carreraId}...`);
-    console.log(`Dimensiones: ${numeroPeriodos} periodos × 4 turnos`);
+    console.log(`Dimensiones: ${numeroPeriodos} periodos x 4 turnos`);
     
-    // Crear la matriz bidimensional
-    const matriz = [];
+    // En lugar de array anidado, usamos un objeto con claves
+    const grupos = {};
     
-    // Para cada periodo/semestre (filas)
+    const nombresTurnos = {
+      1: "Matutino",
+      2: "Vespertino", 
+      3: "Nocturno",
+      4: "Mixto"
+    };
+    
+    // Para cada periodo/semestre
     for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
-      const filaPeriodo = [];
-      
-      // Para cada turno (columnas): 1=Matutino, 2=Vespertino, 3=Nocturno, 4=Mixto
+      // Para cada turno: 1=Matutino, 2=Vespertino, 3=Nocturno, 4=Mixto
       for (let turno = 1; turno <= 4; turno++) {
-        // Generar código del grupo: periodo + turno + "00"
+        // Generar codigo del grupo: periodo + turno + "00"
         // Ejemplo: periodo 1, turno 1 = "1100"
         const codigo = `${periodo}${turno}00`;
         const codigoCompleto = `${carreraId}-${codigo}`;
         
-        // Nombres de turnos
-        const nombresTurnos = {
-          1: "Matutino",
-          2: "Vespertino", 
-          3: "Nocturno",
-          4: "Mixto"
-        };
-        
-        filaPeriodo.push({
+        // Usar el codigo como clave del objeto
+        grupos[codigo] = {
           codigo: codigo,
           codigoCompleto: codigoCompleto,
           periodo: periodo,
@@ -754,11 +752,8 @@ async function generarMatrizGrupos(carreraId, numeroPeriodos) {
           materias: [],
           profesores: [],
           fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
       }
-      
-      // Agregar la fila completa a la matriz
-      matriz.push(filaPeriodo);
     }
     
     // Guardar en Firestore con el ID = carreraId
@@ -767,22 +762,12 @@ async function generarMatrizGrupos(carreraId, numeroPeriodos) {
       numeroPeriodos: numeroPeriodos,
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
       fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp(),
-      matriz: matriz
+      grupos: grupos
     });
     
     console.log(`Matriz creada exitosamente`);
     console.log(`Estructura guardada en: grupos/${carreraId}`);
     console.log(`Total de grupos base: ${numeroPeriodos * 4}`);
-    
-    // Mostrar ejemplo de la estructura
-    console.log('Ejemplo de estructura:');
-    console.table(matriz.map((fila, idx) => ({
-      Periodo: idx + 1,
-      'Turno 1 (Mat)': fila[0].codigo,
-      'Turno 2 (Vesp)': fila[1].codigo,
-      'Turno 3 (Noct)': fila[2].codigo,
-      'Turno 4 (Mix)': fila[3].codigo
-    })));
     
     return { success: true, totalGrupos: numeroPeriodos * 4 };
     
@@ -792,9 +777,7 @@ async function generarMatrizGrupos(carreraId, numeroPeriodos) {
   }
 }
 
-// ============================================
-// FUNCIÓN PARA VER LA MATRIZ DE UNA CARRERA
-// ============================================
+// FUNCION PARA VER LA MATRIZ DE UNA CARRERA
 async function verMatrizCarrera(carreraId) {
   try {
     const gruposDoc = await db.collection('grupos').doc(carreraId).get();
@@ -807,16 +790,126 @@ async function verMatrizCarrera(carreraId) {
     const data = gruposDoc.data();
     console.log('Matriz de', carreraId);
     console.log('Periodos:', data.numeroPeriodos);
-    console.log('Grupos:');
+    console.log('Grupos:', Object.keys(data.grupos).length);
     
-    data.matriz.forEach((fila, idx) => {
-      console.log(`Periodo ${idx + 1}:`, fila.map(g => g.codigo));
-    });
+    // Mostrar grupos por periodo
+    for (let periodo = 1; periodo <= data.numeroPeriodos; periodo++) {
+      const gruposPeriodo = Object.values(data.grupos)
+        .filter(g => g.periodo === periodo)
+        .map(g => g.codigo);
+      console.log(`Periodo ${periodo}:`, gruposPeriodo);
+    }
     
     return data;
     
   } catch (error) {
     console.error('Error al ver matriz:', error);
     return null;
+  }
+}
+
+// FUNCION PARA OBTENER UN GRUPO ESPECIFICO
+async function obtenerGrupo(carreraId, codigo) {
+  try {
+    const gruposDoc = await db.collection('grupos').doc(carreraId).get();
+    
+    if (!gruposDoc.exists) {
+      console.log('No existe matriz para esta carrera');
+      return null;
+    }
+    
+    const data = gruposDoc.data();
+    const grupo = data.grupos[codigo];
+    
+    if (!grupo) {
+      console.log(`No existe el grupo ${codigo}`);
+      return null;
+    }
+    
+    return grupo;
+    
+  } catch (error) {
+    console.error('Error al obtener grupo:', error);
+    return null;
+  }
+}
+
+// FUNCION PARA ACTUALIZAR UN GRUPO
+async function actualizarGrupo(carreraId, codigo, cambios) {
+  try {
+    const gruposRef = db.collection('grupos').doc(carreraId);
+    const gruposDoc = await gruposRef.get();
+    
+    if (!gruposDoc.exists) {
+      throw new Error('No existe matriz para esta carrera');
+    }
+    
+    const data = gruposDoc.data();
+    
+    if (!data.grupos[codigo]) {
+      throw new Error(`No existe el grupo ${codigo}`);
+    }
+    
+    // Actualizar el grupo especifico
+    const grupoActualizado = {
+      ...data.grupos[codigo],
+      ...cambios
+    };
+    
+    // Actualizar en Firestore usando notacion de punto
+    const updatePath = `grupos.${codigo}`;
+    await gruposRef.update({
+      [updatePath]: grupoActualizado,
+      fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log(`Grupo ${codigo} actualizado`);
+    return grupoActualizado;
+    
+  } catch (error) {
+    console.error('Error al actualizar grupo:', error);
+    throw error;
+  }
+}
+
+// FUNCION PARA OBTENER GRUPOS POR PERIODO
+async function obtenerGruposPorPeriodo(carreraId, periodo) {
+  try {
+    const gruposDoc = await db.collection('grupos').doc(carreraId).get();
+    
+    if (!gruposDoc.exists) {
+      return [];
+    }
+    
+    const data = gruposDoc.data();
+    const gruposPeriodo = Object.values(data.grupos)
+      .filter(g => g.periodo === periodo);
+    
+    return gruposPeriodo;
+    
+  } catch (error) {
+    console.error('Error al obtener grupos por periodo:', error);
+    return [];
+  }
+}
+
+// FUNCION PARA OBTENER GRUPOS POR TURNO
+async function obtenerGruposPorTurno(carreraId, turno) {
+  try {
+    const gruposDoc = await db.collection('grupos').doc(carreraId).get();
+    
+    if (!gruposDoc.exists) {
+      return [];
+    }
+    
+    const data = gruposDoc.data();
+    const gruposTurno = Object.values(data.grupos)
+      .filter(g => g.turno === turno);
+    
+    return gruposTurno;
+    
+  } catch (error) {
+    console.error('Error al obtener grupos por turno:', error);
+    return [];
   }
 }
