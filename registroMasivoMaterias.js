@@ -34,38 +34,35 @@ async function mostrarModalMateriasMasivas() {
 
           <!-- INSTRUCCIONES -->
           <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Notas:</h3>
+            <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
             <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
-              <li>Las materias deben pertenecer al mismo periodo</li>
+              <li>Selecciona el periodo donde se registraran las materias</li>
               <li>Pega los nombres de materias (uno por linea)</li>
-              <li>Pega los creditos locales y externos (uno por linea cada columna)</li>
+              <li>Pega los creditos SATCA y TEPIC (uno por linea cada columna)</li>
+              <li>Las materias se crearan automaticamente para los 4 turnos</li>
             </ul>
 
             <h3 style="margin: 15px 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo:</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
               <thead style="background: #61a8bd;">
                 <tr>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Periodo</th>
                   <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Nombres de Materias</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Cred. Local</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Cred. Externo</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">SATCA</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">TEPIC</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td style="padding: 8px; border: 1px solid #ddd;">2</td>
                   <td style="padding: 8px; border: 1px solid #ddd;">Calculo Diferencial</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">0</td>
                 </tr>
                 <tr style="background: #f9f9f9;">
-                  <td style="padding: 8px; border: 1px solid #ddd;">2</td>
                   <td style="padding: 8px; border: 1px solid #ddd;">Algebra Lineal</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">5</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">1</td>
                 </tr>
                 <tr>
-                  <td style="padding: 8px; border: 1px solid #ddd;">2</td>
                   <td style="padding: 8px; border: 1px solid #ddd;">Programacion Estructurada</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">4</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">4</td>
@@ -95,29 +92,29 @@ async function mostrarModalMateriasMasivas() {
               <textarea id="nombresMateriasMasivo" required rows="15" 
                         placeholder="Calculo Diferencial&#10;Algebra Lineal&#10;Programacion Estructurada&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-            
+              <small style="color: #666; font-size: 0.8rem;">Una materia por renglon</small>
             </div>
 
-            <!-- CREDITOS LOCAL -->
+            <!-- CREDITOS SATCA -->
             <div>
               <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
-                Cred. Local *
+                SATCA *
               </label>
-              <textarea id="creditosLocalMasivo" required rows="15" 
+              <textarea id="creditosSatcaMasivo" required rows="15" 
                         placeholder="6&#10;5&#10;4&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-             
+              <small style="color: #666; font-size: 0.8rem;">Acepta 0</small>
             </div>
 
-            <!-- CREDITOS EXTERNO -->
+            <!-- CREDITOS TEPIC -->
             <div>
               <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
-                Cred. Externo *
+                TEPIC *
               </label>
-              <textarea id="creditosExternoMasivo" required rows="15" 
+              <textarea id="creditosTepicMasivo" required rows="15" 
                         placeholder="0&#10;1&#10;4&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-             
+              <small style="color: #666; font-size: 0.8rem;">Acepta 0</small>
             </div>
 
           </div>
@@ -183,8 +180,8 @@ async function actualizarPreviewPeriodo() {
       const turnos = ['Matutino', 'Vespertino', 'Nocturno', 'Sabatino'];
       
       infoDiv.innerHTML = `
-        <strong>Ingresa nombre de materia y creditos</strong>
-  
+        <strong>Las materias se crearan para los grupos:</strong><br>
+        ${turnos.map((t, idx) => `${(idx+1)}${periodo}00 - ${t}`).join('<br>')}
       `;
     }
   } catch (error) {
@@ -200,8 +197,8 @@ function cerrarModalMateriasMasivas() {
 async function previsualizarMaterias() {
   const periodo = parseInt(document.getElementById('periodoMateriasMasivo').value);
   const nombresText = document.getElementById('nombresMateriasMasivo').value.trim();
-  const creditosLocalText = document.getElementById('creditosLocalMasivo').value.trim();
-  const creditosExternoText = document.getElementById('creditosExternoMasivo').value.trim();
+  const creditosSatcaText = document.getElementById('creditosSatcaMasivo').value.trim();
+  const creditosTepicText = document.getElementById('creditosTepicMasivo').value.trim();
   
   if (!periodo) {
     alert('Selecciona un periodo');
@@ -214,16 +211,16 @@ async function previsualizarMaterias() {
   }
   
   const nombres = nombresText.split('\n').map(l => l.trim()).filter(l => l);
-  const creditosLocal = creditosLocalText.split('\n').map(l => l.trim()).filter(l => l);
-  const creditosExterno = creditosExternoText.split('\n').map(l => l.trim()).filter(l => l);
+  const creditosSatca = creditosSatcaText.split('\n').map(l => l.trim()).filter(l => l);
+  const creditosTepic = creditosTepicText.split('\n').map(l => l.trim()).filter(l => l);
   
-  if (creditosLocal.length !== nombres.length) {
-    alert('Error: Debe haber un credito local por cada materia');
+  if (creditosSatca.length !== nombres.length) {
+    alert('Error: Debe haber un credito SATCA por cada materia');
     return;
   }
   
-  if (creditosExterno.length !== nombres.length) {
-    alert('Error: Debe haber un credito externo por cada materia');
+  if (creditosTepic.length !== nombres.length) {
+    alert('Error: Debe haber un credito TEPIC por cada materia');
     return;
   }
   
@@ -252,9 +249,8 @@ async function previsualizarMaterias() {
     html += '<tr>';
     html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">#</th>';
     html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Nombre Materia</th>';
-    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Cred. Local</th>';
-    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Cred. Externo</th>';
-    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Total</th>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">SATCA</th>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">TEPIC</th>';
     html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Periodo</th>';
     html += '</tr>';
     html += '</thead>';
@@ -262,16 +258,14 @@ async function previsualizarMaterias() {
     
     nombres.forEach((nombre, i) => {
       const bgColor = i % 2 === 0 ? '#fff' : '#f9f9f9';
-      const credLocal = parseInt(creditosLocal[i]) || 0;
-      const credExterno = parseInt(creditosExterno[i]) || 0;
-      const total = credLocal + credExterno;
+      const credSatca = parseInt(creditosSatca[i]) || 0;
+      const credTepic = parseInt(creditosTepic[i]) || 0;
       
       html += `<tr style="background: ${bgColor};">`;
       html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${i + 1}</td>`;
       html += `<td style="padding: 8px; border: 1px solid #ddd;"><strong>${nombre}</strong></td>`;
-      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${credLocal}</td>`;
-      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${credExterno}</td>`;
-      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #43a047;">${total}</td>`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${credSatca}</td>`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${credTepic}</td>`;
       html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${periodo}</td>`;
       html += '</tr>';
     });
@@ -297,8 +291,8 @@ async function guardarMateriasMasivas(event) {
   
   const periodo = parseInt(document.getElementById('periodoMateriasMasivo').value);
   const nombresText = document.getElementById('nombresMateriasMasivo').value.trim();
-  const creditosLocalText = document.getElementById('creditosLocalMasivo').value.trim();
-  const creditosExternoText = document.getElementById('creditosExternoMasivo').value.trim();
+  const creditosSatcaText = document.getElementById('creditosSatcaMasivo').value.trim();
+  const creditosTepicText = document.getElementById('creditosTepicMasivo').value.trim();
   
   if (!periodo || !nombresText) {
     alert('Completa todos los campos requeridos');
@@ -306,11 +300,11 @@ async function guardarMateriasMasivas(event) {
   }
   
   const nombres = nombresText.split('\n').map(l => l.trim()).filter(l => l);
-  const creditosLocal = creditosLocalText.split('\n').map(l => l.trim()).filter(l => l);
-  const creditosExterno = creditosExternoText.split('\n').map(l => l.trim()).filter(l => l);
+  const creditosSatca = creditosSatcaText.split('\n').map(l => l.trim()).filter(l => l);
+  const creditosTepic = creditosTepicText.split('\n').map(l => l.trim()).filter(l => l);
   
-  if (creditosLocal.length !== nombres.length || creditosExterno.length !== nombres.length) {
-    alert('Error: Debe haber creditos local y externo para cada materia');
+  if (creditosSatca.length !== nombres.length || creditosTepic.length !== nombres.length) {
+    alert('Error: Debe haber creditos SATCA y TEPIC para cada materia');
     return;
   }
   
@@ -350,8 +344,8 @@ async function guardarMateriasMasivas(event) {
     
     for (let i = 0; i < nombres.length; i++) {
       const nombreMateria = nombres[i];
-      const credLocal = parseInt(creditosLocal[i]) || 0;
-      const credExterno = parseInt(creditosExterno[i]) || 0;
+      const credSatca = parseInt(creditosSatca[i]) || 0;
+      const credTepic = parseInt(creditosTepic[i]) || 0;
       
       const codigosGenerados = [];
       const gruposEnlazados = [];
@@ -376,9 +370,8 @@ async function guardarMateriasMasivas(event) {
           codigos: codigosGenerados,
           grupos: gruposEnlazados,
           periodo: periodo,
-          creditosLocal: credLocal,
-          creditosExterno: credExterno,
-          creditosTotal: credLocal + credExterno,
+          creditosSatca: credSatca,
+          creditosTepic: credTepic,
           carreraId: usuarioActual.carreraId,
           codigoCarrera: codigoCarrera,
           activa: true,
@@ -410,7 +403,7 @@ async function guardarMateriasMasivas(event) {
       if (typeof cargarMaterias === 'function') {
         cargarMaterias();
       }
-    //  alert(`Carga masiva completada\n\nRegistradas: ${exitosos}\nErrores: ${errores}`);
+      alert(`Carga masiva completada\n\nRegistradas: ${exitosos}\nErrores: ${errores}`);
     }, 2500);
     
   } catch (error) {
@@ -420,5 +413,3 @@ async function guardarMateriasMasivas(event) {
     document.getElementById('formMateriasMasivas').style.display = 'block';
   }
 }
-
-console.log('=== REGISTRO MASIVO CON CREDITOS LOCAL/EXTERNO CARGADO ===');
