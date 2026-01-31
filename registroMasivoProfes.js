@@ -16,20 +16,17 @@ async function mostrarModalProfesoresMasivos() {
 
           <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
-            <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
-              <li>Pega los datos en 2 columnas separadas (una linea por profesor)</li>
-              <li>Los profesores se crearan en Firebase Authentication y Firestore</li>
-              <li>Formato: Nombre Completo | Email</li>
-              <li>Se generara contraseña temporal: <strong>ilb123</strong></li>
-              <li>Los profesores deberan cambiar su contraseña en el primer login</li>
-            </ul>
+            <p style="margin: 0; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
+              Pega los datos, un renglón por profesor. Formato es: Nombre Completo | Correo electrónico<br>
+              Se generará contraseña temporal: <strong>ilb123</strong>. Los profesores deben cambiar su contraseña por seguridad.
+            </p>
 
             <h3 style="margin: 15px 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo de datos:</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white;">
               <thead style="background: #f5f5f5;">
                 <tr>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Nombre Completo</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Email</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Nombre Completo</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Email</th>
                 </tr>
               </thead>
               <tbody>
@@ -50,14 +47,12 @@ async function mostrarModalProfesoresMasivos() {
           </div>
 
           <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 1rem;">Importante:</h3>
             <p style="margin: 0; color: #856404; line-height: 1.6; font-size: 0.9rem;">
-              Este proceso crea usuarios en Firebase Authentication. Si un email ya existe, 
-              ese registro sera omitido y se mostrara en el reporte de errores.
-              <br><br>
+              <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 1rem;">Importante:</h3>
               <strong>Contraseña temporal:</strong> <code style="background: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">ilb123</code>
-              <br>
               Los profesores deben cambiarla en su primer acceso.
+              <br>
+                 Si un email ya existe, ese registro sera omitido.
             </p>
           </div>
 
