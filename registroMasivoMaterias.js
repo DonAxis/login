@@ -43,7 +43,7 @@ async function mostrarModalMateriasMasivas() {
 
             <h3 style="margin: 15px 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo:</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-              <thead style="background: #f5f5f5;">
+              <thead style="background: #61a8bd;">
                 <tr>
                   <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Periodo</th>
                   <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Nombres de Materias</th>
@@ -95,7 +95,7 @@ async function mostrarModalMateriasMasivas() {
               <textarea id="nombresMateriasMasivo" required rows="15" 
                         placeholder="Calculo Diferencial&#10;Algebra Lineal&#10;Programacion Estructurada&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-              <small style="color: #666; font-size: 0.8rem;">Una materia por renglon</small>
+            
             </div>
 
             <!-- CREDITOS LOCAL -->
@@ -106,7 +106,7 @@ async function mostrarModalMateriasMasivas() {
               <textarea id="creditosLocalMasivo" required rows="15" 
                         placeholder="6&#10;5&#10;4&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-              <small style="color: #666; font-size: 0.8rem;">Acepta 0</small>
+             
             </div>
 
             <!-- CREDITOS EXTERNO -->
@@ -117,7 +117,7 @@ async function mostrarModalMateriasMasivas() {
               <textarea id="creditosExternoMasivo" required rows="15" 
                         placeholder="0&#10;1&#10;4&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-              <small style="color: #666; font-size: 0.8rem;">Acepta 0</small>
+             
             </div>
 
           </div>
@@ -240,7 +240,7 @@ async function previsualizarMaterias() {
     
     let html = `
       <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-        <strong style="color: #856404;">Cada materia se registrara en 4 grupos (uno por turno):</strong>
+        <strong style="color: #856404;">Cada materia se registrara en todos los turnos:</strong>
         <div style="margin-top: 8px; font-family: monospace; font-size: 0.85rem;">
           ${turnos.map(t => `${codigoCarrera}-${t.num}${periodo}00 (${t.nombre})`).join('<br>')}
         </div>
@@ -410,7 +410,7 @@ async function guardarMateriasMasivas(event) {
       if (typeof cargarMaterias === 'function') {
         cargarMaterias();
       }
-      alert(`Carga masiva completada\n\nRegistradas: ${exitosos}\nErrores: ${errores}`);
+    //  alert(`Carga masiva completada\n\nRegistradas: ${exitosos}\nErrores: ${errores}`);
     }, 2500);
     
   } catch (error) {
