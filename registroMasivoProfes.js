@@ -18,7 +18,7 @@ async function mostrarModalProfesoresMasivos() {
         <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
           <p style="margin: 0; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
             Pega los datos, un renglón por profesor:<br>
-            Nombre completo: <strong>Apellido paterno, apellido materno y nombres </strong> | Correo electrónico<strong>institucional</strong><br>
+            Nombre completo: <strong>Apellido paterno, apellido materno y nombres </strong> | Correo electrónico <strong>institucional</strong><br>
            
           </p>
 
@@ -58,7 +58,7 @@ async function mostrarModalProfesoresMasivos() {
                 Nombres Completos *
               </label>
               <textarea id="nombresProfesoresMasivo" required rows="12" 
-                        placeholder="Juan Perez Garcia&#10;Maria Lopez Hernandez&#10;Carlos Ramirez Sanchez&#10;..."
+                        placeholder="Juan Perez Garcia&#10;Maria Lopez Hernandez&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
               <small style="color: #666; font-size: 0.8rem;">Un nombre por linea</small>
             </div>
@@ -68,7 +68,7 @@ async function mostrarModalProfesoresMasivos() {
                 Correos Electronicos *
               </label>
               <textarea id="emailsProfesoresMasivo" required rows="12" 
-                        placeholder="juan.perez@escuela.com&#10;maria.lopez@escuela.com&#10;carlos.ramirez@escuela.com&#10;..."
+                        placeholder="juan.perez@ilb.edu.mx&#10;maria.lopez@ilb.edu.mx&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
               <small style="color: #666; font-size: 0.8rem;">Un email por linea</small>
             </div>
