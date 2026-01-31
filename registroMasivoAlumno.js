@@ -248,14 +248,28 @@ async function procesarRegistroMasivo(event) {
     return;
   }
   
-  // Construir código completo con orden
-  const codigoCarrera = grupoInfo.codigoCompleto.split('-')[0];
-  const codigoBase = codigoGrupo; // Ej: "1500"
-  const codigoCompletoConOrden = `${codigoCarrera}-${codigoBase.substring(0, 2)}${codigoBase.substring(2)}${orden}`;
-  // Formato: CARRERA-TPOO (Ej: HIS-1501, HIS-1502)
+  // CONSTRUCCION CORREGIDA DEL CODIGO
+  // codigoGrupo viene como "1300" (TPGG donde GG=00)
+  // Necesitamos construir: CARRERA-TPOO
+  
+  const codigoCarrera = grupoInfo.codigoCompleto.split('-')[0]; // Ej: "DE"
+  const turnoChar = codigoGrupo.charAt(0); // Primer dígito: turno (Ej: "1")
+  const periodoChar = codigoGrupo.charAt(1); // Segundo dígito: periodo (Ej: "3")
+  
+  // Construir código completo: CARRERA-TPOO
+  const codigoCompletoConOrden = `${codigoCarrera}-${turnoChar}${periodoChar}${orden}`;
+  // Ejemplo: "DE-1301" (DE-Turno1-Periodo3-Orden01)
   
   const periodo = grupoInfo.periodo;
   const turno = grupoInfo.turno;
+  
+  console.log('DEBUG - Construccion de codigo:');
+  console.log('  codigoGrupo seleccionado:', codigoGrupo);
+  console.log('  codigoCarrera:', codigoCarrera);
+  console.log('  turnoChar:', turnoChar);
+  console.log('  periodoChar:', periodoChar);
+  console.log('  orden:', orden);
+  console.log('  RESULTADO:', codigoCompletoConOrden);
   
   if (!confirm(`Registrar ${nombres.length} alumnos?\n\nGrupo: ${codigoCompletoConOrden}\nTurno: ${grupoInfo.nombreTurno}\nPeriodo: ${periodo}\nOrden: ${orden}`)) {
     return;
@@ -308,7 +322,7 @@ async function procesarRegistroMasivo(event) {
       await db.collection('usuarios').add(alumnoData);
       
       exitosos++;
-      console.log(`[${i + 1}/${nombres.length}] Alumno creado: ${nombre}`);
+      console.log(`[${i + 1}/${nombres.length}] Alumno creado: ${nombre} - Grupo: ${codigoCompletoConOrden}`);
       
     } catch (error) {
       fallidos++;
