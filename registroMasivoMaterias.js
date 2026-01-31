@@ -1,12 +1,9 @@
-// REGISTRO MASIVO DE MATERIAS - VERSION CORREGIDA
-// Compatible con la nueva estructura de grupos (objeto plano)
+// REGISTRO MASIVO DE MATERIAS 
 
-console.log('=== CARGANDO REGISTRO MASIVO DE MATERIAS - CORREGIDO ===');
+console.log('=== CARGANDO REGISTRO MASIVO DE MATERIAS - CON CREDITOS LOCAL/EXTERNO ===');
 
-// Funcion principal: Mostrar modal de captura masiva de materias
 async function mostrarModalMateriasMasivas() {
   
-  // Cargar periodos disponibles de la carrera
   let periodosHTML = '<option value="">Seleccionar periodo...</option>';
   
   try {
@@ -41,7 +38,7 @@ async function mostrarModalMateriasMasivas() {
             <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
               <li>Selecciona el periodo donde se registraran las materias</li>
               <li>Pega los nombres de materias (uno por linea)</li>
-              <li>Opcionalmente, pega los creditos (uno por linea)</li>
+              <li>Pega los creditos locales y externos (uno por linea cada columna)</li>
               <li>Las materias se crearan automaticamente para los 4 turnos</li>
             </ul>
 
@@ -50,21 +47,25 @@ async function mostrarModalMateriasMasivas() {
               <thead style="background: #f5f5f5;">
                 <tr>
                   <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Nombres de Materias</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Creditos</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Cred. Local</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Cred. Externo</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td style="padding: 8px; border: 1px solid #ddd;">Calculo Diferencial</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">0</td>
                 </tr>
                 <tr style="background: #f9f9f9;">
                   <td style="padding: 8px; border: 1px solid #ddd;">Algebra Lineal</td>
-                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">5</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">1</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px; border: 1px solid #ddd;">Programacion Estructurada</td>
-                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">8</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">4</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">4</td>
                 </tr>
               </tbody>
             </table>
@@ -81,7 +82,7 @@ async function mostrarModalMateriasMasivas() {
           </div>
 
           <!-- CAMPOS PARA PEGAR DATOS -->
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
             
             <!-- NOMBRES DE MATERIAS -->
             <div>
@@ -94,15 +95,26 @@ async function mostrarModalMateriasMasivas() {
               <small style="color: #666; font-size: 0.8rem;">Una materia por renglon</small>
             </div>
 
-            <!-- CREDITOS -->
+            <!-- CREDITOS LOCAL -->
             <div>
               <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
-                Creditos (opcional)
+                Cred. Local *
               </label>
-              <textarea id="creditosMateriasMasivo" rows="15" 
-                        placeholder="6&#10;6&#10;8&#10;..."
+              <textarea id="creditosLocalMasivo" required rows="15" 
+                        placeholder="6&#10;5&#10;4&#10;..."
                         style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-              <small style="color: #666; font-size: 0.8rem;">Por defecto: 6 creditos</small>
+              <small style="color: #666; font-size: 0.8rem;">Acepta 0</small>
+            </div>
+
+            <!-- CREDITOS EXTERNO -->
+            <div>
+              <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
+                Cred. Externo *
+              </label>
+              <textarea id="creditosExternoMasivo" required rows="15" 
+                        placeholder="0&#10;1&#10;4&#10;..."
+                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+              <small style="color: #666; font-size: 0.8rem;">Acepta 0</small>
             </div>
 
           </div>
@@ -152,7 +164,6 @@ async function mostrarModalMateriasMasivas() {
   document.body.insertAdjacentHTML('beforeend', html);
 }
 
-// Actualizar preview cuando cambia el periodo
 async function actualizarPreviewPeriodo() {
   const periodo = document.getElementById('periodoMateriasMasivo').value;
   const infoDiv = document.getElementById('infoGruposPeriodo');
@@ -169,8 +180,8 @@ async function actualizarPreviewPeriodo() {
       const turnos = ['Matutino', 'Vespertino', 'Nocturno', 'Sabatino'];
       
       infoDiv.innerHTML = `
-        <strong>Las materias se crearan para los grupos:</strong><br>
-        ${turnos.map((t, idx) => `${(idx+1)}${periodo}00 - ${t}`).join('<br>')}
+        <strong>Ingresa nombre de materia y creditos</strong>
+  
       `;
     }
   } catch (error) {
@@ -178,17 +189,16 @@ async function actualizarPreviewPeriodo() {
   }
 }
 
-// Cerrar modal
 function cerrarModalMateriasMasivas() {
   const modal = document.getElementById('modalMateriasMasivas');
   if (modal) modal.remove();
 }
 
-// Previsualizar materias
 async function previsualizarMaterias() {
   const periodo = parseInt(document.getElementById('periodoMateriasMasivo').value);
   const nombresText = document.getElementById('nombresMateriasMasivo').value.trim();
-  const creditosText = document.getElementById('creditosMateriasMasivo').value.trim();
+  const creditosLocalText = document.getElementById('creditosLocalMasivo').value.trim();
+  const creditosExternoText = document.getElementById('creditosExternoMasivo').value.trim();
   
   if (!periodo) {
     alert('Selecciona un periodo');
@@ -201,10 +211,16 @@ async function previsualizarMaterias() {
   }
   
   const nombres = nombresText.split('\n').map(l => l.trim()).filter(l => l);
-  const creditos = creditosText.split('\n').map(l => l.trim()).filter(l => l);
+  const creditosLocal = creditosLocalText.split('\n').map(l => l.trim()).filter(l => l);
+  const creditosExterno = creditosExternoText.split('\n').map(l => l.trim()).filter(l => l);
   
-  if (creditos.length > 0 && creditos.length !== nombres.length) {
-    alert('Error: Debe haber un credito por cada materia o dejar vacio');
+  if (creditosLocal.length !== nombres.length) {
+    alert('Error: Debe haber un credito local por cada materia');
+    return;
+  }
+  
+  if (creditosExterno.length !== nombres.length) {
+    alert('Error: Debe haber un credito externo por cada materia');
     return;
   }
   
@@ -233,7 +249,9 @@ async function previsualizarMaterias() {
     html += '<tr>';
     html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">#</th>';
     html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Nombre Materia</th>';
-    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Creditos</th>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Cred. Local</th>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Cred. Externo</th>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Total</th>';
     html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Periodo</th>';
     html += '</tr>';
     html += '</thead>';
@@ -241,12 +259,16 @@ async function previsualizarMaterias() {
     
     nombres.forEach((nombre, i) => {
       const bgColor = i % 2 === 0 ? '#fff' : '#f9f9f9';
-      const creditoVal = creditos[i] ? parseInt(creditos[i]) : 6;
+      const credLocal = parseInt(creditosLocal[i]) || 0;
+      const credExterno = parseInt(creditosExterno[i]) || 0;
+      const total = credLocal + credExterno;
       
       html += `<tr style="background: ${bgColor};">`;
       html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${i + 1}</td>`;
       html += `<td style="padding: 8px; border: 1px solid #ddd;"><strong>${nombre}</strong></td>`;
-      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${creditoVal}</td>`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${credLocal}</td>`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${credExterno}</td>`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #43a047;">${total}</td>`;
       html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${periodo}</td>`;
       html += '</tr>';
     });
@@ -267,35 +289,31 @@ async function previsualizarMaterias() {
   }
 }
 
-// Guardar materias masivamente
 async function guardarMateriasMasivas(event) {
   event.preventDefault();
   
   const periodo = parseInt(document.getElementById('periodoMateriasMasivo').value);
   const nombresText = document.getElementById('nombresMateriasMasivo').value.trim();
-  const creditosText = document.getElementById('creditosMateriasMasivo').value.trim();
+  const creditosLocalText = document.getElementById('creditosLocalMasivo').value.trim();
+  const creditosExternoText = document.getElementById('creditosExternoMasivo').value.trim();
   
-  if (!periodo) {
-    alert('Selecciona un periodo');
-    return;
-  }
-  
-  if (!nombresText) {
-    alert('Ingresa los nombres de las materias');
+  if (!periodo || !nombresText) {
+    alert('Completa todos los campos requeridos');
     return;
   }
   
   const nombres = nombresText.split('\n').map(l => l.trim()).filter(l => l);
-  const creditos = creditosText.split('\n').map(l => l.trim()).filter(l => l);
+  const creditosLocal = creditosLocalText.split('\n').map(l => l.trim()).filter(l => l);
+  const creditosExterno = creditosExternoText.split('\n').map(l => l.trim()).filter(l => l);
   
-  if (creditos.length > 0 && creditos.length !== nombres.length) {
-    alert('Error: Debe haber un credito por cada materia');
+  if (creditosLocal.length !== nombres.length || creditosExterno.length !== nombres.length) {
+    alert('Error: Debe haber creditos local y externo para cada materia');
     return;
   }
   
   const confirmar = confirm(
     `Vas a registrar ${nombres.length} materias en el periodo ${periodo}\n\n` +
-    `Cada materia se creara para 4 turnos (Matutino, Vespertino, Nocturno, Sabatino)\n\n` +
+    `Cada materia se creara para 4 turnos\n\n` +
     `Total de registros: ${nombres.length}\n\n` +
     `Continuar?`
   );
@@ -329,7 +347,8 @@ async function guardarMateriasMasivas(event) {
     
     for (let i = 0; i < nombres.length; i++) {
       const nombreMateria = nombres[i];
-      const creditosMateria = creditos[i] ? parseInt(creditos[i]) : 6;
+      const credLocal = parseInt(creditosLocal[i]) || 0;
+      const credExterno = parseInt(creditosExterno[i]) || 0;
       
       const codigosGenerados = [];
       const gruposEnlazados = [];
@@ -354,7 +373,9 @@ async function guardarMateriasMasivas(event) {
           codigos: codigosGenerados,
           grupos: gruposEnlazados,
           periodo: periodo,
-          creditos: creditosMateria,
+          creditosLocal: credLocal,
+          creditosExterno: credExterno,
+          creditosTotal: credLocal + credExterno,
           carreraId: usuarioActual.carreraId,
           codigoCarrera: codigoCarrera,
           activa: true,
@@ -397,4 +418,4 @@ async function guardarMateriasMasivas(event) {
   }
 }
 
-console.log('=== REGISTRO MASIVO DE MATERIAS CORREGIDO CARGADO ===');
+console.log('=== REGISTRO MASIVO CON CREDITOS LOCAL/EXTERNO CARGADO ===');
