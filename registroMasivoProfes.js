@@ -255,12 +255,12 @@ async function guardarProfesoresMasivos(event) {
   let fallidos = 0;
   const erroresDetallados = [];
   
-  const adminUser = firebase.auth().currentUser;
-  const adminEmail = adminUser ? adminUser.email : null;
-  
   console.log('Iniciando registro masivo de profesores...');
   console.log(`Total profesores: ${nombres.length}`);
-  console.log(`Admin actual: ${adminEmail}`);
+  
+  // USAR INSTANCIA SECUNDARIA DE FIREBASE
+  const secondaryApp = firebase.initializeApp(firebaseConfig, 'SecondaryProfesor');
+  const secondaryAuth = secondaryApp.auth();
   
   for (let i = 0; i < nombres.length; i++) {
     const nombre = nombres[i];
@@ -272,11 +272,13 @@ async function guardarProfesoresMasivos(event) {
     texto.textContent = `Creando ${i + 1}/${nombres.length}: ${nombre}`;
     
     try {
-      const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, passwordTemporal);
+      // Crear en la instancia secundaria (no afecta la sesión principal)
+      const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, passwordTemporal);
       const newUid = userCredential.user.uid;
       
       console.log(`[${i + 1}] Auth creado: ${email} (${newUid})`);
       
+      // Guardar en Firestore (usa la conexión principal)
       const profesorData = {
         nombre: nombre,
         email: email,
@@ -308,59 +310,23 @@ async function guardarProfesoresMasivos(event) {
         codigo: error.code
       });
       console.error(`[${i + 1}] ERROR al crear ${email}:`, error);
-      
-      try {
-        await firebase.auth().signOut();
-      } catch (e) {
-        // Ignorar
-      }
     }
     
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
   
-  console.log('Restaurando sesion del administrador...');
+  // Cerrar la instancia secundaria
+  await secondaryAuth.signOut();
+  await secondaryApp.delete();
   
-  barra.style.background = 'linear-gradient(90deg, #ff9800 0%, #f57c00 100%)';
+  console.log('Proceso completado. Instancia secundaria eliminada.');
+  
+  barra.style.background = 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)';
   texto.innerHTML = `
-    <strong style="color: #ff9800;">Restaurando sesion de administrador...</strong><br>
-    Por favor espera...
+    <strong style="color: #4caf50;">Proceso completado</strong><br>
+    Profesores creados: ${exitosos}<br>
+    ${fallidos > 0 ? `Errores: ${fallidos}` : ''}
   `;
-  
-  let sesionRestaurada = false;
-  
-  if (adminEmail) {
-    const passwordAdmin = prompt(`Para restaurar tu sesion, ingresa tu contraseña de administrador:\n\nEmail: ${adminEmail}`);
-    
-    if (passwordAdmin) {
-      try {
-        await firebase.auth().signInWithEmailAndPassword(adminEmail, passwordAdmin);
-        console.log('Sesion de admin restaurada');
-        sesionRestaurada = true;
-      } catch (error) {
-        console.error('Error al restaurar sesion:', error);
-        alert('No se pudo restaurar tu sesion automaticamente.\nDeberas iniciar sesion nuevamente.');
-      }
-    }
-  }
-  
-  if (sesionRestaurada) {
-    barra.style.background = 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)';
-    texto.innerHTML = `
-      <strong style="color: #4caf50;">Proceso completado</strong><br>
-      Profesores creados: ${exitosos}<br>
-      ${fallidos > 0 ? `Errores: ${fallidos}<br>` : ''}
-      Sesion restaurada correctamente
-    `;
-  } else {
-    barra.style.background = 'linear-gradient(90deg, #ff9800 0%, #f57c00 100%)';
-    texto.innerHTML = `
-      <strong style="color: #ff9800;">Proceso completado con advertencia</strong><br>
-      Profesores creados: ${exitosos}<br>
-      ${fallidos > 0 ? `Errores: ${fallidos}<br>` : ''}
-      Deberas iniciar sesion nuevamente
-    `;
-  }
   
   let mensaje = `RESUMEN DE REGISTRO MASIVO DE PROFESORES\n\n`;
   mensaje += `Exitosos: ${exitosos}\n`;
@@ -384,20 +350,12 @@ async function guardarProfesoresMasivos(event) {
   
   setTimeout(() => {
     alert(mensaje);
+    cerrarModalProfesoresMasivos();
     
-    if (!sesionRestaurada) {
-      alert('Redirigiendo a login...');
-      window.location.href = 'login.html';
-    } else {
-      cerrarModalProfesoresMasivos();
-      
-      if (typeof cargarProfesores === 'function') {
-        cargarProfesores();
-      } else if (typeof cargarUsuarios === 'function') {
-        cargarUsuarios();
-      }
+    if (typeof cargarProfesores === 'function') {
+      cargarProfesores();
     }
-  }, 3000);
+  }, 2000);
 }
 
 function cerrarModalProfesoresMasivos() {
@@ -413,7 +371,4 @@ document.addEventListener('click', function(event) {
     cerrarModalProfesoresMasivos();
   }
 });
-
-console.log('REGISTRO MASIVO DE PROFESORES CARGADO - Contraseña: ilb123');
-
 
