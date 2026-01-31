@@ -503,6 +503,7 @@ async function crearCarrera(event) {
   }
 }
 
+
 async function generarGruposBase(carreraId, numeroPeriodos) {
   try {
     console.log(`Generando grupos base para ${carreraId} con ${numeroPeriodos} periodos...`);
