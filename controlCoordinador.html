@@ -416,17 +416,33 @@
       </div>
 
 
-           <!-- SELECTOR DE GRUPO -->
-      <div class="form-grupo" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <label for="grupoMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
-          Grupo al que pertenecen: *
-        </label>
-        <select id="grupoMasivo" required 
-                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
-          <option value="">Seleccionar grupo...</option>
-        </select>
-        <small style="color: #666; display: block; margin-top: 8px;">
-          Todos los alumnos seran asignados a este grupo
+    <!-- SELECTOR DE GRUPO -->
+     <!-- SELECTOR DE GRUPO Y ORDEN -->
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        
+        <div class="form-grupo" style="margin-bottom: 15px;">
+          <label for="grupoMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
+            Grupo al que pertenecen: *
+          </label>
+          <select id="grupoMasivo" required 
+                  style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+            <option value="">Seleccionar grupo...</option>
+          </select>
+        </div>
+
+        <div class="form-grupo">
+          <label for="ordenMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
+            Orden del Grupo: *
+          </label>
+          <input type="text" id="ordenMasivo" required value="01" maxlength="2" 
+                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+          <small style="color: #666; display: block; margin-top: 5px;">
+            Ejemplo: 01, 02, 03... (dos dígitos)
+          </small>
+        </div>
+
+        <small style="color: #666; display: block; margin-top: 15px; font-style: italic;">
+          Todos los alumnos seran asignados a este grupo y orden
         </small>
       </div>
 

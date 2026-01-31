@@ -75,9 +75,9 @@ async function cargarAlumnos() {
 // REGISTRO MASIVO CORREGIDO
 // ============================================
 
+
 async function cargarGruposParaMasivo() {
   try {
-    // Cargar matriz de grupos de la carrera
     const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
     
     if (!gruposDoc.exists || !gruposDoc.data().grupos) {
@@ -89,7 +89,6 @@ async function cargarGruposParaMasivo() {
     const select = document.getElementById('grupoMasivo');
     select.innerHTML = '<option value="">Seleccionar grupo...</option>';
     
-    // Convertir objeto de grupos a array y ordenar
     const gruposArray = Object.entries(gruposData.grupos).map(([codigo, grupo]) => ({
       codigo: codigo,
       codigoCompleto: grupo.codigoCompleto,
@@ -98,13 +97,11 @@ async function cargarGruposParaMasivo() {
       nombreTurno: grupo.nombreTurno
     }));
     
-    // Ordenar por periodo y turno
     gruposArray.sort((a, b) => {
       if (a.periodo !== b.periodo) return a.periodo - b.periodo;
       return a.turno - b.turno;
     });
     
-    // Agregar opciones al select
     gruposArray.forEach(grupo => {
       const label = `${grupo.codigoCompleto} - ${grupo.nombreTurno} (Periodo ${grupo.periodo})`;
       select.innerHTML += `<option value="${grupo.codigo}">${label}</option>`;
@@ -118,16 +115,110 @@ async function cargarGruposParaMasivo() {
   }
 }
 
+function previsualizarDatos() {
+  const nombres = document.getElementById('nombresMasivo').value.trim().split('\n').filter(n => n.trim());
+  const matriculas = document.getElementById('matriculasMasivo').value.trim().split('\n').filter(m => m.trim());
+  const emails = document.getElementById('emailsMasivo').value.trim().split('\n').filter(e => e.trim());
+  
+  if (nombres.length !== matriculas.length || nombres.length !== emails.length) {
+    alert(`Error de formato:\n\nNombres: ${nombres.length} lineas\nMatriculas: ${matriculas.length} lineas\nEmails: ${emails.length} lineas\n\nDeben tener la misma cantidad de lineas.`);
+    return;
+  }
+  
+  if (nombres.length === 0) {
+    alert('Debes ingresar al menos un alumno');
+    return;
+  }
+  
+  let html = `
+    <div class="mensaje-exito-masivo">
+      Se encontraron ${nombres.length} alumnos validos
+    </div>
+    <table class="tabla-preview">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nombre Completo</th>
+          <th>Matricula</th>
+          <th>Email</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  
+  let errores = 0;
+  
+  for (let i = 0; i < nombres.length; i++) {
+    const nombre = nombres[i].trim();
+    const matricula = matriculas[i].trim();
+    const email = emails[i].trim();
+    
+    let esValido = true;
+    let erroresRow = [];
+    
+    if (nombre.length < 3) {
+      esValido = false;
+      erroresRow.push('Nombre muy corto');
+    }
+    
+    if (!matricula || matricula.length < 3) {
+      esValido = false;
+      erroresRow.push('Matricula invalida');
+    }
+    
+    if (!email.includes('@') || !email.includes('.')) {
+      esValido = false;
+      erroresRow.push('Email invalido');
+    }
+    
+    const rowClass = esValido ? '' : 'error-row';
+    const estado = esValido ? 'Valido' : `Error: ${erroresRow.join(', ')}`;
+    
+    if (!esValido) errores++;
+    
+    html += `
+      <tr class="${rowClass}">
+        <td><strong>${i + 1}</strong></td>
+        <td>${nombre}</td>
+        <td>${matricula}</td>
+        <td>${email}</td>
+        <td>${estado}</td>
+      </tr>
+    `;
+  }
+  
+  html += `
+      </tbody>
+    </table>
+  `;
+  
+  if (errores > 0) {
+    html = `<div class="mensaje-error-masivo">Se encontraron ${errores} registros con errores</div>` + html;
+  }
+  
+  document.getElementById('contenidoVistaPrevia').innerHTML = html;
+  document.getElementById('vistaPrevia').style.display = 'block';
+  
+  document.getElementById('vistaPrevia').scrollIntoView({ behavior: 'smooth' });
+}
+
 async function procesarRegistroMasivo(event) {
   event.preventDefault();
   
   const codigoGrupo = document.getElementById('grupoMasivo').value;
+  const orden = document.getElementById('ordenMasivo').value.trim();
   const nombres = document.getElementById('nombresMasivo').value.trim().split('\n').filter(n => n.trim());
   const matriculas = document.getElementById('matriculasMasivo').value.trim().split('\n').filter(m => m.trim());
   const emails = document.getElementById('emailsMasivo').value.trim().split('\n').filter(e => e.trim());
   
   if (!codigoGrupo) {
     alert('Debes seleccionar un grupo');
+    return;
+  }
+  
+  if (!orden || orden.length !== 2) {
+    alert('El orden debe ser de 2 digitos (Ej: 01, 02, 03)');
     return;
   }
   
@@ -157,11 +248,16 @@ async function procesarRegistroMasivo(event) {
     return;
   }
   
-  const codigoCompleto = grupoInfo.codigoCompleto;
+  // Construir código completo con orden
+  const codigoCarrera = grupoInfo.codigoCompleto.split('-')[0];
+  const codigoBase = codigoGrupo; // Ej: "1500"
+  const codigoCompletoConOrden = `${codigoCarrera}-${codigoBase.substring(0, 2)}${codigoBase.substring(2)}${orden}`;
+  // Formato: CARRERA-TPOO (Ej: HIS-1501, HIS-1502)
+  
   const periodo = grupoInfo.periodo;
   const turno = grupoInfo.turno;
   
-  if (!confirm(`Registrar ${nombres.length} alumnos?\n\nGrupo: ${codigoCompleto}\nTurno: ${grupoInfo.nombreTurno}\nPeriodo: ${periodo}`)) {
+  if (!confirm(`Registrar ${nombres.length} alumnos?\n\nGrupo: ${codigoCompletoConOrden}\nTurno: ${grupoInfo.nombreTurno}\nPeriodo: ${periodo}\nOrden: ${orden}`)) {
     return;
   }
   
@@ -174,8 +270,9 @@ async function procesarRegistroMasivo(event) {
   const erroresDetallados = [];
   
   console.log('Iniciando registro masivo...');
-  console.log('Grupo:', codigoCompleto);
+  console.log('Grupo completo:', codigoCompletoConOrden);
   console.log('Periodo:', periodo);
+  console.log('Orden:', orden);
   console.log('Total alumnos:', nombres.length);
   
   for (let i = 0; i < nombres.length; i++) {
@@ -194,9 +291,10 @@ async function procesarRegistroMasivo(event) {
         matricula: matricula,
         email: email,
         rol: 'alumno',
-        codigoGrupo: codigoCompleto,
+        codigoGrupo: codigoCompletoConOrden,
         periodo: periodo,
         turno: turno,
+        orden: orden,
         carreraId: usuarioActual.carreraId,
         activo: true,
         periodoIngreso: periodoActualCarrera,
@@ -231,8 +329,9 @@ async function procesarRegistroMasivo(event) {
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
   mensaje += `Total procesados: ${nombres.length}\n`;
-  mensaje += `Grupo: ${codigoCompleto}\n`;
+  mensaje += `Grupo: ${codigoCompletoConOrden}\n`;
   mensaje += `Periodo: ${periodo}\n`;
+  mensaje += `Orden: ${orden}\n`;
   mensaje += `Periodo academico: ${periodoActualCarrera}\n\n`;
   
   if (erroresDetallados.length > 0) {
@@ -257,6 +356,7 @@ function cerrarModalMasivo() {
   document.getElementById('matriculasMasivo').value = '';
   document.getElementById('emailsMasivo').value = '';
   document.getElementById('grupoMasivo').value = '';
+  document.getElementById('ordenMasivo').value = '01';
   document.getElementById('vistaPrevia').style.display = 'none';
 }
 
@@ -267,6 +367,7 @@ async function mostrarFormRegistroMasivo() {
   document.getElementById('matriculasMasivo').value = '';
   document.getElementById('emailsMasivo').value = '';
   document.getElementById('grupoMasivo').value = '';
+  document.getElementById('ordenMasivo').value = '01';
   document.getElementById('vistaPrevia').style.display = 'none';
   document.getElementById('barraProgreso').style.display = 'none';
   
