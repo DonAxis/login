@@ -1,118 +1,63 @@
-// registroMasivoAlumno.js
-// Sistema de Registro Masivo de Alumnos para copiar y pegar desde Excel 
 
-async function cargarAlumnos() {
-    try {
-        const snapshot = await db.collection('usuarios')
-            .where('rol', '==', 'alumno')
-            .where('carreraId', '==', usuarioActual.carreraId)
-            .get();
-        
-        const container = document.getElementById('listaAlumnos');
-
-        if (snapshot.empty) {
-            container.innerHTML = '<div class="sin-datos">No hay alumnos registrados</div>';
-            return;
-        }
-
-        // Cargar matriz de grupos de la carrera
-        const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
-        const gruposData = gruposDoc.exists ? gruposDoc.data() : null;
-        
-        let html = '';
-        snapshot.forEach(doc => {
-            const alumno = doc.data();
-            
-            // Determinar el nombre del grupo
-            let grupoNombre = 'Sin grupo';
-            
-            if (alumno.codigoGrupo) {
-                // El alumno tiene codigoGrupo (ej: "HIS-1500")
-                grupoNombre = alumno.codigoGrupo;
-                
-                // Intentar obtener info adicional del grupo si existe en la matriz
-                if (gruposData && gruposData.grupos) {
-                    // Extraer codigo simple del codigoCompleto (ej: "1500" de "HIS-1500")
-                    const codigoSimple = alumno.codigoGrupo.split('-')[1];
-                    
-                    if (codigoSimple && gruposData.grupos[codigoSimple]) {
-                        const grupoInfo = gruposData.grupos[codigoSimple];
-                        grupoNombre = `${alumno.codigoGrupo} (${grupoInfo.nombreTurno}, P${grupoInfo.periodo})`;
-                    }
-                }
-            } else if (alumno.grupoId) {
-                // Compatibilidad con sistema antiguo
-                grupoNombre = alumno.grupoId;
-            }
-
-            html += `
-                <div class="item">
-                    <div class="item-info">
-                        <h4>${alumno.nombre}</h4>
-                        <p>Matricula: ${alumno.matricula || 'N/A'}</p>
-                        <p>Grupo: ${grupoNombre}</p>
-                        <p>${alumno.email}</p>
-                        <p>${alumno.activo ? '<span style="color: #4caf50;">Activo</span>' : '<span style="color: #f44336;">Inactivo</span>'}</p>
-                    </div>
-                    <div class="item-acciones">
-                        <button onclick="editarAlumno('${doc.id}')" class="btn-editar">Editar</button>
-                        <button onclick="toggleActivoUsuario('${doc.id}', 'alumno', ${!alumno.activo})" class="botAzu">
-                            ${alumno.activo ? 'Desactivar' : 'Activar'}
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error al cargar alumnos');
-    }
-}
-
-// ============================================
-// REGISTRO MASIVO CORREGIDO
-// ============================================
-
-
-async function cargarGruposParaMasivo() {
+async function cargarPeriodosParaMasivo() {
   try {
-    const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
+    const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
     
-    if (!gruposDoc.exists || !gruposDoc.data().grupos) {
-      alert('No hay matriz de grupos para esta carrera');
+    if (!carreraDoc.exists) {
+      alert('No se encontró información de la carrera');
       return;
     }
     
-    const gruposData = gruposDoc.data();
-    const select = document.getElementById('grupoMasivo');
-    select.innerHTML = '<option value="">Seleccionar grupo...</option>';
+    const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
+    const select = document.getElementById('periodoMasivo');
     
-    const gruposArray = Object.entries(gruposData.grupos).map(([codigo, grupo]) => ({
-      codigo: codigo,
-      codigoCompleto: grupo.codigoCompleto,
-      periodo: grupo.periodo,
-      turno: grupo.turno,
-      nombreTurno: grupo.nombreTurno
-    }));
+    select.innerHTML = '<option value="">Seleccionar...</option>';
     
-    gruposArray.sort((a, b) => {
-      if (a.periodo !== b.periodo) return a.periodo - b.periodo;
-      return a.turno - b.turno;
-    });
+    for (let i = 1; i <= numeroPeriodos; i++) {
+      select.innerHTML += `<option value="${i}">${i}°</option>`;
+    }
     
-    gruposArray.forEach(grupo => {
-      const label = `${grupo.codigoCompleto} - ${grupo.nombreTurno} (Periodo ${grupo.periodo})`;
-      select.innerHTML += `<option value="${grupo.codigo}">${label}</option>`;
-    });
-    
-    console.log(`${gruposArray.length} grupos cargados para registro masivo`);
+    console.log(`${numeroPeriodos} periodos cargados para registro masivo`);
     
   } catch (error) {
-    console.error('Error al cargar grupos:', error);
-    alert('Error al cargar grupos disponibles');
+    console.error('Error al cargar periodos:', error);
+    alert('Error al cargar periodos disponibles');
   }
+}
+
+function actualizarPreviewGrupoMasivo() {
+  const periodo = document.getElementById('periodoMasivo').value;
+  const turno = document.getElementById('turnoMasivo').value;
+  const orden = document.getElementById('ordenMasivo').value || '01';
+  
+  const previewDiv = document.getElementById('previewGrupoMasivo');
+  
+  if (!periodo || !turno) {
+    previewDiv.innerHTML = '<em style="color: #999;">Selecciona periodo, turno y orden para ver el código</em>';
+    return;
+  }
+  
+  if (!carreraActualData || !carreraActualData.codigo) {
+    previewDiv.innerHTML = '<em style="color: #f44336;">Error: Carrera no cargada</em>';
+    return;
+  }
+  
+  const ordenFormateado = orden.toString().padStart(2, '0');
+  const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
+  
+  const turnosNombres = {
+    '1': 'Matutino',
+    '2': 'Vespertino',
+    '3': 'Nocturno',
+    '4': 'Sabatino'
+  };
+  
+  previewDiv.innerHTML = `
+    <strong style="color: #667eea; font-size: 1.3rem;">${codigoGrupo}</strong>
+    <div style="font-size: 0.9rem; color: #666; margin-top: 8px;">
+      ${turnosNombres[turno]} - Periodo ${periodo} - Grupo ${ordenFormateado}
+    </div>
+  `;
 }
 
 function previsualizarDatos() {
@@ -206,14 +151,15 @@ function previsualizarDatos() {
 async function procesarRegistroMasivo(event) {
   event.preventDefault();
   
-  const codigoGrupo = document.getElementById('grupoMasivo').value;
+  const periodo = document.getElementById('periodoMasivo').value;
+  const turno = document.getElementById('turnoMasivo').value;
   const orden = document.getElementById('ordenMasivo').value.trim();
   const nombres = document.getElementById('nombresMasivo').value.trim().split('\n').filter(n => n.trim());
   const matriculas = document.getElementById('matriculasMasivo').value.trim().split('\n').filter(m => m.trim());
   const emails = document.getElementById('emailsMasivo').value.trim().split('\n').filter(e => e.trim());
   
-  if (!codigoGrupo) {
-    alert('Debes seleccionar un grupo');
+  if (!periodo || !turno) {
+    alert('Debes seleccionar periodo y turno');
     return;
   }
   
@@ -232,46 +178,24 @@ async function procesarRegistroMasivo(event) {
     return;
   }
   
-  // Obtener info del grupo desde la matriz
-  let grupoInfo = null;
-  try {
-    const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
-    if (gruposDoc.exists && gruposDoc.data().grupos) {
-      grupoInfo = gruposDoc.data().grupos[codigoGrupo];
-    }
-  } catch (error) {
-    console.error('Error al obtener grupo:', error);
-  }
+  // Construir código de grupo
+  const ordenFormateado = orden.toString().padStart(2, '0');
+  const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
   
-  if (!grupoInfo) {
-    alert('Error: No se encontro informacion del grupo seleccionado');
-    return;
-  }
+  const turnosNombres = {
+    '1': 'Matutino',
+    '2': 'Vespertino',
+    '3': 'Nocturno',
+    '4': 'Sabatino'
+  };
   
-  // CONSTRUCCION CORREGIDA DEL CODIGO
-  // codigoGrupo viene como "1300" (TPGG donde GG=00)
-  // Necesitamos construir: CARRERA-TPOO
+  console.log('DEBUG - Datos para registro masivo:');
+  console.log('  Periodo:', periodo);
+  console.log('  Turno:', turno, '-', turnosNombres[turno]);
+  console.log('  Orden:', ordenFormateado);
+  console.log('  Codigo de grupo:', codigoGrupo);
   
-  const codigoCarrera = grupoInfo.codigoCompleto.split('-')[0]; // Ej: "DE"
-  const turnoChar = codigoGrupo.charAt(0); // Primer dígito: turno (Ej: "1")
-  const periodoChar = codigoGrupo.charAt(1); // Segundo dígito: periodo (Ej: "3")
-  
-  // Construir código completo: CARRERA-TPOO
-  const codigoCompletoConOrden = `${codigoCarrera}-${turnoChar}${periodoChar}${orden}`;
-  // Ejemplo: "DE-1301" (DE-Turno1-Periodo3-Orden01)
-  
-  const periodo = grupoInfo.periodo;
-  const turno = grupoInfo.turno;
-  
-  console.log('DEBUG - Construccion de codigo:');
-  console.log('  codigoGrupo seleccionado:', codigoGrupo);
-  console.log('  codigoCarrera:', codigoCarrera);
-  console.log('  turnoChar:', turnoChar);
-  console.log('  periodoChar:', periodoChar);
-  console.log('  orden:', orden);
-  console.log('  RESULTADO:', codigoCompletoConOrden);
-  
-  if (!confirm(`Registrar ${nombres.length} alumnos?\n\nGrupo: ${codigoCompletoConOrden}\nTurno: ${grupoInfo.nombreTurno}\nPeriodo: ${periodo}\nOrden: ${orden}`)) {
+  if (!confirm(`Registrar ${nombres.length} alumnos?\n\nGrupo: ${codigoGrupo}\nTurno: ${turnosNombres[turno]}\nPeriodo: ${periodo}\nOrden: ${ordenFormateado}`)) {
     return;
   }
   
@@ -284,9 +208,7 @@ async function procesarRegistroMasivo(event) {
   const erroresDetallados = [];
   
   console.log('Iniciando registro masivo...');
-  console.log('Grupo completo:', codigoCompletoConOrden);
-  console.log('Periodo:', periodo);
-  console.log('Orden:', orden);
+  console.log('Grupo completo:', codigoGrupo);
   console.log('Total alumnos:', nombres.length);
   
   for (let i = 0; i < nombres.length; i++) {
@@ -305,10 +227,10 @@ async function procesarRegistroMasivo(event) {
         matricula: matricula,
         email: email,
         rol: 'alumno',
-        codigoGrupo: codigoCompletoConOrden,
-        periodo: periodo,
-        turno: turno,
-        orden: orden,
+        codigoGrupo: codigoGrupo,
+        periodo: parseInt(periodo),
+        turno: parseInt(turno),
+        orden: ordenFormateado,
         carreraId: usuarioActual.carreraId,
         activo: true,
         periodoIngreso: periodoActualCarrera,
@@ -322,7 +244,7 @@ async function procesarRegistroMasivo(event) {
       await db.collection('usuarios').add(alumnoData);
       
       exitosos++;
-      console.log(`[${i + 1}/${nombres.length}] Alumno creado: ${nombre} - Grupo: ${codigoCompletoConOrden}`);
+      console.log(`[${i + 1}/${nombres.length}] Alumno creado: ${nombre} - Grupo: ${codigoGrupo}`);
       
     } catch (error) {
       fallidos++;
@@ -343,9 +265,10 @@ async function procesarRegistroMasivo(event) {
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
   mensaje += `Total procesados: ${nombres.length}\n`;
-  mensaje += `Grupo: ${codigoCompletoConOrden}\n`;
+  mensaje += `Grupo: ${codigoGrupo}\n`;
+  mensaje += `Turno: ${turnosNombres[turno]}\n`;
   mensaje += `Periodo: ${periodo}\n`;
-  mensaje += `Orden: ${orden}\n`;
+  mensaje += `Orden: ${ordenFormateado}\n`;
   mensaje += `Periodo academico: ${periodoActualCarrera}\n\n`;
   
   if (erroresDetallados.length > 0) {
@@ -369,18 +292,20 @@ function cerrarModalMasivo() {
   document.getElementById('nombresMasivo').value = '';
   document.getElementById('matriculasMasivo').value = '';
   document.getElementById('emailsMasivo').value = '';
-  document.getElementById('grupoMasivo').value = '';
+  document.getElementById('periodoMasivo').value = '';
+  document.getElementById('turnoMasivo').value = '';
   document.getElementById('ordenMasivo').value = '01';
   document.getElementById('vistaPrevia').style.display = 'none';
 }
 
 async function mostrarFormRegistroMasivo() {
-  await cargarGruposParaMasivo();
+  await cargarPeriodosParaMasivo();
   
   document.getElementById('nombresMasivo').value = '';
   document.getElementById('matriculasMasivo').value = '';
   document.getElementById('emailsMasivo').value = '';
-  document.getElementById('grupoMasivo').value = '';
+  document.getElementById('periodoMasivo').value = '';
+  document.getElementById('turnoMasivo').value = '';
   document.getElementById('ordenMasivo').value = '01';
   document.getElementById('vistaPrevia').style.display = 'none';
   document.getElementById('barraProgreso').style.display = 'none';

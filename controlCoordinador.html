@@ -415,36 +415,55 @@
 
       </div>
 
-
-    <!-- SELECTOR DE GRUPO -->
-     <!-- SELECTOR DE GRUPO Y ORDEN -->
+    <!-- SELECTORES DE PERIODO, TURNO Y ORDEN -->
       <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
         
-        <div class="form-grupo" style="margin-bottom: 15px;">
-          <label for="grupoMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
-            Grupo al que pertenecen: *
-          </label>
-          <select id="grupoMasivo" required 
-                  style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
-            <option value="">Seleccionar grupo...</option>
-          </select>
+        <h4 style="margin: 0 0 15px 0; color: #333; font-size: 1.1rem;">Información del Grupo</h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          
+          <div class="form-grupo">
+            <label for="periodoMasivo" style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+              Periodo: *
+            </label>
+            <select id="periodoMasivo" required onchange="actualizarPreviewGrupoMasivo()"
+                    style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+              <option value="">Seleccionar...</option>
+            </select>
+          </div>
+          
+          <div class="form-grupo">
+            <label for="turnoMasivo" style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+              Turno: *
+            </label>
+            <select id="turnoMasivo" required onchange="actualizarPreviewGrupoMasivo()"
+                    style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+              <option value="">Seleccionar...</option>
+              <option value="1">Matutino</option>
+              <option value="2">Vespertino</option>
+              <option value="3">Nocturno</option>
+              <option value="4">Sabatino</option>
+            </select>
+          </div>
+
+          <div class="form-grupo">
+            <label for="ordenMasivo" style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+              Orden: *
+            </label>
+            <input type="text" id="ordenMasivo" required value="01" maxlength="2" onchange="actualizarPreviewGrupoMasivo()"
+                   style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+          </div>
         </div>
 
-        <div class="form-grupo">
-          <label for="ordenMasivo" style="font-weight: 600; font-size: 1.1rem; color: #333; display: block; margin-bottom: 10px;">
-            Orden del Grupo: *
-          </label>
-          <input type="text" id="ordenMasivo" required value="01" maxlength="2" 
-                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
-          <small style="color: #666; display: block; margin-top: 5px;">
-            Ejemplo: 01, 02, 03... (dos dígitos)
-          </small>
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2; text-align: center;" id="previewGrupoMasivo">
+          <em style="color: #999;">Selecciona periodo, turno y orden para ver el código de grupo</em>
         </div>
 
         <small style="color: #666; display: block; margin-top: 15px; font-style: italic;">
-          Todos los alumnos seran asignados a este grupo y orden
+          Todos los alumnos serán asignados a este grupo
         </small>
       </div>
+
 
       <!-- CAMPOS PARA PEGAR DATOS -->
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
