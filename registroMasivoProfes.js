@@ -296,8 +296,6 @@ async function guardarProfesoresMasivos(event) {
       await db.collection('usuarios').doc(newUid).set(profesorData);
       console.log(`[${i + 1}] Firestore guardado: ${email}`);
       
-      await firebase.auth().signOut();
-      
       exitosos++;
       
     } catch (error) {
