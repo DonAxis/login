@@ -1,6 +1,80 @@
 // registroMasivoAlumno.js
 // Sistema de Registro Masivo de Alumnos para copiar y pegar desde Excel 
 
+async function cargarAlumnos() {
+    try {
+        const snapshot = await db.collection('usuarios')
+            .where('rol', '==', 'alumno')
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .get();
+        
+        const container = document.getElementById('listaAlumnos');
+
+        if (snapshot.empty) {
+            container.innerHTML = '<div class="sin-datos">No hay alumnos registrados</div>';
+            return;
+        }
+
+        // Cargar matriz de grupos de la carrera
+        const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
+        const gruposData = gruposDoc.exists ? gruposDoc.data() : null;
+        
+        let html = '';
+        snapshot.forEach(doc => {
+            const alumno = doc.data();
+            
+            // Determinar el nombre del grupo
+            let grupoNombre = 'Sin grupo';
+            
+            if (alumno.codigoGrupo) {
+                // El alumno tiene codigoGrupo (ej: "HIS-1500")
+                grupoNombre = alumno.codigoGrupo;
+                
+                // Intentar obtener info adicional del grupo si existe en la matriz
+                if (gruposData && gruposData.grupos) {
+                    // Extraer codigo simple del codigoCompleto (ej: "1500" de "HIS-1500")
+                    const codigoSimple = alumno.codigoGrupo.split('-')[1];
+                    
+                    if (codigoSimple && gruposData.grupos[codigoSimple]) {
+                        const grupoInfo = gruposData.grupos[codigoSimple];
+                        grupoNombre = `${alumno.codigoGrupo} (${grupoInfo.nombreTurno}, P${grupoInfo.periodo})`;
+                    }
+                }
+            } else if (alumno.grupoId) {
+                // Compatibilidad con sistema antiguo
+                grupoNombre = alumno.grupoId;
+            }
+
+            html += `
+                <div class="item">
+                    <div class="item-info">
+                        <h4>${alumno.nombre}</h4>
+                        <p>Matricula: ${alumno.matricula || 'N/A'}</p>
+                        <p>Grupo: ${grupoNombre}</p>
+                        <p>${alumno.email}</p>
+                        <p>${alumno.activo ? '<span style="color: #4caf50;">Activo</span>' : '<span style="color: #f44336;">Inactivo</span>'}</p>
+                    </div>
+                    <div class="item-acciones">
+                        <button onclick="editarAlumno('${doc.id}')" class="btn-editar">Editar</button>
+                        <button onclick="toggleActivoUsuario('${doc.id}', 'alumno', ${!alumno.activo})" class="botAzu">
+                            ${alumno.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar alumnos');
+    }
+}
+
+// ============================================
+// REGISTRO MASIVO CORREGIDO
+// ============================================
+
 async function cargarGruposParaMasivo() {
   try {
     // Cargar matriz de grupos de la carrera
