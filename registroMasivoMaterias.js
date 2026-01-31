@@ -34,35 +34,38 @@ async function mostrarModalMateriasMasivas() {
 
           <!-- INSTRUCCIONES -->
           <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
+            <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Notas:</h3>
             <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
-              <li>Selecciona el periodo donde se registraran las materias</li>
+              <li>Las materias deben pertenecer al mismo periodo</li>
               <li>Pega los nombres de materias (uno por linea)</li>
               <li>Pega los creditos locales y externos (uno por linea cada columna)</li>
-              <li>Las materias se crearan automaticamente para los 4 turnos</li>
             </ul>
 
             <h3 style="margin: 15px 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo:</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
               <thead style="background: #f5f5f5;">
                 <tr>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Nombres de Materias</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Cred. Local</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Cred. Externo</th>
+                  <th style="padding: 8px; border: 1px solid #000000; text-align: left;">Periodo</th>
+                  <th style="padding: 8px; border: 1px solid #000000; text-align: left;">Nombres de Materias</th>
+                  <th style="padding: 8px; border: 1px solid #000000; text-align: center;">Cred. Local</th>
+                  <th style="padding: 8px; border: 1px solid #000000; text-align: center;">Cred. Externo</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
+                  <td style="padding: 8px; border: 1px solid #ddd;">2</td>
                   <td style="padding: 8px; border: 1px solid #ddd;">Calculo Diferencial</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">0</td>
                 </tr>
                 <tr style="background: #f9f9f9;">
+                  <td style="padding: 8px; border: 1px solid #ddd;">2</td>
                   <td style="padding: 8px; border: 1px solid #ddd;">Algebra Lineal</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">5</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">1</td>
                 </tr>
                 <tr>
+                  <td style="padding: 8px; border: 1px solid #ddd;">2</td>
                   <td style="padding: 8px; border: 1px solid #ddd;">Programacion Estructurada</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">4</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">4</td>

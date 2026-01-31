@@ -323,16 +323,19 @@
 
  <!-- SECCION: GESTIONAR PROFESORES -->
  <div id="seccionProfesores" class="seccion-contenido">
- <div class="seccion-header">
- <h2>Gestion de Profesores</h2>
- <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
- </div>
+  <div class="seccion-header">
+    <h2>Gestion de Profesores</h2>
+    <button onclick="volverMenu()" class="btn-volver">Volver al Menu</button>
+  </div>
 
-<div class="botones-accion">
-  <button onclick="mostrarFormProfesor()" class="botAzu">➕ Nuevo Profesor</button>
-  <button onclick="mostrarModalProfesoresMasivos()" class="botAzu" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-    Múltiples Profesores
-  </button>
+  <div class="botones-accion">
+    <button onclick="mostrarModalProfesoresMasivos()" class="botAzu" 
+            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+      Registro de Profesores
+    </button>
+  </div>
+
+  <div id="listaProfesores" class="lista-items"></div>
 </div>
 
  <!-- SECCION: GESTIONAR ALUMNOS -->
