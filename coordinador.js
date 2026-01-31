@@ -748,57 +748,51 @@ async function guardarCarrera(event, carreraId) {
 
 // ===== GESTIÓN DE MATERIAS =====
 async function cargarMaterias() {
-  try {
-    let query = db.collection('materias');
+    try {
+        let query = db.collection('materias');
 
-    if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
-      query = query.where('carreraId', '==', usuarioActual.carreraId);
+        // Filtrar por carrera si es coordinador
+        if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
+            query = query.where('carreraId', '==', usuarioActual.carreraId);
+        }
+
+        const snapshot = await query.get();
+        const container = document.getElementById('listaMaterias');
+
+        if (snapshot.empty) {
+            container.innerHTML = '<div class="sin-datos">No hay materias registradas</div>';
+            return;
+        }
+
+        let html = '';
+        snapshot.forEach(doc => {
+            const materia = doc.data();
+            
+            // Obtener créditos (compatibilidad con sistema anterior y nuevo)
+            const satca = materia.creditosSatca || materia.creditosLocal || materia.creditos || 0;
+            const tepic = materia.creditosTepic || materia.creditosExterno || 0;
+            
+            html += `
+              <div class="item">
+                <div class="item-info">
+                  <h4>${materia.nombre}</h4>
+                  <p>Periodo: ${materia.periodo || 'N/A'} | SATCA: ${satca} | TEPIC: ${tepic}</p>
+                  <small style="color: #666;">Codigos: ${(materia.codigos || []).join(', ')}</small>
+                </div>
+                <div class="item-acciones">
+                  <button onclick="editarMateria('${doc.id}')" class="btn-editar">Editar</button>
+                  <button onclick="eliminarMateria('${doc.id}')" class="btn-eliminar">Eliminar</button>
+                </div>
+              </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar materias');
     }
-
-    const snapshot = await query.get();
-    const container = document.getElementById('listaMaterias');
-
-    if (snapshot.empty) {
-      container.innerHTML = '<div class="sin-datos">No hay materias registradas</div>';
-      return;
-    }
-
-    let html = '';
-    snapshot.forEach(doc => {
-      const materia = doc.data();
-      
-      // Obtener nombres de turnos de los grupos enlazados
-      const turnosStr = materia.grupos && materia.grupos.length > 0
-        ? materia.grupos.map(g => g.nombreTurno).join(', ')
-        : 'Sin grupos';
-      
-      html += `
-        <div class="item">
-          <div class="item-info">
-            <h4>${materia.nombre}</h4>
-            <p>Periodo: ${materia.periodo || 'N/A'} | Creditos: ${materia.creditos || 0}</p>
-            <p style="margin-top: 5px; color: #666; font-size: 0.9rem;">
-              Turnos: ${turnosStr}
-            </p>
-            <small style="color: #999; display: block; margin-top: 3px;">
-              Codigos: ${(materia.codigos || []).join(', ')}
-            </small>
-          </div>
-          <div class="item-acciones">
-            <button onclick="editarMateria('${doc.id}')" class="btn-editar">Editar</button>
-            <button onclick="eliminarMateria('${doc.id}')" class="btn-eliminar">Eliminar</button>
-          </div>
-        </div>
-      `;
-    });
-
-    container.innerHTML = html;
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Error al cargar materias');
-  }
 }
-
 
 function mostrarFormMateria(materiaId = null) {
   const esEdicion = materiaId !== null;
