@@ -503,47 +503,6 @@ async function crearCarrera(event) {
   }
 }
 
-//se crea matriz
-async function generarMatrizGrupos(carreraId, numeroPeriodos) {
-  try {
-    console.log(`Generando matriz de grupos para ${carreraId}...`);
-    
-    // Crear matriz vacía
-    const matriz = [];
-    
-    for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
-      const filaPeriodo = [];
-      
-      for (let turno = 1; turno <= 4; turno++) {
-        filaPeriodo.push({
-          turno: turno.toString(),
-          periodo: periodo,
-          activo: false,
-          alumnos: [],
-          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-      
-      matriz.push(filaPeriodo);
-    }
-    
-    // Guardar en Firebase
-    await db.collection('gruposMatriz').doc(carreraId).set({
-      carreraId: carreraId,
-      numeroPeriodos: numeroPeriodos,
-      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
-      matriz: matriz
-    });
-    
-    console.log(`Matriz creada: ${numeroPeriodos} periodos × 4 turnos`);
-    
-  } catch (error) {
-    console.error('Error al generar matriz:', error);
-    throw error;
-  }
-}
-
-
 async function generarGruposBase(carreraId, numeroPeriodos) {
   try {
     console.log(`Generando grupos base para ${carreraId} con ${numeroPeriodos} periodos...`);
@@ -824,55 +783,42 @@ function cerrarModalAsignarCarreras() {
   coordinadorActual = null;
 }
 
-console.log('controlAdmin.js cargado - Sistema con tipo y numero de periodos');
 
-
-// Obtener grupo: Periodo y Turno 
-async function obtenerGrupo(carreraId, periodo, turno) {
+async function generarMatrizGrupos(carreraId, numeroPeriodos) {
   try {
-    const doc = await db.collection('gruposMatriz').doc(carreraId).get();
+    console.log(`Generando matriz de grupos para ${carreraId}...`);
     
-    if (!doc.exists) {
-      return null;
+    // Crear matriz vacía
+    const matriz = [];
+    
+    for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
+      const filaPeriodo = [];
+      
+      for (let turno = 1; turno <= 4; turno++) {
+        filaPeriodo.push({
+          turno: turno.toString(),
+          periodo: periodo,
+          activo: false,
+          alumnos: [],
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      
+      matriz.push(filaPeriodo);
     }
     
-    const matriz = doc.data().matriz;
+    // Guardar en Firebase
+    await db.collection('gruposMatriz').doc(carreraId).set({
+      carreraId: carreraId,
+      numeroPeriodos: numeroPeriodos,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+      matriz: matriz
+    });
     
-    // Acceso directo: matriz[periodo-1][turno-1]
-    const grupo = matriz[periodo - 1][turno - 1];
-    
-    return grupo;
-    
-  } catch (error) {
-    console.error('Error:', error);
-    return null;
-  }
-}
-
-///Activar/Desactivar un Grupo
-async function toggleGrupo(carreraId, periodo, turno, nuevoEstado) {
-  try {
-    const docRef = db.collection('gruposMatriz').doc(carreraId);
-    const doc = await docRef.get();
-    
-    if (!doc.exists) {
-      throw new Error('Carrera no encontrada');
-    }
-    
-    const matriz = doc.data().matriz;
-    
-    // Modificar el grupo específico
-    matriz[periodo - 1][turno - 1].activo = nuevoEstado;
-    
-    // Actualizar documento
-    await docRef.update({ matriz: matriz });
-    
-    console.log(`Grupo ${carreraId}-${turno}${periodo}00 ${nuevoEstado ? 'activado' : 'desactivado'}`);
+    console.log(`Matriz creada: ${numeroPeriodos} periodos × 4 turnos`);
     
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error al generar matriz:', error);
+    throw error;
   }
 }
-
-// Ejemplo: Activar Periodo 5, Turno Nocturno
-await toggleGrupo('MAT', 5, 3, true);
