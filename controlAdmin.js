@@ -712,40 +712,40 @@ function cerrarModalAsignarCarreras() {
   coordinadorActual = null;
 }
 
-// ============================================
-// 
-// FUNCION CORREGIDA: Usar objeto plano en lugar de arrays anidados
+
+//grupos
+// FUNCION CORREGIDA CON ESTRUCTURA CORRECTA DE CODIGOS
 async function generarMatrizGrupos(carreraId, numeroPeriodos) {
   try {
     console.log(`Generando matriz de grupos para ${carreraId}...`);
-    console.log(`Dimensiones: ${numeroPeriodos} periodos x 4 turnos`);
+    console.log(`Dimensiones: 4 turnos x ${numeroPeriodos} periodos`);
     
-    // En lugar de array anidado, usamos un objeto con claves
     const grupos = {};
     
     const nombresTurnos = {
       1: "Matutino",
       2: "Vespertino", 
       3: "Nocturno",
-      4: "Mixto"
+      4: "Sabatino"
     };
     
-    // Para cada periodo/semestre
-    for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
-      // Para cada turno: 1=Matutino, 2=Vespertino, 3=Nocturno, 4=Mixto
-      for (let turno = 1; turno <= 4; turno++) {
-        // Generar codigo del grupo: periodo + turno + "00"
-        // Ejemplo: periodo 1, turno 1 = "1100"
-        const codigo = `${periodo}${turno}00`;
+    // Para cada turno: 1=Matutino, 2=Vespertino, 3=Nocturno, 4=Sabatino
+    for (let turno = 1; turno <= 4; turno++) {
+      // Para cada periodo/semestre
+      for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
+        // Generar codigo del grupo: turno + periodo + "00"
+        // Ejemplo: turno 1, periodo 5 = "1500"
+        // Ejemplo: turno 3, periodo 8 = "3800"
+        const codigo = `${turno}${periodo}00`;
         const codigoCompleto = `${carreraId}-${codigo}`;
         
-        // Usar el codigo como clave del objeto
         grupos[codigo] = {
           codigo: codigo,
           codigoCompleto: codigoCompleto,
-          periodo: periodo,
+          carreraId: carreraId,
           turno: turno,
           nombreTurno: nombresTurnos[turno],
+          periodo: periodo,
           esBase: true,
           activo: false,
           alumnos: [],
@@ -756,7 +756,7 @@ async function generarMatrizGrupos(carreraId, numeroPeriodos) {
       }
     }
     
-    // Guardar en Firestore con el ID = carreraId
+    // Guardar en Firestore
     await db.collection('grupos').doc(carreraId).set({
       carreraId: carreraId,
       numeroPeriodos: numeroPeriodos,
@@ -767,9 +767,9 @@ async function generarMatrizGrupos(carreraId, numeroPeriodos) {
     
     console.log(`Matriz creada exitosamente`);
     console.log(`Estructura guardada en: grupos/${carreraId}`);
-    console.log(`Total de grupos base: ${numeroPeriodos * 4}`);
+    console.log(`Total de grupos base: ${4 * numeroPeriodos}`);
     
-    return { success: true, totalGrupos: numeroPeriodos * 4 };
+    return { success: true, totalGrupos: 4 * numeroPeriodos };
     
   } catch (error) {
     console.error('Error al generar matriz:', error);
@@ -792,12 +792,15 @@ async function verMatrizCarrera(carreraId) {
     console.log('Periodos:', data.numeroPeriodos);
     console.log('Grupos:', Object.keys(data.grupos).length);
     
-    // Mostrar grupos por periodo
-    for (let periodo = 1; periodo <= data.numeroPeriodos; periodo++) {
-      const gruposPeriodo = Object.values(data.grupos)
-        .filter(g => g.periodo === periodo)
-        .map(g => g.codigo);
-      console.log(`Periodo ${periodo}:`, gruposPeriodo);
+    const nombresTurnos = ["Matutino", "Vespertino", "Nocturno", "Sabatino"];
+    
+    // Mostrar grupos por turno
+    for (let turno = 1; turno <= 4; turno++) {
+      const gruposTurno = Object.values(data.grupos)
+        .filter(g => g.turno === turno)
+        .map(g => g.codigo)
+        .sort();
+      console.log(`${nombresTurnos[turno - 1]}:`, gruposTurno.join(', '));
     }
     
     return data;
@@ -850,21 +853,18 @@ async function actualizarGrupo(carreraId, codigo, cambios) {
       throw new Error(`No existe el grupo ${codigo}`);
     }
     
-    // Actualizar el grupo especifico
-    const grupoActualizado = {
-      ...data.grupos[codigo],
-      ...cambios
-    };
-    
-    // Actualizar en Firestore usando notacion de punto
-    const updatePath = `grupos.${codigo}`;
-    await gruposRef.update({
-      [updatePath]: grupoActualizado,
-      fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+    // Actualizar el grupo especifico usando notacion de punto
+    const updates = {};
+    Object.keys(cambios).forEach(key => {
+      updates[`grupos.${codigo}.${key}`] = cambios[key];
     });
     
+    updates['fechaActualizacion'] = firebase.firestore.FieldValue.serverTimestamp();
+    
+    await gruposRef.update(updates);
+    
     console.log(`Grupo ${codigo} actualizado`);
-    return grupoActualizado;
+    return true;
     
   } catch (error) {
     console.error('Error al actualizar grupo:', error);
@@ -883,7 +883,8 @@ async function obtenerGruposPorPeriodo(carreraId, periodo) {
     
     const data = gruposDoc.data();
     const gruposPeriodo = Object.values(data.grupos)
-      .filter(g => g.periodo === periodo);
+      .filter(g => g.periodo === periodo)
+      .sort((a, b) => a.turno - b.turno);
     
     return gruposPeriodo;
     
@@ -904,12 +905,31 @@ async function obtenerGruposPorTurno(carreraId, turno) {
     
     const data = gruposDoc.data();
     const gruposTurno = Object.values(data.grupos)
-      .filter(g => g.turno === turno);
+      .filter(g => g.turno === turno)
+      .sort((a, b) => a.periodo - b.periodo);
     
     return gruposTurno;
     
   } catch (error) {
     console.error('Error al obtener grupos por turno:', error);
+    return [];
+  }
+}
+
+// FUNCION PARA OBTENER TODOS LOS GRUPOS DE UNA CARRERA
+async function obtenerTodosLosGrupos(carreraId) {
+  try {
+    const gruposDoc = await db.collection('grupos').doc(carreraId).get();
+    
+    if (!gruposDoc.exists) {
+      return [];
+    }
+    
+    const data = gruposDoc.data();
+    return Object.values(data.grupos);
+    
+  } catch (error) {
+    console.error('Error al obtener grupos:', error);
     return [];
   }
 }
