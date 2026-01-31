@@ -748,45 +748,55 @@ async function guardarCarrera(event, carreraId) {
 
 // ===== GESTIÓN DE MATERIAS =====
 async function cargarMaterias() {
-    try {
-        let query = db.collection('materias');
+  try {
+    let query = db.collection('materias');
 
-        // Filtrar por carrera si es coordinador
-        if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
-            query = query.where('carreraId', '==', usuarioActual.carreraId);
-        }
-
-        const snapshot = await query.get();
-        const container = document.getElementById('listaMaterias');
-
-        if (snapshot.empty) {
-            container.innerHTML = '<div class="sin-datos">No hay materias registradas</div>';
-            return;
-        }
-
-        let html = '';
-        snapshot.forEach(doc => {
-            const materia = doc.data();
-            html += `
-              <div class="item">
-                <div class="item-info">
-                  <h4>${materia.nombre}</h4>
-                  <p>Periodo: ${materia.periodo || 'N/A'} | Creditos: ${materia.creditos || 0}</p>
-                  <small style="color: #666;">Codigos: ${(materia.codigos || []).join(', ')}</small>
-                </div>
-                <div class="item-acciones">
-                  <button onclick="editarMateria('${doc.id}')" class="btn-editar">Editar</button>
-                  <button onclick="eliminarMateria('${doc.id}')" class="btn-eliminar"></button>
-                </div>
-              </div>
-            `;
-        });
-
-        container.innerHTML = html;
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error al cargar materias');
+    if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
+      query = query.where('carreraId', '==', usuarioActual.carreraId);
     }
+
+    const snapshot = await query.get();
+    const container = document.getElementById('listaMaterias');
+
+    if (snapshot.empty) {
+      container.innerHTML = '<div class="sin-datos">No hay materias registradas</div>';
+      return;
+    }
+
+    let html = '';
+    snapshot.forEach(doc => {
+      const materia = doc.data();
+      
+      // Obtener nombres de turnos de los grupos enlazados
+      const turnosStr = materia.grupos && materia.grupos.length > 0
+        ? materia.grupos.map(g => g.nombreTurno).join(', ')
+        : 'Sin grupos';
+      
+      html += `
+        <div class="item">
+          <div class="item-info">
+            <h4>${materia.nombre}</h4>
+            <p>Periodo: ${materia.periodo || 'N/A'} | Creditos: ${materia.creditos || 0}</p>
+            <p style="margin-top: 5px; color: #666; font-size: 0.9rem;">
+              Turnos: ${turnosStr}
+            </p>
+            <small style="color: #999; display: block; margin-top: 3px;">
+              Codigos: ${(materia.codigos || []).join(', ')}
+            </small>
+          </div>
+          <div class="item-acciones">
+            <button onclick="editarMateria('${doc.id}')" class="btn-editar">Editar</button>
+            <button onclick="eliminarMateria('${doc.id}')" class="btn-eliminar">Eliminar</button>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cargar materias');
+  }
 }
 
 
@@ -920,7 +930,7 @@ async function cargarDatosMateria(materiaId) {
   }
 }
 
-
+//guardar materia
 async function guardarMateria(event, materiaId) {
   event.preventDefault();
   
@@ -928,8 +938,13 @@ async function guardarMateria(event, materiaId) {
   const creditos = parseInt(document.getElementById('creditos').value);
   const periodo = parseInt(document.getElementById('periodo').value);
   
+  if (!nombre || !periodo || !creditos) {
+    alert('Todos los campos son obligatorios');
+    return;
+  }
+  
   try {
-    // Obtener codigo de carrera
+    // Obtener datos de la carrera
     const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
     if (!carreraDoc.exists) {
       alert('Error: No se encontro la carrera');
@@ -937,17 +952,70 @@ async function guardarMateria(event, materiaId) {
     }
     
     const codigoCarrera = carreraDoc.data().codigo;
+    const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
     
-    // Generar los 4 codigos (uno por turno)
-    const turnos = ['1', '2', '3', '4'];
-    const codigos = turnos.map(turno => `${codigoCarrera}-${turno}${periodo}00`);
+    // Validar que el periodo existe en la carrera
+    if (periodo < 1 || periodo > numeroPeriodos) {
+      alert(`El periodo debe estar entre 1 y ${numeroPeriodos}`);
+      return;
+    }
     
+    // Obtener documento de grupos de la carrera
+    const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
+    
+    if (!gruposDoc.exists) {
+      alert('Error: No existe matriz de grupos para esta carrera.\nPrimero debe crear la estructura de grupos.');
+      return;
+    }
+    
+    const gruposData = gruposDoc.data();
+    
+    // Generar los 4 codigos (uno por turno) y verificar que existan en la matriz
+    const turnos = [
+      { num: '1', nombre: 'Matutino' },
+      { num: '2', nombre: 'Vespertino' },
+      { num: '3', nombre: 'Nocturno' },
+      { num: '4', nombre: 'Sabatino' }
+    ];
+    
+    const codigosGenerados = [];
+    const gruposEnlazados = [];
+    
+    for (const turno of turnos) {
+      const codigoGrupo = `${turno.num}${periodo}00`;
+      const codigoCompleto = `${codigoCarrera}-${codigoGrupo}`;
+      
+      // Verificar que el grupo existe en la matriz
+      if (!gruposData.grupos || !gruposData.grupos[codigoGrupo]) {
+        console.warn(`Grupo ${codigoGrupo} no existe en la matriz`);
+        continue;
+      }
+      
+      codigosGenerados.push(codigoCompleto);
+      gruposEnlazados.push({
+        codigo: codigoGrupo,
+        codigoCompleto: codigoCompleto,
+        turno: parseInt(turno.num),
+        nombreTurno: turno.nombre,
+        periodo: periodo
+      });
+    }
+    
+    if (codigosGenerados.length === 0) {
+      alert('Error: No se encontraron grupos validos para este periodo');
+      return;
+    }
+    
+    // Datos de la materia
     const materiaData = {
       nombre: nombre,
-      codigos: codigos, // Array con los 4 codigos
+      codigos: codigosGenerados,
+      grupos: gruposEnlazados,
       periodo: periodo,
       creditos: creditos,
       carreraId: usuarioActual.carreraId,
+      codigoCarrera: codigoCarrera,
+      activa: true,
       fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
     };
     
@@ -957,19 +1025,90 @@ async function guardarMateria(event, materiaId) {
       alert('Materia actualizada correctamente');
     } else {
       // Crear nueva materia
+      materiaData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection('materias').add(materiaData);
-      alert('Materia creada correctamente\n\nCodigos generados:\n' + codigos.join('\n'));
+      
+      let mensaje = 'Materia creada correctamente\n\n';
+      mensaje += 'Codigos generados:\n';
+      codigosGenerados.forEach((cod, idx) => {
+        mensaje += `${gruposEnlazados[idx].nombreTurno}: ${cod}\n`;
+      });
+      alert(mensaje);
     }
     
     cerrarModal();
     cargarMaterias();
     
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error al guardar materia:', error);
     alert('Error al guardar: ' + error.message);
   }
 }
 
+// FUNCION AUXILIAR: Obtener materias de un periodo especifico
+async function obtenerMateriasPorPeriodo(carreraId, periodo) {
+  try {
+    const materiasSnap = await db.collection('materias')
+      .where('carreraId', '==', carreraId)
+      .where('periodo', '==', periodo)
+      .where('activa', '==', true)
+      .get();
+    
+    const materias = [];
+    materiasSnap.forEach(doc => {
+      materias.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    return materias;
+    
+  } catch (error) {
+    console.error('Error al obtener materias:', error);
+    return [];
+  }
+}
+
+// FUNCION AUXILIAR: Obtener materias de un grupo especifico
+async function obtenerMateriasPorGrupo(carreraId, codigoGrupo) {
+  try {
+    const materiasSnap = await db.collection('materias')
+      .where('carreraId', '==', carreraId)
+      .where('activa', '==', true)
+      .get();
+    
+    const materias = [];
+    materiasSnap.forEach(doc => {
+      const data = doc.data();
+      
+      // Verificar si el grupo esta en los grupos enlazados
+      const tieneGrupo = data.grupos && data.grupos.some(g => g.codigo === codigoGrupo);
+      
+      if (tieneGrupo) {
+        materias.push({
+          id: doc.id,
+          ...data
+        });
+      }
+    });
+    
+    return materias;
+    
+  } catch (error) {
+    console.error('Error al obtener materias por grupo:', error);
+    return [];
+  }
+}
+
+// FUNCION AUXILIAR: Verificar si una materia pertenece a un grupo
+function materiaPertenecealGrupo(materia, codigoGrupo) {
+  if (!materia.grupos || !Array.isArray(materia.grupos)) {
+    return false;
+  }
+  
+  return materia.grupos.some(g => g.codigo === codigoGrupo);
+}
 
 // ===== GESTIÓN DE GRUPOS =====
 async function cargarGrupos() {
