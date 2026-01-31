@@ -258,10 +258,7 @@ async function guardarProfesoresMasivos(event) {
   console.log('Iniciando registro masivo de profesores...');
   console.log(`Total profesores: ${nombres.length}`);
   
-  // USAR INSTANCIA SECUNDARIA DE FIREBASE
-  const secondaryApp = firebase.initializeApp(firebaseConfig, 'SecondaryProfesor');
-  const secondaryAuth = secondaryApp.auth();
-  
+  // PROCESAR CADA PROFESOR - USANDO INSTANCIA SECUNDARIA COMO EN guardarProfesor()
   for (let i = 0; i < nombres.length; i++) {
     const nombre = nombres[i];
     const email = emails[i];
@@ -272,31 +269,96 @@ async function guardarProfesoresMasivos(event) {
     texto.textContent = `Creando ${i + 1}/${nombres.length}: ${nombre}`;
     
     try {
-      // Crear en la instancia secundaria (no afecta la sesión principal)
-      const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, passwordTemporal);
-      const newUid = userCredential.user.uid;
+      // USAR INSTANCIA SECUNDARIA CON NOMBRE UNICO (igual que guardarProfesor)
+      const secondaryApp = firebase.initializeApp(firebaseConfig, 'SecondaryProfesor_' + Date.now() + '_' + i);
+      const secondaryAuth = secondaryApp.auth();
       
-      console.log(`[${i + 1}] Auth creado: ${email} (${newUid})`);
-      
-      // Guardar en Firestore (usa la conexión principal)
-      const profesorData = {
-        nombre: nombre,
-        email: email,
-        rol: 'profesor',
-        roles: ['profesor'],
-        carreras: [usuarioActual.carreraId],
-        carreraId: usuarioActual.carreraId,
-        activo: true,
-        fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
-        registroMasivo: true,
-        passwordTemporal: true,
-        fechaRegistroMasivo: new Date().toISOString()
-      };
-      
-      await db.collection('usuarios').doc(newUid).set(profesorData);
-      console.log(`[${i + 1}] Firestore guardado: ${email}`);
-      
-      exitosos++;
+      try {
+        // Crear en Authentication con instancia secundaria
+        const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, passwordTemporal);
+        const newUid = userCredential.user.uid;
+        
+        console.log(`[${i + 1}] Profesor creado en Authentication: ${email} (${newUid})`);
+        
+        // Guardar en Firestore
+        const profesorData = {
+          nombre: nombre,
+          email: email,
+          rol: 'profesor',
+          roles: ['profesor'],
+          carreras: [usuarioActual.carreraId],
+          carreraId: usuarioActual.carreraId,
+          activo: true,
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+          registroMasivo: true,
+          passwordTemporal: true,
+          fechaRegistroMasivo: new Date().toISOString()
+        };
+        
+        await db.collection('usuarios').doc(newUid).set(profesorData);
+        console.log(`[${i + 1}] Profesor guardado en Firestore: ${email}`);
+        
+        // Cerrar sesion de la instancia secundaria
+        await secondaryAuth.signOut();
+        
+        // Eliminar la app secundaria
+        await secondaryApp.delete();
+        
+        exitosos++;
+        
+      } catch (authError) {
+        // Si falla, también intentar cerrar/eliminar la instancia secundaria
+        try {
+          await secondaryAuth.signOut();
+          await secondaryApp.delete();
+        } catch (e) {
+          console.warn('Error al limpiar instancia secundaria:', e);
+        }
+        
+        // Manejar email duplicado
+        if (authError.code === 'auth/email-already-in-use') {
+          // Intentar agregar a carrera si ya existe como profesor
+          const existeSnap = await db.collection('usuarios')
+            .where('email', '==', email)
+            .where('rol', '==', 'profesor')
+            .limit(1)
+            .get();
+          
+          if (!existeSnap.empty) {
+            const profesorDoc = existeSnap.docs[0];
+            const profesorData = profesorDoc.data();
+            const carrerasActuales = profesorData.carreras || [];
+            
+            if (!carrerasActuales.includes(usuarioActual.carreraId)) {
+              await db.collection('usuarios').doc(profesorDoc.id).update({
+                carreras: [...carrerasActuales, usuarioActual.carreraId]
+              });
+              console.log(`[${i + 1}] Profesor existente agregado a carrera: ${email}`);
+              exitosos++;
+            } else {
+              erroresDetallados.push({
+                numero: i + 1,
+                nombre: nombre,
+                email: email,
+                error: 'Profesor ya existe en esta carrera',
+                codigo: 'ya-existe'
+              });
+              fallidos++;
+            }
+          } else {
+            erroresDetallados.push({
+              numero: i + 1,
+              nombre: nombre,
+              email: email,
+              error: 'Email ya registrado (no como profesor)',
+              codigo: authError.code
+            });
+            fallidos++;
+          }
+        } else {
+          throw authError;
+        }
+      }
       
     } catch (error) {
       fallidos++;
@@ -310,14 +372,11 @@ async function guardarProfesoresMasivos(event) {
       console.error(`[${i + 1}] ERROR al crear ${email}:`, error);
     }
     
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Pausa breve entre profesores
+    await new Promise(resolve => setTimeout(resolve, 300));
   }
   
-  // Cerrar la instancia secundaria
-  await secondaryAuth.signOut();
-  await secondaryApp.delete();
-  
-  console.log('Proceso completado. Instancia secundaria eliminada.');
+  console.log('Proceso completado.');
   
   barra.style.background = 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)';
   texto.innerHTML = `
@@ -340,6 +399,8 @@ async function guardarProfesoresMasivos(event) {
       
       if (err.codigo === 'auth/email-already-in-use') {
         mensaje += `   El email ya esta registrado en Firebase\n\n`;
+      } else if (err.codigo === 'ya-existe') {
+        mensaje += `   ${err.error}\n\n`;
       } else {
         mensaje += `   Error: ${err.error}\n\n`;
       }
@@ -369,4 +430,3 @@ document.addEventListener('click', function(event) {
     cerrarModalProfesoresMasivos();
   }
 });
-
