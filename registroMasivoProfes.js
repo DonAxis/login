@@ -18,8 +18,8 @@ async function mostrarModalProfesoresMasivos() {
         <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
           <p style="margin: 0; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
             Pega los datos, un renglón por profesor:<br>
-            <strong>Apellido paterno, apellido materno y nombres | Correo electrónico</strong><br>
-            Se generará una contraseña temporal: <strong>ilb123</strong>. El cambio de contraseña es obligatorio por seguridad.
+            Nombre completo: <strong>Apellido paterno, apellido materno y nombres </strong> | Correo electrónico<strong>institucional</strong><br>
+           
           </p>
 
           <h3 style="margin: 15px 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo de datos:</h3>
@@ -45,10 +45,8 @@ async function mostrarModalProfesoresMasivos() {
           <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px; margin-top: 15px;">
             <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 1rem;">Importante:</h3>
             <p style="margin: 0; color: #856404; line-height: 1.6; font-size: 0.9rem;">
-              <strong>Contraseña temporal:</strong>
-              <code style="background: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">ilb123</code>.
-              Los profesores deben cambiarla en su primer acceso.<br>
-              Si un correo electrónico ya existe, ese registro será omitido.
+              La contraseña generada será <strong>ilb123</strong>.<br>
+              Por seguridad, los profesores deberán cambiarla al iniciar sesión por primera vez. 
             </p>
           </div>
 
