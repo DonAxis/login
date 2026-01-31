@@ -65,7 +65,7 @@ table {
 
 thead {
   background: linear-gradient(135deg, #1e88e5, #1565c0);
-  color: white;
+  color: rgb(112, 112, 112);
 }
 
 th {
