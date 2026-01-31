@@ -15,46 +15,43 @@ async function mostrarModalProfesoresMasivos() {
         <form id="formProfesoresMasivos" onsubmit="guardarProfesoresMasivos(event)">
 
           <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
-            <p style="margin: 0; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
-              Pega los datos, un renglón por profesor. Formato es: Nombre Completo | Correo electrónico<br>
-              Se generará contraseña temporal: <strong>ilb123</strong>. Los profesores deben cambiar su contraseña por seguridad.
-            </p>
+        <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
+          <p style="margin: 0; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
+            Pega los datos, un renglón por profesor:<br>
+            <strong>Apellido paterno, apellido materno y nombres | Correo electrónico</strong><br>
+            Se generará una contraseña temporal: <strong>ilb123</strong>. El cambio de contraseña es obligatorio por seguridad.
+          </p>
 
-            <h3 style="margin: 15px 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo de datos:</h3>
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white;">
-              <thead style="background: #f5f5f5;">
-                <tr>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Nombre Completo</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Email</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style="padding: 8px; border: 1px solid #ddd;">Juan Perez Garcia</td>
-                  <td style="padding: 8px; border: 1px solid #ddd;">juan.perez@escuela.com</td>
-                </tr>
-                <tr style="background: #f9f9f9;">
-                  <td style="padding: 8px; border: 1px solid #ddd;">Maria Lopez Hernandez</td>
-                  <td style="padding: 8px; border: 1px solid #ddd;">maria.lopez@escuela.com</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; border: 1px solid #ddd;">Carlos Ramirez Sanchez</td>
-                  <td style="padding: 8px; border: 1px solid #ddd;">carlos.ramirez@escuela.com</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <h3 style="margin: 15px 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo de datos:</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white;">
+            <thead style="background: #f5f5f5;">
+              <tr>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Nombre Completo</th>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">Juan Perez Garcia</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">juan.perez@ilb.edu.com</td>
+              </tr>
+              <tr style="background: #f9f9f9;">
+                <td style="padding: 8px; border: 1px solid #ddd;">Maria Lopez Hernandez</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">maria.lopez@ilb.edu.com</td>
+              </tr>
+            </tbody>
+          </table>
 
-          <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px; margin-top: 15px;">
+            <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 1rem;">Importante:</h3>
             <p style="margin: 0; color: #856404; line-height: 1.6; font-size: 0.9rem;">
-              <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 1rem;">Importante:</h3>
-              <strong>Contraseña temporal:</strong> <code style="background: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">ilb123</code>
-              Los profesores deben cambiarla en su primer acceso.
-              <br>
-                 Si un email ya existe, ese registro sera omitido.
+              <strong>Contraseña temporal:</strong>
+              <code style="background: white; padding: 2px 6px; border-radius: 4px; font-weight: 700;">ilb123</code>.
+              Los profesores deben cambiarla en su primer acceso.<br>
+              Si un correo electrónico ya existe, ese registro será omitido.
             </p>
           </div>
+
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
             

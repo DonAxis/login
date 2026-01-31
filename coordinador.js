@@ -2247,7 +2247,7 @@ async function cargarAlumnos() {
 
 async function mostrarFormAlumno(alumnoId = null) {
   const esEdicion = alumnoId !== null;
-  document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Alumno' : 'Nuevo Alumno';
+  document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Alumno' : '1 Nuevo Alumno';
   
   // Cargar datos de la carrera
   let numeroPeriodos = 8; // Default
