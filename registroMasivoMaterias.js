@@ -1,47 +1,27 @@
-// REGISTRO MASIVO DE MATERIAS - VERSION 2.0
-// Con sincronizacion automatica de grupos paralelos (matutino, vespertino, nocturno)
+// REGISTRO MASIVO DE MATERIAS - VERSION CORREGIDA
+// Compatible con la nueva estructura de grupos (objeto plano)
 
-console.log('=== CARGANDO REGISTRO MASIVO DE MATERIAS V2.0 ===');
+console.log('=== CARGANDO REGISTRO MASIVO DE MATERIAS - CORREGIDO ===');
 
 // Funcion principal: Mostrar modal de captura masiva de materias
 async function mostrarModalMateriasMasivas() {
   
-  // Cargar grupos disponibles
-  let gruposHTML = '<option value="">Seleccionar grupo...</option>';
-  let gruposData = {}; // Almacenar datos de grupos para la vista previa
+  // Cargar periodos disponibles de la carrera
+  let periodosHTML = '<option value="">Seleccionar periodo...</option>';
   
   try {
-    const gruposSnap = await db.collection('grupos')
-      .where('carreraId', '==', usuarioActual.carreraId)
-      .where('activo', '==', true)
-      .get();
+    const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
     
-    const grupos = [];
-    gruposSnap.forEach(doc => {
-      const data = doc.data();
-      grupos.push({
-        id: doc.id,
-        ...data
-      });
-      gruposData[doc.id] = data; // Guardar para usar despues
-    });
-    
-    // Ordenar por semestre y turno
-    grupos.sort((a, b) => {
-      if (a.semestre !== b.semestre) return a.semestre - b.semestre;
-      const turnoOrder = {'Matutino': 1, 'Vespertino': 2, 'Nocturno': 3};
-      return (turnoOrder[a.turno] || 99) - (turnoOrder[b.turno] || 99);
-    });
-    
-    grupos.forEach(grupo => {
-      gruposHTML += `<option value="${grupo.id}">${grupo.nombre} - ${grupo.turno} (Semestre ${grupo.semestre})</option>`;
-    });
-    
-    // Guardar en variable global temporal para acceso en preview
-    window.gruposDataTemp = gruposData;
+    if (carreraDoc.exists) {
+      const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
+      
+      for (let i = 1; i <= numeroPeriodos; i++) {
+        periodosHTML += `<option value="${i}">Periodo ${i}</option>`;
+      }
+    }
     
   } catch (error) {
-    console.error('Error al cargar grupos:', error);
+    console.error('Error al cargar periodos:', error);
   }
   
   const html = `
@@ -55,59 +35,49 @@ async function mostrarModalMateriasMasivas() {
 
         <form id="formMateriasMasivas" onsubmit="guardarMateriasMasivas(event)">
 
-        
-
           <!-- INSTRUCCIONES -->
           <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
             <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
-              <li>Selecciona el grupo donde se registraran las materias</li>
-              <li>Pega los datos en orden espaciados por enter</li>
-            
+              <li>Selecciona el periodo donde se registraran las materias</li>
+              <li>Pega los nombres de materias (uno por linea)</li>
+              <li>Opcionalmente, pega los creditos (uno por linea)</li>
+              <li>Las materias se crearan automaticamente para los 4 turnos</li>
             </ul>
-         
 
-          <!-- EJEMPLO CON 3 COLUMNAS -->
-         
-            <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo de datos:</h3>
+            <h3 style="margin: 15px 0 10px 0; color: #1565c0; font-size: 1rem;">Ejemplo:</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
               <thead style="background: #f5f5f5;">
                 <tr>
-                  <th style="padding: 8px; border: 1px solid #000000; text-align: left;">Nombres de Materias</th>
-                  <th style="padding: 8px; border: 1px solid #000000; text-align: center;">Creditos</th>
-                  <th style="padding: 8px; border: 1px solid #000000; text-align: center;">Grupo</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Nombres de Materias</th>
+                  <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Creditos</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td style="padding: 8px; border: 1px solid #ddd;">Calculo Diferencial</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
-                  <td style="padding: 8px; border: 1px solid #ddd; color: #000000; font-weight: 600;">1101-Matutino</td>
                 </tr>
                 <tr style="background: #f9f9f9;">
                   <td style="padding: 8px; border: 1px solid #ddd;">Algebra Lineal</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">6</td>
-                  <td style="padding: 8px; border: 1px solid #ddd; color: #000000; font-weight: 600;">1101-Matutino</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px; border: 1px solid #ddd;">Programacion Estructurada</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">8</td>
-                  <td style="padding: 8px; border: 1px solid #ddd; color: #000000; font-weight: 600;">1101-Matutino</td>
                 </tr>
               </tbody>
             </table>
-           
           </div>
 
-
-        <!-- SELECTOR DE GRUPO -->
+          <!-- SELECTOR DE PERIODO -->
           <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-            <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 1.2rem;">Selecciona el Grupo</h3>
-            <select id="grupoMateriasMasivo" required 
+            <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 1.2rem;">Selecciona el Periodo</h3>
+            <select id="periodoMateriasMasivo" required onchange="actualizarPreviewPeriodo()"
                     style="width: 100%; padding: 12px; border: 2px solid #4caf50; border-radius: 8px; font-size: 1rem; background: white; font-weight: 600;">
-              ${gruposHTML}
+              ${periodosHTML}
             </select>
-           
+            <div id="infoGruposPeriodo" style="margin-top: 10px; color: #666; font-size: 0.9rem;"></div>
           </div>
 
           <!-- CAMPOS PARA PEGAR DATOS -->
@@ -166,215 +136,172 @@ async function mostrarModalMateriasMasivas() {
         <div id="barraProgresoMaterias" style="display: none; margin-top: 20px;">
           <div style="background: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden;">
             <div id="barraProgresoMateriasFill" 
-                 style="height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                 style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
               0%
             </div>
           </div>
-          <p id="textoProgresoMaterias" style="text-align: center; margin-top: 10px; color: #666;">
-            Procesando...
+          <p id="textoProgresoMaterias" style="text-align: center; margin-top: 10px; color: #666; font-size: 0.9rem;">
+            Preparando...
           </p>
         </div>
 
       </div>
     </div>
   `;
-
-  // Insertar en el body
-  const modalExistente = document.getElementById('modalMateriasMasivas');
-  if (modalExistente) {
-    modalExistente.remove();
-  }
   
   document.body.insertAdjacentHTML('beforeend', html);
 }
 
-// Funcion: Cerrar modal
+// Actualizar preview cuando cambia el periodo
+async function actualizarPreviewPeriodo() {
+  const periodo = document.getElementById('periodoMateriasMasivo').value;
+  const infoDiv = document.getElementById('infoGruposPeriodo');
+  
+  if (!periodo) {
+    infoDiv.innerHTML = '';
+    return;
+  }
+  
+  try {
+    const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
+    
+    if (gruposDoc.exists) {
+      const turnos = ['Matutino', 'Vespertino', 'Nocturno', 'Sabatino'];
+      
+      infoDiv.innerHTML = `
+        <strong>Las materias se crearan para los grupos:</strong><br>
+        ${turnos.map((t, idx) => `${(idx+1)}${periodo}00 - ${t}`).join('<br>')}
+      `;
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Cerrar modal
 function cerrarModalMateriasMasivas() {
   const modal = document.getElementById('modalMateriasMasivas');
-  if (modal) {
-    modal.remove();
-  }
+  if (modal) modal.remove();
 }
 
-// NUEVA FUNCION: Obtener grupos paralelos
-async function obtenerGruposParalelos(grupoId) {
-  try {
-    // Obtener datos del grupo seleccionado
-    const grupoDoc = await db.collection('grupos').doc(grupoId).get();
-    if (!grupoDoc.exists) {
-      console.error('Grupo no encontrado');
-      return [grupoId];
-    }
-    
-    const grupoData = grupoDoc.data();
-    const semestre = grupoData.semestre;
-    const carreraId = grupoData.carreraId;
-    
-    console.log('Buscando grupos paralelos para semestre:', semestre, 'carrera:', carreraId);
-    
-    // Buscar TODOS los grupos del mismo semestre (sin importar el turno)
-    const gruposParalelosSnap = await db.collection('grupos')
-      .where('carreraId', '==', carreraId)
-      .where('semestre', '==', semestre)
-      .where('activo', '==', true)
-      .get();
-    
-    const gruposParalelos = [];
-    gruposParalelosSnap.forEach(doc => {
-      gruposParalelos.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    console.log('Grupos paralelos encontrados:', gruposParalelos.length);
-    gruposParalelos.forEach(g => {
-      console.log('  -', g.nombre, g.turno);
-    });
-    
-    return gruposParalelos;
-    
-  } catch (error) {
-    console.error('Error al obtener grupos paralelos:', error);
-    return [{id: grupoId}];
-  }
-}
-
-// Funcion: Previsualizar datos CON 3 COLUMNAS
+// Previsualizar materias
 async function previsualizarMaterias() {
-  const grupoId = document.getElementById('grupoMateriasMasivo').value;
+  const periodo = parseInt(document.getElementById('periodoMateriasMasivo').value);
   const nombresText = document.getElementById('nombresMateriasMasivo').value.trim();
   const creditosText = document.getElementById('creditosMateriasMasivo').value.trim();
   
-  if (!grupoId) {
-    alert('Debes seleccionar un grupo');
+  if (!periodo) {
+    alert('Selecciona un periodo');
     return;
   }
   
   if (!nombresText) {
-    alert('Debes ingresar al menos los nombres de las materias');
+    alert('Ingresa los nombres de las materias');
     return;
   }
   
-  // Dividir en lineas
   const nombres = nombresText.split('\n').map(l => l.trim()).filter(l => l);
   const creditos = creditosText.split('\n').map(l => l.trim()).filter(l => l);
   
-  // Si hay creditos, validar
   if (creditos.length > 0 && creditos.length !== nombres.length) {
-    alert(`Error: Numero de materias (${nombres.length}) no coincide con numero de creditos (${creditos.length})`);
+    alert('Error: Debe haber un credito por cada materia o dejar vacio');
     return;
   }
   
-  // Obtener grupos paralelos
-  const gruposParalelos = await obtenerGruposParalelos(grupoId);
-  
-  // Obtener datos del grupo seleccionado
-  let grupoSeleccionado = '';
-  const grupoDoc = await db.collection('grupos').doc(grupoId).get();
-  if (grupoDoc.exists) {
-    const gData = grupoDoc.data();
-    grupoSeleccionado = `${gData.nombre}-${gData.turno}`;
-  }
-  
-  // Obtener datos de los grupos para mostrar
-  let infoGrupos = '';
-  gruposParalelos.forEach(g => {
-    infoGrupos += `<div style="display: inline-block; background: #e8f5e9; padding: 5px 10px; border-radius: 5px; margin: 3px; font-size: 0.85rem;">
-      ${g.nombre} - ${g.turno}
-    </div>`;
-  });
-  
-  // Generar tabla de vista previa CON 3 COLUMNAS
-  let html = `
-    <div style="background: #fff3cd; padding: 12px; border-radius: 6px; margin: 15px 0; border-left: 3px solid #ff9800;">
-      <strong style="color: #856404;">Las materias se registraran en los siguientes grupos:</strong>
-      <div style="margin-top: 8px;">
-        ${infoGrupos}
-      </div>
-      <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.85rem;">
-        Total de grupos: <strong>${gruposParalelos.length}</strong>
-      </p>
-    </div>
-  `;
-  
-  html += '<table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem;">';
-  html += '<thead style="background: #43a047; color: white;">';
-  html += '<tr>';
-  html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">#</th>';
-  html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Nombre Materia</th>';
-  html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Creditos</th>';
-  html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Grupo Seleccionado</th>';
-  html += '</tr>';
-  html += '</thead>';
-  html += '<tbody>';
-  
-  nombres.forEach((nombre, i) => {
-    const bgColor = i % 2 === 0 ? '#fff' : '#f9f9f9';
-    const creditoVal = creditos[i] ? parseInt(creditos[i]) : 6;
+  try {
+    const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+    const codigoCarrera = carreraDoc.data().codigo;
     
-    html += `<tr style="background: ${bgColor};">`;
-    html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${i + 1}</td>`;
-    html += `<td style="padding: 8px; border: 1px solid #ddd;"><strong>${nombre}</strong></td>`;
-    html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${creditoVal}</td>`;
-    html += `<td style="padding: 8px; border: 1px solid #ddd; color: #4caf50; font-weight: 600;">${grupoSeleccionado}</td>`;
+    const turnos = [
+      { num: 1, nombre: 'Matutino' },
+      { num: 2, nombre: 'Vespertino' },
+      { num: 3, nombre: 'Nocturno' },
+      { num: 4, nombre: 'Sabatino' }
+    ];
+    
+    let html = `
+      <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+        <strong style="color: #856404;">Cada materia se registrara en 4 grupos (uno por turno):</strong>
+        <div style="margin-top: 8px; font-family: monospace; font-size: 0.85rem;">
+          ${turnos.map(t => `${codigoCarrera}-${t.num}${periodo}00 (${t.nombre})`).join('<br>')}
+        </div>
+      </div>
+    `;
+    
+    html += '<table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem;">';
+    html += '<thead style="background: #43a047; color: white;">';
+    html += '<tr>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">#</th>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Nombre Materia</th>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Creditos</th>';
+    html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Periodo</th>';
     html += '</tr>';
-  });
-  
-  html += '</tbody>';
-  html += '</table>';
-  
-  html += `<p style="margin-top: 15px; color: #43a047; font-weight: 600;">
-    Total de materias: ${nombres.length} x ${gruposParalelos.length} grupos = ${nombres.length * gruposParalelos.length} registros
-  </p>`;
-  
-  document.getElementById('contenidoVistaPreviaMaterias').innerHTML = html;
-  document.getElementById('vistaPreviaMaterias').style.display = 'block';
+    html += '</thead>';
+    html += '<tbody>';
+    
+    nombres.forEach((nombre, i) => {
+      const bgColor = i % 2 === 0 ? '#fff' : '#f9f9f9';
+      const creditoVal = creditos[i] ? parseInt(creditos[i]) : 6;
+      
+      html += `<tr style="background: ${bgColor};">`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${i + 1}</td>`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd;"><strong>${nombre}</strong></td>`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${creditoVal}</td>`;
+      html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${periodo}</td>`;
+      html += '</tr>';
+    });
+    
+    html += '</tbody>';
+    html += '</table>';
+    
+    html += `<p style="margin-top: 15px; color: #43a047; font-weight: 600;">
+      Total: ${nombres.length} materias x 4 turnos = ${nombres.length * 4} registros
+    </p>`;
+    
+    document.getElementById('contenidoVistaPreviaMaterias').innerHTML = html;
+    document.getElementById('vistaPreviaMaterias').style.display = 'block';
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al previsualizar: ' + error.message);
+  }
 }
 
-// Funcion: Guardar materias masivamente con sincronizacion
+// Guardar materias masivamente
 async function guardarMateriasMasivas(event) {
   event.preventDefault();
   
-  const grupoId = document.getElementById('grupoMateriasMasivo').value;
+  const periodo = parseInt(document.getElementById('periodoMateriasMasivo').value);
   const nombresText = document.getElementById('nombresMateriasMasivo').value.trim();
   const creditosText = document.getElementById('creditosMateriasMasivo').value.trim();
   
-  // Validaciones
-  if (!grupoId) {
-    alert('Debes seleccionar un grupo');
+  if (!periodo) {
+    alert('Selecciona un periodo');
     return;
   }
   
   if (!nombresText) {
-    alert('Debes completar al menos los Nombres de las materias');
+    alert('Ingresa los nombres de las materias');
     return;
   }
   
-  // Dividir en lineas
   const nombres = nombresText.split('\n').map(l => l.trim()).filter(l => l);
   const creditos = creditosText.split('\n').map(l => l.trim()).filter(l => l);
   
-  // Validar coincidencia
   if (creditos.length > 0 && creditos.length !== nombres.length) {
-    alert(`Error: Si ingresas creditos, debe haber uno por cada materia`);
+    alert('Error: Debe haber un credito por cada materia');
     return;
   }
   
-  // Obtener grupos paralelos
-  const gruposParalelos = await obtenerGruposParalelos(grupoId);
-  
-  // Confirmar
   const confirmar = confirm(
-    `Vas a registrar ${nombres.length} materias en ${gruposParalelos.length} grupos\n\n` +
-    `Total de registros: ${nombres.length * gruposParalelos.length}\n\n` +
-    `Las materias se sincronizaran automaticamente en todos los turnos (Matutino, Vespertino, Nocturno)\n\n` +
+    `Vas a registrar ${nombres.length} materias en el periodo ${periodo}\n\n` +
+    `Cada materia se creara para 4 turnos (Matutino, Vespertino, Nocturno, Sabatino)\n\n` +
+    `Total de registros: ${nombres.length}\n\n` +
     `Continuar?`
   );
   
   if (!confirmar) return;
   
-  // Mostrar barra de progreso
   document.getElementById('barraProgresoMaterias').style.display = 'block';
   document.getElementById('formMateriasMasivas').style.display = 'none';
   
@@ -383,66 +310,83 @@ async function guardarMateriasMasivas(event) {
   
   let exitosos = 0;
   let errores = 0;
-  let totalOperaciones = nombres.length * gruposParalelos.length;
-  let operacionActual = 0;
   
   try {
-    // Obtener semestre del grupo seleccionado
-    const grupoDoc = await db.collection('grupos').doc(grupoId).get();
-    const semestreGrupo = grupoDoc.exists ? grupoDoc.data().semestre : 1;
+    const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+    const codigoCarrera = carreraDoc.data().codigo;
+    
+    const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
+    if (!gruposDoc.exists) {
+      throw new Error('No existe matriz de grupos para esta carrera');
+    }
+    
+    const turnos = [
+      { num: 1, nombre: 'Matutino' },
+      { num: 2, nombre: 'Vespertino' },
+      { num: 3, nombre: 'Nocturno' },
+      { num: 4, nombre: 'Sabatino' }
+    ];
     
     for (let i = 0; i < nombres.length; i++) {
       const nombreMateria = nombres[i];
       const creditosMateria = creditos[i] ? parseInt(creditos[i]) : 6;
       
-      // Generar codigo automatico
-      const codigo = nombreMateria.substring(0, 3).toUpperCase() + '-' + semestreGrupo;
+      const codigosGenerados = [];
+      const gruposEnlazados = [];
       
-      // Registrar materia en TODOS los grupos paralelos
-      for (const grupo of gruposParalelos) {
-        try {
-          await db.collection('materias').add({
-            nombre: nombreMateria,
-            codigo: codigo,
-            creditos: creditosMateria,
-            semestre: semestreGrupo,
-            grupoId: grupo.id,
-            carreraId: usuarioActual.carreraId || null,
-            fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
-            fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          
-          exitosos++;
-        } catch (error) {
-          console.error(`Error al crear materia ${nombreMateria} en grupo ${grupo.id}:`, error);
-          errores++;
-        }
+      turnos.forEach(turno => {
+        const codigoGrupo = `${turno.num}${periodo}00`;
+        const codigoCompleto = `${codigoCarrera}-${codigoGrupo}`;
         
-        // Actualizar progreso
-        operacionActual++;
-        const progreso = Math.round((operacionActual / totalOperaciones) * 100);
-        barra.style.width = progreso + '%';
-        barra.textContent = progreso + '%';
-        texto.textContent = `Procesando: ${operacionActual} de ${totalOperaciones}...`;
+        codigosGenerados.push(codigoCompleto);
+        gruposEnlazados.push({
+          codigo: codigoGrupo,
+          codigoCompleto: codigoCompleto,
+          turno: turno.num,
+          nombreTurno: turno.nombre,
+          periodo: periodo
+        });
+      });
+      
+      try {
+        await db.collection('materias').add({
+          nombre: nombreMateria,
+          codigos: codigosGenerados,
+          grupos: gruposEnlazados,
+          periodo: periodo,
+          creditos: creditosMateria,
+          carreraId: usuarioActual.carreraId,
+          codigoCarrera: codigoCarrera,
+          activa: true,
+          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+          fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        exitosos++;
+      } catch (error) {
+        console.error(`Error al crear materia ${nombreMateria}:`, error);
+        errores++;
       }
+      
+      const progreso = Math.round(((i + 1) / nombres.length) * 100);
+      barra.style.width = progreso + '%';
+      barra.textContent = progreso + '%';
+      texto.textContent = `Procesando: ${i + 1} de ${nombres.length}...`;
     }
     
-    // Finalizado
     barra.style.background = 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)';
     texto.innerHTML = `
       <strong style="color: #4caf50;">Proceso completado</strong><br>
       Materias registradas: ${exitosos}<br>
-      En ${gruposParalelos.length} grupos (sincronizados)<br>
       ${errores > 0 ? `Errores: ${errores}` : ''}
     `;
     
-    // Esperar y cerrar
     setTimeout(() => {
       cerrarModalMateriasMasivas();
       if (typeof cargarMaterias === 'function') {
         cargarMaterias();
       }
-      alert(`Carga masiva completada con sincronizacion\n\nRegistradas: ${exitosos}\nErrores: ${errores}\n\nLas materias estan disponibles en todos los turnos`);
+      alert(`Carga masiva completada\n\nRegistradas: ${exitosos}\nErrores: ${errores}`);
     }, 2500);
     
   } catch (error) {
@@ -453,6 +397,4 @@ async function guardarMateriasMasivas(event) {
   }
 }
 
-console.log('=== REGISTRO MASIVO DE MATERIAS V2.0 CARGADO ===');
-console.log('Con sincronizacion automatica de grupos paralelos');
-console.log('Ahora muestra 3 columnas: Nombre, Creditos, Grupo');
+console.log('=== REGISTRO MASIVO DE MATERIAS CORREGIDO CARGADO ===');
