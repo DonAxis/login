@@ -224,9 +224,7 @@ async function crearCoordinador(event) {
     } else if (error.code === "auth/invalid-email") {
       mensaje += "Email invalido";
     } else if (error.code === "auth/weak-password") {
-      mensaje += "La contrasena es muy debil";
-    } else if (error.code === "permission-denied") {
-      mensaje += "Error de permisos en Firestore";
+      mensaje += "Contrasena muy debil";
     } else {
       mensaje += error.message;
     }
@@ -236,33 +234,29 @@ async function crearCoordinador(event) {
 }
 
 function mostrarMensaje(texto, tipo) {
-  const mensajeDiv = document.getElementById("mensajeCoord");
-  if (!mensajeDiv) return;
+  const mensaje = document.getElementById('mensajeCoord');
+  if (!mensaje) return;
   
-  mensajeDiv.style.display = "block";
-  mensajeDiv.textContent = texto;
-  mensajeDiv.style.whiteSpace = "pre-line";
-  mensajeDiv.style.padding = "15px";
-  mensajeDiv.style.borderRadius = "8px";
-  mensajeDiv.style.fontWeight = "500";
+  mensaje.textContent = texto;
+  mensaje.style.display = 'block';
   
-  if (tipo === "error") {
-    mensajeDiv.style.background = "#fee";
-    mensajeDiv.style.color = "#c00";
-    mensajeDiv.style.border = "2px solid #fcc";
-  } else if (tipo === "success") {
-    mensajeDiv.style.background = "#efe";
-    mensajeDiv.style.color = "#060";
-    mensajeDiv.style.border = "2px solid #cfc";
+  if (tipo === 'success') {
+    mensaje.style.background = '#d4edda';
+    mensaje.style.color = '#155724';
+    mensaje.style.border = '2px solid #c3e6cb';
+  } else if (tipo === 'error') {
+    mensaje.style.background = '#f8d7da';
+    mensaje.style.color = '#721c24';
+    mensaje.style.border = '2px solid #f5c6cb';
   } else {
-    mensajeDiv.style.background = "#e3f2fd";
-    mensajeDiv.style.color = "#0d47a1";
-    mensajeDiv.style.border = "2px solid #90caf9";
+    mensaje.style.background = '#d1ecf1';
+    mensaje.style.color = '#0c5460';
+    mensaje.style.border = '2px solid #bee5eb';
   }
 }
 
 // CREAR CONTROL ESCOLAR
-async function mostrarModalControlEscolar() {
+function mostrarModalControlEscolar() {
   document.getElementById('modalControlEscolar').style.display = 'flex';
 }
 
@@ -280,20 +274,24 @@ async function crearControlEscolar(event) {
   const email = document.getElementById("emailControl").value.trim().toLowerCase();
   const password = document.getElementById("passControl").value;
   
+  if (!nombre || !email) {
+    mostrarMensajeControl("Todos los campos son obligatorios", "error");
+    return;
+  }
+  
   if (password.length < 6) {
     mostrarMensajeControl("La contrasena debe tener al menos 6 caracteres", "error");
     return;
   }
   
   try {
-    mostrarMensajeControl("Creando usuario de control escolar...", "info");
+    mostrarMensajeControl("Creando personal de control escolar...", "info");
     
-    const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryControl");
+    const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
     const secondaryAuth = secondaryApp.auth();
     
     const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
     const newUid = userCredential.user.uid;
-    console.log("Control escolar creado:", newUid);
     
     await db.collection("usuarios").doc(newUid).set({
       nombre: nombre,
@@ -303,8 +301,6 @@ async function crearControlEscolar(event) {
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    console.log("Guardado en Firestore");
-    
     await secondaryAuth.signOut();
     await secondaryApp.delete();
     
@@ -312,7 +308,8 @@ async function crearControlEscolar(event) {
       "Control Escolar creado exitosamente\n\n" +
       "Nombre: " + nombre + "\n" +
       "Email: " + email + "\n" +
-      "Password: " + password,
+      "Password: " + password + "\n\n" +
+      "Ya puede iniciar sesion",
       "success"
     );
     
@@ -326,7 +323,6 @@ async function crearControlEscolar(event) {
     console.error("Error:", error);
     
     let mensaje = "Error: ";
-    
     if (error.code === "auth/email-already-in-use") {
       mensaje += "Este email ya esta registrado";
     } else if (error.code === "auth/invalid-email") {
@@ -340,132 +336,82 @@ async function crearControlEscolar(event) {
 }
 
 function mostrarMensajeControl(texto, tipo) {
-  const mensajeDiv = document.getElementById("mensajeControl");
-  if (!mensajeDiv) return;
+  const mensaje = document.getElementById('mensajeControl');
+  if (!mensaje) return;
   
-  mensajeDiv.style.display = "block";
-  mensajeDiv.textContent = texto;
-  mensajeDiv.style.whiteSpace = "pre-line";
-  mensajeDiv.style.padding = "15px";
-  mensajeDiv.style.borderRadius = "8px";
-  mensajeDiv.style.fontWeight = "500";
+  mensaje.textContent = texto;
+  mensaje.style.display = 'block';
   
-  if (tipo === "error") {
-    mensajeDiv.style.background = "#fee";
-    mensajeDiv.style.color = "#c00";
-    mensajeDiv.style.border = "2px solid #fcc";
-  } else if (tipo === "success") {
-    mensajeDiv.style.background = "#efe";
-    mensajeDiv.style.color = "#060";
-    mensajeDiv.style.border = "2px solid #cfc";
+  if (tipo === 'success') {
+    mensaje.style.background = '#d4edda';
+    mensaje.style.color = '#155724';
+    mensaje.style.border = '2px solid #c3e6cb';
+  } else if (tipo === 'error') {
+    mensaje.style.background = '#f8d7da';
+    mensaje.style.color = '#721c24';
+    mensaje.style.border = '2px solid #f5c6cb';
   } else {
-    mensajeDiv.style.background = "#e3f2fd";
-    mensajeDiv.style.color = "#0d47a1";
-    mensajeDiv.style.border = "2px solid #90caf9";
+    mensaje.style.background = '#d1ecf1';
+    mensaje.style.color = '#0c5460';
+    mensaje.style.border = '2px solid #bee5eb';
   }
 }
 
-// ========================================
-// CREAR CARRERA - CON TIPO Y NUMERO DE PERIODOS
-// ========================================
-async function mostrarModalCarrera() {
-  const form = document.getElementById('formCarrera');
-  if (form) form.reset();
+// CREAR CARRERA CON MODAL SELECTOR DE PERIODOS
+function mostrarModalCarrera() {
+  // Limpiar el modal
+  document.getElementById('formCarrera').reset();
   
-  const mensaje = document.getElementById('mensajeCarrera');
-  if (mensaje) mensaje.style.display = 'none';
-  
-  const descripcionDiv = document.querySelector('#descripcionCarrera').parentElement;
-  
-  let configDiv = document.getElementById('divConfigPeriodos');
-  
-  if (!configDiv) {
-    configDiv = document.createElement('div');
-    configDiv.id = 'divConfigPeriodos';
-    configDiv.style.marginBottom = '20px';
-    
-    let html = `
-      <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
-        Tipo de Periodo Academico: <span style="color: red;">*</span>
+  // Crear HTML del selector de tipo de periodo
+  const selectorHTML = `
+    <div style="margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+      <label style="display: block; margin-bottom: 15px; font-weight: 700; color: #333; font-size: 1.1rem;">
+        Tipo de Periodo Académico:
       </label>
-    `;
-    
-    TIPOS_PERIODO.forEach(tipo => {
-      html += `
-        <div class="periodo-opcion" 
-             onclick="seleccionarTipoPeriodo('${tipo.valor}')" 
-             id="tipoPeriodo_${tipo.valor}"
-             style="background: #f8f9fa; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0; margin-bottom: 10px; cursor: pointer; transition: all 0.3s;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <input type="radio" name="tipoPeriodo" value="${tipo.valor}" id="radio_${tipo.valor}" 
-                   style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
-            <div style="flex: 1;">
-              <strong style="display: block; color: #333; font-size: 0.95rem; margin-bottom: 3px;">${tipo.nombre}</strong>
-              <div style="font-size: 0.8rem; color: #666;">${tipo.descripcion}</div>
-              <div style="font-size: 0.75rem; color: #999; margin-top: 3px;">
-                <strong>Flujo:</strong> ${tipo.ejemplo}
-              </div>
-            </div>
+      ${TIPOS_PERIODO.map(tipo => `
+        <label style="display: block; margin-bottom: 15px; cursor: pointer; padding: 15px; background: white; border: 2px solid #ddd; border-radius: 8px; transition: all 0.3s;" 
+               onmouseover="this.style.borderColor='#667eea'; this.style.background='#f0f7ff';" 
+               onmouseout="if(!this.querySelector('input').checked) { this.style.borderColor='#ddd'; this.style.background='white'; }">
+          <input type="radio" name="tipoPeriodo" value="${tipo.valor}" 
+                 style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer; accent-color: #667eea;"
+                 onchange="document.querySelectorAll('label').forEach(l => { if(l.querySelector('input[name=tipoPeriodo]')) { l.style.borderColor='#ddd'; l.style.background='white'; }}); this.parentElement.style.borderColor='#667eea'; this.parentElement.style.background='#f0f7ff';">
+          <strong style="font-size: 1rem;">${tipo.nombre}</strong>
+          <div style="margin-top: 5px; color: #666; font-size: 0.9rem;">
+            ${tipo.descripcion}
           </div>
-        </div>
-      `;
-    });
-    
-    html += `
-      <div style="margin-top: 15px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
-          Numero de Periodos: <span style="color: red;">*</span>
+          <div style="margin-top: 3px; color: #999; font-size: 0.85rem; font-style: italic;">
+            ${tipo.ejemplo}
+          </div>
         </label>
-        <input type="number" id="numeroPeriodos" min="2" max="12" value="8" required
-               style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
-        <small style="display: block; margin-top: 5px; color: #666;">
-          Cantidad total de periodos academicos en la carrera (ejemplo: 4, 6, 8, 9, etc.)
-        </small>
-      </div>
-    `;
+      `).join('')}
+    </div>
     
-    configDiv.innerHTML = html;
-    descripcionDiv.parentNode.insertBefore(configDiv, descripcionDiv.nextSibling);
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Número de Semestres/Periodos de la Carrera:</label>
+      <input type="number" id="numeroPeriodos" required placeholder="Ej: 6, 8, 10" min="1" max="20"
+             style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+      <small style="color: #666;">Número total de semestres/periodos que dura la carrera</small>
+    </div>
+  `;
+  
+  // Insertar después del campo descripción
+  const descripcionDiv = document.getElementById('descripcionCarrera').parentElement;
+  if (!document.getElementById('selectorTipoPeriodo')) {
+    descripcionDiv.insertAdjacentHTML('afterend', selectorHTML);
   }
   
   document.getElementById('modalCarrera').style.display = 'flex';
 }
 
-function seleccionarTipoPeriodo(valor) {
-  document.querySelectorAll('[id^="tipoPeriodo_"]').forEach(el => {
-    el.style.borderColor = '#e0e0e0';
-    el.style.background = '#f8f9fa';
-  });
-  
-  document.querySelectorAll('[name="tipoPeriodo"]').forEach(radio => {
-    radio.checked = false;
-  });
-  
-  const elemento = document.getElementById(`tipoPeriodo_${valor}`);
-  if (elemento) {
-    elemento.style.borderColor = '#667eea';
-    elemento.style.background = '#f0f4ff';
-  }
-  
-  const radio = document.getElementById(`radio_${valor}`);
-  if (radio) {
-    radio.checked = true;
-  }
-}
-
 function cerrarModalCarrera() {
   document.getElementById('modalCarrera').style.display = 'none';
-  
-  const form = document.getElementById('formCarrera');
-  if (form) form.reset();
-  
-  document.querySelectorAll('[id^="tipoPeriodo_"]').forEach(el => {
-    el.style.borderColor = '#e0e0e0';
-    el.style.background = '#f8f9fa';
-  });
-  
+  document.getElementById('formCarrera').reset();
   const mensaje = document.getElementById('mensajeCarrera');
   if (mensaje) mensaje.style.display = 'none';
+  
+  // Remover el selector de tipo de periodo
+  const selector = document.getElementById('selectorTipoPeriodo');
+  if (selector) selector.remove();
 }
 
 async function crearCarrera(event) {
@@ -474,132 +420,114 @@ async function crearCarrera(event) {
   const codigo = document.getElementById("codigoCarrera").value.trim().toUpperCase();
   const nombre = document.getElementById("nombreCarrera").value.trim();
   const descripcion = document.getElementById("descripcionCarrera").value.trim();
-  const tipoPeriodoRadio = document.querySelector('[name="tipoPeriodo"]:checked');
   const numeroPeriodos = parseInt(document.getElementById("numeroPeriodos").value);
   
-  // ... validaciones ...
+  // Obtener el tipo de periodo seleccionado
+  const tipoSeleccionado = document.querySelector('input[name="tipoPeriodo"]:checked');
+  
+  if (!tipoSeleccionado) {
+    mostrarMensajeCarrera("Debes seleccionar un tipo de periodo académico", "error");
+    return;
+  }
+  
+  if (!codigo || !nombre) {
+    mostrarMensajeCarrera("El código y nombre son obligatorios", "error");
+    return;
+  }
+  
+  if (!numeroPeriodos || numeroPeriodos < 1 || numeroPeriodos > 20) {
+    mostrarMensajeCarrera("El número de periodos debe estar entre 1 y 20", "error");
+    return;
+  }
+  
+  const tipoPeriodo = TIPOS_PERIODO.find(t => t.valor === tipoSeleccionado.value);
   
   try {
-    // 1. Crear documento de carrera
-    await db.collection('carreras').doc(codigo).set({
-      codigo: codigo,
-      nombre: nombre,
-      descripcion: descripcion,
-      activa: true,
-      tipoPeriodo: tipoPeriodo,
-      tipoPeriodoNombre: tipoNombre,
-      periodosAnio: periodosAnio,
-      numeroPeriodos: numeroPeriodos,
-      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    mostrarMensajeCarrera("Creando carrera y generando matriz de grupos...", "info");
     
-    // 2. Crear matriz de grupos (1 solo documento)
-    await generarMatrizGrupos(codigo, numeroPeriodos);
-    
-    alert('Carrera creada con matriz de grupos');
-    
-  } catch (error) {
-    console.error('Error:', error);
-  }
-}
-
-
-async function generarGruposBase(carreraId, numeroPeriodos) {
-  try {
-    console.log(`Generando grupos base para ${carreraId} con ${numeroPeriodos} periodos...`);
-    
-    const turnos = [
-      { codigo: '1', nombre: 'Matutino' },
-      { codigo: '2', nombre: 'Vespertino' },
-      { codigo: '3', nombre: 'Nocturno' },
-      { codigo: '4', nombre: 'Sabatino' }
-    ];
-    
-    const gruposBase = [];
-    
-    for (const turno of turnos) {
-      for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
-        const codigoGrupo = `${turno.codigo}${periodo}00`;
-        
-        gruposBase.push({
-          codigo: codigoGrupo,
-          codigoCompleto: `${carreraId}-${codigoGrupo}`,
-          turno: turno.nombre,
-          periodo: periodo,
-          carreraId: carreraId,
-          activo: false,
-          esBase: true,
-          fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
+    // Verificar si ya existe el código
+    const existeSnap = await db.collection('carreras').where('codigo', '==', codigo).get();
+    if (!existeSnap.empty) {
+      mostrarMensajeCarrera("Ya existe una carrera con ese código", "error");
+      return;
     }
     
-    const batch = db.batch();
+    // Crear documento de carrera con ID = codigo
+    const carreraData = {
+      codigo: codigo,
+      nombre: nombre,
+      descripcion: descripcion || "",
+      numeroPeriodos: numeroPeriodos,
+      tipoPeriodo: tipoPeriodo.valor,
+      periodosAnio: tipoPeriodo.periodosAnio,
+      activo: true,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+    };
     
-    gruposBase.forEach(grupo => {
-      const ref = db.collection('grupos').doc();
-      batch.set(ref, grupo);
-    });
+    await db.collection('carreras').doc(codigo).set(carreraData);
+    console.log('Carrera creada con ID:', codigo);
     
-    await batch.commit();
+    // **CAMBIO PRINCIPAL: Generar matriz bidimensional de grupos**
+    await generarMatrizGrupos(codigo, numeroPeriodos);
     
-    console.log(`${gruposBase.length} grupos base creados para ${carreraId}`);
+    mostrarMensajeCarrera(
+      `Carrera creada exitosamente\n\n` +
+      `Código: ${codigo}\n` +
+      `Nombre: ${nombre}\n` +
+      `Tipo: ${tipoPeriodo.nombre}\n` +
+      `Periodos: ${numeroPeriodos}\n\n` +
+      `Matriz de grupos generada: ${numeroPeriodos} × 4 turnos`,
+      "success"
+    );
+    
+    document.getElementById('formCarrera').reset();
+    
+    setTimeout(() => {
+      cerrarModalCarrera();
+    }, 3000);
     
   } catch (error) {
-    console.error('Error al generar grupos base:', error);
-    throw error;
+    console.error("Error:", error);
+    mostrarMensajeCarrera("Error al crear carrera: " + error.message, "error");
   }
 }
 
 function mostrarMensajeCarrera(texto, tipo) {
-  const mensajeDiv = document.getElementById("mensajeCarrera");
-  if (!mensajeDiv) return;
+  const mensaje = document.getElementById('mensajeCarrera');
+  if (!mensaje) return;
   
-  mensajeDiv.style.display = "block";
-  mensajeDiv.textContent = texto;
-  mensajeDiv.style.whiteSpace = "pre-line";
-  mensajeDiv.style.padding = "15px";
-  mensajeDiv.style.borderRadius = "8px";
-  mensajeDiv.style.fontWeight = "500";
+  mensaje.textContent = texto;
+  mensaje.style.display = 'block';
   
-  if (tipo === "error") {
-    mensajeDiv.style.background = "#fee";
-    mensajeDiv.style.color = "#c00";
-    mensajeDiv.style.border = "2px solid #fcc";
-  } else if (tipo === "success") {
-    mensajeDiv.style.background = "#efe";
-    mensajeDiv.style.color = "#060";
-    mensajeDiv.style.border = "2px solid #cfc";
+  if (tipo === 'success') {
+    mensaje.style.background = '#d4edda';
+    mensaje.style.color = '#155724';
+    mensaje.style.border = '2px solid #c3e6cb';
+  } else if (tipo === 'error') {
+    mensaje.style.background = '#f8d7da';
+    mensaje.style.color = '#721c24';
+    mensaje.style.border = '2px solid #f5c6cb';
   } else {
-    mensajeDiv.style.background = "#e3f2fd";
-    mensajeDiv.style.color = "#0d47a1";
-    mensajeDiv.style.border = "2px solid #90caf9";
+    mensaje.style.background = '#d1ecf1';
+    mensaje.style.color = '#0c5460';
+    mensaje.style.border = '2px solid #bee5eb';
   }
 }
 
-// GESTIONAR COORDINADORES (codigo igual al anterior...)
+// FUNCIONES PARA GESTIONAR COORDINADORES
 async function gestionarCoordinadores() {
   try {
-    const coordSnap = await db.collection('usuarios')
-      .where('rol', '==', 'coordinador')
-      .get();
-    
-    coordinadoresData = [];
-    coordSnap.forEach(doc => {
-      coordinadoresData.push({
-        uid: doc.id,
-        ...doc.data()
-      });
-    });
+    const coordsSnap = await db.collection('usuarios').where('rol', '==', 'coordinador').get();
+    coordinadoresData = coordsSnap.docs.map(doc => ({
+      uid: doc.id,
+      ...doc.data()
+    }));
     
     const carrerasSnap = await db.collection('carreras').get();
-    carrerasData = [];
-    carrerasSnap.forEach(doc => {
-      carrerasData.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
+    carrerasData = carrerasSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
     
     console.log('Coordinadores:', coordinadoresData.length);
     console.log('Carreras:', carrerasData.length);
@@ -784,42 +712,111 @@ function cerrarModalAsignarCarreras() {
   coordinadorActual = null;
 }
 
-
+// ============================================
+// FUNCIÓN CORREGIDA: GENERAR MATRIZ BIDIMENSIONAL
+// ============================================
 async function generarMatrizGrupos(carreraId, numeroPeriodos) {
   try {
     console.log(`Generando matriz de grupos para ${carreraId}...`);
+    console.log(`Dimensiones: ${numeroPeriodos} periodos × 4 turnos`);
     
-    // Crear matriz vacía
+    // Crear la matriz bidimensional
     const matriz = [];
     
+    // Para cada periodo/semestre (filas)
     for (let periodo = 1; periodo <= numeroPeriodos; periodo++) {
       const filaPeriodo = [];
       
+      // Para cada turno (columnas): 1=Matutino, 2=Vespertino, 3=Nocturno, 4=Mixto
       for (let turno = 1; turno <= 4; turno++) {
+        // Generar código del grupo: periodo + turno + "00"
+        // Ejemplo: periodo 1, turno 1 = "1100"
+        const codigo = `${periodo}${turno}00`;
+        const codigoCompleto = `${carreraId}-${codigo}`;
+        
+        // Nombres de turnos
+        const nombresTurnos = {
+          1: "Matutino",
+          2: "Vespertino", 
+          3: "Nocturno",
+          4: "Mixto"
+        };
+        
         filaPeriodo.push({
-          turno: turno.toString(),
+          codigo: codigo,
+          codigoCompleto: codigoCompleto,
           periodo: periodo,
+          turno: turno,
+          nombreTurno: nombresTurnos[turno],
+          esBase: true,
           activo: false,
           alumnos: [],
+          materias: [],
+          profesores: [],
           fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
         });
       }
       
+      // Agregar la fila completa a la matriz
       matriz.push(filaPeriodo);
     }
     
-    // Guardar en Firebase
-    await db.collection('gruposMatriz').doc(carreraId).set({
+    // Guardar en Firestore con el ID = carreraId
+    await db.collection('grupos').doc(carreraId).set({
       carreraId: carreraId,
       numeroPeriodos: numeroPeriodos,
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+      fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp(),
       matriz: matriz
     });
     
-    console.log(`Matriz creada: ${numeroPeriodos} periodos × 4 turnos`);
+    console.log(`Matriz creada exitosamente`);
+    console.log(`Estructura guardada en: grupos/${carreraId}`);
+    console.log(`Total de grupos base: ${numeroPeriodos * 4}`);
+    
+    // Mostrar ejemplo de la estructura
+    console.log('Ejemplo de estructura:');
+    console.table(matriz.map((fila, idx) => ({
+      Periodo: idx + 1,
+      'Turno 1 (Mat)': fila[0].codigo,
+      'Turno 2 (Vesp)': fila[1].codigo,
+      'Turno 3 (Noct)': fila[2].codigo,
+      'Turno 4 (Mix)': fila[3].codigo
+    })));
+    
+    return { success: true, totalGrupos: numeroPeriodos * 4 };
     
   } catch (error) {
     console.error('Error al generar matriz:', error);
     throw error;
+  }
+}
+
+// ============================================
+// FUNCIÓN PARA VER LA MATRIZ DE UNA CARRERA
+// ============================================
+async function verMatrizCarrera(carreraId) {
+  try {
+    const gruposDoc = await db.collection('grupos').doc(carreraId).get();
+    
+    if (!gruposDoc.exists) {
+      console.log('No existe matriz para esta carrera');
+      return null;
+    }
+    
+    const data = gruposDoc.data();
+    console.log('Matriz de', carreraId);
+    console.log('Periodos:', data.numeroPeriodos);
+    console.log('Grupos:');
+    
+    data.matriz.forEach((fila, idx) => {
+      console.log(`Periodo ${idx + 1}:`, fila.map(g => g.codigo));
+    });
+    
+    return data;
+    
+  } catch (error) {
+    console.error('Error al ver matriz:', error);
+    return null;
   }
 }
