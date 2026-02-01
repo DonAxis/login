@@ -353,7 +353,7 @@
  <!-- MODAL PARA REGISTRO MASIVO DE ALUMNOS -->
 <!-- Este código se debe integrar en controlCoordinador.html -->
 
-<!-- AGREGAR AL HTML, después de la línea 343 (después del botón "Ver Historial") -->
+<!-- AGREGAR AL HTML-->
 
 <button onclick="mostrarFormRegistroMasivo()" class="botAzu" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
   Multiples Alumnos
@@ -648,11 +648,20 @@
       </p>
     </div>
     
-    <div class="botones-accion">
-      <button onclick="mostrarFormAsignarProfesor()" class="botAzu"> Asignar </button>
+      <div class="botones-accion">
+        <button onclick="mostrarFormAsignarProfesor()" class="botAzu">
+          Asignar
+        </button>
+        <button onclick="mostrarFormAsignacionMasiva()" class="botAzu" 
+              style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        Asignación Masiva
+       </button>
     </div>
+
+
     <div id="listaAsignaciones" class="lista-items"></div>
-  </div>
+    </div>
+
 
 
 
@@ -857,7 +866,7 @@
   <script src="registroMasivoAlumno.js"></script>
   <script src="registroMasivoMaterias.js"></script>
   <script src="registroMasivoProfes.js"></script>
-
+  <script src="registroMasivoAsignasion.js"></script>
 
  <script>
  window.addEventListener('load', () => {
