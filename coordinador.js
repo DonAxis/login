@@ -777,7 +777,7 @@ async function cargarMaterias() {
                 <div class="item-info">
                   <h4>${materia.nombre}</h4>
                   <p>Periodo: ${materia.periodo || 'N/A'} | SATCA: ${satca} | TEPIC: ${tepic}</p>
-                  <small style="color: #666;">Codigos: ${(materia.codigos || []).join(', ')}</small>
+                  <small style="color: #666;">Grados: ${(materia.codigos || []).join(', ')}</small>
                 </div>
                 <div class="item-acciones">
                   <button onclick="editarMateria('${doc.id}')" class="btn-editar">Editar</button>
