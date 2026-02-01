@@ -1525,7 +1525,6 @@ async function mostrarFormAsignarProfesor() {
           <h4 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Información</h4>
           <p style="margin: 0; color: #1565c0; font-size: 0.85rem; line-height: 1.6;">
             Selecciona la materia, turno y orden del grupo para asignar un profesor.
-            El código del grupo se generará automáticamente.
           </p>
         </div>
 
@@ -1622,7 +1621,7 @@ function actualizarPreviewAsignacion() {
     const orden = ordenInput.value || '01';
 
     if (!materiaId || !turno || !periodo) {
-        previewDiv.innerHTML = '<em style="color: #999;">Selecciona materia, turno y orden para ver el código</em>';
+        previewDiv.innerHTML = '<em style="color: #999;">Selecciona materia, turno y orden</em>';
         return;
     }
 
