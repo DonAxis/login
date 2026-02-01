@@ -1586,14 +1586,7 @@ async function mostrarFormAsignarProfesor() {
           </select>
         </div>
         
-        <!-- MENSAJE DE ADVERTENCIA -->
-        <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <strong style="color: #856404; font-size: 0.95rem;">Importante:</strong>
-          <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.85rem; line-height: 1.6;">
-            Esta asignación es para un grupo específico (materia + turno + orden). 
-            Si la misma materia se imparte en otros grupos, deberás asignar profesores por separado.
-          </p>
-        </div>
+
         
         <!-- BOTONES -->
         <div class="botones-formulario">
