@@ -89,245 +89,257 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script>
     let alumnoActual = null;
+
+// Detectar si hay sesión activa
+firebase.auth().onAuthStateChanged((user) => {
+  if (user) {
+    // Hay sesión activa - mostrar alerta
+    document.getElementById('sessionAlert').style.display = 'block';
+  }
+});
+
+async function cerrarSesion() {
+  try {
+    await firebase.auth().signOut();
+    alert('Sesión cerrada. Ahora puedes consultar como alumno o ir al login del staff.');
+    window.location.href = 'login.html';
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cerrar sesión');
+  }
+}
+
+async function consultarAlumno(event) {
+  event.preventDefault();
+  
+  const matricula = document.getElementById('matricula').value.trim();
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const btnConsultar = document.getElementById('btnConsultar');
+  
+  btnConsultar.disabled = true;
+  btnConsultar.textContent = 'Consultando...';
+  
+  try {
+    console.log('Buscando alumno:', matricula, email);
     
-    // Detectar si hay sesión activa
-    firebase.auth().onAuthStateChanged((user) => {
-      if (user) {
-        // Hay sesión activa - mostrar alerta
-        document.getElementById('sessionAlert').style.display = 'block';
+    // Buscar alumno por matrícula y email
+    const snapshot = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('matricula', '==', matricula)
+      .where('email', '==', email)
+      .limit(1)
+      .get();
+    
+    if (snapshot.empty) {
+      alert('No se encontró ningún alumno con esa matrícula y correo.\n\nVerifica tus datos.');
+      btnConsultar.disabled = false;
+      btnConsultar.textContent = 'Consultar';
+      return;
+    }
+    
+    const doc = snapshot.docs[0];
+    alumnoActual = {
+      id: doc.id,
+      ...doc.data()
+    };
+    
+    console.log('Alumno encontrado:', alumnoActual);
+    
+    // Mostrar información
+    await mostrarInformacionAlumno();
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al consultar. Intenta de nuevo.');
+    btnConsultar.disabled = false;
+    btnConsultar.textContent = 'Consultar';
+  }
+}
+
+async function mostrarInformacionAlumno() {
+  // Mostrar nombre
+  document.getElementById('nombreAlumno').textContent = alumnoActual.nombre;
+  document.getElementById('infoMatricula').textContent = alumnoActual.matricula;
+  
+  // ✓ CORREGIDO: Mostrar código de grupo directamente
+  if (alumnoActual.codigoGrupo) {
+    document.getElementById('infoGrupo').textContent = alumnoActual.codigoGrupo;
+    console.log('Código de grupo:', alumnoActual.codigoGrupo);
+  } else {
+    document.getElementById('infoGrupo').textContent = 'Sin grupo asignado';
+    console.log('Alumno sin código de grupo');
+  }
+  
+  // Cargar carrera
+  if (alumnoActual.carreraId) {
+    try {
+      const carreraDoc = await db.collection('carreras').doc(alumnoActual.carreraId).get();
+      if (carreraDoc.exists) {
+        document.getElementById('infoCarrera').textContent = carreraDoc.data().nombre;
       }
+    } catch (error) {
+      console.error('Error al cargar carrera:', error);
+    }
+  }
+  
+  // Cargar materias y calificaciones
+  await cargarMateriasYCalificaciones();
+  
+  // Mostrar resultado, ocultar formulario
+  document.getElementById('loginCard').style.display = 'none';
+  document.getElementById('resultado').style.display = 'block';
+}
+
+async function cargarMateriasYCalificaciones() {
+  const container = document.getElementById('listaMaterias');
+  
+  // ✓ CORREGIDO: Verificar codigoGrupo en lugar de grupoId
+  if (!alumnoActual.codigoGrupo) {
+    container.innerHTML = '<div class="sin-datos">No estás asignado a ningún grupo.</div>';
+    console.log('Alumno sin código de grupo');
+    return;
+  }
+  
+  try {
+    console.log('Buscando materias para grupo:', alumnoActual.codigoGrupo);
+    
+    // ✓ CORREGIDO: Buscar por codigoGrupo en lugar de grupoId
+    const materiasSnap = await db.collection('profesorMaterias')
+      .where('codigoGrupo', '==', alumnoActual.codigoGrupo)
+      .where('activa', '==', true)
+      .get();
+    
+    console.log('Materias encontradas:', materiasSnap.size);
+    
+    if (materiasSnap.empty) {
+      container.innerHTML = '<div class="sin-datos">Tu grupo aún no tiene materias asignadas.</div>';
+      return;
+    }
+    
+    // Construir estructura de datos para boleta
+    const materias = [];
+    
+    for (const doc of materiasSnap.docs) {
+      const materia = doc.data();
+      
+      console.log('Procesando materia:', materia.materiaNombre);
+      
+      // Buscar calificaciones de esta materia (NUEVA ESTRUCTURA)
+      const docId = `${alumnoActual.id}_${materia.materiaId}`;
+      const calDoc = await db.collection('calificaciones').doc(docId).get();
+      
+      let parcial1 = '-';
+      let parcial2 = '-';
+      let parcial3 = '-';
+      
+      if (calDoc.exists) {
+        const data = calDoc.data();
+        parcial1 = data.parciales?.parcial1 ?? '-';
+        parcial2 = data.parciales?.parcial2 ?? '-';
+        parcial3 = data.parciales?.parcial3 ?? '-';
+        console.log('  Calificaciones:', parcial1, parcial2, parcial3);
+      } else {
+        console.log('  Sin calificaciones');
+      }
+      
+      materias.push({
+        nombre: materia.materiaNombre,
+        codigo: materia.codigoGrupo,  // ✓ Usar codigoGrupo
+        profesor: materia.profesorNombre,
+        parcial1: parcial1,
+        parcial2: parcial2,
+        parcial3: parcial3
+      });
+    }
+    
+    console.log('Total materias procesadas:', materias.length);
+    
+    // Generar tabla tipo boleta
+    let html = `
+      <div style="background: white; padding: 20px; border-radius: 10px;">
+        <h3 style="color: #6A2135; margin: 0 0 20px 0; text-align: center;">Boleta de Calificaciones</h3>
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+          <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #6A2135; color: white;">
+              <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 1</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 2</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 3</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Promedio</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    materias.forEach(materia => {
+      // REGLA DE NEGOCIO: Si hay NP en cualquier parcial, promedio = 5.0
+      const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
+      
+      let promedio = '-';
+      
+      if (tieneNP) {
+        promedio = '5.0';
+      } else {
+        // Calcular promedio normal si no hay NP
+        const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
+          .filter(c => c !== '-' && c !== null && c !== undefined)
+          .map(c => parseFloat(c))
+          .filter(c => !isNaN(c));
+        
+        if (cals.length > 0) {
+          promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
+        }
+      }
+      
+      html += `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px; border: 1px solid #ddd;">
+            <strong>${materia.nombre}</strong>
+            <br><small style="color: #666;">Profesor: ${materia.profesor}</small>
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial1 === 'NP' ? '#a60d24' : (materia.parcial1 !== '-' ? '#000000' : '#000000')};">
+            ${materia.parcial1}
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial2 === 'NP' ? '#a60d24' : (materia.parcial2 !== '-' ? '#000000' : '#000000')};">
+            ${materia.parcial2}
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial3 === 'NP' ? '#a60d24' : (materia.parcial3 !== '-' ? '#000000' : '#000000')};">
+            ${materia.parcial3}
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.3rem; font-weight: bold; background: #f0f7ff; color: #6A2135;">
+            ${promedio}
+          </td>
+        </tr>
+      `;
     });
     
-    async function cerrarSesion() {
-      try {
-        await firebase.auth().signOut();
-        alert('Sesión cerrada. Ahora puedes consultar como alumno o ir al login del staff.');
-        window.location.href = 'login.html';
-      } catch (error) {
-        console.error('Error:', error);
-        alert('Error al cerrar sesión');
-      }
-    }
+    html += `
+          </tbody>
+          </table>
+        </div>
+        <p style="text-align: center; color: #999; font-size: 0.85rem; margin-top: 10px;">
+          Desliza para ver todo el contenido si estás en un dispositivo móvil.
+        </p>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error:', error);
+    container.innerHTML = '<div class="sin-datos" style="color: red;">Error al cargar información</div>';
+  }
+}
 
-    async function consultarAlumno(event) {
-      event.preventDefault();
-      
-      const matricula = document.getElementById('matricula').value.trim();
-      const email = document.getElementById('email').value.trim().toLowerCase();
-      const btnConsultar = document.getElementById('btnConsultar');
-      
-      btnConsultar.disabled = true;
-      btnConsultar.textContent = 'Consultando...';
-      
-      try {
-        // Buscar alumno por matrícula y email
-        const snapshot = await db.collection('usuarios')
-          .where('rol', '==', 'alumno')
-          .where('matricula', '==', matricula)
-          .where('email', '==', email)
-          .limit(1)
-          .get();
-        
-        if (snapshot.empty) {
-          alert('No se encontró ningún alumno con esa matrícula y correo.\n\nVerifica tus datos.');
-          btnConsultar.disabled = false;
-          btnConsultar.textContent = 'Consultar';
-          return;
-        }
-        
-        const doc = snapshot.docs[0];
-        alumnoActual = {
-          id: doc.id,
-          ...doc.data()
-        };
-        
-        // Mostrar información
-        await mostrarInformacionAlumno();
-        
-      } catch (error) {
-        console.error('Error:', error);
-        alert('Error al consultar. Intenta de nuevo.');
-        btnConsultar.disabled = false;
-        btnConsultar.textContent = 'Consultar';
-      }
-    }
-
-    async function mostrarInformacionAlumno() {
-      // Mostrar nombre
-      document.getElementById('nombreAlumno').textContent = alumnoActual.nombre;
-      document.getElementById('infoMatricula').textContent = alumnoActual.matricula;
-      
-      // Cargar grupo
-      if (alumnoActual.grupoId) {
-        try {
-          const grupoDoc = await db.collection('grupos').doc(alumnoActual.grupoId).get();
-          if (grupoDoc.exists) {
-            document.getElementById('infoGrupo').textContent = grupoDoc.data().nombre;
-          }
-        } catch (error) {
-          console.error('Error al cargar grupo:', error);
-        }
-      } else {
-        document.getElementById('infoGrupo').textContent = 'Sin grupo asignado';
-      }
-      
-      // Cargar carrera
-      if (alumnoActual.carreraId) {
-        try {
-          const carreraDoc = await db.collection('carreras').doc(alumnoActual.carreraId).get();
-          if (carreraDoc.exists) {
-            document.getElementById('infoCarrera').textContent = carreraDoc.data().nombre;
-          }
-        } catch (error) {
-          console.error('Error al cargar carrera:', error);
-        }
-      }
-      
-      // Cargar materias y calificaciones
-      await cargarMateriasYCalificaciones();
-      
-      // Mostrar resultado, ocultar formulario
-      document.getElementById('loginCard').style.display = 'none';
-      document.getElementById('resultado').style.display = 'block';
-    }
-
-    async function cargarMateriasYCalificaciones() {
-      const container = document.getElementById('listaMaterias');
-      
-      if (!alumnoActual.grupoId) {
-        container.innerHTML = '<div class="sin-datos">No estás asignado a ningún grupo.</div>';
-        return;
-      }
-      
-      try {
-        // Buscar materias asignadas al grupo
-        const materiasSnap = await db.collection('profesorMaterias')
-          .where('grupoId', '==', alumnoActual.grupoId)
-          .where('activa', '==', true)
-          .get();
-        
-        if (materiasSnap.empty) {
-          container.innerHTML = '<div class="sin-datos">Tu grupo aún no tiene materias asignadas.</div>';
-          return;
-        }
-        
-        // Construir estructura de datos para boleta
-        const materias = [];
-        
-        for (const doc of materiasSnap.docs) {
-          const materia = doc.data();
-          
-          // Buscar calificaciones de esta materia (NUEVA ESTRUCTURA)
-          const docId = `${alumnoActual.id}_${materia.materiaId}`;
-          const calDoc = await db.collection('calificaciones').doc(docId).get();
-          
-          let parcial1 = '-';
-          let parcial2 = '-';
-          let parcial3 = '-';
-          
-          if (calDoc.exists) {
-            const data = calDoc.data();
-            parcial1 = data.parciales?.parcial1 ?? '-';
-            parcial2 = data.parciales?.parcial2 ?? '-';
-            parcial3 = data.parciales?.parcial3 ?? '-';
-          }
-          
-          materias.push({
-            nombre: materia.materiaNombre,
-            codigo: materia.materiaCodigo,
-            profesor: materia.profesorNombre,
-            parcial1: parcial1,
-            parcial2: parcial2,
-            parcial3: parcial3
-          });
-        }
-        
-        // Generar tabla tipo boleta
-        let html = `
-          <div style="background: white; padding: 20px; border-radius: 10px;">
-            <h3 style="color: #6A2135; margin: 0 0 20px 0; text-align: center;">Boleta de Calificaciones</h3>
-            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-              <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
-              <thead>
-                <tr style="background: #6A2135; color: white;">
-                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 1</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 2</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 3</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Promedio</th>
-                </tr>
-              </thead>
-              <tbody>
-        `;
-        
-        materias.forEach(materia => {
-          // REGLA DE NEGOCIO: Si hay NP en cualquier parcial, promedio = 5.0
-          const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
-          
-          let promedio = '-';
-          
-          if (tieneNP) {
-            promedio = '5.0';
-          } else {
-            // Calcular promedio normal si no hay NP
-            const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
-              .filter(c => c !== '-' && c !== null && c !== undefined)
-              .map(c => parseFloat(c))
-              .filter(c => !isNaN(c));
-            
-            if (cals.length > 0) {
-              promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
-            }
-          }
-          
-          html += `
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding: 12px; border: 1px solid #ddd;">
-                <strong>${materia.nombre}</strong>
-                <br><small style="color: #666;">Profesor: ${materia.profesor}</small>
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial1 === 'NP' ? '#a60d24' : (materia.parcial1 !== '-' ? '#000000' : '#000000')};">
-                ${materia.parcial1}
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial2 === 'NP' ? '#a60d24' : (materia.parcial2 !== '-' ? '#000000' : '#000000')};">
-                ${materia.parcial2}
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial3 === 'NP' ? '#a60d24' : (materia.parcial3 !== '-' ? '#000000' : '#000000')};">
-                ${materia.parcial3}
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.3rem; font-weight: bold; background: #f0f7ff; color: #6A2135;">
-                ${promedio}
-              </td>
-            </tr>
-          `;
-        });
-        
-        html += `
-              </tbody>
-              </table>
-            </div>
-            <p style="text-align: center; color: #999; font-size: 0.85rem; margin-top: 10px;">
-              Desliza para ver todo el contenido si estás en un dispositivo móvil.
-            </p>
-          </div>
-        `;
-        
-        container.innerHTML = html;
-        
-      } catch (error) {
-        console.error('Error:', error);
-        container.innerHTML = '<div class="sin-datos" style="color: red;">Error al cargar información</div>';
-      }
-    }
-
-    function nuevaConsulta() {
-      document.getElementById('loginCard').style.display = 'block';
-      document.getElementById('resultado').style.display = 'none';
-      document.getElementById('formConsulta').reset();
-      document.getElementById('btnConsultar').disabled = false;
-      document.getElementById('btnConsultar').textContent = 'Consultar';
-      alumnoActual = null;
-    }
+function nuevaConsulta() {
+  document.getElementById('loginCard').style.display = 'block';
+  document.getElementById('resultado').style.display = 'none';
+  document.getElementById('formConsulta').reset();
+  document.getElementById('btnConsultar').disabled = false;
+  document.getElementById('btnConsultar').textContent = 'Consultar';
+  alumnoActual = null;
+}
   </script>
   
   <!-- jsPDF para generar PDFs -->
