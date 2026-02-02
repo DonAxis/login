@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Consulta de Calificaciones</title>
-  <link rel="stylesheet" type="text/css" href="login/controlAlumnoEstilo.css">
+  <link rel="stylesheet" type="text/css" href="sice/controlAlumnoEstilo.css">
 </head>
 <body>
 
@@ -84,7 +84,7 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <script src="login/firebase.js"></script>
+  <script src="sice/firebase.js"></script>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script>
@@ -102,7 +102,7 @@ async function cerrarSesion() {
   try {
     await firebase.auth().signOut();
     alert('Sesión cerrada. Ahora puedes consultar como alumno o ir al login del staff.');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice/';
   } catch (error) {
     console.error('Error:', error);
     alert('Error al cerrar sesión');
@@ -350,11 +350,11 @@ function nuevaConsulta() {
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   
   <!-- Logos y funciones de PDF -->
-  <script src="login/logoPdf.js"></script>
-  <script src="login/boletaPDF.js"></script>
+  <script src="sice/logoPdf.js"></script>
+  <script src="sice/boletaPDF.js"></script>
   
-  <script src="login/controlAlumnoHistorial.js"></script>
-  <script src="login/controlAlumnoEspecial.js"></script> 
+  <script src="sice/controlAlumnoHistorial.js"></script>
+  <script src="sice/controlAlumnoEspecial.js"></script> 
   
 </body>
 </html>
