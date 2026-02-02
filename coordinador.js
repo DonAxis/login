@@ -1639,7 +1639,6 @@ function actualizarPreviewAsignacion() {
         </div>
     `;
 }
-
 async function guardarAsignacionProfesor(event) {
     event.preventDefault();
 
@@ -1723,6 +1722,517 @@ async function guardarAsignacionProfesor(event) {
     } catch (error) {
         console.error('Error al guardar asignación:', error);
         alert('Error al guardar: ' + error.message);
+    }
+}
+async function mostrarFormAsignarProfesor2() {
+    document.getElementById('tituloModal').textContent = 'Asignar Profesores a Grupo';
+
+    try {
+        console.log('=== mostrarFormAsignarProfesor2 INICIADA ===');
+        
+        // ====== CARGAR PROFESORES ======
+        const profesoresValidos = [];
+
+        // 1. Buscar profesores puros
+        const profesoresPurosQuery = db.collection('usuarios')
+            .where('rol', '==', 'profesor')
+            .where('activo', '==', true);
+
+        const profesoresPurosSnap = await profesoresPurosQuery.get();
+
+        profesoresPurosSnap.forEach(doc => {
+            const data = doc.data();
+            if (data.carreras && Array.isArray(data.carreras)) {
+                const tieneCarrera = data.carreras.some(c => {
+                    if (typeof c === 'string') return c === usuarioActual.carreraId;
+                    else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
+                    return false;
+                });
+                if (tieneCarrera) profesoresValidos.push({ id: doc.id, ...data });
+            }
+        });
+
+        // 2. Buscar coordinadores que también son profesores
+        const coordinadoresQuery = db.collection('usuarios')
+            .where('rol', '==', 'coordinador')
+            .where('activo', '==', true);
+
+        const coordinadoresSnap = await coordinadoresQuery.get();
+
+        coordinadoresSnap.forEach(doc => {
+            const data = doc.data();
+            if (!data.roles || !data.roles.includes('profesor')) return;
+
+            let tieneAcceso = false;
+            if (data.carreras && Array.isArray(data.carreras)) {
+                tieneAcceso = data.carreras.some(c => {
+                    if (typeof c === 'string') return c === usuarioActual.carreraId;
+                    else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
+                    return false;
+                });
+            } else if (data.carreraId === usuarioActual.carreraId) {
+                tieneAcceso = true;
+            }
+            if (tieneAcceso) profesoresValidos.push({ id: doc.id, ...data });
+        });
+
+        profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        window.profesoresDisponiblesAsignar2 = profesoresValidos;
+
+        // ====== CARGAR DATOS DE LA CARRERA ======
+        const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+        if (!carreraDoc.exists) {
+            alert('No se encontro informacion de la carrera');
+            return;
+        }
+        
+        const carreraData = carreraDoc.data();
+        const codigoCarrera = carreraData.codigo || 'XXX';
+        const numeroPeriodos = carreraData.numeroPeriodos || 8;
+        
+        window.codigoCarreraAsignar2 = codigoCarrera;
+        
+        console.log('Codigo carrera:', codigoCarrera);
+        console.log('Numero periodos:', numeroPeriodos);
+
+        // Generar opciones de periodos
+        let opcionesPeriodos = '<option value="">Seleccionar...</option>';
+        for (let i = 1; i <= numeroPeriodos; i++) {
+            opcionesPeriodos += `<option value="${i}">${i}°</option>`;
+        }
+
+        // ====== GENERAR FORMULARIO ======
+        const html = `
+      <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1200px; margin: 20px auto;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
+          <h2 style="margin: 0; color: #667eea; font-size: 1.8rem;">Asignar Profesores a Grupo</h2>
+          <button onclick="cerrarModal()" type="button" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
+        </div>
+
+        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+          <h4 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Como funciona</h4>
+          <ol style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.85rem;">
+            <li>Selecciona el periodo, turno y orden del grupo</li>
+            <li>Se mostraran todas las materias de ese periodo</li>
+            <li>Asigna un profesor a cada materia</li>
+            <li>Guarda las asignaciones</li>
+          </ol>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+          <h3 style="margin: 0 0 15px 0; color: #333; font-size: 1.1rem;">Informacion del Grupo</h3>
+          
+          <div style="display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 15px;">
+            
+            <div>
+              <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Periodo: *</label>
+              <select id="periodoAsignar2" required onchange="actualizarPreviewAsignar2()"
+                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+                ${opcionesPeriodos}
+              </select>
+            </div>
+
+            <div>
+              <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Turno: *</label>
+              <select id="turnoAsignar2" required onchange="actualizarPreviewAsignar2()"
+                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+                <option value="">Seleccionar turno...</option>
+                <option value="1">Matutino</option>
+                <option value="2">Vespertino</option>
+                <option value="3">Nocturno</option>
+                <option value="4">Sabatino</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Orden: *</label>
+              <input type="text" id="ordenAsignar2" required value="01" maxlength="2" onchange="actualizarPreviewAsignar2()"
+                     style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;" placeholder="01">
+              <small style="color: #666; font-size: 0.75rem;">01, 02, 03...</small>
+            </div>
+          </div>
+
+          <div id="previewGrupoAsignar2" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: center; border-left: 4px solid #1976d2;">
+            <em style="color: #999;">Selecciona periodo, turno y orden para ver el codigo del grupo</em>
+          </div>
+
+          <div style="margin-top: 15px;">
+            <button type="button" onclick="cargarMateriasAsignar2()" class="botAzu"
+                    style="width: 100%; padding: 12px; font-size: 1rem;">
+              Cargar Materias del Grupo
+            </button>
+          </div>
+        </div>
+
+        <div id="areaMateriasAsignar2" style="display: none;">
+          <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <strong style="color: #856404;">Instrucciones:</strong>
+            <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.85rem;">
+              Asigna un profesor a cada materia. Puedes dejar sin asignar las que no necesites.
+              Solo se guardaran las que tengan un profesor seleccionado.
+            </p>
+          </div>
+
+          <div id="listaMateriasAsignar2"></div>
+
+          <div style="margin-top: 25px; display: flex; gap: 15px; justify-content: flex-end;">
+            <button type="button" onclick="guardarAsignacionesAsignar2()" 
+                    style="padding: 14px 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer;">
+              Guardar Todas las Asignaciones
+            </button>
+            <button type="button" onclick="cerrarModal()" 
+                    style="padding: 14px 28px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              Cancelar
+            </button>
+          </div>
+        </div>
+
+      </div>
+    `;
+
+        document.getElementById('contenidoModal').innerHTML = html;
+        document.getElementById('modalGenerico').style.display = 'flex';
+        console.log('Modal Asignar2 mostrado correctamente');
+
+    } catch (error) {
+        console.error('ERROR en mostrarFormAsignarProfesor2:', error);
+        alert('Error al cargar formulario: ' + error.message);
+    }
+}
+function actualizarPreviewAsignar2() {
+    const periodoSelect = document.getElementById('periodoAsignar2');
+    const turnoSelect = document.getElementById('turnoAsignar2');
+    const ordenInput = document.getElementById('ordenAsignar2');
+    const previewDiv = document.getElementById('previewGrupoAsignar2');
+
+    if (!periodoSelect || !turnoSelect || !ordenInput || !previewDiv) {
+        return;
+    }
+
+    const periodo = periodoSelect.value;
+    const turno = turnoSelect.value;
+    const turnoTexto = turnoSelect.options[turnoSelect.selectedIndex]?.text || '';
+    const orden = ordenInput.value || '01';
+
+    if (!periodo || !turno) {
+        previewDiv.innerHTML = '<em style="color: #999;">Selecciona periodo, turno y orden para ver el codigo del grupo</em>';
+        return;
+    }
+
+    const ordenFormateado = orden.padStart(2, '0');
+    const codigoCarrera = window.codigoCarreraAsignar2 || 'XXX';
+    const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${ordenFormateado}`;
+
+    let previewHtml = `
+        <div style="margin-bottom: 10px;">
+            <strong style="color: #1976d2; font-size: 1.3rem;">${codigoGrupo}</strong>
+        </div>
+        <div style="font-size: 0.9rem; color: #555;">
+            ${turnoTexto} - Periodo ${periodo} - Grupo ${ordenFormateado}
+        </div>
+        <div style="margin-top: 10px; font-size: 0.75rem; color: #666;">
+            <em>Se cargaran todas las materias del periodo ${periodo}</em>
+        </div>
+    `;
+
+    previewDiv.innerHTML = previewHtml;
+}
+async function cargarMateriasAsignar2() {
+    console.log('=== cargarMateriasAsignar2 INICIADA ===');
+    
+    const periodoElement = document.getElementById('periodoAsignar2');
+    const turnoElement = document.getElementById('turnoAsignar2');
+    const ordenElement = document.getElementById('ordenAsignar2');
+    const areaMaterias = document.getElementById('areaMateriasAsignar2');
+    const listaMaterias = document.getElementById('listaMateriasAsignar2');
+
+    if (!periodoElement || !turnoElement || !ordenElement) {
+        console.error('ERROR: No se encontraron los elementos del formulario');
+        alert('Error: No se encontraron los campos del formulario');
+        return;
+    }
+
+    const periodo = periodoElement.value;
+    const turno = turnoElement.value;
+    const orden = ordenElement.value;
+
+    console.log('Periodo seleccionado:', periodo);
+    console.log('Turno seleccionado:', turno);
+    console.log('Orden ingresado:', orden);
+
+    if (!periodo || !turno || !orden) {
+        alert('Por favor selecciona el periodo, turno y orden');
+        areaMaterias.style.display = 'none';
+        return;
+    }
+
+    try {
+        console.log('1. Cargando materias del periodo', periodo);
+        
+        // Cargar materias que tengan el campo "periodo" igual al seleccionado
+        const materiasQuery = db.collection('materias')
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .where('periodo', '==', parseInt(periodo));
+
+        const materiasSnap = await materiasQuery.get();
+        console.log('Materias encontradas para periodo', periodo, ':', materiasSnap.size);
+        
+        if (materiasSnap.empty) {
+            listaMaterias.innerHTML = `
+                <div style="background: #fff3cd; padding: 20px; border-radius: 8px; text-align: center;">
+                    <p style="color: #856404; margin: 0;">
+                        No se encontraron materias para el periodo ${periodo}
+                    </p>
+                </div>
+            `;
+            areaMaterias.style.display = 'block';
+            return;
+        }
+
+        const materias = [];
+        materiasSnap.forEach(doc => {
+            const materia = doc.data();
+            materias.push({
+                id: doc.id,
+                nombre: materia.nombre,
+                periodo: materia.periodo || parseInt(periodo),
+                codigos: materia.codigos || []
+            });
+        });
+
+        // Ordenar alfabeticamente
+        materias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        console.log('2. Materias ordenadas:', materias.length);
+
+        const profesores = window.profesoresDisponiblesAsignar2 || [];
+        console.log('3. Profesores disponibles:', profesores.length);
+        
+        let profesoresOptions = '<option value="">Seleccionar profesor...</option>';
+        profesores.forEach(prof => {
+            const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
+            profesoresOptions += `<option value="${prof.id}" data-nombre="${prof.nombre}">${prof.nombre}${rolDisplay}</option>`;
+        });
+
+        const ordenFormateado = orden.padStart(2, '0');
+        const codigoCarrera = window.codigoCarreraAsignar2 || 'XXX';
+        const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${ordenFormateado}`;
+        
+        const turnosNombres = {
+            '1': 'Matutino',
+            '2': 'Vespertino',
+            '3': 'Nocturno',
+            '4': 'Sabatino'
+        };
+
+        console.log('4. Generando HTML de materias...');
+        console.log('   Codigo grupo:', codigoGrupo);
+
+        let html = `
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">
+                    ${codigoGrupo}
+                </div>
+                <div style="font-size: 0.95rem; opacity: 0.95;">
+                    ${turnosNombres[turno]} - Periodo ${periodo} - Grupo ${ordenFormateado}
+                </div>
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 5px;">
+                    ${materias.length} materias para asignar
+                </div>
+            </div>
+        `;
+
+        materias.forEach((materia, index) => {
+            html += `
+                <div style="display: grid; grid-template-columns: 2fr 3fr 1fr; gap: 15px; align-items: center; padding: 15px; background: ${index % 2 === 0 ? '#fff' : '#f9f9f9'}; border-radius: 8px; margin-bottom: 10px; border: 2px solid #e0e0e0;">
+                    
+                    <div>
+                        <strong style="color: #333; font-size: 0.95rem;">${materia.nombre}</strong>
+                        <div style="font-size: 0.75rem; color: #999; margin-top: 3px; font-family: monospace;">
+                            ${codigoGrupo}
+                        </div>
+                    </div>
+
+                    <div>
+                        <select class="profesor-select-asignar2" 
+                                data-materia-id="${materia.id}" 
+                                data-materia-nombre="${materia.nombre}"
+                                data-periodo="${periodo}"
+                                data-turno="${turno}"
+                                data-codigo-grupo="${codigoGrupo}"
+                                style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 0.9rem;">
+                            ${profesoresOptions}
+                        </select>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <span class="indicador-estado" style="color: #999; font-size: 0.8rem;">Sin asignar</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        console.log('5. Insertando HTML en lista...');
+        listaMaterias.innerHTML = html;
+        areaMaterias.style.display = 'block';
+        console.log('6. Area de materias mostrada');
+
+        // Agregar listeners para cambios en los selectores
+        document.querySelectorAll('.profesor-select-asignar2').forEach(select => {
+            select.addEventListener('change', function() {
+                const row = this.closest('div[style*="grid-template-columns"]');
+                const indicador = row.querySelector('.indicador-estado');
+                
+                if (this.value) {
+                    indicador.innerHTML = '<span style="color: #4caf50; font-weight: 600;">✓ Asignado</span>';
+                    this.style.borderColor = '#4caf50';
+                    row.style.borderColor = '#4caf50';
+                    row.style.background = '#f1f8f4';
+                } else {
+                    indicador.innerHTML = '<span style="color: #999; font-size: 0.8rem;">Sin asignar</span>';
+                    this.style.borderColor = '#ddd';
+                    row.style.borderColor = '#e0e0e0';
+                    row.style.background = '';
+                }
+            });
+        });
+        console.log('7. Listeners agregados a selectores');
+
+    } catch (error) {
+        console.error('ERROR en cargarMateriasAsignar2:', error);
+        alert('Error al cargar materias: ' + error.message);
+    }
+}
+async function guardarAsignacionesAsignar2() {
+    console.log('=== guardarAsignacionesAsignar2 INICIADA ===');
+    
+    const turnoSelect = document.getElementById('turnoAsignar2');
+    const periodoInput = document.getElementById('periodoAsignar2');
+    const turno = parseInt(turnoSelect.value);
+    const periodo = parseInt(periodoInput.value);
+    const turnoTexto = turnoSelect.options[turnoSelect.selectedIndex].text;
+    const orden = document.getElementById('ordenAsignar2').value.padStart(2, '0');
+
+    if (!turno || !periodo || !orden) {
+        alert('Selecciona periodo, turno y orden primero');
+        return;
+    }
+
+    const asignaciones = [];
+    const selectores = document.querySelectorAll('.profesor-select-asignar2');
+    console.log('Selectores encontrados:', selectores.length);
+
+    selectores.forEach((select, index) => {
+        if (select.value) {
+            const profesorNombre = select.options[select.selectedIndex].dataset.nombre;
+            
+            asignaciones.push({
+                materiaId: select.dataset.materiaId,
+                materiaNombre: select.dataset.materiaNombre,
+                profesorId: select.value,
+                profesorNombre: profesorNombre,
+                codigoGrupo: select.dataset.codigoGrupo,
+                periodo: parseInt(select.dataset.periodo),
+                turno: parseInt(select.dataset.turno),
+                turnoNombre: turnoTexto,
+                orden: orden
+            });
+            console.log(`Asignacion ${index + 1}:`, select.dataset.materiaNombre, '->', profesorNombre);
+        }
+    });
+
+    console.log('Total asignaciones a guardar:', asignaciones.length);
+
+    if (asignaciones.length === 0) {
+        alert('No hay asignaciones para guardar.\n\nSelecciona al menos un profesor.');
+        return;
+    }
+
+    const confirmar = confirm(
+        `Vas a crear ${asignaciones.length} asignaciones\n\n` +
+        `Grupo: ${asignaciones[0].codigoGrupo}\n` +
+        `Turno: ${turnoTexto}\n` +
+        `Periodo: ${periodo}\n` +
+        `Orden: ${orden}\n\n` +
+        `Continuar?`
+    );
+
+    if (!confirmar) return;
+
+    try {
+        let exitosas = 0;
+        let duplicadas = 0;
+        let errores = 0;
+        const erroresDetalle = [];
+
+        for (const asig of asignaciones) {
+            try {
+                // Verificar si ya existe una asignación
+                const existente = await db.collection('profesorMaterias')
+                    .where('materiaId', '==', asig.materiaId)
+                    .where('codigoGrupo', '==', asig.codigoGrupo)
+                    .where('activa', '==', true)
+                    .get();
+
+                if (!existente.empty) {
+                    duplicadas++;
+                    console.log('Duplicada:', asig.materiaNombre, '-', asig.codigoGrupo);
+                    continue;
+                }
+
+                // Crear la asignación
+                await db.collection('profesorMaterias').add({
+                    profesorId: asig.profesorId,
+                    profesorNombre: asig.profesorNombre,
+                    materiaId: asig.materiaId,
+                    materiaNombre: asig.materiaNombre,
+                    codigoGrupo: asig.codigoGrupo,
+                    periodo: asig.periodo,
+                    turno: asig.turno,
+                    turnoNombre: asig.turnoNombre,
+                    orden: asig.orden,
+                    carreraId: usuarioActual.carreraId,
+                    periodoAcademico: periodoActualCarrera,
+                    activa: true,
+                    fechaAsignacion: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                exitosas++;
+                console.log('Exitosa:', asig.materiaNombre, '-', asig.profesorNombre);
+
+            } catch (error) {
+                errores++;
+                erroresDetalle.push(`${asig.materiaNombre}: ${error.message}`);
+                console.error('Error:', asig.materiaNombre, error);
+            }
+        }
+
+        let mensaje = `ASIGNACIONES COMPLETADAS\n\n`;
+        mensaje += `Exitosas: ${exitosas}\n`;
+        mensaje += `Duplicadas (omitidas): ${duplicadas}\n`;
+        mensaje += `Errores: ${errores}\n`;
+        mensaje += `Total procesadas: ${asignaciones.length}\n\n`;
+        mensaje += `Grupo: ${asignaciones[0].codigoGrupo}\n`;
+        mensaje += `Turno: ${turnoTexto}\n`;
+        mensaje += `Periodo: ${periodo}\n`;
+        mensaje += `Orden: ${orden}`;
+
+        if (erroresDetalle.length > 0) {
+            mensaje += '\n\nErrores:\n' + erroresDetalle.join('\n');
+        }
+
+        alert(mensaje);
+
+        if (exitosas > 0) {
+            cerrarModal();
+            if (typeof cargarAsignaciones === 'function') {
+                await cargarAsignaciones();
+            }
+        }
+
+    } catch (error) {
+        console.error('ERROR en guardarAsignacionesAsignar2:', error);
+        alert('Error al guardar asignaciones: ' + error.message);
     }
 }
 

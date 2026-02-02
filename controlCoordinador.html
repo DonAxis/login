@@ -632,9 +632,7 @@
  </div>
 
  <!-- SECCION: ASIGNAR PROFESORES -->
- 
-
-<div id="seccionAsignaciones" class="seccion-contenido">
+ <div id="seccionAsignaciones" class="seccion-contenido">
   <div class="seccion-header">
     <h2>Asignar Materia y Profesor</h2>
     <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
@@ -642,17 +640,18 @@
   
   <!-- Mensaje explicativo -->
   <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-    <strong style="color: #1565c0; font-size: 1rem;">Instrucciones:</strong>
-    <p style="margin: 8px 0 0 0; color: #1565c0; font-size: 0.9rem; line-height: 1.6;">
-      Elige una materia, al profesor que la impartirá, el turno y Numero de grupo (si hay más de uno).
-    </p>
+    <strong style="color: #1565c0; font-size: 1rem;">Dos formas de asignar:</strong>
+    <ul style="margin: 8px 0 0 0; color: #1565c0; font-size: 0.9rem; line-height: 1.6; padding-left: 20px;">
+      <li><strong>Asignar:</strong> Selecciona una materia y asigna un profesor</li>
+      <li><strong>Asignar2:</strong> Selecciona un periodo y asigna profesores a todas las materias</li>
+    </ul>
   </div>
   
   <div class="botones-accion">
     <button onclick="mostrarFormAsignarProfesor()" class="botAzu">
       Asignar
     </button>
-    <button onclick="mostrarFormAsignarProfesor()" class="botAzu" 
+    <button onclick="mostrarFormAsignarProfesor2()" class="botAzu" 
           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
       Asignar2
     </button>
@@ -660,6 +659,7 @@
 
   <div id="listaAsignaciones" class="lista-items"></div>
 </div>
+
 
 
 
