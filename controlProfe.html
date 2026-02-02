@@ -599,7 +599,26 @@ async function cargarAlumnosYCalificaciones() {
     const container = document.getElementById('tablaCalificaciones');
     container.innerHTML = '<p style="text-align: center; color: #999;">Cargando alumnos...</p>';
     
+    console.log('Asignación actual:', asignacionActual);
     console.log('Buscando alumnos del grupo:', asignacionActual.codigoGrupo);
+    
+    // Verificar que tengamos materiaId
+    if (!asignacionActual.materiaId) {
+      console.error('ERROR: La asignación no tiene materiaId');
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #dc3545;">
+          <p><strong>Error de configuración</strong></p>
+          <p style="font-size: 0.9rem; margin-top: 10px;">
+            Esta asignación no tiene un ID de materia válido.<br>
+            Por favor, contacta al coordinador para que vuelva a crear la asignación.
+          </p>
+          <p style="font-size: 0.85rem; color: #666; margin-top: 15px;">
+            ID de asignación: ${asignacionActual.id}
+          </p>
+        </div>
+      `;
+      return;
+    }
     
     // Buscar alumnos del grupo usando codigoGrupo (no grupoId)
     const alumnosSnap = await db.collection('usuarios')
@@ -737,7 +756,6 @@ async function cargarAlumnosYCalificaciones() {
     `;
   }
 }
-
 
 // Guardar todas las calificaciones
 function volverMenu() {
