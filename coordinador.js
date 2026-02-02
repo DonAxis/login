@@ -1227,64 +1227,94 @@ async function guardarGrupo(event, grupoId) {
 // ===== ASIGNAR PROFESORES A MATERIAS =====
 async function cargarAsignaciones() {
     try {
-        // Cargar asignaciones activas del periodo actual
+        console.log('=== Cargando asignaciones ===');
+        
+        // Cargar asignaciones activas de la carrera
         let query = db.collection('profesorMaterias')
             .where('activa', '==', true)
-            .where('periodo', '==', periodoActualCarrera);
-
-        // Filtrar por carrera si es coordinador
-        if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
-            query = query.where('carreraId', '==', usuarioActual.carreraId);
-        }
+            .where('carreraId', '==', usuarioActual.carreraId);
 
         const snapshot = await query.get();
         const container = document.getElementById('listaAsignaciones');
 
         if (snapshot.empty) {
             container.innerHTML = `
- <div style="text-align: center; padding: 40px;">
- <p style="color: #999; margin-bottom: 20px;">No hay asignaciones para el periodo actual: ${periodoActualCarrera}</p>
- <button onclick="mostrarHistorialAsignaciones()" class="botAzu" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
- Ver Historial de Asignaciones
- </button>
- </div>
- `;
+                <div style="text-align: center; padding: 40px;">
+                    <p style="color: #999; margin-bottom: 20px;">No hay asignaciones registradas</p>
+                </div>
+            `;
             return;
         }
 
-        let html = `
- <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
- <div>
- <strong>Mostrando asignaciones del periodo:</strong> ${periodoActualCarrera}
- </div>
- <button onclick="mostrarHistorialAsignaciones()" class="botAzu" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 8px 16px;">
- Ver Historial
- </button>
- </div>
- `;
-
+        // Agrupar asignaciones por periodo
+        const asignacionesPorPeriodo = {};
+        
         snapshot.forEach(doc => {
-            const asignacion = doc.data();
+            const asignacion = { id: doc.id, ...doc.data() };
+            const periodo = asignacion.periodo || 0;
+            
+            if (!asignacionesPorPeriodo[periodo]) {
+                asignacionesPorPeriodo[periodo] = [];
+            }
+            asignacionesPorPeriodo[periodo].push(asignacion);
+        });
+
+        // Ordenar periodos de menor a mayor
+        const periodos = Object.keys(asignacionesPorPeriodo).map(p => parseInt(p)).sort((a, b) => a - b);
+        
+        console.log('Periodos encontrados:', periodos);
+        console.log('Total asignaciones:', snapshot.size);
+
+        let html = `
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <strong style="color: #1565c0;">Total de asignaciones: ${snapshot.size}</strong>
+                <div style="margin-top: 8px; font-size: 0.9rem; color: #1565c0;">
+                    Agrupadas por periodo
+                </div>
+            </div>
+        `;
+
+        // Generar HTML por cada periodo
+        periodos.forEach(periodo => {
+            const asignaciones = asignacionesPorPeriodo[periodo];
+            
             html += `
- <div class="item">
- <div class="item-info">
- <h4>${asignacion.materiaNombre} (${asignacion.materiaCodigo})</h4>
- <p>Profesor: ${asignacion.profesorNombre}</p>
- <p>Grupo: ${asignacion.grupoNombre} | Periodo: ${asignacion.periodo}</p>
- </div>
- <div class="item-acciones">
- <button onclick="reasignarProfesor('${doc.id}')" class="btn-editar">Reasignar</button>
- <button onclick="eliminarAsignacion('${doc.id}')" class="btn-eliminar">Borrar</button>
- </div>
- </div>
- `;
+                <div style="margin-bottom: 30px;">
+                    <h3 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; margin: 0 0 15px 0;">
+                        Periodo ${periodo} (${asignaciones.length} asignaciones)
+                    </h3>
+            `;
+
+            // Ordenar asignaciones por nombre de materia
+            asignaciones.sort((a, b) => (a.materiaNombre || '').localeCompare(b.materiaNombre || ''));
+
+            asignaciones.forEach(asignacion => {
+                html += `
+                    <div class="item" style="margin-bottom: 10px;">
+                        <div class="item-info">
+                            <h4>${asignacion.materiaNombre || 'Sin nombre'}</h4>
+                            <p><strong>Profesor:</strong> ${asignacion.profesorNombre || 'Sin asignar'}</p>
+                            <p><strong>Grupo:</strong> ${asignacion.codigoGrupo || 'N/A'} | 
+                               <strong>Turno:</strong> ${asignacion.turnoNombre || 'N/A'}</p>
+                        </div>
+                        <div class="item-acciones">
+                            <button onclick="reasignarProfesorDirecto('${asignacion.id}')" class="btn-editar">Reasignar</button>
+                            <button onclick="eliminarAsignacion('${asignacion.id}')" class="btn-eliminar">Eliminar</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
         });
 
         container.innerHTML = html;
+        console.log('Asignaciones cargadas correctamente');
+
     } catch (error) {
         console.error('Error al cargar asignaciones:', error);
         document.getElementById('listaAsignaciones').innerHTML =
-            '<p style="color: red;">Error al cargar asignaciones</p>';
+            '<p style="color: red;">Error al cargar asignaciones: ' + error.message + '</p>';
     }
 }
 
@@ -1642,79 +1672,116 @@ function actualizarPreviewAsignacion() {
 async function guardarAsignacionProfesor(event) {
     event.preventDefault();
 
-    const materiaId = document.getElementById('materiaAsignar').value;
-    const materiaNombre = document.getElementById('materiaAsignar').options[document.getElementById('materiaAsignar').selectedIndex].text;
-    const periodo = parseInt(document.getElementById('materiaAsignar').options[document.getElementById('materiaAsignar').selectedIndex].dataset.periodo);
-    const turno = parseInt(document.getElementById('turnoAsignar').value);
-    const turnoTexto = document.getElementById('turnoAsignar').options[document.getElementById('turnoAsignar').selectedIndex].text;
-    const orden = document.getElementById('ordenAsignar').value.padStart(2, '0');
-    const profesorId = document.getElementById('profesorAsignar').value;
-    const profesorNombre = document.getElementById('profesorAsignar').options[document.getElementById('profesorAsignar').selectedIndex].dataset.nombre;
+    const materiaSelect = document.getElementById('materiaAsignar');
+    const profesorSelect = document.getElementById('profesorAsignar');
+    const turnoSelect = document.getElementById('turnoAsignar');
+    const ordenInput = document.getElementById('ordenAsignar');
 
-    if (!materiaId || !turno || !profesorId || !periodo) {
-        alert('Completa todos los campos requeridos');
+    const materiaId = materiaSelect.value;
+    const materiaNombre = materiaSelect.options[materiaSelect.selectedIndex].text;
+    const periodo = parseInt(materiaSelect.options[materiaSelect.selectedIndex].dataset.periodo);
+    
+    const profesorId = profesorSelect.value;
+    const profesorNombre = profesorSelect.options[profesorSelect.selectedIndex].dataset.nombre;
+    
+    const turno = parseInt(turnoSelect.value);
+    const turnoTexto = turnoSelect.options[turnoSelect.selectedIndex].text;
+    
+    const orden = ordenInput.value.padStart(2, '0');
+
+    if (!materiaId || !profesorId || !turno || !orden) {
+        alert('Completa todos los campos');
         return;
     }
 
     try {
-        const codigoCarrera = window.codigoCarreraAsignacion || 'XXX';
+        // Obtener código de carrera
+        const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+        const codigoCarrera = carreraDoc.exists ? carreraDoc.data().codigo : 'XXX';
+        
+        // Generar código de grupo
         const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${orden}`;
 
-        // Verificar si ya existe una asignación para este grupo
-        const asignacionesQuery = await db.collection('asignaciones')
+        console.log('Guardando asignación:', {
+            materiaId,
+            materiaNombre,
+            profesorId,
+            profesorNombre,
+            codigoGrupo,
+            periodo,
+            turno,
+            orden
+        });
+
+        // Verificar si ya existe una asignación para este grupo y materia
+        const asignacionesQuery = await db.collection('profesorMaterias')
             .where('materiaId', '==', materiaId)
             .where('codigoGrupo', '==', codigoGrupo)
             .where('carreraId', '==', usuarioActual.carreraId)
+            .where('activa', '==', true)
             .get();
 
         if (!asignacionesQuery.empty) {
+            const asignacionExistente = asignacionesQuery.docs[0].data();
             const confirmar = confirm(
                 `Ya existe una asignación para este grupo.\n\n` +
                 `Materia: ${materiaNombre}\n` +
-                `Grupo: ${codigoGrupo}\n\n` +
-                `¿Deseas reemplazarla con el nuevo profesor?`
+                `Grupo: ${codigoGrupo}\n` +
+                `Profesor actual: ${asignacionExistente.profesorNombre}\n\n` +
+                `¿Deseas reemplazarla con: ${profesorNombre}?`
             );
             
             if (!confirmar) return;
 
-            // Eliminar asignación anterior
-            const batch = db.batch();
-            asignacionesQuery.forEach(doc => {
-                batch.delete(doc.ref);
+            // REEMPLAZAR: Actualizar el documento existente
+            const docId = asignacionesQuery.docs[0].id;
+            await db.collection('profesorMaterias').doc(docId).update({
+                profesorId: profesorId,
+                profesorNombre: profesorNombre,
+                fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
             });
-            await batch.commit();
+
+            alert(
+                `Asignación actualizada correctamente\n\n` +
+                `Materia: ${materiaNombre}\n` +
+                `Grupo: ${codigoGrupo}\n` +
+                `Turno: ${turnoTexto}\n` +
+                `Profesor anterior: ${asignacionExistente.profesorNombre}\n` +
+                `Profesor nuevo: ${profesorNombre}`
+            );
+        } else {
+            // Crear nueva asignación
+            const asignacionData = {
+                materiaId: materiaId,
+                materiaNombre: materiaNombre,
+                profesorId: profesorId,
+                profesorNombre: profesorNombre,
+                codigoGrupo: codigoGrupo,
+                periodo: periodo,
+                turno: turno,
+                turnoNombre: turnoTexto,
+                orden: orden,
+                carreraId: usuarioActual.carreraId,
+                periodoAcademico: periodoActualCarrera,
+                activa: true,
+                fechaAsignacion: firebase.firestore.FieldValue.serverTimestamp(),
+                fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await db.collection('profesorMaterias').add(asignacionData);
+
+            alert(
+                `Asignación creada correctamente\n\n` +
+                `Materia: ${materiaNombre}\n` +
+                `Grupo: ${codigoGrupo}\n` +
+                `Turno: ${turnoTexto}\n` +
+                `Profesor: ${profesorNombre}`
+            );
         }
-
-        // Crear nueva asignación
-        const asignacionData = {
-            materiaId: materiaId,
-            materiaNombre: materiaNombre,
-            profesorId: profesorId,
-            profesorNombre: profesorNombre,
-            codigoGrupo: codigoGrupo,
-            periodo: periodo,
-            turno: turno,
-            turnoNombre: turnoTexto,
-            orden: orden,
-            carreraId: usuarioActual.carreraId,
-            activa: true,
-            fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
-            fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        await db.collection('asignaciones').add(asignacionData);
-
-        alert(
-            `Asignación creada correctamente\n\n` +
-            `Materia: ${materiaNombre}\n` +
-            `Grupo: ${codigoGrupo}\n` +
-            `Turno: ${turnoTexto}\n` +
-            `Profesor: ${profesorNombre}`
-        );
 
         cerrarModal();
         
-        // Recargar asignaciones si existe la función
+        // Recargar asignaciones
         if (typeof cargarAsignaciones === 'function') {
             cargarAsignaciones();
         }
@@ -2143,7 +2210,7 @@ async function guardarAsignacionesAsignar2() {
     }
 
     const confirmar = confirm(
-        `Vas a crear ${asignaciones.length} asignaciones\n\n` +
+        `Vas a crear/actualizar ${asignaciones.length} asignaciones\n\n` +
         `Grupo: ${asignaciones[0].codigoGrupo}\n` +
         `Turno: ${turnoTexto}\n` +
         `Periodo: ${periodo}\n` +
@@ -2155,7 +2222,7 @@ async function guardarAsignacionesAsignar2() {
 
     try {
         let exitosas = 0;
-        let duplicadas = 0;
+        let actualizadas = 0;
         let errores = 0;
         const erroresDetalle = [];
 
@@ -2169,12 +2236,24 @@ async function guardarAsignacionesAsignar2() {
                     .get();
 
                 if (!existente.empty) {
-                    duplicadas++;
-                    console.log('Duplicada:', asig.materiaNombre, '-', asig.codigoGrupo);
+                    // Ya existe, preguntar si reemplazar
+                    const docId = existente.docs[0].id;
+                    const asigExistente = existente.docs[0].data();
+                    
+                    // REEMPLAZAR: Actualizar el documento
+                    await db.collection('profesorMaterias').doc(docId).update({
+                        profesorId: asig.profesorId,
+                        profesorNombre: asig.profesorNombre,
+                        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    actualizadas++;
+                    console.log('Actualizada:', asig.materiaNombre, 
+                               `${asigExistente.profesorNombre} -> ${asig.profesorNombre}`);
                     continue;
                 }
 
-                // Crear la asignación
+                // Crear nueva asignación
                 await db.collection('profesorMaterias').add({
                     profesorId: asig.profesorId,
                     profesorNombre: asig.profesorNombre,
@@ -2188,11 +2267,12 @@ async function guardarAsignacionesAsignar2() {
                     carreraId: usuarioActual.carreraId,
                     periodoAcademico: periodoActualCarrera,
                     activa: true,
-                    fechaAsignacion: firebase.firestore.FieldValue.serverTimestamp()
+                    fechaAsignacion: firebase.firestore.FieldValue.serverTimestamp(),
+                    fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
                 exitosas++;
-                console.log('Exitosa:', asig.materiaNombre, '-', asig.profesorNombre);
+                console.log('Creada:', asig.materiaNombre, '->', asig.profesorNombre);
 
             } catch (error) {
                 errores++;
@@ -2202,8 +2282,8 @@ async function guardarAsignacionesAsignar2() {
         }
 
         let mensaje = `ASIGNACIONES COMPLETADAS\n\n`;
-        mensaje += `Exitosas: ${exitosas}\n`;
-        mensaje += `Duplicadas (omitidas): ${duplicadas}\n`;
+        mensaje += `Nuevas: ${exitosas}\n`;
+        mensaje += `Actualizadas: ${actualizadas}\n`;
         mensaje += `Errores: ${errores}\n`;
         mensaje += `Total procesadas: ${asignaciones.length}\n\n`;
         mensaje += `Grupo: ${asignaciones[0].codigoGrupo}\n`;
@@ -2217,7 +2297,7 @@ async function guardarAsignacionesAsignar2() {
 
         alert(mensaje);
 
-        if (exitosas > 0) {
+        if (exitosas > 0 || actualizadas > 0) {
             cerrarModal();
             if (typeof cargarAsignaciones === 'function') {
                 await cargarAsignaciones();
@@ -2229,9 +2309,6 @@ async function guardarAsignacionesAsignar2() {
         alert('Error al guardar asignaciones: ' + error.message);
     }
 }
-
-
-
 async function reasignarProfesor(asignacionId) {
     // Obtener datos de la asignación actual
     const asignDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
@@ -2260,6 +2337,133 @@ async function reasignarProfesor(asignacionId) {
     // Mostrar formulario para nueva asignación
     mostrarFormAsignarProfesor();
 }
+async function reasignarProfesorDirecto(asignacionId) {
+    try {
+        // Obtener datos de la asignación actual
+        const asignDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+
+        if (!asignDoc.exists) {
+            alert('No se encontró la asignación');
+            return;
+        }
+
+        const asignActual = asignDoc.data();
+
+        // Cargar profesores disponibles
+        const profesoresValidos = [];
+
+        const profesoresPurosQuery = db.collection('usuarios')
+            .where('rol', '==', 'profesor')
+            .where('activo', '==', true);
+
+        const profesoresPurosSnap = await profesoresPurosQuery.get();
+
+        profesoresPurosSnap.forEach(doc => {
+            const data = doc.data();
+            if (data.carreras && Array.isArray(data.carreras)) {
+                const tieneCarrera = data.carreras.some(c => {
+                    if (typeof c === 'string') return c === usuarioActual.carreraId;
+                    else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
+                    return false;
+                });
+                if (tieneCarrera) profesoresValidos.push({ id: doc.id, ...data });
+            }
+        });
+
+        const coordinadoresQuery = db.collection('usuarios')
+            .where('rol', '==', 'coordinador')
+            .where('activo', '==', true);
+
+        const coordinadoresSnap = await coordinadoresQuery.get();
+
+        coordinadoresSnap.forEach(doc => {
+            const data = doc.data();
+            if (!data.roles || !data.roles.includes('profesor')) return;
+            let tieneAcceso = false;
+            if (data.carreras && Array.isArray(data.carreras)) {
+                tieneAcceso = data.carreras.some(c => {
+                    if (typeof c === 'string') return c === usuarioActual.carreraId;
+                    else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
+                    return false;
+                });
+            } else if (data.carreraId === usuarioActual.carreraId) {
+                tieneAcceso = true;
+            }
+            if (tieneAcceso) profesoresValidos.push({ id: doc.id, ...data });
+        });
+
+        profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        let profesoresHtml = '<option value="">Seleccionar nuevo profesor...</option>';
+        profesoresValidos.forEach(prof => {
+            const selected = prof.id === asignActual.profesorId ? 'selected' : '';
+            const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
+            profesoresHtml += `<option value="${prof.id}" data-nombre="${prof.nombre}" ${selected}>${prof.nombre}${rolDisplay}</option>`;
+        });
+
+        const html = `
+            <div style="background: white; padding: 30px; border-radius: 15px; max-width: 600px; margin: 20px auto;">
+                <h3 style="margin: 0 0 20px 0; color: #667eea;">Reasignar Profesor</h3>
+                
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="margin: 5px 0;"><strong>Materia:</strong> ${asignActual.materiaNombre}</p>
+                    <p style="margin: 5px 0;"><strong>Grupo:</strong> ${asignActual.codigoGrupo}</p>
+                    <p style="margin: 5px 0;"><strong>Profesor actual:</strong> ${asignActual.profesorNombre}</p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nuevo Profesor:</label>
+                    <select id="nuevoProfesorReasignar" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+                        ${profesoresHtml}
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="confirmarReasignacion('${asignacionId}')" class="botAzu">
+                        Guardar Cambio
+                    </button>
+                    <button onclick="cerrarModal()" class="btn-cancelar">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('contenidoModal').innerHTML = html;
+        document.getElementById('modalGenerico').style.display = 'flex';
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar formulario de reasignación');
+    }
+}
+async function confirmarReasignacion(asignacionId) {
+    const select = document.getElementById('nuevoProfesorReasignar');
+    const nuevoProfesorId = select.value;
+    const nuevoProfesorNombre = select.options[select.selectedIndex].dataset.nombre;
+
+    if (!nuevoProfesorId) {
+        alert('Selecciona un profesor');
+        return;
+    }
+
+    try {
+        await db.collection('profesorMaterias').doc(asignacionId).update({
+            profesorId: nuevoProfesorId,
+            profesorNombre: nuevoProfesorNombre,
+            fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert('Profesor reasignado correctamente');
+        cerrarModal();
+        await cargarAsignaciones();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al reasignar: ' + error.message);
+    }
+}
+
 
 async function cargarInscripciones() {
     try {
