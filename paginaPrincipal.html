@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ILB SiCE</title>
+
+    <link rel="stylesheet" type="text/css" href="botones2.css">
+
+
+    <style>
+        /* ====== HEADER ====== */
+.index-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.index-header h1 {
+    font-size: 2.2rem;
+    margin-bottom: 5px;
+}
+
+.index-header .sice {
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 4px;
+    opacity: 0.85;
+    margin-bottom: 15px;
+}
+
+.index-header p {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+/* ====== FOOTER LOGOS ====== */
+.index-footer {
+    margin-top: 50px;
+    text-align: center;
+}
+
+.footer-logos {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+}
+
+/* Tamaños de logos */
+.logo-ilb {
+    height: 90px;
+}
+
+.logo-fa {
+    height: 90px;
+}
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 600px) {
+    .footer-logos {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .logo-ilb {
+        height: 75px;
+    }
+
+    .logo-fa {
+        height: 55px;
+    }
+}
+
+    </style>
+
+
+    <div class="main-wrapper">
+
+        <header class="index-header">
+            <h1>Sistema de Control Escolar</h1>
+            <h2 class="sice">SiCE</h2>
+        </header>
+
+        <div class="portal-grid">
+            <a href="index.html" class="portal-card">
+                <div class="icon">🎓</div>
+                <span>Alumno</span>
+            </a>
+
+            <a href="login.html" class="portal-card">
+                <div class="icon">👨‍🏫</div>
+                <span>Profesor</span>
+            </a>
+
+            <a href="login.html" class="portal-card">
+                <div class="icon">📋</div>
+                <span>Coordinador</span>
+            </a>
+
+            <a href="login.html" class="portal-card">
+                <div class="icon">🏢</div>
+                <span>Control Escolar</span>
+            </a>
+        </div>
+
+        <!-- Texto movido abajo de los botones -->
+        <p class="portal-text">
+            Selecciona tu perfil para ingresar al portal
+        </p>
+
+        <footer class="index-footer">
+            <div class="footer-logos">
+                <img src="ilb.png" alt="Logo ILB" class="logo-ilb"  >
+                <img src="FA.png" alt="Logo Factor Artificial" class="logo-fa">
+            </div>
+        </footer>
+
+    </div>
+
+</body>
+</html>

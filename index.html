@@ -1,121 +1,360 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ILB SiCE</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta de Calificaciones</title>
+  <link rel="stylesheet" type="text/css" href="controlAlumnoEstilo.css">
+</head>
+<body>
 
-    <link rel="stylesheet" type="text/css" href="botones2.css">
+  <div class="container">
+    <!-- FORMULARIO DE CONSULTA -->
+    <div id="loginCard" class="login-card">
+      <h1>Consulta de Calificaciones</h1>
+      <p class="subtitle">Ingresa tu matrícula y correo para consultar tus calificaciones</p>
+      
+      <!-- Botón logout solo si hay sesión activa -->
+      <div id="sessionAlert" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+        <p style="margin: 0 0 10px 0; color: #856404;">
+          Tienes una sesión activa. Los alumnos ya no necesitan iniciar sesión.
+        </p>
+        <button onclick="cerrarSesion()" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 600;">
+          Cerrar Sesión
+        </button>
+      </div>
 
-
-    <style>
-        /* ====== HEADER ====== */
-.index-header {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.index-header h1 {
-    font-size: 2.2rem;
-    margin-bottom: 5px;
-}
-
-.index-header .sice {
-    font-size: 1.2rem;
-    font-weight: 600;
-    letter-spacing: 4px;
-    opacity: 0.85;
-    margin-bottom: 15px;
-}
-
-.index-header p {
-    font-size: 1rem;
-    opacity: 0.9;
-}
-
-/* ====== FOOTER LOGOS ====== */
-.index-footer {
-    margin-top: 50px;
-    text-align: center;
-}
-
-.footer-logos {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 40px;
-}
-
-/* Tamaños de logos */
-.logo-ilb {
-    height: 90px;
-}
-
-.logo-fa {
-    height: 90px;
-}
-
-/* ====== RESPONSIVE ====== */
-@media (max-width: 600px) {
-    .footer-logos {
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .logo-ilb {
-        height: 75px;
-    }
-
-    .logo-fa {
-        height: 55px;
-    }
-}
-
-    </style>
-
-
-    <div class="main-wrapper">
-
-        <header class="index-header">
-            <h1>Sistema de Control Escolar</h1>
-            <h2 class="sice">SiCE</h2>
-        </header>
-
-        <div class="portal-grid">
-            <a href="controlAlumno.html" class="portal-card">
-                <div class="icon">🎓</div>
-                <span>Alumno</span>
-            </a>
-
-            <a href="login.html" class="portal-card">
-                <div class="icon">👨‍🏫</div>
-                <span>Profesor</span>
-            </a>
-
-            <a href="login.html" class="portal-card">
-                <div class="icon">📋</div>
-                <span>Coordinador</span>
-            </a>
-
-            <a href="login.html" class="portal-card">
-                <div class="icon">🏢</div>
-                <span>Control Escolar</span>
-            </a>
+      <form id="formConsulta" onsubmit="consultarAlumno(event)">
+        <div class="form-grupo">
+          <label for="matricula">Matrícula:</label>
+          <input type="text" id="matricula" required placeholder="Ej: 2024001" autocomplete="off">
         </div>
 
-        <!-- Texto movido abajo de los botones -->
-        <p class="portal-text">
-            Selecciona tu perfil para ingresar al portal
-        </p>
+        <div class="form-grupo">
+          <label for="email">Correo Electrónico:</label>
+          <input type="email" id="email" required placeholder="tu-email@alumno.com" autocomplete="email">
+        </div>
 
-        <footer class="index-footer">
-            <div class="footer-logos">
-                <img src="ilb.png" alt="Logo ILB" class="logo-ilb"  >
-                <img src="FA.png" alt="Logo Factor Artificial" class="logo-fa">
-            </div>
-        </footer>
-
+        <button type="submit" class="btn-consultar" id="btnConsultar">
+          Consultar
+        </button>
+      </form>
     </div>
 
+    <!-- RESULTADO -->
+    <div id="resultado" class="resultado">
+      <div class="info-alumno">
+        <div class="info-header">
+          <h2 id="nombreAlumno">Nombre del Alumno</h2>
+          <div class="info-grid">
+            <div class="info-item">
+              <strong>Matrícula:</strong>
+              <span id="infoMatricula">-</span>
+            </div>
+            <div class="info-item">
+              <strong>Grupo:</strong>
+              <span id="infoGrupo">-</span>
+            </div>
+            <div class="info-item">
+              <strong>Carrera:</strong>
+              <span id="infoCarrera">-</span>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="nuevaConsulta()" class="btn-nuevo">Nueva Consulta</button>
+        <button class="btn-horario" title="Próximamente">Ver Horario (Próximamente)</button>
+      </div>
+      <br>
+
+      <!-- MATERIAS Y CALIFICACIONES -->
+      <div class="seccion">
+        <h3>Mis Materias</h3>
+        <div id="listaMaterias"></div>
+        
+        <!-- Botón para generar PDF -->
+        <button onclick="generarPDFBoletaActual()" 
+                style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 20px; display: block; width: 100%;">
+          Descargar Boleta en PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="firebase.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script>
+    let alumnoActual = null;
+
+// Detectar si hay sesión activa
+firebase.auth().onAuthStateChanged((user) => {
+  if (user) {
+    // Hay sesión activa - mostrar alerta
+    document.getElementById('sessionAlert').style.display = 'block';
+  }
+});
+
+async function cerrarSesion() {
+  try {
+    await firebase.auth().signOut();
+    alert('Sesión cerrada. Ahora puedes consultar como alumno o ir al login del staff.');
+    window.location.href = 'login.html';
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cerrar sesión');
+  }
+}
+
+async function consultarAlumno(event) {
+  event.preventDefault();
+  
+  const matricula = document.getElementById('matricula').value.trim();
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const btnConsultar = document.getElementById('btnConsultar');
+  
+  btnConsultar.disabled = true;
+  btnConsultar.textContent = 'Consultando...';
+  
+  try {
+    console.log('Buscando alumno:', matricula, email);
+    
+    // Buscar alumno por matrícula y email
+    const snapshot = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('matricula', '==', matricula)
+      .where('email', '==', email)
+      .limit(1)
+      .get();
+    
+    if (snapshot.empty) {
+      alert('No se encontró ningún alumno con esa matrícula y correo.\n\nVerifica tus datos.');
+      btnConsultar.disabled = false;
+      btnConsultar.textContent = 'Consultar';
+      return;
+    }
+    
+    const doc = snapshot.docs[0];
+    alumnoActual = {
+      id: doc.id,
+      ...doc.data()
+    };
+    
+    console.log('Alumno encontrado:', alumnoActual);
+    
+    // Mostrar información
+    await mostrarInformacionAlumno();
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al consultar. Intenta de nuevo.');
+    btnConsultar.disabled = false;
+    btnConsultar.textContent = 'Consultar';
+  }
+}
+
+async function mostrarInformacionAlumno() {
+  // Mostrar nombre
+  document.getElementById('nombreAlumno').textContent = alumnoActual.nombre;
+  document.getElementById('infoMatricula').textContent = alumnoActual.matricula;
+  
+  // ✓ CORREGIDO: Mostrar código de grupo o "Especial" para alumnos especiales
+  if (alumnoActual.codigoGrupo) {
+    document.getElementById('infoGrupo').textContent = alumnoActual.codigoGrupo;
+    console.log('Código de grupo:', alumnoActual.codigoGrupo);
+  } else if (alumnoActual.tipoAlumno === 'especial') {
+    document.getElementById('infoGrupo').textContent = 'Especial';
+    console.log('Alumno especial');
+  } else {
+    document.getElementById('infoGrupo').textContent = 'Sin grupo asignado';
+    console.log('Alumno sin código de grupo');
+  }
+  
+  // Cargar carrera
+  if (alumnoActual.carreraId) {
+    try {
+      const carreraDoc = await db.collection('carreras').doc(alumnoActual.carreraId).get();
+      if (carreraDoc.exists) {
+        document.getElementById('infoCarrera').textContent = carreraDoc.data().nombre;
+      }
+    } catch (error) {
+      console.error('Error al cargar carrera:', error);
+    }
+  }
+  
+  // Cargar materias y calificaciones
+  await cargarMateriasYCalificaciones();
+  
+  // Mostrar resultado, ocultar formulario
+  document.getElementById('loginCard').style.display = 'none';
+  document.getElementById('resultado').style.display = 'block';
+}
+
+async function cargarMateriasYCalificaciones() {
+  const container = document.getElementById('listaMaterias');
+  
+  // ✓ CORREGIDO: Verificar codigoGrupo en lugar de grupoId
+  if (!alumnoActual.codigoGrupo) {
+    container.innerHTML = '<div class="sin-datos">No estás asignado a ningún grupo.</div>';
+    console.log('Alumno sin código de grupo');
+    return;
+  }
+  
+  try {
+    console.log('Buscando materias para grupo:', alumnoActual.codigoGrupo);
+    
+    // ✓ CORREGIDO: Buscar por codigoGrupo en lugar de grupoId
+    const materiasSnap = await db.collection('profesorMaterias')
+      .where('codigoGrupo', '==', alumnoActual.codigoGrupo)
+      .where('activa', '==', true)
+      .get();
+    
+    console.log('Materias encontradas:', materiasSnap.size);
+    
+    if (materiasSnap.empty) {
+      container.innerHTML = '<div class="sin-datos">Tu grupo aún no tiene materias asignadas.</div>';
+      return;
+    }
+    
+    // Construir estructura de datos para boleta
+    const materias = [];
+    
+    for (const doc of materiasSnap.docs) {
+      const materia = doc.data();
+      
+      console.log('Procesando materia:', materia.materiaNombre);
+      
+      // Buscar calificaciones de esta materia (NUEVA ESTRUCTURA)
+      const docId = `${alumnoActual.id}_${materia.materiaId}`;
+      const calDoc = await db.collection('calificaciones').doc(docId).get();
+      
+      let parcial1 = '-';
+      let parcial2 = '-';
+      let parcial3 = '-';
+      
+      if (calDoc.exists) {
+        const data = calDoc.data();
+        parcial1 = data.parciales?.parcial1 ?? '-';
+        parcial2 = data.parciales?.parcial2 ?? '-';
+        parcial3 = data.parciales?.parcial3 ?? '-';
+        console.log('  Calificaciones:', parcial1, parcial2, parcial3);
+      } else {
+        console.log('  Sin calificaciones');
+      }
+      
+      materias.push({
+        nombre: materia.materiaNombre,
+        codigo: materia.codigoGrupo,  // ✓ Usar codigoGrupo
+        profesor: materia.profesorNombre,
+        parcial1: parcial1,
+        parcial2: parcial2,
+        parcial3: parcial3
+      });
+    }
+    
+    console.log('Total materias procesadas:', materias.length);
+    
+    // Generar tabla tipo boleta
+    let html = `
+      <div style="background: white; padding: 20px; border-radius: 10px;">
+        <h3 style="color: #6A2135; margin: 0 0 20px 0; text-align: center;">Boleta de Calificaciones</h3>
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+          <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #6A2135; color: white;">
+              <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 1</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 2</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 3</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Promedio</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    materias.forEach(materia => {
+      // REGLA DE NEGOCIO: Si hay NP en cualquier parcial, promedio = 5.0
+      const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
+      
+      let promedio = '-';
+      
+      if (tieneNP) {
+        promedio = '5.0';
+      } else {
+        // Calcular promedio normal si no hay NP
+        const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
+          .filter(c => c !== '-' && c !== null && c !== undefined)
+          .map(c => parseFloat(c))
+          .filter(c => !isNaN(c));
+        
+        if (cals.length > 0) {
+          promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
+        }
+      }
+      
+      html += `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px; border: 1px solid #ddd;">
+            <strong>${materia.nombre}</strong>
+            <br><small style="color: #666;">Profesor: ${materia.profesor}</small>
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial1 === 'NP' ? '#a60d24' : (materia.parcial1 !== '-' ? '#000000' : '#000000')};">
+            ${materia.parcial1}
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial2 === 'NP' ? '#a60d24' : (materia.parcial2 !== '-' ? '#000000' : '#000000')};">
+            ${materia.parcial2}
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial3 === 'NP' ? '#a60d24' : (materia.parcial3 !== '-' ? '#000000' : '#000000')};">
+            ${materia.parcial3}
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.3rem; font-weight: bold; background: #f0f7ff; color: #6A2135;">
+            ${promedio}
+          </td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+          </table>
+        </div>
+        <p style="text-align: center; color: #999; font-size: 0.85rem; margin-top: 10px;">
+          Desliza para ver todo el contenido si estás en un dispositivo móvil.
+        </p>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error:', error);
+    container.innerHTML = '<div class="sin-datos" style="color: red;">Error al cargar información</div>';
+  }
+}
+
+function nuevaConsulta() {
+  document.getElementById('loginCard').style.display = 'block';
+  document.getElementById('resultado').style.display = 'none';
+  document.getElementById('formConsulta').reset();
+  document.getElementById('btnConsultar').disabled = false;
+  document.getElementById('btnConsultar').textContent = 'Consultar';
+  alumnoActual = null;
+}
+  </script>
+  
+  <!-- jsPDF para generar PDFs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  
+  <!-- Logos y funciones de PDF -->
+  <script src="logoPdf.js"></script>
+  <script src="boletaPDF.js"></script>
+  
+  <script src="controlAlumnoHistorial.js"></script>
+  <script src="controlAlumnoEspecial.js"></script> 
+  
 </body>
 </html>
