@@ -776,10 +776,14 @@ function volverMaterias() {
 
 <script>
 // Función para guardar calificaciones (solo las vacías)
+
 async function guardarCalificacionesProfe() {
-  if (!confirm('¿Guardar las calificaciones?\n\n No podra realizar cambios despues.')) {
+  if (!confirm('¿Guardar las calificaciones?\n\nNo podra realizar cambios despues.')) {
     return;
   }
+  
+  console.log('=== Guardando calificaciones ===');
+  console.log('Asignación actual:', asignacionActual);
   
   try {
     let guardadas = 0;
@@ -829,20 +833,29 @@ async function guardarCalificacionesProfe() {
         parcial3: datosActuales.parcial3 === null || datosActuales.parcial3 === undefined ? parcial3 : datosActuales.parcial3
       };
       
-      // Guardar
+      console.log(`Guardando calificaciones para ${alumno.nombre}:`, nuevos);
+      
+      // ✓ CORREGIDO: usar codigoGrupo en lugar de grupoId
       await db.collection('calificaciones').doc(docId).set({
         alumnoId: alumno.id,
+        alumnoNombre: alumno.nombre,
         materiaId: asignacionActual.materiaId,
-        grupoId: asignacionActual.grupoId,
+        materiaNombre: asignacionActual.materiaNombre,
+        codigoGrupo: asignacionActual.codigoGrupo,  // ✓ CAMBIADO de grupoId
         profesorId: usuarioActual.uid,
+        profesorNombre: usuarioActual.nombre,
         periodo: asignacionActual.periodo,
+        carreraId: asignacionActual.carreraId,
         parciales: nuevos,
         actualizadoPor: usuarioActual.uid,
         fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
       });
       
       guardadas++;
+      console.log(`✓ Calificaciones guardadas para ${alumno.nombre}`);
     }
+    
+    console.log(`Total guardadas: ${guardadas}`);
     
     if (guardadas > 0) {
       alert(`Calificaciones guardadas!\n\n${guardadas} alumno(s) actualizado(s).`);
@@ -852,9 +865,9 @@ async function guardarCalificacionesProfe() {
       alert('No hay calificaciones nuevas para guardar.\n\nLas calificaciones ya registradas solo pueden ser modificadas por el coordinador.');
     }
     
- } catch (error) {
-    console.error('Error:', error);
-    alert('Error al guardar calificaciones');
+  } catch (error) {
+    console.error('Error al guardar calificaciones:', error);
+    alert('Error al guardar calificaciones: ' + error.message);
   }
 }
 </script>
