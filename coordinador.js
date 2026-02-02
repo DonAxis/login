@@ -1757,6 +1757,7 @@ async function reasignarProfesor(asignacionId) {
 
 //==========Funcion Asignacion Masiva ========
 
+
 async function mostrarFormAsignacionMasiva() {
     console.log('=== mostrarFormAsignacionMasiva INICIADA ===');
     
@@ -1833,8 +1834,8 @@ async function mostrarFormAsignacionMasiva() {
         <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
           <h4 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Como funciona</h4>
           <ol style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.85rem;">
-            <li>Selecciona el turno y orden del grupo</li>
-            <li>Se cargaran todas las materias disponibles para ese turno</li>
+            <li>Selecciona el periodo, turno y orden del grupo</li>
+            <li>Se cargaran todas las materias disponibles para ese periodo y turno</li>
             <li>Asigna un profesor a cada materia</li>
             <li>Guarda todas las asignaciones de una vez</li>
           </ol>
@@ -1843,8 +1844,26 @@ async function mostrarFormAsignacionMasiva() {
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
           <h3 style="margin: 0 0 15px 0; color: #333; font-size: 1.1rem;">Configuracion del Grupo</h3>
           
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+          <div style="display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 15px;">
             
+            <!-- NUEVO: SELECTOR DE PERIODO -->
+            <div>
+              <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Periodo: *</label>
+              <select id="periodoMasivo" required onchange="actualizarPreviewGrupoMasivo()"
+                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
+                <option value="">Seleccionar...</option>
+                <option value="1">Periodo 1</option>
+                <option value="2">Periodo 2</option>
+                <option value="3">Periodo 3</option>
+                <option value="4">Periodo 4</option>
+                <option value="5">Periodo 5</option>
+                <option value="6">Periodo 6</option>
+                <option value="7">Periodo 7</option>
+                <option value="8">Periodo 8</option>
+                <option value="9">Periodo 9</option>
+              </select>
+            </div>
+
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Turno: *</label>
               <select id="turnoMasivo" required onchange="actualizarPreviewGrupoMasivo()"
@@ -1867,7 +1886,7 @@ async function mostrarFormAsignacionMasiva() {
 
           <!-- PREVIEW DEL GRUPO -->
           <div id="previewGrupoMasivo" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: center; border-left: 4px solid #1976d2;">
-            <em style="color: #999;">Selecciona turno y orden para ver los grupos</em>
+            <em style="color: #999;">Selecciona periodo, turno y orden para ver el grupo</em>
           </div>
 
           <div style="margin-top: 15px;">
@@ -1915,46 +1934,93 @@ async function mostrarFormAsignacionMasiva() {
     }
 }
 
+function actualizarPreviewGrupoMasivo() {
+    const periodoSelect = document.getElementById('periodoMasivo');
+    const turnoSelect = document.getElementById('turnoMasivo');
+    const ordenInput = document.getElementById('ordenMasivo');
+    const previewDiv = document.getElementById('previewGrupoMasivo');
+
+    if (!periodoSelect || !turnoSelect || !ordenInput || !previewDiv) {
+        return;
+    }
+
+    const periodo = periodoSelect.value;
+    const turno = turnoSelect.value;
+    const turnoTexto = turnoSelect.options[turnoSelect.selectedIndex]?.text || '';
+    const orden = ordenInput.value || '01';
+
+    if (!periodo || !turno) {
+        previewDiv.innerHTML = '<em style="color: #999;">Selecciona periodo, turno y orden para ver el grupo</em>';
+        return;
+    }
+
+    const ordenFormateado = orden.padStart(2, '0');
+    const codigoCarrera = window.codigoCarreraAsignacionMasiva || 'XXX';
+
+    // Generar codigo de grupo: CODIGO-TURNOPERIODOORDEN
+    const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${ordenFormateado}`;
+
+    let previewHtml = `
+        <div style="margin-bottom: 10px;">
+            <strong style="color: #1976d2; font-size: 1.3rem;">${codigoGrupo}</strong>
+        </div>
+        <div style="font-size: 0.9rem; color: #555;">
+            ${turnoTexto} - Periodo ${periodo} - Grupo ${ordenFormateado}
+        </div>
+        <div style="margin-top: 10px; font-size: 0.75rem; color: #666;">
+            <em>Se cargarán las materias del periodo ${periodo}</em>
+        </div>
+    `;
+
+    previewDiv.innerHTML = previewHtml;
+}
+
+// FUNCION CORREGIDA: Cargar materias filtradas por PERIODO
 async function cargarMateriasPorTurno() {
     console.log('=== cargarMateriasPorTurno INICIADA ===');
     
+    const periodoElement = document.getElementById('periodoMasivo');
     const turnoElement = document.getElementById('turnoMasivo');
     const ordenElement = document.getElementById('ordenMasivo');
     const areaMaterias = document.getElementById('areaMateriasMasivo');
     const listaMaterias = document.getElementById('listaMateriasMasivo');
 
+    console.log('Elemento periodo:', periodoElement);
     console.log('Elemento turno:', turnoElement);
     console.log('Elemento orden:', ordenElement);
 
-    if (!turnoElement || !ordenElement) {
+    if (!periodoElement || !turnoElement || !ordenElement) {
         console.error('ERROR: No se encontraron los elementos del formulario');
         alert('Error: No se encontraron los campos del formulario');
         return;
     }
 
+    const periodo = periodoElement.value;
     const turno = turnoElement.value;
     const orden = ordenElement.value;
 
+    console.log('Periodo seleccionado:', periodo);
     console.log('Turno seleccionado:', turno);
     console.log('Orden ingresado:', orden);
 
-    if (!turno || !orden) {
-        console.log('Faltan turno u orden');
-        alert('Por favor selecciona el turno y el orden');
+    if (!periodo || !turno || !orden) {
+        console.log('Faltan periodo, turno u orden');
+        alert('Por favor selecciona el periodo, turno y orden');
         areaMaterias.style.display = 'none';
         return;
     }
 
     try {
-        console.log('1. Cargando materias de la carrera...');
+        console.log('1. Cargando materias del periodo seleccionado...');
         const materiasQuery = db.collection('materias')
-            .where('carreraId', '==', usuarioActual.carreraId);
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .where('periodo', '==', parseInt(periodo));  // FILTRAR POR PERIODO
 
         const materiasSnap = await materiasQuery.get();
-        console.log('Materias encontradas:', materiasSnap.size);
+        console.log('Materias encontradas para el periodo:', materiasSnap.size);
         
         if (materiasSnap.empty) {
-            listaMaterias.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No hay materias registradas</p>';
+            listaMaterias.innerHTML = `<p style="color: #999; text-align: center; padding: 40px;">No hay materias registradas para el periodo ${periodo}</p>`;
             areaMaterias.style.display = 'block';
             return;
         }
@@ -1969,10 +2035,7 @@ async function cargarMateriasPorTurno() {
             });
         });
 
-        materias.sort((a, b) => {
-            if (a.periodo !== b.periodo) return a.periodo - b.periodo;
-            return a.nombre.localeCompare(b.nombre);
-        });
+        materias.sort((a, b) => a.nombre.localeCompare(b.nombre));
         console.log('2. Materias ordenadas:', materias.length);
 
         const profesores = window.profesoresDisponiblesMasivo || [];
@@ -1985,7 +2048,6 @@ async function cargarMateriasPorTurno() {
         });
 
         let html = '';
-        let periodoActual = null;
 
         const codigoCarrera = window.codigoCarreraAsignacionMasiva || 'XXX';
         const ordenFormateado = orden.padStart(2, '0');
@@ -1999,21 +2061,16 @@ async function cargarMateriasPorTurno() {
         console.log('4. Codigo carrera:', codigoCarrera);
         console.log('5. Generando HTML de materias...');
 
-        materias.forEach((materia, index) => {
-            if (materia.periodo !== periodoActual) {
-                if (periodoActual !== null) {
-                    html += '</div>';
-                }
-                html += `
-                    <div style="margin-bottom: 25px;">
-                        <h3 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; margin: 0 0 15px 0; font-size: 1.1rem;">
-                            Periodo ${materia.periodo}
-                        </h3>
-                `;
-                periodoActual = materia.periodo;
-            }
+        // Encabezado del grupo
+        html += `
+            <div style="margin-bottom: 25px;">
+                <h3 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; margin: 0 0 15px 0; font-size: 1.1rem;">
+                    ${turnosNombres[turno]} - Periodo ${periodo} - Grupo ${ordenFormateado}
+                </h3>
+        `;
 
-            const codigoGrupo = `${codigoCarrera}-${turno}${materia.periodo}${ordenFormateado}`;
+        materias.forEach((materia, index) => {
+            const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${ordenFormateado}`;
 
             html += `
                 <div style="display: grid; grid-template-columns: 2fr 3fr 1fr; gap: 15px; align-items: center; padding: 15px; background: ${index % 2 === 0 ? '#fff' : '#f9f9f9'}; border-radius: 8px; margin-bottom: 10px;">
@@ -2029,7 +2086,7 @@ async function cargarMateriasPorTurno() {
                         <select class="profesor-select" 
                                 data-materia-id="${materia.id}" 
                                 data-materia-nombre="${materia.nombre}"
-                                data-periodo="${materia.periodo}"
+                                data-periodo="${periodo}"
                                 data-codigo-grupo="${codigoGrupo}"
                                 style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 0.9rem;">
                             ${profesoresOptions}
@@ -2043,16 +2100,17 @@ async function cargarMateriasPorTurno() {
             `;
         });
 
-        if (periodoActual !== null) {
-            html += '</div>';
-        }
+        html += '</div>';
 
         const resumenHtml = `
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
                 <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">
-                    ${turnosNombres[turno]} - Grupo ${ordenFormateado}
+                    ${codigoCarrera}-${turno}${periodo}${ordenFormateado}
                 </div>
                 <div style="font-size: 0.95rem; opacity: 0.95;">
+                    ${turnosNombres[turno]} - Periodo ${periodo} - Grupo ${ordenFormateado}
+                </div>
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 5px;">
                     ${materias.length} materias disponibles para asignar
                 </div>
             </div>
@@ -2083,54 +2141,6 @@ async function cargarMateriasPorTurno() {
     }
 }
 
-// ====== FUNCION PARA ACTUALIZAR PREVIEW DEL GRUPO MASIVO ======
-function actualizarPreviewGrupoMasivo() {
-    const turnoSelect = document.getElementById('turnoMasivo');
-    const ordenInput = document.getElementById('ordenMasivo');
-    const previewDiv = document.getElementById('previewGrupoMasivo');
-
-    if (!turnoSelect || !ordenInput || !previewDiv) {
-        return;
-    }
-
-    const turno = turnoSelect.value;
-    const turnoTexto = turnoSelect.options[turnoSelect.selectedIndex]?.text || '';
-    const orden = ordenInput.value || '01';
-
-    if (!turno) {
-        previewDiv.innerHTML = '<em style="color: #999;">Selecciona turno y orden para ver los grupos</em>';
-        return;
-    }
-
-    const ordenFormateado = orden.padStart(2, '0');
-    const codigoCarrera = window.codigoCarreraAsignacionMasiva || 'XXX';
-
-    // Mostrar preview para cada periodo (asumiendo periodos 1-9)
-    let previewHtml = `
-        <div style="margin-bottom: 10px;">
-            <strong style="color: #1976d2; font-size: 1.1rem;">${turnoTexto} - Grupo ${ordenFormateado}</strong>
-        </div>
-        <div style="font-size: 0.85rem; color: #555; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-    `;
-
-    for (let periodo = 1; periodo <= 9; periodo++) {
-        const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${ordenFormateado}`;
-        previewHtml += `
-            <span style="background: white; padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd;">
-                P${periodo}: <strong>${codigoGrupo}</strong>
-            </span>
-        `;
-    }
-
-    previewHtml += `
-        </div>
-        <div style="margin-top: 10px; font-size: 0.75rem; color: #666;">
-            <em>Se cargarán todas las materias de este turno</em>
-        </div>
-    `;
-
-    previewDiv.innerHTML = previewHtml;
-}
 
 async function guardarAsignacionesMasivas() {
     console.log('=== guardarAsignacionesMasivas INICIADA ===');
