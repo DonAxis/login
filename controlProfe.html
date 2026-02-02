@@ -422,8 +422,7 @@
       }
     }
 
-// Agregar al final del <script> en ControlProfe.html
-
+// =========================================
 let asignacionActual = null;
 let alumnosMateria = [];
 
@@ -437,11 +436,15 @@ async function mostrarMisMaterias() {
     const container = document.getElementById('listaMaterias');
     container.innerHTML = '<p style="text-align: center; color: #999;">Cargando materias...</p>';
     
+    console.log('Buscando asignaciones para profesor:', usuarioActual.uid);
+    
     // Buscar asignaciones del profesor
     const snapshot = await db.collection('profesorMaterias')
       .where('profesorId', '==', usuarioActual.uid)
       .where('activa', '==', true)
       .get();
+    
+    console.log('Asignaciones encontradas:', snapshot.size);
     
     if (snapshot.empty) {
       container.innerHTML = `
@@ -462,21 +465,63 @@ async function mostrarMisMaterias() {
       return;
     }
     
-    let html = '<div style="display: grid; gap: 15px;">';
+    // Agrupar por periodo
+    const asignacionesPorPeriodo = {};
     
     snapshot.forEach(doc => {
-      const asignacion = doc.data();
+      const asignacion = { id: doc.id, ...doc.data() };
+      const periodo = asignacion.periodo || 0;
+      
+      if (!asignacionesPorPeriodo[periodo]) {
+        asignacionesPorPeriodo[periodo] = [];
+      }
+      asignacionesPorPeriodo[periodo].push(asignacion);
+    });
+    
+    // Ordenar periodos
+    const periodos = Object.keys(asignacionesPorPeriodo).map(p => parseInt(p)).sort((a, b) => a - b);
+    
+    let html = '<div style="display: grid; gap: 20px;">';
+    
+    periodos.forEach(periodo => {
+      const asignaciones = asignacionesPorPeriodo[periodo];
+      
       html += `
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #6A2135; cursor: pointer; transition: all 0.3s;" onclick="verCalificacionesMateria('${doc.id}')">
-          <h3 style="margin: 0 0 10px 0; color: #333;">${asignacion.materiaNombre}</h3>
-          <p style="margin: 5px 0; color: #666; font-size: 0.9rem;">
-            Código: ${asignacion.materiaCodigo} | 
-            Grupo: ${asignacion.grupoNombre} | 
-            Periodo: ${asignacion.periodo}
-          </p>
-          <button style="background: #6A2135; color: white; border: none; padding: 8px 20px; border-radius: 5px; margin-top: 10px; cursor: pointer; font-weight: 600;">
-            Ver Calificaciones →
-          </button>
+        <div>
+          <h3 style="color: #6A2135; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #6A2135;">
+            Periodo ${periodo} (${asignaciones.length} ${asignaciones.length === 1 ? 'materia' : 'materias'})
+          </h3>
+          <div style="display: grid; gap: 15px;">
+      `;
+      
+      asignaciones.forEach(asignacion => {
+        // Obtener nombre del turno
+        const turnosNombres = {
+          1: 'Matutino',
+          2: 'Vespertino', 
+          3: 'Nocturno',
+          4: 'Sabatino'
+        };
+        const turnoNombre = asignacion.turnoNombre || turnosNombres[asignacion.turno] || 'Sin turno';
+        
+        html += `
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #6A2135; cursor: pointer; transition: all 0.3s; hover: transform: translateX(5px);" 
+               onclick="verCalificacionesMateria('${asignacion.id}')">
+            <h4 style="margin: 0 0 10px 0; color: #333; font-size: 1.1rem;">${asignacion.materiaNombre || 'Sin nombre'}</h4>
+            <p style="margin: 5px 0; color: #666; font-size: 0.9rem;">
+              <strong>Código Grupo:</strong> ${asignacion.codigoGrupo || 'N/A'} |
+              <strong>Turno:</strong> ${turnoNombre} |
+              <strong>Orden:</strong> ${asignacion.orden || 'N/A'}
+            </p>
+            <button style="background: #6A2135; color: white; border: none; padding: 8px 20px; border-radius: 5px; margin-top: 10px; cursor: pointer; font-weight: 600;">
+              Ver Calificaciones →
+            </button>
+          </div>
+        `;
+      });
+      
+      html += `
+          </div>
         </div>
       `;
     });
@@ -484,15 +529,19 @@ async function mostrarMisMaterias() {
     html += '</div>';
     container.innerHTML = html;
     
+    console.log('Materias cargadas correctamente');
+    
   } catch (error) {
-    console.error('Error:', error);
-    alert('Error al cargar materias');
+    console.error('Error al cargar materias:', error);
+    alert('Error al cargar materias: ' + error.message);
   }
 }
 
 // Ver calificaciones de una materia específica
 async function verCalificacionesMateria(asignacionId) {
   try {
+    console.log('Cargando calificaciones para asignación:', asignacionId);
+    
     // Cargar datos de la asignación
     const asignacionDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
     if (!asignacionDoc.exists) {
@@ -505,14 +554,26 @@ async function verCalificacionesMateria(asignacionId) {
       ...asignacionDoc.data()
     };
     
+    console.log('Asignación cargada:', asignacionActual);
+    
+    // Obtener nombre del turno
+    const turnosNombres = {
+      1: 'Matutino',
+      2: 'Vespertino',
+      3: 'Nocturno',
+      4: 'Sabatino'
+    };
+    const turnoNombre = asignacionActual.turnoNombre || turnosNombres[asignacionActual.turno] || 'Sin turno';
+    
     // Actualizar título
     const infoDiv = document.getElementById('infoMateriaActual');
     if (infoDiv) {
       infoDiv.innerHTML = `
-        <h3 style="margin: 0 0 10px 0; color: #6A2135;">${asignacionActual.materiaNombre}</h3>
+        <h3 style="margin: 0 0 10px 0; color: #6A2135;">${asignacionActual.materiaNombre || 'Sin nombre'}</h3>
         <p style="margin: 0; color: #666;">
-          Grupo: ${asignacionActual.grupoNombre} | 
-          Periodo: ${asignacionActual.periodo}
+          <strong>Grupo:</strong> ${asignacionActual.codigoGrupo || 'N/A'} | 
+          <strong>Turno:</strong> ${turnoNombre} |
+          <strong>Periodo:</strong> ${asignacionActual.periodo || 'N/A'}
         </p>
       `;
     }
@@ -521,14 +582,14 @@ async function verCalificacionesMateria(asignacionId) {
     document.querySelector('.menu-profesor').style.display = 'none';
     document.getElementById('seccionMaterias').style.display = 'none';
     document.getElementById('seccionCalificaciones').style.display = 'block';
-    document.getElementById('btnVolverMenu').style.display = 'inline-block'; // Mostrar botón
+    document.getElementById('btnVolverMenu').style.display = 'inline-block';
     
     // Cargar alumnos del grupo
     await cargarAlumnosYCalificaciones();
     
   } catch (error) {
-    console.error('Error:', error);
-    alert('Error al cargar calificaciones');
+    console.error('Error al cargar calificaciones:', error);
+    alert('Error al cargar calificaciones: ' + error.message);
   }
 }
 
@@ -538,15 +599,24 @@ async function cargarAlumnosYCalificaciones() {
     const container = document.getElementById('tablaCalificaciones');
     container.innerHTML = '<p style="text-align: center; color: #999;">Cargando alumnos...</p>';
     
-    // Buscar alumnos del grupo
+    console.log('Buscando alumnos del grupo:', asignacionActual.codigoGrupo);
+    
+    // Buscar alumnos del grupo usando codigoGrupo (no grupoId)
     const alumnosSnap = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
-      .where('grupoId', '==', asignacionActual.grupoId)
+      .where('codigoGrupo', '==', asignacionActual.codigoGrupo)
       .where('activo', '==', true)
       .get();
     
+    console.log('Alumnos encontrados:', alumnosSnap.size);
+    
     if (alumnosSnap.empty) {
-      container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No hay alumnos en este grupo.</div>';
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #999;">
+          <p>No hay alumnos en este grupo.</p>
+          <p style="font-size: 0.9rem; margin-top: 10px;">Grupo: ${asignacionActual.codigoGrupo}</p>
+        </div>
+      `;
       return;
     }
     
@@ -564,14 +634,7 @@ async function cargarAlumnosYCalificaciones() {
         }
       };
       
-      // Buscar calificaciones existentes
-      const calificacionesSnap = await db.collection('calificaciones')
-        .where('alumnoId', '==', doc.id)
-        .where('materiaId', '==', asignacionActual.materiaId)
-        .where('periodo', '==', asignacionActual.periodo)
-        .get();
-      
-      // Cargar calificaciones de NUEVA ESTRUCTURA
+      // Buscar calificaciones con estructura nueva
       const docId = `${doc.id}_${asignacionActual.materiaId}`;
       const calDoc = await db.collection('calificaciones').doc(docId).get();
       
@@ -588,6 +651,8 @@ async function cargarAlumnosYCalificaciones() {
     // Ordenar alfabéticamente
     alumnosMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
     
+    console.log('Alumnos cargados:', alumnosMateria.length);
+    
     // Generar tabla
     let html = `
       <table style="width: 100%; border-collapse: collapse; background: white;">
@@ -598,76 +663,55 @@ async function cargarAlumnosYCalificaciones() {
             <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 1</th>
             <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 2</th>
             <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 3</th>
+            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 100px;">Promedio</th>
+            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 100px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
     `;
     
     alumnosMateria.forEach((alumno, index) => {
+      const parcial1 = alumno.calificaciones['Parcial 1'];
+      const parcial2 = alumno.calificaciones['Parcial 2'];
+      const parcial3 = alumno.calificaciones['Parcial 3'];
+      
+      // Calcular promedio
+      let promedio = '-';
+      const tieneNP = parcial1 === 'NP' || parcial2 === 'NP' || parcial3 === 'NP';
+      
+      if (tieneNP) {
+        promedio = '5.0';
+      } else {
+        const cals = [parcial1, parcial2, parcial3]
+          .filter(c => c !== '-' && c !== '' && c !== null && c !== undefined)
+          .map(c => parseFloat(c))
+          .filter(c => !isNaN(c));
+        
+        if (cals.length > 0) {
+          promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
+        }
+      }
+      
+      // Color del promedio
+      let colorPromedio = '#666';
+      if (promedio !== '-') {
+        const promedioNum = parseFloat(promedio);
+        if (promedioNum < 6) colorPromedio = '#dc3545';
+        else if (promedioNum >= 8) colorPromedio = '#4caf50';
+      }
+      
       html += `
         <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 12px; border: 1px solid #ddd;">
-            <strong>${alumno.nombre}</strong>
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; color: #666;">
-            ${alumno.matricula}
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-            <select id="cal_${index}_p1" 
-                    ${alumno.calificaciones["Parcial 1"] !== "" && alumno.calificaciones["Parcial 1"] !== "-" ? "disabled" : ""} 
-            style="width: 80px; padding: 8px; border: 2px solid #ddd; border-radius: 5px; text-align: center; font-size: 1.1rem; font-weight: bold; cursor: pointer;">
-              <option value="">-</option>
-              <option value="10" ${alumno.calificaciones['Parcial 1'] == '10' ? 'selected' : ''}>10</option>
-              <option value="9" ${alumno.calificaciones['Parcial 1'] == '9' ? 'selected' : ''}>9</option>
-              <option value="8" ${alumno.calificaciones['Parcial 1'] == '8' ? 'selected' : ''}>8</option>
-              <option value="7" ${alumno.calificaciones['Parcial 1'] == '7' ? 'selected' : ''}>7</option>
-              <option value="6" ${alumno.calificaciones['Parcial 1'] == '6' ? 'selected' : ''}>6</option>
-              <option value="5" ${alumno.calificaciones['Parcial 1'] == '5' ? 'selected' : ''}>5</option>
-              <option value="4" ${alumno.calificaciones['Parcial 1'] == '4' ? 'selected' : ''}>4</option>
-              <option value="3" ${alumno.calificaciones['Parcial 1'] == '3' ? 'selected' : ''}>3</option>
-              <option value="2" ${alumno.calificaciones['Parcial 1'] == '2' ? 'selected' : ''}>2</option>
-              <option value="1" ${alumno.calificaciones['Parcial 1'] == '1' ? 'selected' : ''}>1</option>
-              <option value="0" ${alumno.calificaciones['Parcial 1'] == '0' ? 'selected' : ''}>0</option>
-              <option value="NP" ${alumno.calificaciones['Parcial 1'] == 'NP' ? 'selected' : ''}>NP</option>
-            </select>
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-            <select id="cal_${index}_p2" 
-                    ${alumno.calificaciones["Parcial 2"] !== "" && alumno.calificaciones["Parcial 2"] !== "-" ? "disabled" : ""} 
-            style="width: 80px; padding: 8px; border: 2px solid #ddd; border-radius: 5px; text-align: center; font-size: 1.1rem; font-weight: bold; cursor: pointer;">
-              <option value="">-</option>
-              <option value="10" ${alumno.calificaciones['Parcial 2'] == '10' ? 'selected' : ''}>10</option>
-              <option value="9" ${alumno.calificaciones['Parcial 2'] == '9' ? 'selected' : ''}>9</option>
-              <option value="8" ${alumno.calificaciones['Parcial 2'] == '8' ? 'selected' : ''}>8</option>
-              <option value="7" ${alumno.calificaciones['Parcial 2'] == '7' ? 'selected' : ''}>7</option>
-              <option value="6" ${alumno.calificaciones['Parcial 2'] == '6' ? 'selected' : ''}>6</option>
-              <option value="5" ${alumno.calificaciones['Parcial 2'] == '5' ? 'selected' : ''}>5</option>
-              <option value="4" ${alumno.calificaciones['Parcial 2'] == '4' ? 'selected' : ''}>4</option>
-              <option value="3" ${alumno.calificaciones['Parcial 2'] == '3' ? 'selected' : ''}>3</option>
-              <option value="2" ${alumno.calificaciones['Parcial 2'] == '2' ? 'selected' : ''}>2</option>
-              <option value="1" ${alumno.calificaciones['Parcial 2'] == '1' ? 'selected' : ''}>1</option>
-              <option value="0" ${alumno.calificaciones['Parcial 2'] == '0' ? 'selected' : ''}>0</option>
-              <option value="NP" ${alumno.calificaciones['Parcial 2'] == 'NP' ? 'selected' : ''}>NP</option>
-            </select>
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-            <select id="cal_${index}_p3" 
-                    ${alumno.calificaciones["Parcial 3"] !== "" && alumno.calificaciones["Parcial 3"] !== "-" ? "disabled" : ""} 
-            style="width: 80px; padding: 8px; border: 2px solid #ddd; border-radius: 5px; text-align: center; font-size: 1.1rem; font-weight: bold; cursor: pointer;">
-              <option value="">-</option>
-              <option value="10" ${alumno.calificaciones['Parcial 3'] == '10' ? 'selected' : ''}>10</option>
-              <option value="9" ${alumno.calificaciones['Parcial 3'] == '9' ? 'selected' : ''}>9</option>
-              <option value="8" ${alumno.calificaciones['Parcial 3'] == '8' ? 'selected' : ''}>8</option>
-              <option value="7" ${alumno.calificaciones['Parcial 3'] == '7' ? 'selected' : ''}>7</option>
-              <option value="6" ${alumno.calificaciones['Parcial 3'] == '6' ? 'selected' : ''}>6</option>
-              <option value="5" ${alumno.calificaciones['Parcial 3'] == '5' ? 'selected' : ''}>5</option>
-              <option value="4" ${alumno.calificaciones['Parcial 3'] == '4' ? 'selected' : ''}>4</option>
-              <option value="3" ${alumno.calificaciones['Parcial 3'] == '3' ? 'selected' : ''}>3</option>
-              <option value="2" ${alumno.calificaciones['Parcial 3'] == '2' ? 'selected' : ''}>2</option>
-              <option value="1" ${alumno.calificaciones['Parcial 3'] == '1' ? 'selected' : ''}>1</option>
-              <option value="0" ${alumno.calificaciones['Parcial 3'] == '0' ? 'selected' : ''}>0</option>
-              <option value="NP" ${alumno.calificaciones['Parcial 3'] == 'NP' ? 'selected' : ''}>NP</option>
-            </select>
+          <td style="padding: 12px; border: 1px solid #ddd;">${alumno.nombre || 'Sin nombre'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial1 || '-'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial2 || '-'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial3 || '-'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${colorPromedio};">${promedio}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+            <button onclick="editarCalificaciones(${index})" style="background: #6A2135; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+              Editar
+            </button>
           </td>
         </tr>
       `;
@@ -676,21 +720,24 @@ async function cargarAlumnosYCalificaciones() {
     html += `
         </tbody>
       </table>
-      <div style="margin-top: 20px; text-align: right;">
-        <button onclick="guardarCalificacionesProfe()" 
-                style="padding: 12px 30px; background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
-          Guardar Calificaciones
-        </button>
-      </div>
     `;
     
     container.innerHTML = html;
     
+    console.log('Tabla de calificaciones generada');
+    
   } catch (error) {
-    console.error('Error:', error);
-    alert('Error al cargar alumnos y calificaciones');
+    console.error('Error al cargar alumnos y calificaciones:', error);
+    const container = document.getElementById('tablaCalificaciones');
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #dc3545;">
+        <p><strong>Error al cargar alumnos</strong></p>
+        <p style="font-size: 0.9rem;">${error.message}</p>
+      </div>
+    `;
   }
 }
+
 
 // Guardar todas las calificaciones
 function volverMenu() {
