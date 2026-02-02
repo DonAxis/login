@@ -1805,11 +1805,6 @@ async function mostrarFormAsignarProfesor2() {
         const html = `
       <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1200px; margin: 20px auto;">
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
-          <h2 style="margin: 0; color: #667eea; font-size: 1.8rem;">Asignar Profesores a Grupo</h2>
-          <button onclick="cerrarModal()" type="button" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
-        </div>
-
         <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
           <strong style="color: #856404; font-size: 1rem;">Instrucciones:</strong>
           <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.9rem; line-height: 1.6;">
@@ -2234,6 +2229,7 @@ async function guardarAsignacionesAsignar2() {
         alert('Error al guardar asignaciones: ' + error.message);
     }
 }
+
 
 
 async function reasignarProfesor(asignacionId) {
