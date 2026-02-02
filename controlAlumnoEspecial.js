@@ -138,7 +138,6 @@ async function guardarAlumnoEspecial(event) {
 // =====================================================
 // PARTE 2: INSCRIBIR EN MATERIA (GRUPO AUTOMATICO)
 // =====================================================
-
 async function mostrarFormInscribirAlumno() {
   document.getElementById('tituloModal').textContent = 'Inscribir Alumno a Materia';
   
@@ -171,7 +170,6 @@ async function mostrarFormInscribirAlumno() {
   
   const asignacionesSnap = await db.collection('profesorMaterias')
     .where('carreraId', '==', usuarioActual.carreraId)
-    .where('periodo', '==', periodoActualCarrera)
     .where('activa', '==', true)
     .get();
   
@@ -188,13 +186,15 @@ async function mostrarFormInscribirAlumno() {
   asignacionesArray.sort((a, b) => a.materiaNombre.localeCompare(b.materiaNombre));
   
   asignacionesArray.forEach(asig => {
+    // ✓ CORREGIDO: usar codigoGrupo en lugar de grupoNombre
+    const grupoTexto = asig.codigoGrupo || 'Sin grupo';
     materiasHtml += `<option value="${asig.id}">
-      ${asig.materiaNombre} (${asig.grupoNombre}) - Prof. ${asig.profesorNombre}
+      ${asig.materiaNombre} (${grupoTexto}) - Prof. ${asig.profesorNombre}
     </option>`;
   });
   
   if (asignacionesArray.length === 0) {
-    alert('No hay materias armadas en este periodo.\n\nPrimero arma grupos (Materia + Profesor + Grupo).');
+    alert('No hay materias armadas.\n\nPrimero arma grupos usando "Asignar" o "Asignar2".');
     return;
   }
   
@@ -288,13 +288,24 @@ async function mostrarInfoAsignacion() {
     if (asigDoc.exists) {
       const asig = asigDoc.data();
       
+      // Obtener nombre del turno
+      const turnosNombres = {
+        1: 'Matutino',
+        2: 'Vespertino',
+        3: 'Nocturno',
+        4: 'Sabatino'
+      };
+      const turnoTexto = asig.turnoNombre || turnosNombres[asig.turno] || 'Sin turno';
+      
+      // ✓ CORREGIDO: usar codigoGrupo en lugar de grupoNombre y materiaCodigo
       infoDiv.innerHTML = `
         <strong>Detalles de la asignacion:</strong><br>
         <div style="margin-top: 10px; display: grid; gap: 5px;">
-          <div><strong>Materia:</strong> ${asig.materiaNombre} (${asig.materiaCodigo || 'Sin codigo'})</div>
-          <div><strong>Grupo:</strong> ${asig.grupoNombre}</div>
-          <div><strong>Profesor:</strong> ${asig.profesorNombre}</div>
-          <div><strong>Periodo:</strong> ${asig.periodo}</div>
+          <div><strong>Materia:</strong> ${asig.materiaNombre || 'Sin nombre'}</div>
+          <div><strong>Grupo:</strong> ${asig.codigoGrupo || 'Sin grupo'}</div>
+          <div><strong>Turno:</strong> ${turnoTexto}</div>
+          <div><strong>Profesor:</strong> ${asig.profesorNombre || 'Sin profesor'}</div>
+          <div><strong>Periodo:</strong> ${asig.periodo || 'N/A'}</div>
         </div>
       `;
       infoDiv.style.display = 'block';
@@ -327,6 +338,19 @@ async function guardarInscripcionAlumno(event) {
     
     const asignacion = asigDoc.data();
     
+    console.log('Asignación cargada:', asignacion);
+    
+    // Verificar que tenga los campos necesarios
+    if (!asignacion.materiaId) {
+      alert('Error: Esta asignación no tiene un ID de materia válido.\nContacta al coordinador para que la vuelva a crear.');
+      return;
+    }
+    
+    if (!asignacion.codigoGrupo) {
+      alert('Error: Esta asignación no tiene un código de grupo válido.\nContacta al coordinador para que la vuelva a crear.');
+      return;
+    }
+    
     const existe = await db.collection('inscripcionesEspeciales')
       .where('alumnoId', '==', alumnoId)
       .where('materiaId', '==', asignacion.materiaId)
@@ -339,6 +363,7 @@ async function guardarInscripcionAlumno(event) {
       return;
     }
     
+    // ✓ CORREGIDO: usar campos que SÍ existen
     const inscripcionData = {
       alumnoId: alumnoId,
       alumnoNombre: alumnoNombre,
@@ -346,10 +371,8 @@ async function guardarInscripcionAlumno(event) {
       
       materiaId: asignacion.materiaId,
       materiaNombre: asignacion.materiaNombre,
-      materiaCodigo: asignacion.materiaCodigo || '',
       
-      grupoId: asignacion.grupoId,
-      grupoNombre: asignacion.grupoNombre,
+      codigoGrupo: asignacion.codigoGrupo,  // ✓ Cambiado de grupoId
       
       profesorId: asignacion.profesorId,
       profesorNombre: asignacion.profesorNombre,
@@ -367,14 +390,17 @@ async function guardarInscripcionAlumno(event) {
       inscriptorNombre: usuarioActual.nombre
     };
     
+    console.log('Guardando inscripción:', inscripcionData);
+    
     await db.collection('inscripcionesEspeciales').add(inscripcionData);
     
-    console.log('Inscripcion especial creada');
+    console.log('Inscripcion especial creada exitosamente');
     
+    // ✓ CORREGIDO: usar codigoGrupo en el mensaje
     alert('Inscripcion Exitosa!\n\n' +
           'Alumno: ' + alumnoNombre + '\n' +
           'Materia: ' + asignacion.materiaNombre + '\n' +
-          'Grupo: ' + asignacion.grupoNombre + '\n' +
+          'Grupo: ' + asignacion.codigoGrupo + '\n' +
           'Profesor: ' + asignacion.profesorNombre);
     
     cerrarModal();
@@ -953,14 +979,44 @@ if (typeof cargarAlumnosYCalificaciones !== 'undefined') {
       const container = document.getElementById('tablaCalificaciones');
       container.innerHTML = '<p style="text-align: center; color: #999;">Cargando...</p>';
       
+      console.log('=== Cargando alumnos (normal + especiales) ===');
+      console.log('Asignación actual:', asignacionActual);
+      
+      // Verificar que tengamos los campos necesarios
+      if (!asignacionActual.materiaId) {
+        console.error('ERROR: falta materiaId');
+        container.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: #dc3545;">
+            <p><strong>Error de configuración</strong></p>
+            <p>Esta asignación no tiene un ID de materia válido.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      if (!asignacionActual.codigoGrupo) {
+        console.error('ERROR: falta codigoGrupo');
+        container.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: #dc3545;">
+            <p><strong>Error de configuración</strong></p>
+            <p>Esta asignación no tiene un código de grupo válido.</p>
+          </div>
+        `;
+        return;
+      }
+      
       let todosLosAlumnos = [];
       
-      // ALUMNOS NORMALES
+      // ========== ALUMNOS NORMALES (por codigoGrupo) ==========
+      console.log('Buscando alumnos normales con codigoGrupo:', asignacionActual.codigoGrupo);
+      
       const alumnosNormales = await db.collection('usuarios')
         .where('rol', '==', 'alumno')
-        .where('grupoId', '==', asignacionActual.grupoId)
+        .where('codigoGrupo', '==', asignacionActual.codigoGrupo)  // ✓ CORREGIDO
         .where('activo', '==', true)
         .get();
+      
+      console.log('Alumnos normales encontrados:', alumnosNormales.size);
       
       for (const doc of alumnosNormales.docs) {
         const alumno = {
@@ -988,12 +1044,18 @@ if (typeof cargarAlumnosYCalificaciones !== 'undefined') {
         todosLosAlumnos.push(alumno);
       }
       
-      // ALUMNOS ESPECIALES
+      // ========== ALUMNOS ESPECIALES (por codigoGrupo) ==========
+      console.log('Buscando inscripciones especiales...');
+      console.log('  materiaId:', asignacionActual.materiaId);
+      console.log('  codigoGrupo:', asignacionActual.codigoGrupo);
+      
       const alumnosEspeciales = await db.collection('inscripcionesEspeciales')
         .where('materiaId', '==', asignacionActual.materiaId)
-        .where('grupoId', '==', asignacionActual.grupoId)
+        .where('codigoGrupo', '==', asignacionActual.codigoGrupo)  // ✓ CORREGIDO
         .where('activa', '==', true)
         .get();
+      
+      console.log('Inscripciones especiales encontradas:', alumnosEspeciales.size);
       
       for (const doc of alumnosEspeciales.docs) {
         const inscripcion = doc.data();
@@ -1031,8 +1093,18 @@ if (typeof cargarAlumnosYCalificaciones !== 'undefined') {
       
       todosLosAlumnos.sort((a, b) => a.nombre.localeCompare(b.nombre));
       
+      console.log('Total alumnos cargados:', todosLosAlumnos.length);
+      
       if (todosLosAlumnos.length === 0) {
-        container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No hay alumnos.</div>';
+        container.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: #999;">
+            <p>No hay alumnos en este grupo.</p>
+            <p style="font-size: 0.9rem; margin-top: 10px;">
+              Grupo: ${asignacionActual.codigoGrupo}<br>
+              Materia: ${asignacionActual.materiaNombre}
+            </p>
+          </div>
+        `;
         return;
       }
       
@@ -1152,9 +1224,11 @@ if (typeof cargarAlumnosYCalificaciones !== 'undefined') {
       
       container.innerHTML = html;
       
+      console.log('Tabla de calificaciones generada correctamente');
+      
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error al cargar calificaciones');
+      console.error('Error al cargar alumnos y calificaciones:', error);
+      alert('Error al cargar calificaciones: ' + error.message);
     }
   };
 }
