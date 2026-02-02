@@ -1810,14 +1810,13 @@ async function mostrarFormAsignarProfesor2() {
           <button onclick="cerrarModal()" type="button" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
         </div>
 
-        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
-          <h4 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Como funciona</h4>
-          <ol style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.85rem;">
-            <li>Selecciona el periodo, turno y orden del grupo</li>
-            <li>Se mostraran todas las materias de ese periodo</li>
-            <li>Asigna un profesor a cada materia</li>
-            <li>Guarda las asignaciones</li>
-          </ol>
+        <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+          <strong style="color: #856404; font-size: 1rem;">Instrucciones:</strong>
+          <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.9rem; line-height: 1.6;">
+            Selecciona el periodo, turno y orden del grupo para que se muestren las materias correspondientes.<br>
+            Después asigna un profesor a cada una según sea necesario y guarda los cambios.<br>
+            Solo se guardarán las materias que tengan un profesor asignado.
+          </p>
         </div>
 
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
@@ -1827,7 +1826,7 @@ async function mostrarFormAsignarProfesor2() {
             
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Periodo: *</label>
-              <select id="periodoAsignar2" required onchange="actualizarPreviewAsignar2()"
+              <select id="periodoAsignar2" required onchange="cargarMateriasAsignar2Automatico()"
                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
                 ${opcionesPeriodos}
               </select>
@@ -1835,7 +1834,7 @@ async function mostrarFormAsignarProfesor2() {
 
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Turno: *</label>
-              <select id="turnoAsignar2" required onchange="actualizarPreviewAsignar2()"
+              <select id="turnoAsignar2" required onchange="cargarMateriasAsignar2Automatico()"
                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
                 <option value="">Seleccionar turno...</option>
                 <option value="1">Matutino</option>
@@ -1847,7 +1846,7 @@ async function mostrarFormAsignarProfesor2() {
 
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Orden: *</label>
-              <input type="text" id="ordenAsignar2" required value="01" maxlength="2" onchange="actualizarPreviewAsignar2()"
+              <input type="text" id="ordenAsignar2" required value="01" maxlength="2" onchange="cargarMateriasAsignar2Automatico()"
                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;" placeholder="01">
               <small style="color: #666; font-size: 0.75rem;">01, 02, 03...</small>
             </div>
@@ -1856,24 +1855,9 @@ async function mostrarFormAsignarProfesor2() {
           <div id="previewGrupoAsignar2" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: center; border-left: 4px solid #1976d2;">
             <em style="color: #999;">Selecciona periodo, turno y orden para ver el codigo del grupo</em>
           </div>
-
-          <div style="margin-top: 15px;">
-            <button type="button" onclick="cargarMateriasAsignar2()" class="botAzu"
-                    style="width: 100%; padding: 12px; font-size: 1rem;">
-              Cargar Materias del Grupo
-            </button>
-          </div>
         </div>
 
         <div id="areaMateriasAsignar2" style="display: none;">
-          <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <strong style="color: #856404;">Instrucciones:</strong>
-            <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.85rem;">
-              Asigna un profesor a cada materia. Puedes dejar sin asignar las que no necesites.
-              Solo se guardaran las que tengan un profesor seleccionado.
-            </p>
-          </div>
-
           <div id="listaMateriasAsignar2"></div>
 
           <div style="margin-top: 25px; display: flex; gap: 15px; justify-content: flex-end;">
@@ -1899,6 +1883,31 @@ async function mostrarFormAsignarProfesor2() {
         console.error('ERROR en mostrarFormAsignarProfesor2:', error);
         alert('Error al cargar formulario: ' + error.message);
     }
+}
+async function cargarMateriasAsignar2Automatico() {
+    // Actualizar preview primero
+    actualizarPreviewAsignar2();
+    
+    const periodoElement = document.getElementById('periodoAsignar2');
+    const turnoElement = document.getElementById('turnoAsignar2');
+    const ordenElement = document.getElementById('ordenAsignar2');
+    
+    if (!periodoElement || !turnoElement || !ordenElement) {
+        return;
+    }
+
+    const periodo = periodoElement.value;
+    const turno = turnoElement.value;
+    const orden = ordenElement.value;
+
+    // Solo cargar si todos los campos están completos
+    if (!periodo || !turno || !orden) {
+        document.getElementById('areaMateriasAsignar2').style.display = 'none';
+        return;
+    }
+    
+    // Cargar materias automáticamente
+    await cargarMateriasAsignar2();
 }
 function actualizarPreviewAsignar2() {
     const periodoSelect = document.getElementById('periodoAsignar2');
@@ -1949,7 +1958,6 @@ async function cargarMateriasAsignar2() {
 
     if (!periodoElement || !turnoElement || !ordenElement) {
         console.error('ERROR: No se encontraron los elementos del formulario');
-        alert('Error: No se encontraron los campos del formulario');
         return;
     }
 
@@ -1962,7 +1970,6 @@ async function cargarMateriasAsignar2() {
     console.log('Orden ingresado:', orden);
 
     if (!periodo || !turno || !orden) {
-        alert('Por favor selecciona el periodo, turno y orden');
         areaMaterias.style.display = 'none';
         return;
     }
@@ -2026,19 +2033,11 @@ async function cargarMateriasAsignar2() {
         };
 
         console.log('4. Generando HTML de materias...');
-        console.log('   Codigo grupo:', codigoGrupo);
 
+        // Contador pequeño de materias
         let html = `
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">
-                    ${codigoGrupo}
-                </div>
-                <div style="font-size: 0.95rem; opacity: 0.95;">
-                    ${turnosNombres[turno]} - Periodo ${periodo} - Grupo ${ordenFormateado}
-                </div>
-                <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 5px;">
-                    ${materias.length} materias para asignar
-                </div>
+            <div style="background: #f0f4f8; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; border-left: 4px solid #667eea;">
+                <strong style="color: #667eea; font-size: 1rem;">${materias.length} materias para asignar</strong>
             </div>
         `;
 
@@ -2235,6 +2234,7 @@ async function guardarAsignacionesAsignar2() {
         alert('Error al guardar asignaciones: ' + error.message);
     }
 }
+
 
 async function reasignarProfesor(asignacionId) {
     // Obtener datos de la asignación actual
