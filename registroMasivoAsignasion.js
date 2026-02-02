@@ -1,6 +1,4 @@
 
-console.log('*** CARGANDO registroMasivoAsignacion.js ***');
-
 async function mostrarFormAsignacionMasiva() {
     console.log('=== mostrarFormAsignacionMasiva INICIADA ===');
     
@@ -9,7 +7,6 @@ async function mostrarFormAsignacionMasiva() {
     try {
         console.log('1. Iniciando carga de profesores...');
         
-        // ====== CARGAR PROFESORES ======
         const profesoresValidos = [];
 
         const profesoresPurosQuery = db.collection('usuarios')
@@ -92,7 +89,7 @@ async function mostrarFormAsignacionMasiva() {
             
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Turno: *</label>
-              <select id="turnoMasivo" required onchange="cargarMateriasPorTurno()"
+              <select id="turnoMasivo" required
                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
                 <option value="">Seleccionar turno...</option>
                 <option value="1">Matutino</option>
@@ -104,10 +101,17 @@ async function mostrarFormAsignacionMasiva() {
 
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Orden: *</label>
-              <input type="text" id="ordenMasivo" required value="01" maxlength="2" onchange="cargarMateriasPorTurno()"
+              <input type="text" id="ordenMasivo" required value="01" maxlength="2"
                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;" placeholder="01">
               <small style="color: #666; font-size: 0.75rem;">01, 02, 03...</small>
             </div>
+          </div>
+
+          <div style="margin-top: 15px;">
+            <button type="button" onclick="cargarMateriasPorTurno()" class="botAzu"
+                    style="width: 100%; padding: 12px; font-size: 1rem;">
+              Cargar Materias
+            </button>
           </div>
         </div>
 
@@ -151,16 +155,29 @@ async function mostrarFormAsignacionMasiva() {
 async function cargarMateriasPorTurno() {
     console.log('=== cargarMateriasPorTurno INICIADA ===');
     
-    const turno = document.getElementById('turnoMasivo').value;
-    const orden = document.getElementById('ordenMasivo').value;
+    const turnoElement = document.getElementById('turnoMasivo');
+    const ordenElement = document.getElementById('ordenMasivo');
     const areaMaterias = document.getElementById('areaMateriasMasivo');
     const listaMaterias = document.getElementById('listaMateriasMasivo');
+
+    console.log('Elemento turno:', turnoElement);
+    console.log('Elemento orden:', ordenElement);
+
+    if (!turnoElement || !ordenElement) {
+        console.error('ERROR: No se encontraron los elementos del formulario');
+        alert('Error: No se encontraron los campos del formulario');
+        return;
+    }
+
+    const turno = turnoElement.value;
+    const orden = ordenElement.value;
 
     console.log('Turno seleccionado:', turno);
     console.log('Orden ingresado:', orden);
 
     if (!turno || !orden) {
-        console.log('Faltan turno u orden, ocultando area');
+        console.log('Faltan turno u orden');
+        alert('Por favor selecciona el turno y el orden');
         areaMaterias.style.display = 'none';
         return;
     }
@@ -423,13 +440,3 @@ async function guardarAsignacionesMasivas() {
         alert('Error al guardar asignaciones: ' + error.message);
     }
 }
-
-console.log('*** registroMasivoAsignacion.js CARGADO CORRECTAMENTE ***');
-console.log('Funciones disponibles:');
-console.log('- mostrarFormAsignacionMasiva()');
-console.log('- cargarMateriasPorTurno()');
-console.log('- guardarAsignacionesMasivas()');
-
-
-
-

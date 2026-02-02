@@ -1227,10 +1227,13 @@ async function guardarGrupo(event, grupoId) {
 // ===== ASIGNAR PROFESORES A MATERIAS =====
 async function cargarAsignaciones() {
     try {
-        // Cargar asignaciones activas del periodo actual
+        console.log('=== CARGANDO ASIGNACIONES ===');
+        console.log('Carrera actual:', usuarioActual.carreraId);
+        console.log('Periodo actual:', periodoActualCarrera);
+        
+        // Cargar TODAS las asignaciones activas de la carrera
         let query = db.collection('profesorMaterias')
-            .where('activa', '==', true)
-            .where('periodo', '==', periodoActualCarrera);
+            .where('activa', '==', true);
 
         // Filtrar por carrera si es coordinador
         if (usuarioActual.rol === 'coordinador' && usuarioActual.carreraId) {
@@ -1238,55 +1241,242 @@ async function cargarAsignaciones() {
         }
 
         const snapshot = await query.get();
+        console.log('Asignaciones encontradas:', snapshot.size);
+        
         const container = document.getElementById('listaAsignaciones');
 
         if (snapshot.empty) {
+            console.log('No hay asignaciones');
             container.innerHTML = `
- <div style="text-align: center; padding: 40px;">
- <p style="color: #999; margin-bottom: 20px;">No hay asignaciones para el periodo actual: ${periodoActualCarrera}</p>
- <button onclick="mostrarHistorialAsignaciones()" class="botAzu" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
- Ver Historial de Asignaciones
- </button>
- </div>
- `;
+                <div style="text-align: center; padding: 40px;">
+                    <p style="color: #999; margin-bottom: 20px;">No hay asignaciones registradas</p>
+                    <p style="color: #666; font-size: 0.9rem;">Usa el boton "Asignar" o "Asignacion Masiva" para crear asignaciones</p>
+                </div>
+            `;
             return;
         }
 
-        let html = `
- <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
- <div>
- <strong>Mostrando asignaciones del periodo:</strong> ${periodoActualCarrera}
- </div>
- <button onclick="mostrarHistorialAsignaciones()" class="botAzu" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 8px 16px;">
- Ver Historial
- </button>
- </div>
- `;
-
+        // Agrupar asignaciones por periodo
+        const asignacionesPorPeriodo = {};
+        
         snapshot.forEach(doc => {
             const asignacion = doc.data();
+            const periodo = asignacion.periodo || 1;
+            
+            if (!asignacionesPorPeriodo[periodo]) {
+                asignacionesPorPeriodo[periodo] = [];
+            }
+            
+            asignacionesPorPeriodo[periodo].push({
+                id: doc.id,
+                ...asignacion
+            });
+        });
+
+        // Ordenar periodos de menor a mayor
+        const periodos = Object.keys(asignacionesPorPeriodo).sort((a, b) => parseInt(a) - parseInt(b));
+        console.log('Periodos encontrados:', periodos);
+
+        let html = `
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <strong style="color: #1565c0;">Total de asignaciones activas: ${snapshot.size}</strong>
+            </div>
+        `;
+
+        // Mostrar asignaciones agrupadas por periodo
+        periodos.forEach(periodo => {
+            const asignaciones = asignacionesPorPeriodo[periodo];
+            
             html += `
- <div class="item">
- <div class="item-info">
- <h4>${asignacion.materiaNombre} (${asignacion.materiaCodigo})</h4>
- <p>Profesor: ${asignacion.profesorNombre}</p>
- <p>Grupo: ${asignacion.grupoNombre} | Periodo: ${asignacion.periodo}</p>
- </div>
- <div class="item-acciones">
- <button onclick="reasignarProfesor('${doc.id}')" class="btn-editar">Reasignar</button>
- <button onclick="eliminarAsignacion('${doc.id}')" class="btn-eliminar">Borrar</button>
- </div>
- </div>
- `;
+                <div style="margin-bottom: 30px;">
+                    <h3 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; margin: 0 0 15px 0; font-size: 1.1rem;">
+                        Periodo ${periodo} (${asignaciones.length} asignaciones)
+                    </h3>
+            `;
+
+            asignaciones.forEach(asignacion => {
+                html += `
+                    <div class="item">
+                        <div class="item-info">
+                            <h4>${asignacion.materiaNombre}</h4>
+                            <p><strong>Grupo:</strong> ${asignacion.codigoGrupo} (${asignacion.turnoNombre || 'Sin turno'})</p>
+                            <p><strong>Profesor:</strong> ${asignacion.profesorNombre}</p>
+                            <p style="font-size: 0.85rem; color: #666;">Orden: ${asignacion.orden || 'N/A'}</p>
+                        </div>
+                        <div class="item-acciones">
+                            <button onclick="editarAsignacion('${asignacion.id}')" class="btn-editar">Editar</button>
+                            <button onclick="eliminarAsignacion('${asignacion.id}')" class="btn-eliminar">Eliminar</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`; // Cerrar contenedor del periodo
         });
 
         container.innerHTML = html;
+        console.log('Asignaciones mostradas correctamente');
+
     } catch (error) {
         console.error('Error al cargar asignaciones:', error);
         document.getElementById('listaAsignaciones').innerHTML =
-            '<p style="color: red;">Error al cargar asignaciones</p>';
+            '<p style="color: red;">Error al cargar asignaciones: ' + error.message + '</p>';
     }
 }
+
+// ============================================
+// FUNCION ADICIONAL: editarAsignacion
+// Para editar una asignacion existente
+// ============================================
+
+async function editarAsignacion(asignacionId) {
+    try {
+        console.log('Editando asignacion:', asignacionId);
+        
+        const doc = await db.collection('profesorMaterias').doc(asignacionId).get();
+        
+        if (!doc.exists) {
+            alert('La asignacion no existe');
+            return;
+        }
+        
+        const asignacion = doc.data();
+        
+        // Cargar profesores disponibles
+        const profesoresValidos = [];
+
+        const profesoresPurosQuery = db.collection('usuarios')
+            .where('rol', '==', 'profesor')
+            .where('activo', '==', true);
+
+        const profesoresPurosSnap = await profesoresPurosQuery.get();
+
+        profesoresPurosSnap.forEach(docProf => {
+            const data = docProf.data();
+            if (data.carreras && Array.isArray(data.carreras)) {
+                const tieneCarrera = data.carreras.some(c => {
+                    if (typeof c === 'string') return c === usuarioActual.carreraId;
+                    else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
+                    return false;
+                });
+                if (tieneCarrera) profesoresValidos.push({ id: docProf.id, ...data });
+            }
+        });
+
+        const coordinadoresQuery = db.collection('usuarios')
+            .where('rol', '==', 'coordinador')
+            .where('activo', '==', true);
+
+        const coordinadoresSnap = await coordinadoresQuery.get();
+
+        coordinadoresSnap.forEach(docCoord => {
+            const data = docCoord.data();
+            if (!data.roles || !data.roles.includes('profesor')) return;
+
+            let tieneAcceso = false;
+            if (data.carreras && Array.isArray(data.carreras)) {
+                tieneAcceso = data.carreras.some(c => {
+                    if (typeof c === 'string') return c === usuarioActual.carreraId;
+                    else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
+                    return false;
+                });
+            } else if (data.carreraId === usuarioActual.carreraId) {
+                tieneAcceso = true;
+            }
+            if (tieneAcceso) profesoresValidos.push({ id: docCoord.id, ...data });
+        });
+
+        profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        let profesoresOptions = '';
+        profesoresValidos.forEach(prof => {
+            const selected = prof.id === asignacion.profesorId ? 'selected' : '';
+            const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
+            profesoresOptions += `<option value="${prof.id}" data-nombre="${prof.nombre}" ${selected}>${prof.nombre}${rolDisplay}</option>`;
+        });
+
+        const html = `
+            <form onsubmit="actualizarAsignacion(event, '${asignacionId}')">
+                
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #1565c0;">Asignacion Actual</h4>
+                    <p style="margin: 5px 0;"><strong>Materia:</strong> ${asignacion.materiaNombre}</p>
+                    <p style="margin: 5px 0;"><strong>Grupo:</strong> ${asignacion.codigoGrupo}</p>
+                    <p style="margin: 5px 0;"><strong>Turno:</strong> ${asignacion.turnoNombre}</p>
+                </div>
+
+                <div class="form-grupo">
+                    <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+                        Cambiar Profesor: *
+                    </label>
+                    <select id="nuevoProfesor" required
+                            style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+                        ${profesoresOptions}
+                    </select>
+                </div>
+
+                <div class="botones-formulario">
+                    <button type="submit" class="botAzu">Actualizar</button>
+                    <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
+                </div>
+            </form>
+        `;
+
+        document.getElementById('tituloModal').textContent = 'Editar Asignacion';
+        document.getElementById('contenidoModal').innerHTML = html;
+        document.getElementById('modalGenerico').style.display = 'flex';
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar asignacion: ' + error.message);
+    }
+}
+
+async function actualizarAsignacion(event, asignacionId) {
+    event.preventDefault();
+    
+    const nuevoProfesorSelect = document.getElementById('nuevoProfesor');
+    const nuevoProfesorId = nuevoProfesorSelect.value;
+    const nuevoProfesorNombre = nuevoProfesorSelect.options[nuevoProfesorSelect.selectedIndex].dataset.nombre;
+    
+    try {
+        await db.collection('profesorMaterias').doc(asignacionId).update({
+            profesorId: nuevoProfesorId,
+            profesorNombre: nuevoProfesorNombre,
+            fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert('Asignacion actualizada correctamente');
+        cerrarModal();
+        cargarAsignaciones();
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al actualizar: ' + error.message);
+    }
+}
+
+// ============================================
+// FUNCION: eliminarAsignacion
+// ============================================
+
+async function eliminarAsignacion(asignacionId) {
+    const confirmar = confirm('¿Eliminar esta asignacion?\n\nEsta accion no se puede deshacer.');
+    
+    if (!confirmar) return;
+    
+    try {
+        await db.collection('profesorMaterias').doc(asignacionId).delete();
+        alert('Asignacion eliminada');
+        cargarAsignaciones();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al eliminar: ' + error.message);
+    }
+}
+
+console.log('Funciones de asignaciones corregidas cargadas');
+
 
 // Mostrar historial de asignaciones por periodo
 async function mostrarHistorialAsignaciones() {
