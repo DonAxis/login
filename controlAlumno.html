@@ -161,10 +161,13 @@ async function mostrarInformacionAlumno() {
   document.getElementById('nombreAlumno').textContent = alumnoActual.nombre;
   document.getElementById('infoMatricula').textContent = alumnoActual.matricula;
   
-  // ✓ CORREGIDO: Mostrar código de grupo directamente
+  // ✓ CORREGIDO: Mostrar código de grupo o "Especial" para alumnos especiales
   if (alumnoActual.codigoGrupo) {
     document.getElementById('infoGrupo').textContent = alumnoActual.codigoGrupo;
     console.log('Código de grupo:', alumnoActual.codigoGrupo);
+  } else if (alumnoActual.tipoAlumno === 'especial') {
+    document.getElementById('infoGrupo').textContent = 'Especial';
+    console.log('Alumno especial');
   } else {
     document.getElementById('infoGrupo').textContent = 'Sin grupo asignado';
     console.log('Alumno sin código de grupo');
