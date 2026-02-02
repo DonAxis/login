@@ -1847,7 +1847,7 @@ async function mostrarFormAsignacionMasiva() {
             
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Turno: *</label>
-              <select id="turnoMasivo" required onchange="cargarMateriasPorTurno()"
+              <select id="turnoMasivo" required onchange="actualizarPreviewGrupoMasivo()"
                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
                 <option value="">Seleccionar turno...</option>
                 <option value="1">Matutino</option>
@@ -1859,10 +1859,15 @@ async function mostrarFormAsignacionMasiva() {
 
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Orden: *</label>
-              <input type="text" id="ordenMasivo" required value="01" maxlength="2" onchange="cargarMateriasPorTurno()"
+              <input type="text" id="ordenMasivo" required value="01" maxlength="2" onchange="actualizarPreviewGrupoMasivo()"
                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;" placeholder="01">
               <small style="color: #666; font-size: 0.75rem;">01, 02, 03...</small>
             </div>
+          </div>
+
+          <!-- PREVIEW DEL GRUPO -->
+          <div id="previewGrupoMasivo" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: center; border-left: 4px solid #1976d2;">
+            <em style="color: #999;">Selecciona turno y orden para ver los grupos</em>
           </div>
 
           <div style="margin-top: 15px;">
@@ -2076,6 +2081,55 @@ async function cargarMateriasPorTurno() {
         console.error('ERROR en cargarMateriasPorTurno:', error);
         alert('Error al cargar materias: ' + error.message);
     }
+}
+
+// ====== FUNCION PARA ACTUALIZAR PREVIEW DEL GRUPO MASIVO ======
+function actualizarPreviewGrupoMasivo() {
+    const turnoSelect = document.getElementById('turnoMasivo');
+    const ordenInput = document.getElementById('ordenMasivo');
+    const previewDiv = document.getElementById('previewGrupoMasivo');
+
+    if (!turnoSelect || !ordenInput || !previewDiv) {
+        return;
+    }
+
+    const turno = turnoSelect.value;
+    const turnoTexto = turnoSelect.options[turnoSelect.selectedIndex]?.text || '';
+    const orden = ordenInput.value || '01';
+
+    if (!turno) {
+        previewDiv.innerHTML = '<em style="color: #999;">Selecciona turno y orden para ver los grupos</em>';
+        return;
+    }
+
+    const ordenFormateado = orden.padStart(2, '0');
+    const codigoCarrera = window.codigoCarreraAsignacionMasiva || 'XXX';
+
+    // Mostrar preview para cada periodo (asumiendo periodos 1-9)
+    let previewHtml = `
+        <div style="margin-bottom: 10px;">
+            <strong style="color: #1976d2; font-size: 1.1rem;">${turnoTexto} - Grupo ${ordenFormateado}</strong>
+        </div>
+        <div style="font-size: 0.85rem; color: #555; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+    `;
+
+    for (let periodo = 1; periodo <= 9; periodo++) {
+        const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${ordenFormateado}`;
+        previewHtml += `
+            <span style="background: white; padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd;">
+                P${periodo}: <strong>${codigoGrupo}</strong>
+            </span>
+        `;
+    }
+
+    previewHtml += `
+        </div>
+        <div style="margin-top: 10px; font-size: 0.75rem; color: #666;">
+            <em>Se cargarán todas las materias de este turno</em>
+        </div>
+    `;
+
+    previewDiv.innerHTML = previewHtml;
 }
 
 async function guardarAsignacionesMasivas() {
