@@ -634,34 +634,32 @@
  <!-- SECCION: ASIGNAR PROFESORES -->
  
 
-  <div id="seccionAsignaciones" class="seccion-contenido">
-    <div class="seccion-header">
-      <h2>Asignar Materia y Profesor</h2>
-      <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
-    </div>
-    
-    <!-- NUEVO: Mensaje explicativo -->
-    <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-      <strong style="color: #1565c0; font-size: 1rem;">Instrucciones:</strong>
-      <p style="margin: 8px 0 0 0; color: #1565c0; font-size: 0.9rem; line-height: 1.6;">
-        Elige una materia, al profesor que la impartirá, el turno y Numero de grupo (si hay más de uno).
-      </p>
-    </div>
-    
-      <div class="botones-accion">
-        <button onclick="mostrarFormAsignarProfesor()" class="botAzu">
-          Asignar
-        </button>
-        <button onclick="mostrarFormAsignacionMasiva()" class="botAzu" 
-              style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        Asignación Masiva
-       </button>
-    </div>
+<div id="seccionAsignaciones" class="seccion-contenido">
+  <div class="seccion-header">
+    <h2>Asignar Materia y Profesor</h2>
+    <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+  </div>
+  
+  <!-- Mensaje explicativo -->
+  <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    <strong style="color: #1565c0; font-size: 1rem;">Instrucciones:</strong>
+    <p style="margin: 8px 0 0 0; color: #1565c0; font-size: 0.9rem; line-height: 1.6;">
+      Elige una materia, al profesor que la impartirá, el turno y Numero de grupo (si hay más de uno).
+    </p>
+  </div>
+  
+  <div class="botones-accion">
+    <button onclick="mostrarFormAsignarProfesor()" class="botAzu">
+      Asignar
+    </button>
+    <button onclick="mostrarFormAsignarProfesor()" class="botAzu" 
+          style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+      Asignar2
+    </button>
+  </div>
 
-
-    <div id="listaAsignaciones" class="lista-items"></div>
-    </div>
-
+  <div id="listaAsignaciones" class="lista-items"></div>
+</div>
 
 
 
