@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="botones.css">
+  <link rel="stylesheet" href="Personas.css">
+  <title>Panel de Profesor</title>
+  <style>
+    .header-profesor {
+      /* Cambio de azul a degradado vino/marrón como en el body de alumnos */
+      background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-profesor h1 {
+      color: white;
+      margin: 0;
+    }
+
+    .user-info {
+      text-align: right;
+    }
+
+    .btn-config {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid white;
+      padding: 8px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-left: 10px;
+      transition: all 0.3s;
+    }
+
+    .btn-config:hover {
+      background: white;
+      color: #6A2135; /* Color principal de alumno */
+    }
+
+    .menu-profesor {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .card-profesor {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .card-profesor:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-profesor h3 {
+      color: #6A2135; /* Color principal de alumno */
+      margin-bottom: 10px;
+    }
+    
+    /* Estilos adicionales para coherencia con elementos de alumno */
+    .seccion-header h2 {
+      color: #6A2135;
+    }
+
+    #mensajeCalificaciones {
+      /* Estilo similar a info-header de alumno pero informativo */
+      background: #f0f7ff; 
+      padding: 15px; 
+      border-radius: 8px; 
+      margin-bottom: 20px; 
+      border-left: 4px solid #216A32; /* Verde de éxito de alumno */
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-profesor">
+    <div>
+      <h1>Panel de Profesor</h1>
+      <p id="profesorInfo">Cargando...</p>
+    </div>
+    <div class="user-info">
+      <p><strong id="userName">Cargando...</strong></p>
+      <p id="userEmail"></p>
+      <button id="btnVolverMenu" onclick="volverMenuProfe()" class="btn-config" style="display: none;">← Volver</button>
+      <button id="btnVolverCoord" onclick="volverCoordinador()" class="btn-config" style="display: none;">Volver a Coordinador</button>
+      <button onclick="mostrarConfiguracion()" class="btn-config">Configuración</button>
+      <button onclick="cerrarSesion()" class="btn-config">Cerrar Sesión</button>
+    </div>
+  </div>
+
+
+  <!-- MODAL CONFIGURACIÓN -->
+  <div id="modalConfig" class="modal">
+    <div class="modal-contenido">
+      <span class="cerrar" onclick="cerrarModalConfig()">&times;</span>
+      <h2>Configuración</h2>
+      
+      <div style="margin: 20px 0;">
+        <h3 style="color: #1976d2;">Cambiar Contraseña</h3>
+        <form onsubmit="cambiarPassword(event)">
+          <div class="form-grupo">
+            <label>Contraseña Actual:</label>
+            <input type="password" id="passwordActual" required minlength="6">
+          </div>
+          
+          <div class="form-grupo">
+            <label>Nueva Contraseña:</label>
+            <input type="password" id="passwordNueva" required minlength="6">
+          </div>
+          
+          <div class="form-grupo">
+            <label>Confirmar Nueva Contraseña:</label>
+            <input type="password" id="passwordConfirmar" required minlength="6">
+          </div>
+          
+          <div class="form-botones">
+            <button type="submit" class="btn-guardar">Cambiar Contraseña</button>
+            <button type="button" onclick="cerrarModalConfig()" class="btn-cancelar">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee;">
+        <h3 style="color: #1976d2;">Información de la Cuenta</h3>
+        <p><strong>Nombre:</strong> <span id="configNombre"></span></p>
+        <p><strong>Email:</strong> <span id="configEmail"></span></p>
+        <p><strong>Rol:</strong> Profesor</p>
+        <p><strong>Carreras:</strong> <span id="configCarreras"></span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENÚ PRINCIPAL PROFESOR -->
+  <div class="menu-profesor">
+    <div class="card-profesor" onclick="mostrarMisMaterias()">
+      <h3>Mis Materias</h3>
+      <p>Ver mis asignaciones y consultar calificaciones</p>
+    </div>
+
+    <div class="card-profesor" onclick="mostrarConfiguracion()">
+      <h3>Configuración</h3>
+      <p>Ajustes de perfil y preferencias</p>
+    </div>
+  </div>
+
+  <!-- SECCIÓN: MIS MATERIAS -->
+  <div id="seccionMaterias" class="seccion-contenido" style="display: none;">
+    <div class="seccion-header">
+      <h2 style="color: #6A2135; margin: 0;">Mis Materias</h2>
+    </div>
+    <div id="listaMaterias"></div>
+  </div>
+
+  <!-- SECCIÓN: CALIFICACIONES -->
+  <div id="seccionCalificaciones" class="seccion-contenido" style="display: none;">
+    <div id="mensajeCalificaciones" style="background: #6a213455; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0c5460;">
+      <strong>Instrucciones:</strong>  Una vez guardadas las calificaciones, solo el coordinador puede modificarlas.
+    </div>
+    <div class="seccion-header">
+      <h2 style="color: #6A2135; margin: 0;">Calificaciones</h2>
+    </div>
+    <div id="infoMateriaActual" style="margin-bottom: 20px; padding: 15px; background: #f0f7ff; border-radius: 8px;"></div>
+    <div id="tablaCalificaciones"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <script src="firebase.js"></script>
+
+
+  <script>
+    const auth = firebase.auth();
+    let usuarioActual = null;
+
+    // Protección y autenticación
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        console.log('No hay sesión activa');
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const userDoc = await db.collection('usuarios').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+          console.log('Usuario no encontrado en Firestore');
+          await auth.signOut();
+          window.location.href = 'login.html';
+          return;
+        }
+
+        usuarioActual = userDoc.data();
+        usuarioActual.uid = user.uid;
+
+        console.log('Usuario cargado:', {
+          nombre: usuarioActual.nombre,
+          rol: usuarioActual.rol,
+          esProfesor: usuarioActual.esProfesor,
+          carreras: usuarioActual.carreras
+        });
+
+        // Auto-configurar si es coordinador sin carreras
+        if (usuarioActual.rol === 'coordinador') {
+          if (!usuarioActual.carreras && usuarioActual.carreraId) {
+            usuarioActual.carreras = [usuarioActual.carreraId];
+            db.collection('usuarios').doc(user.uid).update({
+              carreras: [usuarioActual.carreraId]
+            }).catch(err => console.log('No se pudo actualizar carreras:', err));
+          }
+          if (usuarioActual.esProfesor === undefined) {
+            usuarioActual.esProfesor = true;
+            db.collection('usuarios').doc(user.uid).update({
+              esProfesor: true
+            }).catch(err => console.log('No se pudo actualizar esProfesor:', err));
+          }
+        }
+
+        // Verificar que sea profesor o coordinador-profesor
+        if (usuarioActual.rol !== 'profesor' && 
+            !(usuarioActual.rol === 'coordinador' && usuarioActual.esProfesor === true)) {
+          console.log('No tienes permisos de profesor');
+          console.log('Rol:', usuarioActual.rol, 'esProfesor:', usuarioActual.esProfesor);
+          alert('No tienes permisos para acceder a este panel');
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const tipoUsuario = usuarioActual.rol === 'coordinador' ? 'Coordinador-Profesor' : 'Profesor';
+        console.log(`${tipoUsuario} autorizado:`, usuarioActual.nombre);
+        
+        // Mostrar info del usuario
+        document.getElementById('userName').textContent = usuarioActual.nombre;
+        document.getElementById('userEmail').textContent = user.email;
+        
+        // Mostrar botón "Volver" si es coordinador
+        if (usuarioActual.rol === 'coordinador') {
+          document.getElementById('btnVolverCoord').style.display = 'inline-block';
+        }
+        
+        // Cargar carreras
+        await cargarInfoCarreras();
+        
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al verificar permisos');
+        window.location.href = 'login.html';
+      }
+    });
+
+    async function cargarInfoCarreras() {
+      try {
+        const infoElement = document.getElementById('profesorInfo');
+        if (!infoElement) {
+          console.log('Elemento profesorInfo no encontrado');
+          return;
+        }
+        
+        if (!usuarioActual.carreras || usuarioActual.carreras.length === 0) {
+          infoElement.textContent = 'Sin carreras asignadas';
+          return;
+        }
+
+        const nombresCarreras = [];
+        for (const carrera of usuarioActual.carreras) {
+          try {
+            // Determinar el ID de la carrera
+            let carreraId;
+            if (typeof carrera === 'string') {
+              // Array de strings simples
+              carreraId = carrera;
+            } else if (typeof carrera === 'object' && carrera.carreraId) {
+              // Array de objetos {carreraId, color}
+              carreraId = carrera.carreraId;
+            } else {
+              console.warn('Formato de carrera desconocido:', carrera);
+              continue;
+            }
+            
+            const doc = await db.collection('carreras').doc(carreraId).get();
+            if (doc.exists) {
+              nombresCarreras.push(doc.data().nombre);
+            }
+          } catch (err) {
+            console.error('Error con carrera:', carrera, err);
+          }
+        }
+        
+        document.getElementById('profesorInfo').textContent = 
+          nombresCarreras.length > 0 ? 'Carreras: ' + nombresCarreras.join(', ') : 'Sin carreras válidas';
+      } catch (error) {
+        console.error('Error al cargar carreras:', error);
+        document.getElementById('profesorInfo').textContent = 'Error al cargar carreras';
+      }
+    }
+
+    function mostrarConfiguracion() {
+      document.getElementById('configNombre').textContent = usuarioActual.nombre;
+      document.getElementById('configEmail').textContent = usuarioActual.email;
+      
+      // Mostrar carreras
+      db.collection('carreras').get().then(snapshot => {
+        const carrerasMap = {};
+        snapshot.forEach(doc => {
+          carrerasMap[doc.id] = doc.data().nombre;
+        });
+        
+        const nombresCarreras = usuarioActual.carreras
+          .map(id => carrerasMap[id] || id)
+          .join(', ');
+        
+        document.getElementById('configCarreras').textContent = nombresCarreras || 'Sin carreras';
+      });
+      
+      document.getElementById('modalConfig').style.display = 'block';
+    }
+
+    function cerrarModalConfig() {
+      document.getElementById('modalConfig').style.display = 'none';
+      document.getElementById('passwordActual').value = '';
+      document.getElementById('passwordNueva').value = '';
+      document.getElementById('passwordConfirmar').value = '';
+    }
+
+    async function cambiarPassword(event) {
+      event.preventDefault();
+      
+      const passwordActual = document.getElementById('passwordActual').value;
+      const passwordNueva = document.getElementById('passwordNueva').value;
+      const passwordConfirmar = document.getElementById('passwordConfirmar').value;
+      
+      // Validar que las contraseñas coincidan
+      if (passwordNueva !== passwordConfirmar) {
+        alert('Las contraseñas nuevas no coinciden');
+        return;
+      }
+      
+      // Validar longitud
+      if (passwordNueva.length < 6) {
+        alert('La contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+      
+      try {
+        const user = firebase.auth().currentUser;
+        const credential = firebase.auth.EmailAuthProvider.credential(
+          user.email,
+          passwordActual
+        );
+        
+        // Re-autenticar con contraseña actual
+        await user.reauthenticateWithCredential(credential);
+        
+        // Cambiar contraseña
+        await user.updatePassword(passwordNueva);
+        
+        alert('Contraseña cambiada. Recuerda mantenerla segura.');
+        cerrarModalConfig();
+        
+      } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        
+        if (error.code === 'auth/wrong-password') {
+          alert('La contraseña actual es incorrecta');
+        } else if (error.code === 'auth/weak-password') {
+          alert('La contraseña es muy débil');
+        } else {
+          alert('Error al cambiar contraseña: ' + error.message);
+        }
+      }
+    }
+
+    async function cerrarSesion() {
+      if (confirm('¿Cerrar sesión?')) {
+        try {
+          await auth.signOut();
+          sessionStorage.clear();
+          window.location.href = 'login.html';
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error al cerrar sesión');
+        }
+      }
+    }
+
+    // Volver al menú principal
+    function volverMenuProfe() {
+      document.getElementById('seccionMaterias').style.display = 'none';
+      document.getElementById('seccionCalificaciones').style.display = 'none';
+      document.querySelector('.menu-profesor').style.display = 'grid';
+      document.getElementById('btnVolverMenu').style.display = 'none'; // Ocultar botón
+    }
+
+    // Volver a coordinador
+    function volverCoordinador() {
+      window.location.href = 'controlCoordinador.html';
+    }
+
+    // Cerrar modal al hacer clic fuera
+    window.onclick = function(event) {
+      const modal = document.getElementById('modalConfig');
+      if (event.target === modal) {
+        cerrarModalConfig();
+      }
+    }
+
+// =========================================
+let asignacionActual = null;
+let alumnosMateria = [];
+
+// Mostrar materias asignadas al profesor
+async function mostrarMisMaterias() {
+  try {
+    // Ocultar menú, mostrar materias
+    document.querySelector('.menu-profesor').style.display = 'none';
+    document.getElementById('seccionMaterias').style.display = 'block';
+    
+    const container = document.getElementById('listaMaterias');
+    container.innerHTML = '<p style="text-align: center; color: #999;">Cargando materias...</p>';
+    
+    console.log('Buscando asignaciones para profesor:', usuarioActual.uid);
+    
+    // Buscar asignaciones del profesor
+    const snapshot = await db.collection('profesorMaterias')
+      .where('profesorId', '==', usuarioActual.uid)
+      .where('activa', '==', true)
+      .get();
+    
+    console.log('Asignaciones encontradas:', snapshot.size);
+    
+    if (snapshot.empty) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; max-width: 500px; margin: 0 auto;">
+          <div style="font-size: 4rem; margin-bottom: 20px;"></div>
+          <h3 style="color: #6A2135; margin-bottom: 10px;">No tienes materias asignadas</h3>
+          <p style="color: #666; margin-bottom: 20px;">
+            Aún no se te ha asignado ninguna materia para este periodo.
+          </p>
+          <div style="background: #f0f7ff; padding: 20px; border-radius: 10px; border-left: 4px solid #6A2135;">
+            <p style="margin: 0; color: #555;">
+              <strong>¿Qué hacer?</strong><br>
+              Contacta al coordinador de tu carrera para que te asigne materias y grupos.
+            </p>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    
+    // Agrupar por periodo
+    const asignacionesPorPeriodo = {};
+    
+    snapshot.forEach(doc => {
+      const asignacion = { id: doc.id, ...doc.data() };
+      const periodo = asignacion.periodo || 0;
+      
+      if (!asignacionesPorPeriodo[periodo]) {
+        asignacionesPorPeriodo[periodo] = [];
+      }
+      asignacionesPorPeriodo[periodo].push(asignacion);
+    });
+    
+    // Ordenar periodos
+    const periodos = Object.keys(asignacionesPorPeriodo).map(p => parseInt(p)).sort((a, b) => a - b);
+    
+    let html = '<div style="display: grid; gap: 20px;">';
+    
+    periodos.forEach(periodo => {
+      const asignaciones = asignacionesPorPeriodo[periodo];
+      
+      html += `
+        <div>
+          <h3 style="color: #6A2135; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #6A2135;">
+            Periodo ${periodo} (${asignaciones.length} ${asignaciones.length === 1 ? 'materia' : 'materias'})
+          </h3>
+          <div style="display: grid; gap: 15px;">
+      `;
+      
+      asignaciones.forEach(asignacion => {
+        // Obtener nombre del turno
+        const turnosNombres = {
+          1: 'Matutino',
+          2: 'Vespertino', 
+          3: 'Nocturno',
+          4: 'Sabatino'
+        };
+        const turnoNombre = asignacion.turnoNombre || turnosNombres[asignacion.turno] || 'Sin turno';
+        
+        html += `
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #6A2135; cursor: pointer; transition: all 0.3s; hover: transform: translateX(5px);" 
+               onclick="verCalificacionesMateria('${asignacion.id}')">
+            <h4 style="margin: 0 0 10px 0; color: #333; font-size: 1.1rem;">${asignacion.materiaNombre || 'Sin nombre'}</h4>
+            <p style="margin: 5px 0; color: #666; font-size: 0.9rem;">
+              <strong>Código Grupo:</strong> ${asignacion.codigoGrupo || 'N/A'} |
+              <strong>Turno:</strong> ${turnoNombre} |
+              <strong>Orden:</strong> ${asignacion.orden || 'N/A'}
+            </p>
+            <button style="background: #6A2135; color: white; border: none; padding: 8px 20px; border-radius: 5px; margin-top: 10px; cursor: pointer; font-weight: 600;">
+              Ver Calificaciones →
+            </button>
+          </div>
+        `;
+      });
+      
+      html += `
+          </div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    console.log('Materias cargadas correctamente');
+    
+  } catch (error) {
+    console.error('Error al cargar materias:', error);
+    alert('Error al cargar materias: ' + error.message);
+  }
+}
+
+// Ver calificaciones de una materia específica
+async function verCalificacionesMateria(asignacionId) {
+  try {
+    console.log('Cargando calificaciones para asignación:', asignacionId);
+    
+    // Cargar datos de la asignación
+    const asignacionDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+    if (!asignacionDoc.exists) {
+      alert('Asignación no encontrada');
+      return;
+    }
+    
+    asignacionActual = {
+      id: asignacionId,
+      ...asignacionDoc.data()
+    };
+    
+    console.log('Asignación cargada:', asignacionActual);
+    
+    // Obtener nombre del turno
+    const turnosNombres = {
+      1: 'Matutino',
+      2: 'Vespertino',
+      3: 'Nocturno',
+      4: 'Sabatino'
+    };
+    const turnoNombre = asignacionActual.turnoNombre || turnosNombres[asignacionActual.turno] || 'Sin turno';
+    
+    // Actualizar título
+    const infoDiv = document.getElementById('infoMateriaActual');
+    if (infoDiv) {
+      infoDiv.innerHTML = `
+        <h3 style="margin: 0 0 10px 0; color: #6A2135;">${asignacionActual.materiaNombre || 'Sin nombre'}</h3>
+        <p style="margin: 0; color: #666;">
+          <strong>Grupo:</strong> ${asignacionActual.codigoGrupo || 'N/A'} | 
+          <strong>Turno:</strong> ${turnoNombre} |
+          <strong>Periodo:</strong> ${asignacionActual.periodo || 'N/A'}
+        </p>
+      `;
+    }
+    
+    // Cambiar vista
+    document.querySelector('.menu-profesor').style.display = 'none';
+    document.getElementById('seccionMaterias').style.display = 'none';
+    document.getElementById('seccionCalificaciones').style.display = 'block';
+    document.getElementById('btnVolverMenu').style.display = 'inline-block';
+    
+    // Cargar alumnos del grupo
+    await cargarAlumnosYCalificaciones();
+    
+  } catch (error) {
+    console.error('Error al cargar calificaciones:', error);
+    alert('Error al cargar calificaciones: ' + error.message);
+  }
+}
+
+// Cargar alumnos y sus calificaciones
+async function cargarAlumnosYCalificaciones() {
+  try {
+    const container = document.getElementById('tablaCalificaciones');
+    container.innerHTML = '<p style="text-align: center; color: #999;">Cargando alumnos...</p>';
+    
+    console.log('Asignación actual:', asignacionActual);
+    console.log('Buscando alumnos del grupo:', asignacionActual.codigoGrupo);
+    
+    // Verificar que tengamos materiaId
+    if (!asignacionActual.materiaId) {
+      console.error('ERROR: La asignación no tiene materiaId');
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #dc3545;">
+          <p><strong>Error de configuración</strong></p>
+          <p style="font-size: 0.9rem; margin-top: 10px;">
+            Esta asignación no tiene un ID de materia válido.<br>
+            Por favor, contacta al coordinador para que vuelva a crear la asignación.
+          </p>
+          <p style="font-size: 0.85rem; color: #666; margin-top: 15px;">
+            ID de asignación: ${asignacionActual.id}
+          </p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Buscar alumnos del grupo usando codigoGrupo (no grupoId)
+    const alumnosSnap = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('codigoGrupo', '==', asignacionActual.codigoGrupo)
+      .where('activo', '==', true)
+      .get();
+    
+    console.log('Alumnos encontrados:', alumnosSnap.size);
+    
+    if (alumnosSnap.empty) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #999;">
+          <p>No hay alumnos en este grupo.</p>
+          <p style="font-size: 0.9rem; margin-top: 10px;">Grupo: ${asignacionActual.codigoGrupo}</p>
+        </div>
+      `;
+      return;
+    }
+    
+    alumnosMateria = [];
+    
+    // Cargar calificaciones existentes
+    for (const doc of alumnosSnap.docs) {
+      const alumno = {
+        id: doc.id,
+        ...doc.data(),
+        calificaciones: {
+          'Parcial 1': '',
+          'Parcial 2': '',
+          'Parcial 3': ''
+        }
+      };
+      
+      // Buscar calificaciones con estructura nueva
+      const docId = `${doc.id}_${asignacionActual.materiaId}`;
+      const calDoc = await db.collection('calificaciones').doc(docId).get();
+      
+      if (calDoc.exists) {
+        const data = calDoc.data();
+        alumno.calificaciones['Parcial 1'] = data.parciales?.parcial1 ?? '-';
+        alumno.calificaciones['Parcial 2'] = data.parciales?.parcial2 ?? '-';
+        alumno.calificaciones['Parcial 3'] = data.parciales?.parcial3 ?? '-';
+      }
+      
+      alumnosMateria.push(alumno);
+    }
+    
+    // Ordenar alfabéticamente
+    alumnosMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    
+    console.log('Alumnos cargados:', alumnosMateria.length);
+    
+    // Generar tabla
+    let html = `
+      <table style="width: 100%; border-collapse: collapse; background: white;">
+        <thead>
+          <tr style="background: #6A2135; color: white;">
+            <th style="padding: 15px; text-align: left; border: 1px solid #ddd;">Alumno</th>
+            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Matrícula</th>
+            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 1</th>
+            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 2</th>
+            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 3</th>
+            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 100px;">Promedio</th>
+            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 100px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    alumnosMateria.forEach((alumno, index) => {
+      const parcial1 = alumno.calificaciones['Parcial 1'];
+      const parcial2 = alumno.calificaciones['Parcial 2'];
+      const parcial3 = alumno.calificaciones['Parcial 3'];
+      
+      // Calcular promedio
+      let promedio = '-';
+      const tieneNP = parcial1 === 'NP' || parcial2 === 'NP' || parcial3 === 'NP';
+      
+      if (tieneNP) {
+        promedio = '5.0';
+      } else {
+        const cals = [parcial1, parcial2, parcial3]
+          .filter(c => c !== '-' && c !== '' && c !== null && c !== undefined)
+          .map(c => parseFloat(c))
+          .filter(c => !isNaN(c));
+        
+        if (cals.length > 0) {
+          promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
+        }
+      }
+      
+      // Color del promedio
+      let colorPromedio = '#666';
+      if (promedio !== '-') {
+        const promedioNum = parseFloat(promedio);
+        if (promedioNum < 6) colorPromedio = '#dc3545';
+        else if (promedioNum >= 8) colorPromedio = '#4caf50';
+      }
+      
+      html += `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px; border: 1px solid #ddd;">${alumno.nombre || 'Sin nombre'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial1 || '-'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial2 || '-'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial3 || '-'}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${colorPromedio};">${promedio}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+            <button onclick="editarCalificaciones(${index})" style="background: #6A2135; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+              Editar
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+    
+    html += `
+        </tbody>
+      </table>
+    `;
+    
+    container.innerHTML = html;
+    
+    console.log('Tabla de calificaciones generada');
+    
+  } catch (error) {
+    console.error('Error al cargar alumnos y calificaciones:', error);
+    const container = document.getElementById('tablaCalificaciones');
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #dc3545;">
+        <p><strong>Error al cargar alumnos</strong></p>
+        <p style="font-size: 0.9rem;">${error.message}</p>
+      </div>
+    `;
+  }
+}
+
+// Guardar todas las calificaciones
+function volverMenu() {
+  document.getElementById('seccionMaterias').style.display = 'none';
+  document.getElementById('seccionCalificaciones').style.display = 'none';
+  document.querySelector('.menu-profesor').style.display = 'grid';
+}
+
+function volverMaterias() {
+  document.getElementById('seccionCalificaciones').style.display = 'none';
+  document.getElementById('seccionMaterias').style.display = 'block';
+  asignacionActual = null;
+  alumnosMateria = [];
+}
+
+  </script>
+
+
+<script>
+// Función para guardar calificaciones (solo las vacías)
+
+async function guardarCalificacionesProfe() {
+  if (!confirm('¿Guardar las calificaciones?\n\nNo podra realizar cambios despues.')) {
+    return;
+  }
+  
+  console.log('=== Guardando calificaciones ===');
+  console.log('Asignación actual:', asignacionActual);
+  
+  try {
+    let guardadas = 0;
+    let bloqueadas = 0;
+    
+    for (let i = 0; i < alumnosMateria.length; i++) {
+      const alumno = alumnosMateria[i];
+      
+      // Leer valores de dropdowns
+      const p1 = document.getElementById(`cal_${i}_p1`).value;
+      const p2 = document.getElementById(`cal_${i}_p2`).value;
+      const p3 = document.getElementById(`cal_${i}_p3`).value;
+      
+      // Convertir a formato correcto
+      const parcial1 = p1 === '' ? null : (p1 === 'NP' ? 'NP' : parseInt(p1));
+      const parcial2 = p2 === '' ? null : (p2 === 'NP' ? 'NP' : parseInt(p2));
+      const parcial3 = p3 === '' ? null : (p3 === 'NP' ? 'NP' : parseInt(p3));
+      
+      // Verificar si hay cambios
+      const hayNuevas = 
+        (alumno.calificaciones['Parcial 1'] === '' || alumno.calificaciones['Parcial 1'] === '-') && parcial1 !== null ||
+        (alumno.calificaciones['Parcial 2'] === '' || alumno.calificaciones['Parcial 2'] === '-') && parcial2 !== null ||
+        (alumno.calificaciones['Parcial 3'] === '' || alumno.calificaciones['Parcial 3'] === '-') && parcial3 !== null;
+      
+      if (!hayNuevas) {
+        continue; // Nada nuevo que guardar
+      }
+      
+      // Cargar calificaciones actuales
+      const docId = `${alumno.id}_${asignacionActual.materiaId}`;
+      const calDoc = await db.collection('calificaciones').doc(docId).get();
+      
+      let datosActuales = {
+        parcial1: null,
+        parcial2: null,
+        parcial3: null
+      };
+      
+      if (calDoc.exists) {
+        datosActuales = calDoc.data().parciales || datosActuales;
+      }
+      
+      // Solo actualizar las que estaban vacías
+      const nuevos = {
+        parcial1: datosActuales.parcial1 === null || datosActuales.parcial1 === undefined ? parcial1 : datosActuales.parcial1,
+        parcial2: datosActuales.parcial2 === null || datosActuales.parcial2 === undefined ? parcial2 : datosActuales.parcial2,
+        parcial3: datosActuales.parcial3 === null || datosActuales.parcial3 === undefined ? parcial3 : datosActuales.parcial3
+      };
+      
+      console.log(`Guardando calificaciones para ${alumno.nombre}:`, nuevos);
+      
+      // ✓ CORREGIDO: usar codigoGrupo en lugar de grupoId
+      await db.collection('calificaciones').doc(docId).set({
+        alumnoId: alumno.id,
+        alumnoNombre: alumno.nombre,
+        materiaId: asignacionActual.materiaId,
+        materiaNombre: asignacionActual.materiaNombre,
+        codigoGrupo: asignacionActual.codigoGrupo,  // ✓ CAMBIADO de grupoId
+        profesorId: usuarioActual.uid,
+        profesorNombre: usuarioActual.nombre,
+        periodo: asignacionActual.periodo,
+        carreraId: asignacionActual.carreraId,
+        parciales: nuevos,
+        actualizadoPor: usuarioActual.uid,
+        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      
+      guardadas++;
+      console.log(`✓ Calificaciones guardadas para ${alumno.nombre}`);
+    }
+    
+    console.log(`Total guardadas: ${guardadas}`);
+    
+    if (guardadas > 0) {
+      alert(`Calificaciones guardadas!\n\n${guardadas} alumno(s) actualizado(s).`);
+      // Recargar
+      await cargarAlumnosYCalificaciones();
+    } else {
+      alert('No hay calificaciones nuevas para guardar.\n\nLas calificaciones ya registradas solo pueden ser modificadas por el coordinador.');
+    }
+    
+  } catch (error) {
+    console.error('Error al guardar calificaciones:', error);
+    alert('Error al guardar calificaciones: ' + error.message);
+  }
+}
+</script>
+<script src="controlAlumnoEspecial.js"></script>
+
+</body>
+</html>
