@@ -1,4 +1,3 @@
-
 async function mostrarFormAsignacionMasiva() {
     console.log('=== mostrarFormAsignacionMasiva INICIADA ===');
     
@@ -89,8 +88,8 @@ async function mostrarFormAsignacionMasiva() {
             
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Turno: *</label>
-              <select id="turnoMasivo" required
-                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+              <select id="turnoMasivo" required onchange="cargarMateriasPorTurno()"
+                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; background: white;">
                 <option value="">Seleccionar turno...</option>
                 <option value="1">Matutino</option>
                 <option value="2">Vespertino</option>
@@ -101,7 +100,7 @@ async function mostrarFormAsignacionMasiva() {
 
             <div>
               <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">Orden: *</label>
-              <input type="text" id="ordenMasivo" required value="01" maxlength="2"
+              <input type="text" id="ordenMasivo" required value="01" maxlength="2" onchange="cargarMateriasPorTurno()"
                      style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;" placeholder="01">
               <small style="color: #666; font-size: 0.75rem;">01, 02, 03...</small>
             </div>
