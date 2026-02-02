@@ -872,20 +872,37 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
       
       asignacionCalifActual = { id: asignacionId, ...asigDoc.data() };
       
+      console.log('Asignación cargada:', asignacionCalifActual);
+      
+      // Obtener nombre del turno
+      const turnosNombres = {
+        1: 'Matutino',
+        2: 'Vespertino',
+        3: 'Nocturno',
+        4: 'Sabatino'
+      };
+      const turnoTexto = asignacionCalifActual.turnoNombre || turnosNombres[asignacionCalifActual.turno] || 'Sin turno';
+      
+      // ✓ CORREGIDO: Mostrar info con codigoGrupo
       document.getElementById('tituloMateriaCalif').textContent = asignacionCalifActual.materiaNombre;
       document.getElementById('infoMateriaCalif').textContent = 
-        'Grupo: ' + asignacionCalifActual.grupoNombre + 
+        'Grupo: ' + (asignacionCalifActual.codigoGrupo || 'Sin grupo') + 
+        ' | Turno: ' + turnoTexto +
         ' | Profesor: ' + asignacionCalifActual.profesorNombre + 
         ' | Periodo: ' + asignacionCalifActual.periodo;
       
       alumnosCalifMateria = [];
       
-      // ALUMNOS NORMALES
+      console.log('Buscando alumnos del grupo:', asignacionCalifActual.codigoGrupo);
+      
+      // ✓ CORREGIDO: ALUMNOS NORMALES por codigoGrupo
       const alumnosNormales = await db.collection('usuarios')
         .where('rol', '==', 'alumno')
-        .where('grupoId', '==', asignacionCalifActual.grupoId)
+        .where('codigoGrupo', '==', asignacionCalifActual.codigoGrupo)
         .where('activo', '==', true)
         .get();
+      
+      console.log('Alumnos normales encontrados:', alumnosNormales.size);
       
       for (const doc of alumnosNormales.docs) {
         const alumno = {
@@ -913,12 +930,18 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
         alumnosCalifMateria.push(alumno);
       }
       
-      // ALUMNOS ESPECIALES
+      console.log('Buscando inscripciones especiales...');
+      console.log('  materiaId:', asignacionCalifActual.materiaId);
+      console.log('  codigoGrupo:', asignacionCalifActual.codigoGrupo);
+      
+      // ✓ CORREGIDO: ALUMNOS ESPECIALES por codigoGrupo
       const alumnosEspeciales = await db.collection('inscripcionesEspeciales')
         .where('materiaId', '==', asignacionCalifActual.materiaId)
-        .where('grupoId', '==', asignacionCalifActual.grupoId)
+        .where('codigoGrupo', '==', asignacionCalifActual.codigoGrupo)
         .where('activa', '==', true)
         .get();
+      
+      console.log('Inscripciones especiales encontradas:', alumnosEspeciales.size);
       
       for (const doc of alumnosEspeciales.docs) {
         const inscripcion = doc.data();
@@ -956,13 +979,15 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
       
       alumnosCalifMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
       
+      console.log('Total alumnos cargados:', alumnosCalifMateria.length);
+      
       generarTablaCalificaciones();
       
       document.getElementById('contenedorCalificaciones').style.display = 'block';
       
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al cargar calificaciones');
+      alert('Error al cargar calificaciones: ' + error.message);
     }
   };
 }

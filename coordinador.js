@@ -3327,41 +3327,99 @@ let asignacionCalifActual = null;
 let alumnosCalifMateria = [];
 
 // Cargar materias en el selector
-async function cargarMateriasCalificaciones() {
+async function cargarCalificacionesMateria() {
     try {
-        const select = document.getElementById('selectMateriaCalif');
-        if (!select) return;
+        const selectMat = document.getElementById('selectMateriaCalif');
+        const asignacionId = selectMat.value;
 
-        select.innerHTML = '<option value="">Cargando materias...</option>';
-
-        console.log('Buscando asignaciones para carrera:', usuarioActual.carreraId);
-
-        // Buscar asignaciones de la carrera
-        const snapshot = await db.collection('profesorMaterias')
-            .where('carreraId', '==', usuarioActual.carreraId)
-            .where('activa', '==', true)
-            .get();
-
-        console.log('Asignaciones encontradas:', snapshot.size);
-
-        if (snapshot.empty) {
-            select.innerHTML = '<option value="">No hay materias asignadas</option>';
-            alert('No hay materias asignadas en tu carrera.\n\nDebes primero:\n1. Crear grupos\n2. Asignar profesores a materias\n3. Luego podrás gestionar calificaciones');
+        if (!asignacionId) {
+            document.getElementById('contenedorCalificaciones').style.display = 'none';
             return;
         }
 
-        select.innerHTML = '<option value="">Seleccionar materia...</option>';
+        // Cargar asignación
+        const asigDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+        if (!asigDoc.exists) {
+            alert('Asignación no encontrada');
+            return;
+        }
 
-        snapshot.forEach(doc => {
-            const asig = doc.data();
-            select.innerHTML += `<option value="${doc.id}">${asig.materiaNombre} - ${asig.grupoNombre} (${asig.profesorNombre})</option>`;
-        });
+        asignacionCalifActual = {
+            id: asignacionId,
+            ...asigDoc.data()
+        };
+        
+        console.log('Asignación cargada:', asignacionCalifActual);
+
+        // Obtener nombre del turno
+        const turnosNombres = {
+            1: 'Matutino',
+            2: 'Vespertino',
+            3: 'Nocturno',
+            4: 'Sabatino'
+        };
+        const turnoTexto = asignacionCalifActual.turnoNombre || turnosNombres[asignacionCalifActual.turno] || 'Sin turno';
+
+        // ✓ CORREGIDO: Mostrar info con codigoGrupo
+        document.getElementById('tituloMateriaCalif').textContent = asignacionCalifActual.materiaNombre;
+        document.getElementById('infoMateriaCalif').textContent =
+            `Grupo: ${asignacionCalifActual.codigoGrupo || 'Sin grupo'} | Turno: ${turnoTexto} | Profesor: ${asignacionCalifActual.profesorNombre} | Periodo: ${asignacionCalifActual.periodo}`;
+
+        // ✓ CORREGIDO: Cargar alumnos por codigoGrupo
+        console.log('Buscando alumnos del grupo:', asignacionCalifActual.codigoGrupo);
+        
+        const alumnosSnap = await db.collection('usuarios')
+            .where('rol', '==', 'alumno')
+            .where('codigoGrupo', '==', asignacionCalifActual.codigoGrupo)
+            .where('activo', '==', true)
+            .get();
+        
+        console.log('Alumnos encontrados:', alumnosSnap.size);
+
+        alumnosCalifMateria = [];
+
+        for (const doc of alumnosSnap.docs) {
+            const alumno = {
+                id: doc.id,
+                nombre: doc.data().nombre,
+                matricula: doc.data().matricula,
+                calificaciones: {
+                    parcial1: null,
+                    parcial2: null,
+                    parcial3: null
+                }
+            };
+
+            // Cargar calificaciones (nueva estructura)
+            const docId = `${doc.id}_${asignacionCalifActual.materiaId}`;
+            const calDoc = await db.collection('calificaciones').doc(docId).get();
+
+            if (calDoc.exists) {
+                const data = calDoc.data();
+                alumno.calificaciones.parcial1 = data.parciales?.parcial1 ?? null;
+                alumno.calificaciones.parcial2 = data.parciales?.parcial2 ?? null;
+                alumno.calificaciones.parcial3 = data.parciales?.parcial3 ?? null;
+            }
+
+            alumnosCalifMateria.push(alumno);
+        }
+
+        // Ordenar alfabéticamente
+        alumnosCalifMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        console.log('Total alumnos cargados:', alumnosCalifMateria.length);
+
+        // Generar tabla
+        generarTablaCalificaciones();
+
+        document.getElementById('contenedorCalificaciones').style.display = 'block';
 
     } catch (error) {
-        console.error('Error al cargar materias:', error);
-        alert('Error al cargar materias: ' + error.message);
+        console.error('Error:', error);
+        alert('Error al cargar calificaciones: ' + error.message);
     }
 }
+
 
 // Cargar calificaciones de una materia
 async function cargarCalificacionesMateria() {
