@@ -3637,7 +3637,193 @@ async function guardarTodasCalificacionesCoord() {
 }
 
 
+//====MAterias reprobadas=====
 
+function mostrarModalEditarExtraordinarios(alumnoId, alumnoNombre, materiaId, materiaNombre) {
+  const modal = document.createElement('div');
+  modal.id = 'modalEditarExtra';
+  modal.style.cssText = `
+    display: block;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    overflow-y: auto;
+    padding: 20px;
+  `;
+  
+  modal.innerHTML = `
+    <div style="background: white; max-width: 500px; margin: 40px auto; padding: 30px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; color: #6A2135;">Editar Extraordinarios</h3>
+        <button onclick="cerrarModalEditarExtra()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+      </div>
+      
+      <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <div><strong>Alumno:</strong> ${alumnoNombre}</div>
+        <div><strong>Materia:</strong> ${materiaNombre}</div>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Extraordinario:</label>
+        <input type="number" 
+               id="inputExtraordinario" 
+               min="0" max="10" 
+               step="0.1"
+               placeholder="Ingrese calificación (0-10)"
+               style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+        <small style="color: #666;">Dejar vacío si no aplica</small>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600;">ETS:</label>
+        <input type="number" 
+               id="inputETS" 
+               min="0" max="10" 
+               step="0.1"
+               placeholder="Ingrese calificación (0-10)"
+               style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+        <small style="color: #666;">Dejar vacío si no aplica</small>
+      </div>
+      
+      <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ff9800;">
+        <strong>Nota importante:</strong>
+        <p style="margin: 5px 0 0 0; font-size: 0.9rem;">
+          Solo el coordinador puede modificar estas calificaciones. El profesor solo puede capturarlas la primera vez.
+        </p>
+      </div>
+      
+      <div style="display: flex; gap: 10px;">
+        <button onclick="guardarExtraordinarios('${alumnoId}', '${materiaId}')" 
+                style="flex: 1; padding: 12px; background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+          Guardar
+        </button>
+        <button onclick="cerrarModalEditarExtra()" 
+                style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Cargar calificaciones actuales
+  cargarExtraordinariosActuales(alumnoId, materiaId);
+  
+  // Cerrar al hacer clic fuera
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      cerrarModalEditarExtra();
+    }
+  });
+}
+
+async function cargarExtraordinariosActuales(alumnoId, materiaId) {
+  try {
+    const docId = `${alumnoId}_${materiaId}`;
+    const calDoc = await db.collection('calificaciones').doc(docId).get();
+    
+    if (calDoc.exists) {
+      const data = calDoc.data();
+      
+      const inputExt = document.getElementById('inputExtraordinario');
+      const inputEts = document.getElementById('inputETS');
+      
+      if (data.extraordinario !== null && data.extraordinario !== undefined) {
+        inputExt.value = data.extraordinario;
+      }
+      
+      if (data.ets !== null && data.ets !== undefined) {
+        inputEts.value = data.ets;
+      }
+    }
+  } catch (error) {
+    console.error('Error al cargar extraordinarios:', error);
+  }
+}
+
+async function guardarExtraordinarios(alumnoId, materiaId) {
+  try {
+    const inputExt = document.getElementById('inputExtraordinario');
+    const inputEts = document.getElementById('inputETS');
+    
+    const extraordinario = inputExt.value === '' ? null : parseFloat(inputExt.value);
+    const ets = inputEts.value === '' ? null : parseFloat(inputEts.value);
+    
+    // Validar
+    if (extraordinario !== null && (extraordinario < 0 || extraordinario > 10)) {
+      alert('El Extraordinario debe estar entre 0 y 10');
+      return;
+    }
+    
+    if (ets !== null && (ets < 0 || ets > 10)) {
+      alert('El ETS debe estar entre 0 y 10');
+      return;
+    }
+    
+    if (extraordinario === null && ets === null) {
+      alert('Debes ingresar al menos una calificación');
+      return;
+    }
+    
+    if (!confirm('¿Guardar las calificaciones de recuperación?')) {
+      return;
+    }
+    
+    const docId = `${alumnoId}_${materiaId}`;
+    
+    // Actualizar solo los campos de extraordinario y ETS
+    await db.collection('calificaciones').doc(docId).update({
+      extraordinario: extraordinario,
+      ets: ets,
+      modificadoPorCoordinador: true,
+      coordinadorId: usuarioActual.uid,
+      coordinadorNombre: usuarioActual.nombre,
+      fechaModificacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    alert('Calificaciones de recuperación guardadas correctamente');
+    cerrarModalEditarExtra();
+    
+    // Recargar la tabla si existe la función
+    if (typeof cargarCalificacionesMateria === 'function') {
+      await cargarCalificacionesMateria();
+    }
+    
+  } catch (error) {
+    console.error('Error al guardar:', error);
+    alert('Error al guardar: ' + error.message);
+  }
+}
+
+function cerrarModalEditarExtra() {
+  const modal = document.getElementById('modalEditarExtra');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+// ===== BOTÓN PARA EDITAR EN LA TABLA DE CALIFICACIONES =====
+
+// Esta función se debe agregar a la tabla de calificaciones del coordinador
+// En la columna de acciones, agregar un botón para editar extraordinarios
+
+function agregarBotonEditarExtraordinarios(alumnoId, alumnoNombre, materiaId, materiaNombre, promedio) {
+  // Solo mostrar el botón si el promedio es menor a 6
+  if (promedio < 6) {
+    return `
+      <button onclick="mostrarModalEditarExtraordinarios('${alumnoId}', '${alumnoNombre}', '${materiaId}', '${materiaNombre}')"
+              style="background: #ff9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 5px;">
+        Editar Extra
+      </button>
+    `;
+  }
+  return '';
+}
 // ===== GENERAR ACTA DE CALIFICACIONES PDF =====
 
 function descargarActaPDF() {

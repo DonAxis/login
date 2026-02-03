@@ -517,33 +517,17 @@ async function verCalificacionesMateria(asignacionId) {
 }
 
 // Cargar alumnos y sus calificaciones
+
 async function cargarAlumnosYCalificaciones() {
   try {
     const container = document.getElementById('tablaCalificaciones');
-    container.innerHTML = '<p style="text-align: center; color: #999;">Cargando alumnos...</p>';
+    container.innerHTML = '<p class="loading">Cargando alumnos</p>';
     
+    console.log('=== Cargando alumnos y calificaciones ===');
     console.log('Asignación actual:', asignacionActual);
     console.log('Buscando alumnos del grupo:', asignacionActual.codigoGrupo);
     
-    // Verificar que tengamos materiaId
-    if (!asignacionActual.materiaId) {
-      console.error('ERROR: La asignación no tiene materiaId');
-      container.innerHTML = `
-        <div style="text-align: center; padding: 40px; color: #dc3545;">
-          <p><strong>Error de configuración</strong></p>
-          <p style="font-size: 0.9rem; margin-top: 10px;">
-            Esta asignación no tiene un ID de materia válido.<br>
-            Por favor, contacta al coordinador para que vuelva a crear la asignación.
-          </p>
-          <p style="font-size: 0.85rem; color: #666; margin-top: 15px;">
-            ID de asignación: ${asignacionActual.id}
-          </p>
-        </div>
-      `;
-      return;
-    }
-    
-    // Buscar alumnos del grupo usando codigoGrupo (no grupoId)
+    // Buscar alumnos del grupo usando codigoGrupo
     const alumnosSnap = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
       .where('codigoGrupo', '==', asignacionActual.codigoGrupo)
@@ -554,9 +538,9 @@ async function cargarAlumnosYCalificaciones() {
     
     if (alumnosSnap.empty) {
       container.innerHTML = `
-        <div style="text-align: center; padding: 40px; color: #999;">
-          <p>No hay alumnos en este grupo.</p>
-          <p style="font-size: 0.9rem; margin-top: 10px;">Grupo: ${asignacionActual.codigoGrupo}</p>
+        <div class="alert-info">
+          <p><strong>No hay alumnos en este grupo.</strong></p>
+          <p>Grupo: ${asignacionActual.codigoGrupo}</p>
         </div>
       `;
       return;
@@ -570,9 +554,14 @@ async function cargarAlumnosYCalificaciones() {
         id: doc.id,
         ...doc.data(),
         calificaciones: {
-          'Parcial 1': '',
-          'Parcial 2': '',
-          'Parcial 3': ''
+          parcial1: null,
+          parcial2: null,
+          parcial3: null,
+          falta1: null,
+          falta2: null,
+          falta3: null,
+          extraordinario: null,
+          ets: null
         }
       };
       
@@ -582,9 +571,14 @@ async function cargarAlumnosYCalificaciones() {
       
       if (calDoc.exists) {
         const data = calDoc.data();
-        alumno.calificaciones['Parcial 1'] = data.parciales?.parcial1 ?? '-';
-        alumno.calificaciones['Parcial 2'] = data.parciales?.parcial2 ?? '-';
-        alumno.calificaciones['Parcial 3'] = data.parciales?.parcial3 ?? '-';
+        alumno.calificaciones.parcial1 = data.parciales?.parcial1 ?? null;
+        alumno.calificaciones.parcial2 = data.parciales?.parcial2 ?? null;
+        alumno.calificaciones.parcial3 = data.parciales?.parcial3 ?? null;
+        alumno.calificaciones.falta1 = data.faltas?.falta1 ?? null;
+        alumno.calificaciones.falta2 = data.faltas?.falta2 ?? null;
+        alumno.calificaciones.falta3 = data.faltas?.falta3 ?? null;
+        alumno.calificaciones.extraordinario = data.extraordinario ?? null;
+        alumno.calificaciones.ets = data.ets ?? null;
       }
       
       alumnosMateria.push(alumno);
@@ -593,91 +587,233 @@ async function cargarAlumnosYCalificaciones() {
     // Ordenar alfabéticamente
     alumnosMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
     
-    console.log('Alumnos cargados:', alumnosMateria.length);
+    console.log('Total alumnos cargados:', alumnosMateria.length);
     
     // Generar tabla
-    let html = `
-      <table style="width: 100%; border-collapse: collapse; background: white;">
-        <thead>
-          <tr style="background: #6A2135; color: white;">
-            <th style="padding: 15px; text-align: left; border: 1px solid #ddd;">Alumno</th>
-            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Matrícula</th>
-            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 1</th>
-            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 2</th>
-            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 3</th>
-            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 100px;">Promedio</th>
-            <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 100px;">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-    
-    alumnosMateria.forEach((alumno, index) => {
-      const parcial1 = alumno.calificaciones['Parcial 1'];
-      const parcial2 = alumno.calificaciones['Parcial 2'];
-      const parcial3 = alumno.calificaciones['Parcial 3'];
-      
-      // Calcular promedio
-      let promedio = '-';
-      const tieneNP = parcial1 === 'NP' || parcial2 === 'NP' || parcial3 === 'NP';
-      
-      if (tieneNP) {
-        promedio = '5.0';
-      } else {
-        const cals = [parcial1, parcial2, parcial3]
-          .filter(c => c !== '-' && c !== '' && c !== null && c !== undefined)
-          .map(c => parseFloat(c))
-          .filter(c => !isNaN(c));
-        
-        if (cals.length > 0) {
-          promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
-        }
-      }
-      
-      // Color del promedio
-      let colorPromedio = '#666';
-      if (promedio !== '-') {
-        const promedioNum = parseFloat(promedio);
-        if (promedioNum < 6) colorPromedio = '#dc3545';
-        else if (promedioNum >= 8) colorPromedio = '#4caf50';
-      }
-      
-      html += `
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 12px; border: 1px solid #ddd;">${alumno.nombre || 'Sin nombre'}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial1 || '-'}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial2 || '-'}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${parcial3 || '-'}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${colorPromedio};">${promedio}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
-            <button onclick="editarCalificaciones(${index})" style="background: #6A2135; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
-              Editar
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-    
-    html += `
-        </tbody>
-      </table>
-    `;
-    
-    container.innerHTML = html;
-    
-    console.log('Tabla de calificaciones generada');
+    generarTablaCalificacionesMejorada();
     
   } catch (error) {
     console.error('Error al cargar alumnos y calificaciones:', error);
     const container = document.getElementById('tablaCalificaciones');
     container.innerHTML = `
-      <div style="text-align: center; padding: 40px; color: #dc3545;">
+      <div class="alert-warning">
         <p><strong>Error al cargar alumnos</strong></p>
-        <p style="font-size: 0.9rem;">${error.message}</p>
+        <p>${error.message}</p>
       </div>
     `;
   }
+}
+
+
+function generarTablaCalificacionesMejorada() {
+  const container = document.getElementById('tablaCalificaciones');
+  
+  let html = `
+    <div class="alert-info">
+      <strong>💡 Instrucciones:</strong>
+      <ul style="margin: 10px 0 0 20px; padding: 0;">
+        <li>Las calificaciones y faltas NO se pueden modificar después de guardar</li>
+        <li>Si el promedio es menor a 6, aparecerán campos para Extraordinario y ETS</li>
+        <li>Desliza horizontalmente en móvil para ver todas las columnas</li>
+      </ul>
+    </div>
+    
+    <div class="tabla-wrapper">
+      <table class="tabla-calificaciones">
+        <thead>
+          <tr>
+            <th rowspan="2" style="vertical-align: middle;">Alumno</th>
+            <th rowspan="2" style="vertical-align: middle;">Matrícula</th>
+            <th colspan="3">Calificaciones</th>
+            <th colspan="3">Faltas</th>
+            <th rowspan="2" style="vertical-align: middle;">Promedio</th>
+            <th colspan="2">Recuperación</th>
+          </tr>
+          <tr>
+            <th>P1</th>
+            <th>P2</th>
+            <th>P3</th>
+            <th>F1</th>
+            <th>F2</th>
+            <th>F3</th>
+            <th class="col-extraordinario">Extra</th>
+            <th class="col-ets">ETS</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  alumnosMateria.forEach((alumno, index) => {
+    const cal = alumno.calificaciones;
+    
+    // Calcular promedio
+    let promedio = null;
+    let promedioTexto = '-';
+    const tieneNP = cal.parcial1 === 'NP' || cal.parcial2 === 'NP' || cal.parcial3 === 'NP';
+    
+    if (tieneNP) {
+      promedio = 5.0;
+      promedioTexto = '5.0';
+    } else {
+      const cals = [cal.parcial1, cal.parcial2, cal.parcial3]
+        .filter(c => c !== null && c !== undefined && c !== '' && c !== '-')
+        .map(c => parseFloat(c))
+        .filter(c => !isNaN(c));
+      
+      if (cals.length > 0) {
+        promedio = cals.reduce((a, b) => a + b, 0) / cals.length;
+        promedioTexto = promedio.toFixed(1);
+      }
+    }
+    
+    // Determinar si necesita extraordinario/ETS
+    const necesitaRecuperacion = promedio !== null && promedio < 6;
+    
+    // Color del promedio
+    let colorPromedio = '#666';
+    let clasePromedio = '';
+    if (promedio !== null) {
+      if (promedio < 6) {
+        colorPromedio = '#dc3545';
+        clasePromedio = 'promedio-reprobado';
+      } else if (promedio >= 8) {
+        colorPromedio = '#4caf50';
+        clasePromedio = 'promedio-aprobado';
+      } else {
+        colorPromedio = '#ff9800';
+      }
+    }
+    
+    html += `
+      <tr>
+        <td style="text-align: left; font-weight: 600;">${alumno.nombre || 'Sin nombre'}</td>
+        <td>${alumno.matricula || 'N/A'}</td>
+        
+        <!-- PARCIALES -->
+        <td>
+          ${cal.parcial1 !== null && cal.parcial1 !== '' && cal.parcial1 !== undefined
+            ? `<span style="font-weight: bold; color: ${cal.parcial1 === 'NP' ? '#dc3545' : '#4caf50'};">${cal.parcial1}</span>`
+            : `<input type="number" 
+                      id="cal_${index}_p1" 
+                      class="input-calificacion" 
+                      min="0" max="10" 
+                      placeholder="-"
+                      onchange="validarCalificacion(this)">`
+          }
+        </td>
+        <td>
+          ${cal.parcial2 !== null && cal.parcial2 !== '' && cal.parcial2 !== undefined
+            ? `<span style="font-weight: bold; color: ${cal.parcial2 === 'NP' ? '#dc3545' : '#4caf50'};">${cal.parcial2}</span>`
+            : `<input type="number" 
+                      id="cal_${index}_p2" 
+                      class="input-calificacion" 
+                      min="0" max="10" 
+                      placeholder="-"
+                      onchange="validarCalificacion(this)">`
+          }
+        </td>
+        <td>
+          ${cal.parcial3 !== null && cal.parcial3 !== '' && cal.parcial3 !== undefined
+            ? `<span style="font-weight: bold; color: ${cal.parcial3 === 'NP' ? '#dc3545' : '#4caf50'};">${cal.parcial3}</span>`
+            : `<input type="number" 
+                      id="cal_${index}_p3" 
+                      class="input-calificacion" 
+                      min="0" max="10" 
+                      placeholder="-"
+                      onchange="validarCalificacion(this)">`
+          }
+        </td>
+        
+        <!-- FALTAS -->
+        <td>
+          ${cal.falta1 !== null && cal.falta1 !== '' && cal.falta1 !== undefined
+            ? `<span style="font-weight: bold; color: ${cal.falta1 > 0 ? '#dc3545' : '#4caf50'};">${cal.falta1}</span>`
+            : `<input type="number" 
+                      id="fal_${index}_f1" 
+                      class="input-falta" 
+                      min="0" max="20" 
+                      value="0"
+                      placeholder="0">`
+          }
+        </td>
+        <td>
+          ${cal.falta2 !== null && cal.falta2 !== '' && cal.falta2 !== undefined
+            ? `<span style="font-weight: bold; color: ${cal.falta2 > 0 ? '#dc3545' : '#4caf50'};">${cal.falta2}</span>`
+            : `<input type="number" 
+                      id="fal_${index}_f2" 
+                      class="input-falta" 
+                      min="0" max="20" 
+                      value="0"
+                      placeholder="0">`
+          }
+        </td>
+        <td>
+          ${cal.falta3 !== null && cal.falta3 !== '' && cal.falta3 !== undefined
+            ? `<span style="font-weight: bold; color: ${cal.falta3 > 0 ? '#dc3545' : '#4caf50'};">${cal.falta3}</span>`
+            : `<input type="number" 
+                      id="fal_${index}_f3" 
+                      class="input-falta" 
+                      min="0" max="20" 
+                      value="0"
+                      placeholder="0">`
+          }
+        </td>
+        
+        <!-- PROMEDIO -->
+        <td class="promedio-cell ${clasePromedio}" style="color: ${colorPromedio};">
+          ${promedioTexto}
+        </td>
+        
+        <!-- EXTRAORDINARIO -->
+        <td class="col-extraordinario">
+          ${necesitaRecuperacion
+            ? (cal.extraordinario !== null && cal.extraordinario !== '' && cal.extraordinario !== undefined
+                ? `<span style="font-weight: bold; color: #4caf50;">${cal.extraordinario}</span>`
+                : `<input type="number" 
+                          id="ext_${index}" 
+                          class="input-calificacion" 
+                          min="0" max="10" 
+                          placeholder="-"
+                          onchange="validarCalificacion(this)">`)
+            : '<span style="color: #999;">N/A</span>'
+          }
+        </td>
+        
+        <!-- ETS -->
+        <td class="col-ets">
+          ${necesitaRecuperacion
+            ? (cal.ets !== null && cal.ets !== '' && cal.ets !== undefined
+                ? `<span style="font-weight: bold; color: #4caf50;">${cal.ets}</span>`
+                : `<input type="number" 
+                          id="ets_${index}" 
+                          class="input-calificacion" 
+                          min="0" max="10" 
+                          placeholder="-"
+                          onchange="validarCalificacion(this)">`)
+            : '<span style="color: #999;">N/A</span>'
+          }
+        </td>
+      </tr>
+    `;
+  });
+  
+  html += `
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="scroll-hint">
+      ← Desliza horizontalmente para ver todas las columnas →
+    </div>
+    
+    <button onclick="guardarCalificacionesProfe()" class="btn-primary">
+      Guardar Calificaciones
+    </button>
+  `;
+  
+  container.innerHTML = html;
+  
+  console.log('Tabla de calificaciones generada correctamente');
 }
 
 // Guardar todas las calificaciones
@@ -685,6 +821,24 @@ function volverMenu() {
   document.getElementById('seccionMaterias').style.display = 'none';
   document.getElementById('seccionCalificaciones').style.display = 'none';
   document.querySelector('.menu-profesor').style.display = 'grid';
+}
+
+
+function validarCalificacion(input) {
+  const valor = parseFloat(input.value);
+  
+  if (isNaN(valor)) {
+    return;
+  }
+  
+  if (valor < 0 || valor > 10) {
+    input.value = '';
+    alert('La calificación debe estar entre 0 y 10');
+    return;
+  }
+  
+  // Redondear a 1 decimal
+  input.value = valor.toFixed(1);
 }
 
 function volverMaterias() {
@@ -699,100 +853,228 @@ function volverMaterias() {
 
 <script>
 // Función para guardar calificaciones (solo las vacías)
-
 async function guardarCalificacionesProfe() {
-  if (!confirm('¿Guardar las calificaciones?\n\nNo podra realizar cambios despues.')) {
+  if (!confirm('¿Guardar las calificaciones y faltas?\n\nIMPORTANTE: No podrás modificarlas después.')) {
     return;
   }
   
-  console.log('=== Guardando calificaciones ===');
+  console.log('=== Guardando calificaciones y faltas ===');
   console.log('Asignación actual:', asignacionActual);
   
   try {
     let guardadas = 0;
-    let bloqueadas = 0;
+    let errores = 0;
+    const erroresDetalle = [];
     
     for (let i = 0; i < alumnosMateria.length; i++) {
       const alumno = alumnosMateria[i];
       
-      // Leer valores de dropdowns
-      const p1 = document.getElementById(`cal_${i}_p1`).value;
-      const p2 = document.getElementById(`cal_${i}_p2`).value;
-      const p3 = document.getElementById(`cal_${i}_p3`).value;
+      console.log(`\nProcesando alumno: ${alumno.nombre}`);
       
-      // Convertir a formato correcto
-      const parcial1 = p1 === '' ? null : (p1 === 'NP' ? 'NP' : parseInt(p1));
-      const parcial2 = p2 === '' ? null : (p2 === 'NP' ? 'NP' : parseInt(p2));
-      const parcial3 = p3 === '' ? null : (p3 === 'NP' ? 'NP' : parseInt(p3));
+      // ===== LEER VALORES DE LOS INPUTS =====
       
-      // Verificar si hay cambios
-      const hayNuevas = 
-        (alumno.calificaciones['Parcial 1'] === '' || alumno.calificaciones['Parcial 1'] === '-') && parcial1 !== null ||
-        (alumno.calificaciones['Parcial 2'] === '' || alumno.calificaciones['Parcial 2'] === '-') && parcial2 !== null ||
-        (alumno.calificaciones['Parcial 3'] === '' || alumno.calificaciones['Parcial 3'] === '-') && parcial3 !== null;
+      // Parciales
+      const inputP1 = document.getElementById(`cal_${i}_p1`);
+      const inputP2 = document.getElementById(`cal_${i}_p2`);
+      const inputP3 = document.getElementById(`cal_${i}_p3`);
       
-      if (!hayNuevas) {
-        continue; // Nada nuevo que guardar
+      const p1 = inputP1 ? inputP1.value : '';
+      const p2 = inputP2 ? inputP2.value : '';
+      const p3 = inputP3 ? inputP3.value : '';
+      
+      // Faltas
+      const inputF1 = document.getElementById(`fal_${i}_f1`);
+      const inputF2 = document.getElementById(`fal_${i}_f2`);
+      const inputF3 = document.getElementById(`fal_${i}_f3`);
+      
+      const f1 = inputF1 ? inputF1.value : '0';
+      const f2 = inputF2 ? inputF2.value : '0';
+      const f3 = inputF3 ? inputF3.value : '0';
+      
+      // Extraordinarios
+      const inputExt = document.getElementById(`ext_${i}`);
+      const inputEts = document.getElementById(`ets_${i}`);
+      
+      const ext = inputExt ? inputExt.value : '';
+      const ets = inputEts ? inputEts.value : '';
+      
+      // ===== CONVERTIR A FORMATO CORRECTO =====
+      
+      const parcial1 = p1 === '' ? null : (p1 === 'NP' ? 'NP' : parseFloat(p1));
+      const parcial2 = p2 === '' ? null : (p2 === 'NP' ? 'NP' : parseFloat(p2));
+      const parcial3 = p3 === '' ? null : (p3 === 'NP' ? 'NP' : parseFloat(p3));
+      
+      const falta1 = f1 === '' ? 0 : parseInt(f1);
+      const falta2 = f2 === '' ? 0 : parseInt(f2);
+      const falta3 = f3 === '' ? 0 : parseInt(f3);
+      
+      const extraordinario = ext === '' ? null : parseFloat(ext);
+      const etsCalif = ets === '' ? null : parseFloat(ets);
+      
+      console.log('  Parciales:', parcial1, parcial2, parcial3);
+      console.log('  Faltas:', falta1, falta2, falta3);
+      console.log('  Extraordinario:', extraordinario);
+      console.log('  ETS:', etsCalif);
+      
+      // ===== VERIFICAR SI HAY NUEVOS DATOS =====
+      
+      const hayNuevasParciales = 
+        (alumno.calificaciones.parcial1 === null && parcial1 !== null) ||
+        (alumno.calificaciones.parcial2 === null && parcial2 !== null) ||
+        (alumno.calificaciones.parcial3 === null && parcial3 !== null);
+      
+      const hayNuevasFaltas =
+        (alumno.calificaciones.falta1 === null && falta1 !== null) ||
+        (alumno.calificaciones.falta2 === null && falta2 !== null) ||
+        (alumno.calificaciones.falta3 === null && falta3 !== null);
+      
+      const hayNuevosExtraordinarios =
+        (alumno.calificaciones.extraordinario === null && extraordinario !== null) ||
+        (alumno.calificaciones.ets === null && etsCalif !== null);
+      
+      if (!hayNuevasParciales && !hayNuevasFaltas && !hayNuevosExtraordinarios) {
+        console.log('  -> Sin cambios, omitiendo');
+        continue;
       }
       
-      // Cargar calificaciones actuales
+      // ===== CARGAR CALIFICACIONES ACTUALES =====
+      
       const docId = `${alumno.id}_${asignacionActual.materiaId}`;
       const calDoc = await db.collection('calificaciones').doc(docId).get();
       
       let datosActuales = {
-        parcial1: null,
-        parcial2: null,
-        parcial3: null
+        parciales: {
+          parcial1: null,
+          parcial2: null,
+          parcial3: null
+        },
+        faltas: {
+          falta1: null,
+          falta2: null,
+          falta3: null
+        },
+        extraordinario: null,
+        ets: null
       };
       
       if (calDoc.exists) {
-        datosActuales = calDoc.data().parciales || datosActuales;
+        const data = calDoc.data();
+        datosActuales.parciales = data.parciales || datosActuales.parciales;
+        datosActuales.faltas = data.faltas || datosActuales.faltas;
+        datosActuales.extraordinario = data.extraordinario || null;
+        datosActuales.ets = data.ets || null;
       }
       
-      // Solo actualizar las que estaban vacías
-      const nuevos = {
-        parcial1: datosActuales.parcial1 === null || datosActuales.parcial1 === undefined ? parcial1 : datosActuales.parcial1,
-        parcial2: datosActuales.parcial2 === null || datosActuales.parcial2 === undefined ? parcial2 : datosActuales.parcial2,
-        parcial3: datosActuales.parcial3 === null || datosActuales.parcial3 === undefined ? parcial3 : datosActuales.parcial3
+      // ===== ACTUALIZAR SOLO LOS CAMPOS NUEVOS =====
+      
+      const nuevosParciales = {
+        parcial1: datosActuales.parciales.parcial1 ?? parcial1,
+        parcial2: datosActuales.parciales.parcial2 ?? parcial2,
+        parcial3: datosActuales.parciales.parcial3 ?? parcial3
       };
       
-      console.log(`Guardando calificaciones para ${alumno.nombre}:`, nuevos);
+      const nuevasFaltas = {
+        falta1: datosActuales.faltas.falta1 ?? falta1,
+        falta2: datosActuales.faltas.falta2 ?? falta2,
+        falta3: datosActuales.faltas.falta3 ?? falta3
+      };
       
-      // ✓ CORREGIDO: usar codigoGrupo en lugar de grupoId
-      await db.collection('calificaciones').doc(docId).set({
-        alumnoId: alumno.id,
-        alumnoNombre: alumno.nombre,
-        materiaId: asignacionActual.materiaId,
-        materiaNombre: asignacionActual.materiaNombre,
-        codigoGrupo: asignacionActual.codigoGrupo,  // ✓ CAMBIADO de grupoId
-        profesorId: usuarioActual.uid,
-        profesorNombre: usuarioActual.nombre,
-        periodo: asignacionActual.periodo,
-        carreraId: asignacionActual.carreraId,
-        parciales: nuevos,
-        actualizadoPor: usuarioActual.uid,
-        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      const nuevoExtraordinario = datosActuales.extraordinario ?? extraordinario;
+      const nuevoEts = datosActuales.ets ?? etsCalif;
       
-      guardadas++;
-      console.log(`✓ Calificaciones guardadas para ${alumno.nombre}`);
+      // ===== CALCULAR PROMEDIO =====
+      
+      let promedio = null;
+      const tieneNP = nuevosParciales.parcial1 === 'NP' || 
+                      nuevosParciales.parcial2 === 'NP' || 
+                      nuevosParciales.parcial3 === 'NP';
+      
+      if (tieneNP) {
+        promedio = 5.0;
+      } else {
+        const cals = [
+          nuevosParciales.parcial1, 
+          nuevosParciales.parcial2, 
+          nuevosParciales.parcial3
+        ]
+          .filter(c => c !== null && c !== undefined)
+          .map(c => parseFloat(c))
+          .filter(c => !isNaN(c));
+        
+        if (cals.length > 0) {
+          promedio = cals.reduce((a, b) => a + b, 0) / cals.length;
+        }
+      }
+      
+      console.log('  Promedio calculado:', promedio);
+      
+      // ===== GUARDAR EN FIREBASE =====
+      
+      try {
+        await db.collection('calificaciones').doc(docId).set({
+          alumnoId: alumno.id,
+          alumnoNombre: alumno.nombre,
+          materiaId: asignacionActual.materiaId,
+          materiaNombre: asignacionActual.materiaNombre,
+          codigoGrupo: asignacionActual.codigoGrupo,
+          profesorId: usuarioActual.uid,
+          profesorNombre: usuarioActual.nombre,
+          periodo: asignacionActual.periodo,
+          carreraId: asignacionActual.carreraId,
+          
+          parciales: nuevosParciales,
+          faltas: nuevasFaltas,
+          extraordinario: nuevoExtraordinario,
+          ets: nuevoEts,
+          promedio: promedio,
+          
+          actualizadoPor: usuarioActual.uid,
+          fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        guardadas++;
+        console.log('  ✓ Guardado correctamente');
+        
+      } catch (error) {
+        errores++;
+        erroresDetalle.push(`${alumno.nombre}: ${error.message}`);
+        console.error('  ✗ Error al guardar:', error);
+      }
     }
     
-    console.log(`Total guardadas: ${guardadas}`);
+    console.log(`\n=== RESUMEN ===`);
+    console.log(`Guardadas: ${guardadas}`);
+    console.log(`Errores: ${errores}`);
     
-    if (guardadas > 0) {
-      alert(`Calificaciones guardadas!\n\n${guardadas} alumno(s) actualizado(s).`);
-      // Recargar
+    // ===== MOSTRAR RESULTADO =====
+    
+    if (errores > 0) {
+      alert(
+        `CALIFICACIONES GUARDADAS CON ERRORES\n\n` +
+        `✓ Guardadas: ${guardadas}\n` +
+        `✗ Errores: ${errores}\n\n` +
+        `Errores:\n${erroresDetalle.join('\n')}`
+      );
+    } else if (guardadas > 0) {
+      alert(
+        `¡CALIFICACIONES GUARDADAS!\n\n` +
+        `✓ ${guardadas} alumno(s) actualizado(s)\n\n` +
+        `Las calificaciones y faltas han sido guardadas y no se pueden modificar.`
+      );
+      
+      // Recargar datos
       await cargarAlumnosYCalificaciones();
     } else {
-      alert('No hay calificaciones nuevas para guardar.\n\nLas calificaciones ya registradas solo pueden ser modificadas por el coordinador.');
+      alert('No hay calificaciones nuevas para guardar.');
     }
     
   } catch (error) {
-    console.error('Error al guardar calificaciones:', error);
+    console.error('Error general:', error);
     alert('Error al guardar calificaciones: ' + error.message);
   }
 }
+
+
 </script>
 <script src="controlAlumnoEspecial.js"></script>
 
