@@ -1,5 +1,9 @@
-//control de profesor
+// ============================================================================
+// CONTROL PROFESOR - JAVASCRIPT LIMPIO Y ORGANIZADO
+// Archivo: controlProfesor.js
+// ============================================================================
 
+// Variables globales
 let usuarioActual = null;
 let asignacionActual = null;
 let alumnosMateria = [];
@@ -12,7 +16,7 @@ let carrerasData = [];
 // Verificar autenticación
 firebase.auth().onAuthStateChanged(async (user) => {
   if (!user) {
-    window.location.href = 'https://ilbcontrol.mx/sice/';
+    window.location.href = 'login.html';
     return;
   }
   
@@ -22,7 +26,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (!userDoc.exists) {
       alert('Usuario no encontrado');
       await firebase.auth().signOut();
-      window.location.href = 'https://ilbcontrol.mx/sice/';
+      window.location.href = 'login.html';
       return;
     }
     
@@ -31,7 +35,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (userData.rol !== 'profesor' && userData.rol !== 'coordinador') {
       alert('Acceso denegado. Solo profesores y coordinadores.');
       await firebase.auth().signOut();
-      window.location.href = 'https://ilbcontrol.mx/sice/';
+      window.location.href = 'login.html';
       return;
     }
     
@@ -91,6 +95,13 @@ async function mostrarMisMaterias() {
     console.log('=== Cargando materias del profesor ===');
     console.log('Profesor ID:', usuarioActual.uid);
     
+    // Mostrar sección de materias, ocultar otras
+    document.getElementById('menuMaterias').style.display = 'none';
+    document.getElementById('seccionMaterias').style.display = 'block';
+    document.getElementById('seccionCalificaciones').style.display = 'none';
+    document.getElementById('seccionConfiguracion').style.display = 'none';
+    document.getElementById('btnVolverMenu').style.display = 'inline-block';
+    
     const container = document.getElementById('listaMaterias');
     container.innerHTML = '<p style="text-align: center; color: #999;">Cargando materias...</p>';
     
@@ -116,6 +127,8 @@ async function mostrarMisMaterias() {
     asignacionesSnap.forEach(doc => {
       asignaciones.push({ id: doc.id, ...doc.data() });
     });
+    
+    console.log('Materias obtenidas:', asignaciones.length);
     
     // Ordenar por periodo y turno en JavaScript
     asignaciones.sort((a, b) => {
@@ -144,6 +157,8 @@ async function mostrarMisMaterias() {
     // Generar HTML
     let html = '';
     const periodos = Object.keys(materiasPorPeriodo).sort((a, b) => b - a);
+    
+    console.log('Periodos encontrados:', periodos);
     
     periodos.forEach(periodo => {
       const materias = materiasPorPeriodo[periodo];
@@ -176,6 +191,7 @@ async function mostrarMisMaterias() {
       `;
     });
     
+    console.log('HTML generado, mostrando materias');
     container.innerHTML = html;
     
   } catch (error) {
@@ -501,7 +517,7 @@ function generarTablaCalificaciones() {
     
     <button onclick="guardarCalificacionesProfe()" 
             style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block; transition: all 0.3s;">
-      Guardar Calificaciones
+      💾 Guardar Calificaciones
     </button>
   `;
   
@@ -754,7 +770,7 @@ async function verExtraordinarios() {
     document.getElementById('btnVolverMenu').style.display = 'inline-block';
     
     const container = document.getElementById('contenedorMateriaCalif');
-    container.innerHTML = '<h2 style="color: #dc3545;">Extraordinarios y ETS</h2>';
+    container.innerHTML = '<h2 style="color: #dc3545;">⚠️ Extraordinarios y ETS</h2>';
     
     const tablaContainer = document.getElementById('tablaCalificaciones');
     tablaContainer.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">Cargando materias...</p>';
@@ -778,7 +794,7 @@ async function verExtraordinarios() {
     
     let html = `
       <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ff9800;">
-        <strong>Extraordinarios y ETS</strong>
+        <strong>⚠️ Extraordinarios y ETS</strong>
         <p style="margin: 10px 0 0 0;">Solo se muestran los alumnos con promedio menor a 6.</p>
       </div>
     `;
@@ -890,7 +906,7 @@ async function verExtraordinarios() {
       html += `
         <button onclick="guardarExtraordinarios()" 
                 style="background: linear-gradient(135deg, #dc3545 0%, #c62828 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block;">
-          Guardar Extraordinarios
+          💾 Guardar Extraordinarios
         </button>
       `;
     }
@@ -1069,22 +1085,37 @@ async function guardarExtraordinarios() {
 // ============================================================================
 
 function volverMenuProfe() {
+  // Ocultar todas las secciones
   document.getElementById('seccionCalificaciones').style.display = 'none';
+  document.getElementById('seccionMaterias').style.display = 'none';
+  document.getElementById('seccionConfiguracion').style.display = 'none';
+  
+  // Mostrar menú principal
   document.getElementById('menuMaterias').style.display = 'grid';
   document.getElementById('btnVolverMenu').style.display = 'none';
   
+  // Limpiar variables
   asignacionActual = null;
   alumnosMateria = [];
+  
+  console.log('Regresando al menú principal');
 }
 
 function volverCoordinador() {
-  window.location.href = 'https://ilbcontrol.mx/sice/';
+  window.location.href = 'coordinador.html';
 }
 
 function verConfiguracion() {
+  // Ocultar otras secciones
   document.getElementById('menuMaterias').style.display = 'none';
+  document.getElementById('seccionMaterias').style.display = 'none';
+  document.getElementById('seccionCalificaciones').style.display = 'none';
+  
+  // Mostrar configuración
   document.getElementById('seccionConfiguracion').style.display = 'block';
   document.getElementById('btnVolverMenu').style.display = 'inline-block';
+  
+  console.log('Mostrando configuración');
 }
 
 // ============================================================================
@@ -1135,7 +1166,7 @@ async function cerrarSesion() {
   if (confirm('¿Cerrar sesión?')) {
     try {
       await firebase.auth().signOut();
-      window.location.href = 'https://ilbcontrol.mx/sice/';
+      window.location.href = 'login.html';
     } catch (error) {
       console.error('Error:', error);
       alert('Error al cerrar sesión');
