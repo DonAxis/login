@@ -81,6 +81,11 @@
     </div>
   </div>
 
+    <div class="card-profesor" onclick="verExtraordinarios()">
+      <h3>Extraordinarios</h3>
+      <p>Capturar extraordinarios y ETS</p>
+  </div>
+
   <!-- SECCIÓN: MIS MATERIAS -->
   <div id="seccionMaterias" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
@@ -521,13 +526,12 @@ async function verCalificacionesMateria(asignacionId) {
 async function cargarAlumnosYCalificaciones() {
   try {
     const container = document.getElementById('tablaCalificaciones');
-    container.innerHTML = '<p class="loading">Cargando alumnos</p>';
+    container.innerHTML = '<p style="text-align: center; color: #999;">Cargando alumnos...</p>';
     
     console.log('=== Cargando alumnos y calificaciones ===');
-    console.log('Asignación actual:', asignacionActual);
     console.log('Buscando alumnos del grupo:', asignacionActual.codigoGrupo);
     
-    // Buscar alumnos del grupo usando codigoGrupo
+    // Buscar alumnos del grupo
     const alumnosSnap = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
       .where('codigoGrupo', '==', asignacionActual.codigoGrupo)
@@ -538,9 +542,9 @@ async function cargarAlumnosYCalificaciones() {
     
     if (alumnosSnap.empty) {
       container.innerHTML = `
-        <div class="alert-info">
-          <p><strong>No hay alumnos en este grupo.</strong></p>
-          <p>Grupo: ${asignacionActual.codigoGrupo}</p>
+        <div style="text-align: center; padding: 40px; color: #999;">
+          <p>No hay alumnos en este grupo.</p>
+          <p style="font-size: 0.9rem; margin-top: 10px;">Grupo: ${asignacionActual.codigoGrupo}</p>
         </div>
       `;
       return;
@@ -559,13 +563,11 @@ async function cargarAlumnosYCalificaciones() {
           parcial3: null,
           falta1: null,
           falta2: null,
-          falta3: null,
-          extraordinario: null,
-          ets: null
+          falta3: null
         }
       };
       
-      // Buscar calificaciones con estructura nueva
+      // Buscar calificaciones
       const docId = `${doc.id}_${asignacionActual.materiaId}`;
       const calDoc = await db.collection('calificaciones').doc(docId).get();
       
@@ -577,8 +579,6 @@ async function cargarAlumnosYCalificaciones() {
         alumno.calificaciones.falta1 = data.faltas?.falta1 ?? null;
         alumno.calificaciones.falta2 = data.faltas?.falta2 ?? null;
         alumno.calificaciones.falta3 = data.faltas?.falta3 ?? null;
-        alumno.calificaciones.extraordinario = data.extraordinario ?? null;
-        alumno.calificaciones.ets = data.ets ?? null;
       }
       
       alumnosMateria.push(alumno);
@@ -590,54 +590,51 @@ async function cargarAlumnosYCalificaciones() {
     console.log('Total alumnos cargados:', alumnosMateria.length);
     
     // Generar tabla
-    generarTablaCalificacionesMejorada();
+    generarTablaCalificaciones();
     
   } catch (error) {
-    console.error('Error al cargar alumnos y calificaciones:', error);
+    console.error('Error:', error);
     const container = document.getElementById('tablaCalificaciones');
     container.innerHTML = `
-      <div class="alert-warning">
+      <div style="text-align: center; padding: 40px; color: #dc3545;">
         <p><strong>Error al cargar alumnos</strong></p>
-        <p>${error.message}</p>
+        <p style="font-size: 0.9rem;">${error.message}</p>
       </div>
     `;
   }
 }
 
-
-function generarTablaCalificacionesMejorada() {
+function generarTablaCalificaciones() {
   const container = document.getElementById('tablaCalificaciones');
   
   let html = `
-    <div class="alert-info">
-      <strong>💡 Instrucciones:</strong>
+    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
+      <strong>Instrucciones:</strong>
       <ul style="margin: 10px 0 0 20px; padding: 0;">
-        <li>Las calificaciones y faltas NO se pueden modificar después de guardar</li>
-        <li>Si el promedio es menor a 6, aparecerán campos para Extraordinario y ETS</li>
+        <li>Las calificaciones y faltas <strong>NO se pueden modificar</strong> después de guardar</li>
+        <li>Marca las faltas (0-20) en cada parcial</li>
         <li>Desliza horizontalmente en móvil para ver todas las columnas</li>
       </ul>
     </div>
     
-    <div class="tabla-wrapper">
-      <table class="tabla-calificaciones">
-        <thead>
+    <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      <table style="width: 100%; min-width: 900px; border-collapse: collapse; background: white;">
+        <thead style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white;">
           <tr>
-            <th rowspan="2" style="vertical-align: middle;">Alumno</th>
-            <th rowspan="2" style="vertical-align: middle;">Matrícula</th>
-            <th colspan="3">Calificaciones</th>
-            <th colspan="3">Faltas</th>
-            <th rowspan="2" style="vertical-align: middle;">Promedio</th>
-            <th colspan="2">Recuperación</th>
+            <th rowspan="2" style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
+            <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Matrícula</th>
+            <th colspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 1</th>
+            <th colspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 2</th>
+            <th colspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 3</th>
+            <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 80px;">Promedio</th>
           </tr>
           <tr>
-            <th>P1</th>
-            <th>P2</th>
-            <th>P3</th>
-            <th>F1</th>
-            <th>F2</th>
-            <th>F3</th>
-            <th class="col-extraordinario">Extra</th>
-            <th class="col-ets">ETS</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 70px;">Cal</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.2); width: 60px;">Faltas</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 70px;">Cal</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,152,0,0.2); width: 60px;">Faltas</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 70px;">Cal</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,152,0,0.2); width: 60px;">Faltas</th>
           </tr>
         </thead>
         <tbody>
@@ -666,132 +663,46 @@ function generarTablaCalificacionesMejorada() {
       }
     }
     
-    // Determinar si necesita extraordinario/ETS
-    const necesitaRecuperacion = promedio !== null && promedio < 6;
-    
     // Color del promedio
     let colorPromedio = '#666';
-    let clasePromedio = '';
     if (promedio !== null) {
-      if (promedio < 6) {
-        colorPromedio = '#dc3545';
-        clasePromedio = 'promedio-reprobado';
-      } else if (promedio >= 8) {
-        colorPromedio = '#4caf50';
-        clasePromedio = 'promedio-aprobado';
-      } else {
-        colorPromedio = '#ff9800';
-      }
+      if (promedio < 6) colorPromedio = '#dc3545';
+      else if (promedio >= 8) colorPromedio = '#4caf50';
+      else colorPromedio = '#ff9800';
     }
     
     html += `
-      <tr>
-        <td style="text-align: left; font-weight: 600;">${alumno.nombre || 'Sin nombre'}</td>
-        <td>${alumno.matricula || 'N/A'}</td>
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px; border: 1px solid #ddd; font-weight: 600;">${alumno.nombre || 'Sin nombre'}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
         
-        <!-- PARCIALES -->
-        <td>
-          ${cal.parcial1 !== null && cal.parcial1 !== '' && cal.parcial1 !== undefined
-            ? `<span style="font-weight: bold; color: ${cal.parcial1 === 'NP' ? '#dc3545' : '#4caf50'};">${cal.parcial1}</span>`
-            : `<input type="number" 
-                      id="cal_${index}_p1" 
-                      class="input-calificacion" 
-                      min="0" max="10" 
-                      placeholder="-"
-                      onchange="validarCalificacion(this)">`
-          }
+        <!-- PARCIAL 1 + FALTA 1 -->
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          ${generarCeldaCalificacion(cal.parcial1, index, 'p1')}
         </td>
-        <td>
-          ${cal.parcial2 !== null && cal.parcial2 !== '' && cal.parcial2 !== undefined
-            ? `<span style="font-weight: bold; color: ${cal.parcial2 === 'NP' ? '#dc3545' : '#4caf50'};">${cal.parcial2}</span>`
-            : `<input type="number" 
-                      id="cal_${index}_p2" 
-                      class="input-calificacion" 
-                      min="0" max="10" 
-                      placeholder="-"
-                      onchange="validarCalificacion(this)">`
-          }
-        </td>
-        <td>
-          ${cal.parcial3 !== null && cal.parcial3 !== '' && cal.parcial3 !== undefined
-            ? `<span style="font-weight: bold; color: ${cal.parcial3 === 'NP' ? '#dc3545' : '#4caf50'};">${cal.parcial3}</span>`
-            : `<input type="number" 
-                      id="cal_${index}_p3" 
-                      class="input-calificacion" 
-                      min="0" max="10" 
-                      placeholder="-"
-                      onchange="validarCalificacion(this)">`
-          }
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
+          ${generarCeldaFalta(cal.falta1, index, 'f1')}
         </td>
         
-        <!-- FALTAS -->
-        <td>
-          ${cal.falta1 !== null && cal.falta1 !== '' && cal.falta1 !== undefined
-            ? `<span style="font-weight: bold; color: ${cal.falta1 > 0 ? '#dc3545' : '#4caf50'};">${cal.falta1}</span>`
-            : `<input type="number" 
-                      id="fal_${index}_f1" 
-                      class="input-falta" 
-                      min="0" max="20" 
-                      value="0"
-                      placeholder="0">`
-          }
+        <!-- PARCIAL 2 + FALTA 2 -->
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          ${generarCeldaCalificacion(cal.parcial2, index, 'p2')}
         </td>
-        <td>
-          ${cal.falta2 !== null && cal.falta2 !== '' && cal.falta2 !== undefined
-            ? `<span style="font-weight: bold; color: ${cal.falta2 > 0 ? '#dc3545' : '#4caf50'};">${cal.falta2}</span>`
-            : `<input type="number" 
-                      id="fal_${index}_f2" 
-                      class="input-falta" 
-                      min="0" max="20" 
-                      value="0"
-                      placeholder="0">`
-          }
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
+          ${generarCeldaFalta(cal.falta2, index, 'f2')}
         </td>
-        <td>
-          ${cal.falta3 !== null && cal.falta3 !== '' && cal.falta3 !== undefined
-            ? `<span style="font-weight: bold; color: ${cal.falta3 > 0 ? '#dc3545' : '#4caf50'};">${cal.falta3}</span>`
-            : `<input type="number" 
-                      id="fal_${index}_f3" 
-                      class="input-falta" 
-                      min="0" max="20" 
-                      value="0"
-                      placeholder="0">`
-          }
+        
+        <!-- PARCIAL 3 + FALTA 3 -->
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          ${generarCeldaCalificacion(cal.parcial3, index, 'p3')}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
+          ${generarCeldaFalta(cal.falta3, index, 'f3')}
         </td>
         
         <!-- PROMEDIO -->
-        <td class="promedio-cell ${clasePromedio}" style="color: ${colorPromedio};">
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 1.1rem; background: #f0f7ff; color: ${colorPromedio};">
           ${promedioTexto}
-        </td>
-        
-        <!-- EXTRAORDINARIO -->
-        <td class="col-extraordinario">
-          ${necesitaRecuperacion
-            ? (cal.extraordinario !== null && cal.extraordinario !== '' && cal.extraordinario !== undefined
-                ? `<span style="font-weight: bold; color: #4caf50;">${cal.extraordinario}</span>`
-                : `<input type="number" 
-                          id="ext_${index}" 
-                          class="input-calificacion" 
-                          min="0" max="10" 
-                          placeholder="-"
-                          onchange="validarCalificacion(this)">`)
-            : '<span style="color: #999;">N/A</span>'
-          }
-        </td>
-        
-        <!-- ETS -->
-        <td class="col-ets">
-          ${necesitaRecuperacion
-            ? (cal.ets !== null && cal.ets !== '' && cal.ets !== undefined
-                ? `<span style="font-weight: bold; color: #4caf50;">${cal.ets}</span>`
-                : `<input type="number" 
-                          id="ets_${index}" 
-                          class="input-calificacion" 
-                          min="0" max="10" 
-                          placeholder="-"
-                          onchange="validarCalificacion(this)">`)
-            : '<span style="color: #999;">N/A</span>'
-          }
         </td>
       </tr>
     `;
@@ -802,18 +713,44 @@ function generarTablaCalificacionesMejorada() {
       </table>
     </div>
     
-    <div class="scroll-hint">
+    <div style="text-align: center; color: #999; font-size: 0.85rem; margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 6px;">
       ← Desliza horizontalmente para ver todas las columnas →
     </div>
     
-    <button onclick="guardarCalificacionesProfe()" class="btn-primary">
+    <button onclick="guardarCalificacionesProfe()" 
+            style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block;">
       Guardar Calificaciones
     </button>
   `;
   
   container.innerHTML = html;
   
-  console.log('Tabla de calificaciones generada correctamente');
+  console.log('Tabla generada correctamente');
+}
+function generarCeldaCalificacion(valor, index, parcial) {
+  if (valor !== null && valor !== undefined && valor !== '') {
+    const color = valor === 'NP' ? '#dc3545' : '#4caf50';
+    return `<span style="font-weight: bold; color: ${color};">${valor}</span>`;
+  } else {
+    return `
+      <select id="cal_${index}_${parcial}" 
+              style="width: 65px; padding: 6px; border: 2px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.95rem;">
+        <option value="">-</option>
+        <option value="10">10</option>
+        <option value="9">9</option>
+        <option value="8">8</option>
+        <option value="7">7</option>
+        <option value="6">6</option>
+        <option value="5">5</option>
+        <option value="4">4</option>
+        <option value="3">3</option>
+        <option value="2">2</option>
+        <option value="1">1</option>
+        <option value="0">0</option>
+        <option value="NP">NP</option>
+      </select>
+    `;
+  }
 }
 
 // Guardar todas las calificaciones
@@ -822,7 +759,21 @@ function volverMenu() {
   document.getElementById('seccionCalificaciones').style.display = 'none';
   document.querySelector('.menu-profesor').style.display = 'grid';
 }
-
+function generarCeldaFalta(valor, index, falta) {
+  if (valor !== null && valor !== undefined && valor !== '') {
+    const color = valor > 0 ? '#dc3545' : '#4caf50';
+    return `<span style="font-weight: bold; color: ${color};">${valor}</span>`;
+  } else {
+    return `
+      <input type="number" 
+             id="fal_${index}_${falta}" 
+             min="0" max="20" 
+             value="0"
+             placeholder="0"
+             style="width: 50px; padding: 6px; border: 2px solid #ff9800; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.9rem;">
+    `;
+  }
+}
 
 function validarCalificacion(input) {
   const valor = parseFloat(input.value);
@@ -1073,6 +1024,267 @@ async function guardarCalificacionesProfe() {
     alert('Error al guardar calificaciones: ' + error.message);
   }
 }
+
+/////////Extras reprobados
+async function verExtraordinarios() {
+  try {
+    document.getElementById('menuMaterias').style.display = 'none';
+    document.getElementById('seccionCalificaciones').style.display = 'block';
+    document.getElementById('btnVolverMenu').style.display = 'inline-block';
+    
+    const container = document.getElementById('contenedorMateriaCalif');
+    container.innerHTML = '<h2 style="color: #6A2135;">Extraordinarios y ETS</h2>';
+    
+    const tablaContainer = document.getElementById('tablaCalificaciones');
+    tablaContainer.innerHTML = '<p style="text-align: center; color: #999;">Cargando materias...</p>';
+    
+    console.log('=== Cargando materias para extraordinarios ===');
+    console.log('Profesor ID:', usuarioActual.uid);
+    
+    // Buscar todas las materias del profesor
+    const asignacionesSnap = await db.collection('profesorMaterias')
+      .where('profesorId', '==', usuarioActual.uid)
+      .where('activa', '==', true)
+      .get();
+    
+    console.log('Materias encontradas:', asignacionesSnap.size);
+    
+    if (asignacionesSnap.empty) {
+      tablaContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #999;">
+          <p>No tienes materias asignadas</p>
+        </div>
+      `;
+      return;
+    }
+    
+    let html = `
+      <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ff9800;">
+        <strong>⚠️ Extraordinarios y ETS</strong>
+        <p style="margin: 10px 0 0 0;">Solo se muestran los alumnos con promedio menor a 6 que requieren extraordinario.</p>
+      </div>
+    `;
+    
+    // Procesar cada materia
+    for (const asigDoc of asignacionesSnap.docs) {
+      const asignacion = { id: asigDoc.id, ...asigDoc.data() };
+      
+      console.log('\nProcesando materia:', asignacion.materiaNombre);
+      
+      // Buscar alumnos del grupo
+      const alumnosSnap = await db.collection('usuarios')
+        .where('rol', '==', 'alumno')
+        .where('codigoGrupo', '==', asignacion.codigoGrupo)
+        .where('activo', '==', true)
+        .get();
+      
+      console.log('  Alumnos encontrados:', alumnosSnap.size);
+      
+      // Filtrar solo alumnos reprobados
+      const alumnosReprobados = [];
+      
+      for (const alumnoDoc of alumnosSnap.docs) {
+        const alumno = { id: alumnoDoc.id, ...alumnoDoc.data() };
+        
+        // Buscar calificaciones
+        const docId = `${alumno.id}_${asignacion.materiaId}`;
+        const calDoc = await db.collection('calificaciones').doc(docId).get();
+        
+        if (calDoc.exists) {
+          const data = calDoc.data();
+          const parciales = data.parciales || {};
+          
+          // Calcular promedio
+          let promedio = null;
+          const tieneNP = parciales.parcial1 === 'NP' || parciales.parcial2 === 'NP' || parciales.parcial3 === 'NP';
+          
+          if (tieneNP) {
+            promedio = 5.0;
+          } else {
+            const cals = [parciales.parcial1, parciales.parcial2, parciales.parcial3]
+              .filter(c => c !== null && c !== undefined)
+              .map(c => parseFloat(c))
+              .filter(c => !isNaN(c));
+            
+            if (cals.length > 0) {
+              promedio = cals.reduce((a, b) => a + b, 0) / cals.length;
+            }
+          }
+          
+          // Solo agregar si está reprobado
+          if (promedio !== null && promedio < 6) {
+            alumnosReprobados.push({
+              ...alumno,
+              promedio,
+              extraordinario: data.extraordinario,
+              ets: data.ets,
+              materiaId: asignacion.materiaId
+            });
+          }
+        }
+      }
+      
+      console.log('  Alumnos reprobados:', alumnosReprobados.length);
+      
+      // Solo mostrar la materia si tiene alumnos reprobados
+      if (alumnosReprobados.length > 0) {
+        html += `
+          <div style="margin-bottom: 30px; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #dc3545 0%, #c62828 100%); color: white; padding: 15px;">
+              <div style="font-weight: 700; font-size: 18px;">${asignacion.materiaNombre}</div>
+              <div style="font-size: 14px; opacity: 0.9;">
+                Grupo: ${asignacion.codigoGrupo} | ${alumnosReprobados.length} alumno(s) reprobado(s)
+              </div>
+            </div>
+            
+            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+              <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
+                <thead style="background: #f5f5f5;">
+                  <tr>
+                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Alumno</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px;">Matrícula</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 80px;">Promedio</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px; background: #fff3e0;">Extraordinario</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px; background: #ffebee;">ETS</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        alumnosReprobados.forEach((alumno, index) => {
+          const globalIndex = `${asigDoc.id}_${alumno.id}`;
+          
+          html += `
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 12px; border: 1px solid #ddd; font-weight: 600;">${alumno.nombre}</td>
+              <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
+              <td style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #dc3545; font-weight: bold;">${alumno.promedio.toFixed(1)}</td>
+              
+              <!-- EXTRAORDINARIO -->
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
+                ${alumno.extraordinario !== null && alumno.extraordinario !== undefined
+                  ? `<span style="font-weight: bold; color: #4caf50;">${alumno.extraordinario}</span>`
+                  : `<select id="ext_${globalIndex}" style="width: 70px; padding: 6px; border: 2px solid #ff9800; border-radius: 6px; text-align: center; font-weight: bold;">
+                      <option value="">-</option>
+                      <option value="10">10</option>
+                      <option value="9">9</option>
+                      <option value="8">8</option>
+                      <option value="7">7</option>
+                      <option value="6">6</option>
+                      <option value="5">5</option>
+                      <option value="4">4</option>
+                      <option value="3">3</option>
+                      <option value="2">2</option>
+                      <option value="1">1</option>
+                      <option value="0">0</option>
+                    </select>`
+                }
+              </td>
+              
+              <!-- ETS -->
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fce4ec;">
+                ${alumno.ets !== null && alumno.ets !== undefined
+                  ? `<span style="font-weight: bold; color: #4caf50;">${alumno.ets}</span>`
+                  : `<select id="ets_${globalIndex}" style="width: 70px; padding: 6px; border: 2px solid #dc3545; border-radius: 6px; text-align: center; font-weight: bold;">
+                      <option value="">-</option>
+                      <option value="10">10</option>
+                      <option value="9">9</option>
+                      <option value="8">8</option>
+                      <option value="7">7</option>
+                      <option value="6">6</option>
+                      <option value="5">5</option>
+                      <option value="4">4</option>
+                      <option value="3">3</option>
+                      <option value="2">2</option>
+                      <option value="1">1</option>
+                      <option value="0">0</option>
+                    </select>`
+                }
+              </td>
+            </tr>
+          `;
+        });
+        
+        html += `
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+    }
+    
+    html += `
+      <button onclick="guardarExtraordinarios()" 
+              style="background: linear-gradient(135deg, #dc3545 0%, #c62828 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block;">
+        💾 Guardar Extraordinarios
+      </button>
+    `;
+    
+    tablaContainer.innerHTML = html;
+    
+    console.log('Extraordinarios cargados correctamente');
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cargar extraordinarios: ' + error.message);
+  }
+}
+
+// ===== FUNCIÓN PARA GUARDAR EXTRAORDINARIOS =====
+
+async function guardarExtraordinarios() {
+  if (!confirm('¿Guardar las calificaciones de Extraordinario y ETS?\n\nEstas calificaciones pueden ser modificadas después por el coordinador.')) {
+    return;
+  }
+  
+  try {
+    let guardadas = 0;
+    const elementos = document.querySelectorAll('[id^="ext_"], [id^="ets_"]');
+    
+    console.log('Elementos de extraordinarios encontrados:', elementos.length);
+    
+    for (const elem of elementos) {
+      const valor = elem.value;
+      if (valor === '' || valor === null) continue;
+      
+      const id = elem.id;
+      const [tipo, ...partes] = id.split('_');
+      const asignacionId = partes[0];
+      const alumnoId = partes[1];
+      
+      const docId = `${alumnoId}_${asignacionId}`;
+      
+      console.log(`Guardando ${tipo} para documento: ${docId}`);
+      
+      const updateData = {
+        actualizadoPor: usuarioActual.uid,
+        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      
+      if (tipo === 'ext') {
+        updateData.extraordinario = parseFloat(valor);
+      } else if (tipo === 'ets') {
+        updateData.ets = parseFloat(valor);
+      }
+      
+      await db.collection('calificaciones').doc(docId).update(updateData);
+      guardadas++;
+    }
+    
+    if (guardadas > 0) {
+      alert(`¡Extraordinarios guardados!\n\n${guardadas} calificación(es) actualizada(s).`);
+      verExtraordinarios(); // Recargar
+    } else {
+      alert('No hay calificaciones nuevas para guardar.');
+    }
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al guardar extraordinarios: ' + error.message);
+  }
+}
+
 
 
 </script>
