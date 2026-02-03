@@ -105,6 +105,17 @@ async function mostrarMisMaterias() {
     const container = document.getElementById('listaMaterias');
     container.innerHTML = '<p style="text-align: center; color: #999;">Cargando materias...</p>';
     
+    // ✨ SCROLL A LA SECCIÓN DE MATERIAS (temprano)
+    setTimeout(() => {
+      const seccionMaterias = document.getElementById('seccionMaterias');
+      if (seccionMaterias) {
+        seccionMaterias.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    }, 100);
+    
     // Buscar asignaciones activas del profesor (SIN orderBy para evitar índice)
     const asignacionesSnap = await db.collection('profesorMaterias')
       .where('profesorId', '==', usuarioActual.uid)
@@ -247,6 +258,17 @@ async function verCalificacionesMateria(asignacionId) {
     
     // Cargar alumnos y calificaciones
     await cargarAlumnosYCalificaciones();
+    
+    // ✓ SCROLL AUTOMÁTICO SUAVE
+    setTimeout(() => {
+      const seccion = document.getElementById('seccionCalificaciones');
+      if (seccion) {
+        seccion.scrollIntoView({ 
+          behavior: 'smooth',    // Scroll suave
+          block: 'start'         // Alinear al inicio
+        });
+      }
+    }, 300); // Esperar 300ms para que cargue el contenido
     
   } catch (error) {
     console.error('Error:', error);
@@ -775,6 +797,17 @@ async function verExtraordinarios() {
     const tablaContainer = document.getElementById('tablaCalificaciones');
     tablaContainer.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">Cargando materias...</p>';
     
+    // ✓ SCROLL AUTOMÁTICO SUAVE (temprano, antes de cargar datos)
+    setTimeout(() => {
+      const seccion = document.getElementById('seccionCalificaciones');
+      if (seccion) {
+        seccion.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    }, 100);
+    
     // Buscar todas las materias del profesor
     const asignacionesSnap = await db.collection('profesorMaterias')
       .where('profesorId', '==', usuarioActual.uid)
@@ -1097,6 +1130,12 @@ function volverMenuProfe() {
   // Limpiar variables
   asignacionActual = null;
   alumnosMateria = [];
+  
+  // ✨ SCROLL AL TOP DE LA PÁGINA
+  window.scrollTo({ 
+    top: 0, 
+    behavior: 'smooth' 
+  });
   
   console.log('Regresando al menú principal');
 }
