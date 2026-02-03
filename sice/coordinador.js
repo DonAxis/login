@@ -3565,7 +3565,7 @@ function calcularPromedioAlumno(alumno) {
 
     // REGLA DE NEGOCIO: Si hay NP en cualquier parcial, promedio = 5.0
     if (parciales.includes('NP')) {
-        return '5.0';
+        return 'NP';
     }
 
     // Filtrar solo valores numéricos válidos
