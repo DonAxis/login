@@ -501,7 +501,7 @@ function generarTablaCalificaciones() {
     
     <button onclick="guardarCalificacionesProfe()" 
             style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block; transition: all 0.3s;">
-      💾 Guardar Calificaciones
+      Guardar Calificaciones
     </button>
   `;
   
@@ -754,7 +754,7 @@ async function verExtraordinarios() {
     document.getElementById('btnVolverMenu').style.display = 'inline-block';
     
     const container = document.getElementById('contenedorMateriaCalif');
-    container.innerHTML = '<h2 style="color: #dc3545;">⚠️ Extraordinarios y ETS</h2>';
+    container.innerHTML = '<h2 style="color: #dc3545;">Extraordinarios y ETS</h2>';
     
     const tablaContainer = document.getElementById('tablaCalificaciones');
     tablaContainer.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">Cargando materias...</p>';
@@ -778,7 +778,7 @@ async function verExtraordinarios() {
     
     let html = `
       <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ff9800;">
-        <strong>⚠️ Extraordinarios y ETS</strong>
+        <strong>Extraordinarios y ETS</strong>
         <p style="margin: 10px 0 0 0;">Solo se muestran los alumnos con promedio menor a 6.</p>
       </div>
     `;
@@ -890,7 +890,7 @@ async function verExtraordinarios() {
       html += `
         <button onclick="guardarExtraordinarios()" 
                 style="background: linear-gradient(135deg, #dc3545 0%, #c62828 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block;">
-          💾 Guardar Extraordinarios
+          Guardar Extraordinarios
         </button>
       `;
     }
