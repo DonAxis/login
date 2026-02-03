@@ -425,29 +425,24 @@ function generarTablaCalificaciones() {
       <strong>💡 Instrucciones:</strong>
       <ul style="margin: 10px 0 0 20px; padding: 0;">
         <li>Las calificaciones y faltas <strong>NO se pueden modificar</strong> después de guardar</li>
-        <li>Marca las faltas (0-20) en cada parcial</li>
+        <li>Selecciona las faltas (0-20) para cada parcial</li>
         <li>Desliza horizontalmente en móvil para ver todas las columnas</li>
       </ul>
     </div>
     
     <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-      <table style="width: 100%; min-width: 900px; border-collapse: collapse; background: white;">
+      <table style="width: 100%; min-width: 1000px; border-collapse: collapse; background: white;">
         <thead style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white;">
           <tr>
-            <th rowspan="2" style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
+            <th rowspan="2" style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2); min-width: 150px;">Alumno</th>
             <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Matrícula</th>
-            <th colspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 1</th>
-            <th colspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 2</th>
-            <th colspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 3</th>
-            <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 80px;">Promedio</th>
-          </tr>
-          <tr>
-            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 70px;">Cal</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,152,0,0.3); width: 60px;">Faltas</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 70px;">Cal</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,152,0,0.3); width: 60px;">Faltas</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 70px;">Cal</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid rgba(255,152,0,0.3); width: 60px;">Faltas</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 1</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Faltas</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 2</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Faltas</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 3</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Faltas</th>
+            <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Promedio</th>
           </tr>
         </thead>
         <tbody>
@@ -555,7 +550,7 @@ function generarCeldaCalificacion(valor, index, parcial) {
   } else {
     return `
       <select id="cal_${index}_${parcial}" 
-              style="width: 65px; padding: 6px; border: 2px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.95rem;">
+              style="width: 80px; padding: 8px 4px; border: 2px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.95rem;">
         <option value="">-</option>
         <option value="10">10</option>
         <option value="9">9</option>
@@ -579,13 +574,17 @@ function generarCeldaFalta(valor, index, falta) {
     const color = valor > 0 ? '#dc3545' : '#4caf50';
     return `<span style="font-weight: bold; color: ${color};">${valor}</span>`;
   } else {
+    // Generar select con opciones 0-20
+    let opciones = '';
+    for (let i = 0; i <= 20; i++) {
+      opciones += `<option value="${i}">${i}</option>`;
+    }
+    
     return `
-      <input type="number" 
-             id="fal_${index}_${falta}" 
-             min="0" max="20" 
-             value="0"
-             placeholder="0"
-             style="width: 50px; padding: 6px; border: 2px solid #ff9800; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.9rem;">
+      <select id="fal_${index}_${falta}" 
+              style="width: 70px; padding: 8px 4px; border: 2px solid #ff9800; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.9rem;">
+        ${opciones}
+      </select>
     `;
   }
 }
