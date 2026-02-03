@@ -1,0 +1,441 @@
+/* ============================================================================
+   ESTILOS RESPONSIVOS Y MEJORADOS PARA PANEL DE PROFESOR
+   Agregar al <style> en controlProfe.html
+   ============================================================================ */
+
+/* ===== VARIABLES CSS ===== */
+:root {
+  --color-primary: #6A2135;
+  --color-secondary: #6A3221;
+  --color-success: #4caf50;
+  --color-warning: #ff9800;
+  --color-danger: #dc3545;
+  --color-info: #2196f3;
+  --spacing-xs: 5px;
+  --spacing-sm: 10px;
+  --spacing-md: 15px;
+  --spacing-lg: 20px;
+  --spacing-xl: 30px;
+}
+
+/* ===== RESET Y BASE ===== */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+.container-profesor {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 10px;
+}
+
+/* ===== HEADER RESPONSIVO ===== */
+.header-profesor {
+  background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%);
+  color: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.header-profesor h1 {
+  color: white;
+  margin: 0 0 10px 0;
+  font-size: 1.5rem;
+}
+
+.user-info {
+  margin-top: 10px;
+}
+
+.user-info p {
+  margin: 5px 0;
+  font-size: 0.9rem;
+}
+
+.btn-config {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  margin: 5px;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+}
+
+.btn-config:hover {
+  background: white;
+  color: #6A2135;
+}
+
+/* ===== MENÚ DE MATERIAS ===== */
+.menu-profesor {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+.card-profesor {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.card-profesor:active {
+  transform: scale(0.98);
+}
+
+.card-profesor h3 {
+  color: #6A2135;
+  margin: 0 0 10px 0;
+  font-size: 1.1rem;
+}
+
+/* ===== TABLA RESPONSIVA ===== */
+.tabla-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 15px 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tabla-calificaciones {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+  background: white;
+}
+
+.tabla-calificaciones thead {
+  background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%);
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.tabla-calificaciones th {
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.tabla-calificaciones td {
+  padding: 10px 8px;
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  font-size: 0.9rem;
+}
+
+.tabla-calificaciones tbody tr:nth-child(even) {
+  background: #f8f9fa;
+}
+
+.tabla-calificaciones tbody tr:hover {
+  background: #e3f2fd;
+}
+
+/* ===== INPUTS DE CALIFICACIONES ===== */
+.input-calificacion {
+  width: 60px;
+  padding: 8px 4px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.input-calificacion:focus {
+  outline: none;
+  border-color: #6A2135;
+  box-shadow: 0 0 0 3px rgba(106, 33, 53, 0.1);
+}
+
+.input-calificacion:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* ===== INPUTS DE FALTAS ===== */
+.input-falta {
+  width: 50px;
+  padding: 6px 4px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.input-falta:focus {
+  outline: none;
+  border-color: #ff9800;
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
+}
+
+.input-falta:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* ===== BOTONES ===== */
+.btn-primary {
+  background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1rem;
+  width: 100%;
+  max-width: 300px;
+  margin: 20px auto;
+  display: block;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(106, 33, 53, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* ===== BADGES Y ETIQUETAS ===== */
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge-success {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.badge-danger {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.badge-warning {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.badge-info {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+/* ===== PROMEDIO ===== */
+.promedio-cell {
+  background: #f0f7ff !important;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.promedio-aprobado {
+  color: #4caf50;
+}
+
+.promedio-reprobado {
+  color: #dc3545;
+}
+
+/* ===== ALERTA DE INFORMACIÓN ===== */
+.alert-info {
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.alert-warning {
+  background: #fff3e0;
+  border-left: 4px solid #ff9800;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+/* ===== INDICADOR DE CARGA ===== */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.loading::after {
+  content: '...';
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* Tablets */
+@media (min-width: 768px) {
+  body {
+    padding: 20px;
+  }
+  
+  .header-profesor {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .header-profesor h1 {
+    font-size: 2rem;
+    margin: 0;
+  }
+  
+  .user-info {
+    text-align: right;
+    margin-top: 0;
+  }
+  
+  .menu-profesor {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  
+  .btn-config {
+    margin-left: 10px;
+    margin-top: 0;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .menu-profesor {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .tabla-calificaciones {
+    min-width: 900px;
+  }
+  
+  .card-profesor:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Mobile pequeño */
+@media (max-width: 480px) {
+  .header-profesor h1 {
+    font-size: 1.3rem;
+  }
+  
+  .tabla-calificaciones th,
+  .tabla-calificaciones td {
+    padding: 8px 4px;
+    font-size: 0.8rem;
+  }
+  
+  .input-calificacion {
+    width: 50px;
+    font-size: 0.9rem;
+  }
+  
+  .input-falta {
+    width: 40px;
+    font-size: 0.85rem;
+  }
+}
+
+/* ===== SCROLL HORIZONTAL HINT ===== */
+.scroll-hint {
+  text-align: center;
+  color: #999;
+  font-size: 0.85rem;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+@media (min-width: 1024px) {
+  .scroll-hint {
+    display: none;
+  }
+}
+
+/* ===== COLUMNA DE EXTRAORDINARIOS ===== */
+.col-extraordinario {
+  background: #fff3e0 !important;
+}
+
+.col-ets {
+  background: #ffebee !important;
+}
+
+/* ===== UTILIDADES ===== */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+.mt-10 { margin-top: 10px; }
+.mt-20 { margin-top: 20px; }
+.mb-10 { margin-bottom: 10px; }
+.mb-20 { margin-bottom: 20px; }
+.d-none { display: none; }
+.d-block { display: block; }
