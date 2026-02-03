@@ -1,9 +1,5 @@
-// ============================================================================
-// CONTROL PROFESOR - JAVASCRIPT LIMPIO Y ORGANIZADO
-// Archivo: controlProfesor.js
-// ============================================================================
+//control de profesor
 
-// Variables globales
 let usuarioActual = null;
 let asignacionActual = null;
 let alumnosMateria = [];
@@ -98,12 +94,10 @@ async function mostrarMisMaterias() {
     const container = document.getElementById('listaMaterias');
     container.innerHTML = '<p style="text-align: center; color: #999;">Cargando materias...</p>';
     
-    // Buscar asignaciones activas del profesor
+    // Buscar asignaciones activas del profesor (SIN orderBy para evitar índice)
     const asignacionesSnap = await db.collection('profesorMaterias')
       .where('profesorId', '==', usuarioActual.uid)
       .where('activa', '==', true)
-      .orderBy('periodo', 'asc')
-      .orderBy('turno', 'asc')
       .get();
     
     console.log('Asignaciones encontradas:', asignacionesSnap.size);
@@ -117,11 +111,27 @@ async function mostrarMisMaterias() {
       return;
     }
     
+    // Convertir a array y ordenar manualmente
+    const asignaciones = [];
+    asignacionesSnap.forEach(doc => {
+      asignaciones.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Ordenar por periodo y turno en JavaScript
+    asignaciones.sort((a, b) => {
+      const periodoA = a.periodo || 1;
+      const periodoB = b.periodo || 1;
+      if (periodoA !== periodoB) return periodoB - periodoA; // Más reciente primero
+      
+      const turnoA = a.turno || 1;
+      const turnoB = b.turno || 1;
+      return turnoA - turnoB;
+    });
+    
     // Agrupar por periodo
     const materiasPorPeriodo = {};
     
-    asignacionesSnap.forEach(doc => {
-      const asignacion = { id: doc.id, ...doc.data() };
+    asignaciones.forEach(asignacion => {
       const periodo = asignacion.periodo || 1;
       
       if (!materiasPorPeriodo[periodo]) {
