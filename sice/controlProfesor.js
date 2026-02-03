@@ -12,7 +12,7 @@ let carrerasData = [];
 // Verificar autenticación
 firebase.auth().onAuthStateChanged(async (user) => {
   if (!user) {
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice/';
     return;
   }
   
@@ -22,7 +22,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (!userDoc.exists) {
       alert('Usuario no encontrado');
       await firebase.auth().signOut();
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/';
       return;
     }
     
@@ -31,7 +31,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (userData.rol !== 'profesor' && userData.rol !== 'coordinador') {
       alert('Acceso denegado. Solo profesores y coordinadores.');
       await firebase.auth().signOut();
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/';
       return;
     }
     
@@ -1078,7 +1078,7 @@ function volverMenuProfe() {
 }
 
 function volverCoordinador() {
-  window.location.href = 'coordinador.html';
+  window.location.href = 'https://ilbcontrol.mx/sice/';
 }
 
 function verConfiguracion() {
@@ -1135,7 +1135,7 @@ async function cerrarSesion() {
   if (confirm('¿Cerrar sesión?')) {
     try {
       await firebase.auth().signOut();
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/';
     } catch (error) {
       console.error('Error:', error);
       alert('Error al cerrar sesión');
