@@ -4067,7 +4067,375 @@ async function cargarInfoPeriodoActual() {
         infoPeriodo.innerHTML = '<p style="color: red;">Error al cargar estadísticas</p>';
     }
 }
+async function cargarInformacionPeriodoActual() {
+  try {
+    console.log('=== Cargando información del periodo actual ===');
+    
+    const container = document.getElementById('infoPeriodoActual');
+    if (!container) {
+      console.error('Contenedor infoPeriodoActual no encontrado');
+      return;
+    }
+    
+    container.innerHTML = '<p style="text-align: center; color: #999;">Cargando información...</p>';
+    
+    // Obtener configuración actual
+    const configDoc = await db.collection('configuracion').doc('general').get();
+    
+    if (!configDoc.exists) {
+      container.innerHTML = `
+        <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800;">
+          <p><strong>⚠️ No hay configuración del sistema</strong></p>
+          <p>Por favor, configure el sistema primero.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const config = configDoc.data();
+    const periodoActual = config.periodoActual || 1;
+    const cicloEscolar = config.cicloEscolar || 'No definido';
+    
+    console.log('Periodo actual:', periodoActual);
+    console.log('Ciclo escolar:', cicloEscolar);
+    
+    // Contar alumnos activos NORMALES
+    const alumnosNormalesSnap = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('activo', '==', true)
+      .where('periodo', '==', periodoActual)
+      .get();
+    
+    const totalAlumnosNormales = alumnosNormalesSnap.size;
+    console.log('Alumnos normales:', totalAlumnosNormales);
+    
+    // Contar alumnos especiales activos
+    const alumnosEspecialesSnap = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('activo', '==', true)
+      .where('tipoAlumno', '==', 'especial')
+      .get();
+    
+    const totalAlumnosEspeciales = alumnosEspecialesSnap.size;
+    console.log('Alumnos especiales:', totalAlumnosEspeciales);
+    
+    // Total de alumnos
+    const totalAlumnos = totalAlumnosNormales + totalAlumnosEspeciales;
+    
+    // Contar grupos activos únicos (por codigoGrupo)
+    const gruposSet = new Set();
+    alumnosNormalesSnap.forEach(doc => {
+      const alumno = doc.data();
+      if (alumno.codigoGrupo) {
+        gruposSet.add(alumno.codigoGrupo);
+      }
+    });
+    const totalGrupos = gruposSet.size;
+    console.log('Grupos activos:', totalGrupos);
+    
+    // Contar asignaciones activas de profesores
+    const asignacionesSnap = await db.collection('profesorMaterias')
+      .where('activa', '==', true)
+      .where('periodo', '==', periodoActual)
+      .get();
+    
+    const totalAsignaciones = asignacionesSnap.size;
+    console.log('Asignaciones activas:', totalAsignaciones);
+    
 
+
+    // Generar HTML
+    let html = `
+      <div style="background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px;">
+        <h3 style="margin: 0 0 15px 0; color: white;">Información del Periodo Actual</h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+          
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;">${periodoActual}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">Periodo Actual</div>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;">${cicloEscolar}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">Ciclo Escolar</div>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;">${totalAlumnos}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">Total Alumnos</div>
+            <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 5px;">
+              Normal: ${totalAlumnosNormales} | Especial: ${totalAlumnosEspeciales}
+            </div>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;">${totalGrupos}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">Grupos Activos</div>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;">${totalAsignaciones}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">Asignaciones Activas</div>
+          </div>
+          
+        </div>
+      </div>
+      
+      <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border-left: 4px solid #ff9800; margin-bottom: 20px;">
+        <strong>Advertencia:</strong>
+        <p style="margin: 10px 0 0 0;">
+          Al cambiar de periodo, todos los alumnos avanzarán al siguiente periodo y las asignaciones de profesores se desactivarán.
+          Asegúrate de haber guardado todas las calificaciones antes de continuar.
+        </p>
+      </div>
+      
+      <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <button onclick="ejecutarCambioPeriodo()" 
+                style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #dc3545 0%, #c62828 100%); color: white; border: none; padding: 15px 25px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
+          Cambiar Periodo
+        </button>
+        
+        <button onclick="verHistorialPeriodos()" 
+                style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; border: none; padding: 15px 25px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
+          Ver Historial
+        </button>
+    `;
+    
+    container.innerHTML = html;
+    
+    console.log('Información del periodo cargada correctamente');
+    
+  } catch (error) {
+    console.error('Error al cargar información del periodo:', error);
+    const container = document.getElementById('infoPeriodoActual');
+    if (container) {
+      container.innerHTML = `
+        <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545;">
+          <p><strong>Error al cargar información</strong></p>
+          <p style="color: #666; font-size: 0.9rem;">${error.message}</p>
+        </div>
+      `;
+    }
+  }
+}
+async function ejecutarCambioPeriodo() {
+  if (!confirm('CAMBIO DE PERIODO\n\n¿Estás seguro de cambiar al siguiente periodo?\n\nEsto hará:\n- Avanzar alumnos al siguiente periodo\n- Graduar alumnos que completen su carrera\n- Desactivar asignaciones de profesores\n- Archivar calificaciones actuales\n\nEsta acción NO SE PUEDE DESHACER.')) {
+    return;
+  }
+  
+  if (!confirm('ÚLTIMA CONFIRMACIÓN\n\n¿Has verificado que todas las calificaciones están capturadas?\n\n¿Continuar con el cambio de periodo?')) {
+    return;
+  }
+  
+  try {
+    console.log('=== INICIANDO CAMBIO DE PERIODO ===');
+    
+    // Mostrar modal de progreso
+    mostrarModalProgreso();
+    
+    // Obtener configuración actual
+    const configDoc = await db.collection('configuracion').doc('general').get();
+    const config = configDoc.data();
+    const periodoActual = config.periodoActual || 1;
+    const nuevoPeriodo = periodoActual + 1;
+    
+    console.log(`Cambiando de periodo ${periodoActual} a ${nuevoPeriodo}`);
+    
+    actualizarProgreso('Paso 1/5: Archivando calificaciones...', 20);
+    
+    // PASO 1: Archivar calificaciones
+    const calificacionesSnap = await db.collection('calificaciones').get();
+    const batch1 = db.batch();
+    let contador = 0;
+    
+    calificacionesSnap.forEach(doc => {
+      const data = doc.data();
+      const archivoRef = db.collection('historialCalificaciones').doc(doc.id);
+      batch1.set(archivoRef, {
+        ...data,
+        periodoArchivado: periodoActual,
+        fechaArchivo: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      
+      contador++;
+      if (contador % 500 === 0) {
+        console.log(`Archivadas ${contador} calificaciones...`);
+      }
+    });
+    
+    await batch1.commit();
+    console.log(`✓ ${contador} calificaciones archivadas`);
+    
+    actualizarProgreso('Paso 2/5: Avanzando alumnos...', 40);
+    
+    // PASO 2: Avanzar alumnos
+    const alumnosSnap = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('activo', '==', true)
+      .get();
+    
+    console.log(`Total alumnos a procesar: ${alumnosSnap.size}`);
+    
+    let alumnosAvanzados = 0;
+    let alumnosGraduados = 0;
+    
+    // Procesar en batches de 500
+    const batches = [];
+    let currentBatch = db.batch();
+    let operacionesEnBatch = 0;
+    
+    for (const doc of alumnosSnap.docs) {
+      const alumno = doc.data();
+      const alumnoRef = db.collection('usuarios').doc(doc.id);
+      
+      // Solo procesar alumnos normales (no especiales)
+      if (alumno.tipoAlumno === 'especial') {
+        console.log(`Alumno especial ${alumno.nombre} - no se avanza`);
+        continue;
+      }
+      
+      const periodoAlumno = alumno.periodo || 1;
+      const nuevoPeriodoAlumno = periodoAlumno + 1;
+      
+      // Obtener carrera del alumno
+      if (!alumno.carreraId) {
+        console.warn(`Alumno ${alumno.nombre} sin carreraId, usando periodo default 9`);
+        // Si no tiene carrera, asumir 9 periodos
+        if (nuevoPeriodoAlumno > 9) {
+          // GRADUAR
+          currentBatch.update(alumnoRef, {
+            activo: false,
+            graduado: true,
+            codigoGrupo: 'EGRESADO',
+            periodo: nuevoPeriodoAlumno,
+            fechaGraduacion: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          alumnosGraduados++;
+        } else {
+          // AVANZAR
+          const nuevoCodigoGrupo = incrementarCodigoGrupo(alumno.codigoGrupo, nuevoPeriodoAlumno);
+          currentBatch.update(alumnoRef, {
+            periodo: nuevoPeriodoAlumno,
+            codigoGrupo: nuevoCodigoGrupo
+          });
+          alumnosAvanzados++;
+        }
+      } else {
+        // Obtener numeroPeriodos de la carrera
+        const carreraDoc = await db.collection('carreras').doc(alumno.carreraId).get();
+        const numeroPeriodos = carreraDoc.exists ? (carreraDoc.data().numeroPeriodos || 9) : 9;
+        
+        if (nuevoPeriodoAlumno > numeroPeriodos) {
+          // GRADUAR
+          currentBatch.update(alumnoRef, {
+            activo: false,
+            graduado: true,
+            codigoGrupo: 'EGRESADO',
+            periodo: nuevoPeriodoAlumno,
+            fechaGraduacion: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          alumnosGraduados++;
+          console.log(`Graduando: ${alumno.nombre} (completó ${numeroPeriodos} periodos)`);
+        } else {
+          // AVANZAR
+          const nuevoCodigoGrupo = incrementarCodigoGrupo(alumno.codigoGrupo, nuevoPeriodoAlumno);
+          currentBatch.update(alumnoRef, {
+            periodo: nuevoPeriodoAlumno,
+            codigoGrupo: nuevoCodigoGrupo
+          });
+          alumnosAvanzados++;
+          console.log(`Avanzando: ${alumno.nombre} (${alumno.codigoGrupo} → ${nuevoCodigoGrupo})`);
+        }
+      }
+      
+      operacionesEnBatch++;
+      
+      // Commit cada 500 operaciones
+      if (operacionesEnBatch >= 500) {
+        batches.push(currentBatch.commit());
+        currentBatch = db.batch();
+        operacionesEnBatch = 0;
+      }
+    }
+    
+    // Commit el último batch
+    if (operacionesEnBatch > 0) {
+      batches.push(currentBatch.commit());
+    }
+    
+    await Promise.all(batches);
+    console.log(`✓ Alumnos avanzados: ${alumnosAvanzados}`);
+    console.log(`✓ Alumnos graduados: ${alumnosGraduados}`);
+    
+    actualizarProgreso('Paso 3/5: Desactivando asignaciones...', 60);
+    
+    // PASO 3: Desactivar asignaciones
+    const asignacionesSnap = await db.collection('profesorMaterias')
+      .where('activa', '==', true)
+      .get();
+    
+    const batch3 = db.batch();
+    asignacionesSnap.forEach(doc => {
+      batch3.update(doc.ref, { activa: false });
+    });
+    await batch3.commit();
+    console.log(`${asignacionesSnap.size} asignaciones desactivadas`);
+    
+    actualizarProgreso('Paso 4/5: Desactivando inscripciones especiales...', 80);
+    
+    // PASO 4: Desactivar inscripciones especiales
+    const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
+      .where('activa', '==', true)
+      .get();
+    
+    const batch4 = db.batch();
+    inscripcionesSnap.forEach(doc => {
+      batch4.update(doc.ref, { activa: false });
+    });
+    await batch4.commit();
+    console.log(`✓ ${inscripcionesSnap.size} inscripciones especiales desactivadas`);
+    
+    actualizarProgreso('Paso 5/5: Actualizando configuración...', 90);
+    
+    // PASO 5: Actualizar configuración
+    await db.collection('configuracion').doc('general').update({
+      periodoActual: nuevoPeriodo,
+      ultimoCambioPeriodo: firebase.firestore.FieldValue.serverTimestamp(),
+      cambiadoPor: usuarioActual.uid
+    });
+    
+    console.log('✓ Configuración actualizada');
+    
+    actualizarProgreso('¡Cambio de periodo completado!', 100);
+    
+    // Mostrar resumen
+    setTimeout(() => {
+      cerrarModalProgreso();
+      
+      alert(
+        `CAMBIO DE PERIODO COMPLETADO\n\n` +
+        `Periodo anterior: ${periodoActual}\n` +
+        `Periodo nuevo: ${nuevoPeriodo}\n\n` +
+        `Resumen:\n` +
+        `• Alumnos avanzados: ${alumnosAvanzados}\n` +
+        `• Alumnos graduados: ${alumnosGraduados}\n` +
+        `• Asignaciones desactivadas: ${asignacionesSnap.size}\n` +
+        `• Inscripciones especiales desactivadas: ${inscripcionesSnap.size}\n\n` +
+        `Ahora puedes asignar profesores para el nuevo periodo.`
+      );
+      
+      // Recargar información
+      cargarInformacionPeriodoActual();
+      
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Error en cambio de periodo:', error);
+    cerrarModalProgreso();
+    alert('Error al cambiar periodo:\n\n' + error.message);
+  }
+}
 // Generar periodo actual (formato: YYYY-S)
 function generarPeriodoActual() {
     const fecha = new Date();
@@ -4389,7 +4757,27 @@ async function ejecutarCambioPeriodoSecuencial(siguientePeriodo) {
         }
     }
 }
-
+function incrementarCodigoGrupo(codigoActual, nuevoPeriodo) {
+  if (!codigoActual || codigoActual === 'EGRESADO') {
+    return codigoActual;
+  }
+  
+  // Formato: DE-1801 → DE-1901 (incrementar dígito del periodo)
+  const partes = codigoActual.split('-');
+  if (partes.length !== 2) {
+    return codigoActual;
+  }
+  
+  const codigo = partes[0]; // "DE"
+  const turnoYOrden = partes[1]; // "1801"
+  
+  const turno = turnoYOrden.charAt(0); // "1"
+  const orden = turnoYOrden.slice(-2); // "01"
+  
+  const nuevoCodigoGrupo = `${codigo}-${turno}${nuevoPeriodo}${orden}`;
+  
+  return nuevoCodigoGrupo;
+}
 // Crear nuevo periodo
 async function crearNuevoPeriodo() {
     const año = prompt('Año del periodo (ej: 2026-1 o 2026-2):');
@@ -4432,7 +4820,6 @@ async function crearNuevoPeriodo() {
         await cargarPeriodos();
     }
 }
-
 // Cargar lista de periodos con estadísticas
 async function cargarListaPeriodos() {
     const container = document.getElementById('listaPeriodos');
@@ -4521,7 +4908,6 @@ async function cargarListaPeriodos() {
         container.innerHTML = '<p style="color: red;">Error al cargar periodos</p>';
     }
 }
-
 // Eliminar periodo completo
 async function eliminarPeriodo(periodo) {
     if (periodo === periodoActivo) {
@@ -4570,11 +4956,7 @@ async function eliminarPeriodo(periodo) {
         alert('Error al eliminar periodo');
     }
 }
-
-
-
 // ===== PROMOCIÓN DE SEMESTRE =====
-
 function mostrarPromocionSemestre() {
     const html = `
  <div style="background: white; padding: 30px; border-radius: 15px; max-width: 600px; margin: 20px auto;">
@@ -4644,7 +5026,6 @@ function mostrarPromocionSemestre() {
     document.getElementById('contenidoModal').innerHTML = html;
     document.getElementById('modalGenerico').style.display = 'flex';
 }
-
 async function previsualizarPromocion() {
     const origen = document.getElementById('semestreOrigen').value;
     const destino = document.getElementById('semestreDestino').value;
@@ -4710,7 +5091,6 @@ async function previsualizarPromocion() {
         alert('Error al generar vista previa');
     }
 }
-
 function generarNombreGrupoDestino(nombreActual, semestreOrigen, semestreDestino) {
     // Formato: TSGG-SIGLAS
     // T = Turno, S = Semestre, GG = Grupo
@@ -4730,7 +5110,6 @@ function generarNombreGrupoDestino(nombreActual, semestreOrigen, semestreDestino
 
     return `${turno}${semestreDestino}${grupo}${siglas}`;
 }
-
 async function ejecutarPromocion(event) {
     event.preventDefault();
 
@@ -4821,11 +5200,7 @@ async function ejecutarPromocion(event) {
         alert('Error al ejecutar promoción');
     }
 }
-
-
-
 // ===== GENERACIÓN AUTOMÁTICA DE GRUPOS =====
-
 async function verificarYGenerarGrupos() {
     try {
         // Verificar si ya existen grupos para esta carrera
@@ -4848,7 +5223,6 @@ async function verificarYGenerarGrupos() {
         return false;
     }
 }
-
 function mostrarFormularioGeneracionInicial() {
     const html = `
  <div style="background: white; padding: 30px; border-radius: 15px; max-width: 700px; margin: 20px auto;">
@@ -4929,7 +5303,6 @@ function mostrarFormularioGeneracionInicial() {
     document.getElementById('contenidoModal').innerHTML = html;
     document.getElementById('modalGenerico').style.display = 'flex';
 }
-
 function previsualizarGrupos() {
     const siglas = document.getElementById('siglasCarrera').value.trim().toUpperCase();
     const numPeriodos = parseInt(document.getElementById('numPeriodos').value);
@@ -4985,7 +5358,6 @@ function previsualizarGrupos() {
     document.getElementById('detallesGrupos').innerHTML = html;
     document.getElementById('vistaPreviewGrupos').style.display = 'block';
 }
-
 async function generarGruposIniciales(event) {
     event.preventDefault();
 
@@ -5977,4 +6349,165 @@ async function eliminarAlumnoDesdeEdicion(alumnoId) {
         console.error('Error:', error);
         alert('Error al eliminar alumno');
     }
+
+    // ==================================================
+// FUNCIONES AUXILIARES PARA GESTION DE PERIODOS
+// ==================================================
+
+function mostrarModalProgreso() {
+  const modal = document.createElement('div');
+  modal.id = 'modalProgreso';
+  modal.style.cssText = 'display: block; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);';
+  
+  modal.innerHTML = `
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 40px; border-radius: 12px; min-width: 400px; text-align: center;">
+      <h3 style="margin: 0 0 20px 0; color: #1976d2;">Cambiando Periodo</h3>
+      <div id="mensajeProgreso" style="margin-bottom: 20px; color: #666; font-size: 0.95rem;">
+        Iniciando...
+      </div>
+      <div style="background: #e0e0e0; height: 30px; border-radius: 15px; overflow: hidden;">
+        <div id="barraProgreso" style="width: 0%; height: 100%; background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); transition: width 0.3s;"></div>
+      </div>
+      <p style="margin: 15px 0 0 0; color: #999; font-size: 0.85rem;">Por favor espera, no cierres esta ventana</p>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+}
+
+function actualizarProgreso(mensaje, porcentaje) {
+  const mensajeEl = document.getElementById('mensajeProgreso');
+  const barraEl = document.getElementById('barraProgreso');
+  
+  if (mensajeEl) mensajeEl.textContent = mensaje;
+  if (barraEl) barraEl.style.width = porcentaje + '%';
+  
+  console.log(`Progreso: ${porcentaje}% - ${mensaje}`);
+}
+
+function cerrarModalProgreso() {
+  const modal = document.getElementById('modalProgreso');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+async function verHistorialPeriodos() {
+  try {
+    console.log('=== Cargando historial de periodos ===');
+    
+    const modal = document.createElement('div');
+    modal.id = 'modalHistorialPeriodos';
+    modal.style.cssText = `
+      display: block;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      overflow-y: auto;
+      padding: 20px;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background: white; max-width: 900px; margin: 40px auto; padding: 30px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 style="margin: 0; color: #1976d2;">Historial de Periodos</h3>
+          <button onclick="cerrarModalHistorialPeriodos()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+        </div>
+        
+        <div id="contenidoHistorial" style="margin-top: 20px;">
+          <p style="text-align: center; color: #999;">Cargando historial...</p>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Obtener configuracion actual
+    const configDoc = await db.collection('configuracion').doc('general').get();
+    const config = configDoc.data();
+    const periodoActual = config.periodoActual || 1;
+    
+    // Obtener periodos del historial
+    const historialSnap = await db.collection('historialCalificaciones')
+      .orderBy('periodoArchivado', 'desc')
+      .limit(100)
+      .get();
+    
+    const periodosSet = new Set();
+    historialSnap.forEach(doc => {
+      const periodo = doc.data().periodoArchivado;
+      if (periodo) {
+        periodosSet.add(periodo);
+      }
+    });
+    
+    const periodos = Array.from(periodosSet).sort((a, b) => b - a);
+    
+    let html = `
+      <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <strong>Periodo Actual: ${periodoActual}</strong>
+        <p style="margin: 5px 0 0 0; color: #666;">Total de periodos en el historial: ${periodos.length}</p>
+      </div>
+      
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead style="background: #f5f5f5;">
+          <tr>
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Periodo</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    periodos.forEach(periodo => {
+      const esActual = periodo === periodoActual;
+      html += `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px; border: 1px solid #ddd; font-weight: 600;">
+            Periodo ${periodo}
+            ${esActual ? '<span style="color: #4caf50; margin-left: 10px;"> (Actual)</span>' : ''}
+          </td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+            ${esActual 
+              ? '<span style="background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">ACTIVO</span>'
+              : '<span style="background: #f5f5f5; color: #666; padding: 4px 12px; border-radius: 4px; font-size: 0.85rem;">ARCHIVADO</span>'
+            }
+          </td>
+        </tr>
+      `;
+    });
+    
+    html += `
+        </tbody>
+      </table>
+    `;
+    
+    document.getElementById('contenidoHistorial').innerHTML = html;
+    
+    // Cerrar al hacer clic fuera
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        cerrarModalHistorialPeriodos();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al cargar historial: ' + error.message);
+  }
+}
+
+function cerrarModalHistorialPeriodos() {
+  const modal = document.getElementById('modalHistorialPeriodos');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+
+
 }
