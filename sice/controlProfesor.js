@@ -1102,7 +1102,7 @@ function volverMenuProfe() {
 }
 
 function volverCoordinador() {
-  window.location.href = 'coordinador.html';
+  window.location.href = 'https://ilbcontrol.mx/sice/';
 }
 
 function verConfiguracion() {
