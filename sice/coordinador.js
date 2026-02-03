@@ -568,7 +568,7 @@ async function cerrarSesion() {
         try {
             await auth.signOut();
             sessionStorage.clear();
-            window.location.href = 'login.html';
+            window.location.href = 'https://ilbcontrol.mx/sice/';
         } catch (error) {
             console.error('Error:', error);
             alert('Error al cerrar sesión');

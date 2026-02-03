@@ -44,7 +44,7 @@ async function cerrarSesion() {
   if (confirm('Cerrar sesion?')) {
     try {
       await auth.signOut();
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/';
     } catch (error) {
       console.error('Error:', error);
       alert('Error al cerrar sesion');
