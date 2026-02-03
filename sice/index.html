@@ -13,7 +13,7 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+       background-color: #9A3B61;
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -48,15 +48,38 @@
     }
 
     .logo h1 {
-      color: #667eea;
-      font-size: 2rem;
+      color: #6F1D46;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 700;
       margin-bottom: 5px;
+      white-space: nowrap;
+    }
+
+    .logo .sice-badge {
+      display: block;
+      font-size: 3rem;
+      font-weight: 900;
+      color: rgba(111, 29, 70, 0.85); /* Color principal */
+      line-height: 1;
+      margin-bottom: 5px; /* Espacio antes de la raya */
     }
 
     .logo p {
-      color: #666;
-      font-size: 0.9rem;
+      color: #525f7f;
+      font-size: 1rem;
+      font-weight: 500;
     }
+.logo::after {
+  content: '';
+  display: block;
+  width: 50px;
+  height: 3px;
+   background: linear-gradient(to right, #6F1D46, #9A3B61);
+  margin: 0 auto 10px; /* Reducido de 20px a 10px para que la línea esté más abajo */
+  border-radius: 10px;
+}
 
     .form-group {
       margin-bottom: 20px;
@@ -180,15 +203,41 @@
         font-size: 1.6rem;
       }
     }
+    .welcome-text {
+      color: #a3b1d1; /* Azul suave */
+      font-weight: 500;
+      font-size: 1rem;
+      margin-top: 0; /* Sin margen superior extra para que quede pegado a la línea */
+      margin-bottom: 20px; /* Un poco de espacio debajo */
+      text-align: center;
+    }
+    .btn-login {
+  background: linear-gradient(135deg, #6F1D46 0%, #9A3B61 100%);
+}
+
+.btn-login:hover {
+  box-shadow: 0 10px 20px rgba(111, 29, 70, 0.3);
+}
   </style>
 </head>
 <body>
 
   <div class="login-container">
-    <div class="logo">
-      <h1>Sistema Escolar</h1>
-      <p>Ingresa con tu cuenta</p>
-    </div>
+
+<div class="logo">
+  <h1>Sistema de Control Escolar</h1>
+  <span class="sice-badge">SICE</span>
+</div>
+
+<p class="welcome-text">Bienvenido, por favor inicia sesión</p>
+
+
+ 
+    
+
+
+
+
 
     <div id="mensaje"></div>
 
