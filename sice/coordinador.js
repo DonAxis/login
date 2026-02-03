@@ -767,11 +767,11 @@ async function cargarMaterias() {
         let html = '';
         snapshot.forEach(doc => {
             const materia = doc.data();
-            
+
             // Obtener créditos (compatibilidad con sistema anterior y nuevo)
             const satca = materia.creditosSatca || materia.creditosLocal || materia.creditos || 0;
             const tepic = materia.creditosTepic || materia.creditosExterno || 0;
-            
+
             html += `
               <div class="item">
                 <div class="item-info">
@@ -795,10 +795,10 @@ async function cargarMaterias() {
 }
 
 function mostrarFormMateria(materiaId = null) {
-  const esEdicion = materiaId !== null;
-  document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Materia' : 'Nueva Materia';
-  
-  const html = `
+    const esEdicion = materiaId !== null;
+    document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Materia' : 'Nueva Materia';
+
+    const html = `
     <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; margin: 20px auto;">
       <h3 style="margin: 0 0 20px 0; color: #667eea;">${esEdicion ? 'Editar Materia' : 'Nueva Materia'}</h3>
       
@@ -845,263 +845,285 @@ function mostrarFormMateria(materiaId = null) {
       </form>
     </div>
   `;
-  
-  document.getElementById('contenidoModal').innerHTML = html;
-  document.getElementById('modalGenerico').style.display = 'flex';
-  
-  // Cargar periodos disponibles de la carrera
-  setTimeout(async () => {
-    try {
-      const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
-      
-      if (carreraDoc.exists) {
-        const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
-        const codigoCarrera = carreraDoc.data().codigo || 'XXX';
-        const selectPeriodo = document.getElementById('periodo');
-        
-        if (selectPeriodo) {
-          selectPeriodo.innerHTML = '<option value="">Seleccionar periodo...</option>';
-          
-          for (let i = 1; i <= numeroPeriodos; i++) {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = `Periodo ${i}`;
-            selectPeriodo.appendChild(option);
-          }
-          
-          // Listener para mostrar preview de codigos
-          selectPeriodo.addEventListener('change', function() {
-            const periodo = this.value;
-            const previewDiv = document.getElementById('codigosPreview');
-            
-            if (periodo && previewDiv) {
-              const turnos = [
-                { cod: '1', nombre: 'Matutino' },
-                { cod: '2', nombre: 'Vespertino' },
-                { cod: '3', nombre: 'Nocturno' },
-                { cod: '4', nombre: 'Sabatino' }
-              ];
-              
-              let html = '';
-              turnos.forEach(turno => {
-                const codigo = `${codigoCarrera}-${turno.cod}${periodo}00`;
-                html += `<div style="margin: 4px 0;">${turno.nombre}: <strong>${codigo}</strong></div>`;
-              });
-              
-              previewDiv.innerHTML = html;
+
+    document.getElementById('contenidoModal').innerHTML = html;
+    document.getElementById('modalGenerico').style.display = 'flex';
+
+    // Cargar periodos disponibles de la carrera
+    setTimeout(async () => {
+        try {
+            const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+
+            if (carreraDoc.exists) {
+                const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
+                const codigoCarrera = carreraDoc.data().codigo || 'XXX';
+                const selectPeriodo = document.getElementById('periodo');
+
+                if (selectPeriodo) {
+                    selectPeriodo.innerHTML = '<option value="">Seleccionar periodo...</option>';
+
+                    for (let i = 1; i <= numeroPeriodos; i++) {
+                        const option = document.createElement('option');
+                        option.value = i;
+                        option.textContent = `Periodo ${i}`;
+                        selectPeriodo.appendChild(option);
+                    }
+
+                    // Listener para mostrar preview de codigos
+                    selectPeriodo.addEventListener('change', function() {
+                        const periodo = this.value;
+                        const previewDiv = document.getElementById('codigosPreview');
+
+                        if (periodo && previewDiv) {
+                            const turnos = [{
+                                    cod: '1',
+                                    nombre: 'Matutino'
+                                },
+                                {
+                                    cod: '2',
+                                    nombre: 'Vespertino'
+                                },
+                                {
+                                    cod: '3',
+                                    nombre: 'Nocturno'
+                                },
+                                {
+                                    cod: '4',
+                                    nombre: 'Sabatino'
+                                }
+                            ];
+
+                            let html = '';
+                            turnos.forEach(turno => {
+                                const codigo = `${codigoCarrera}-${turno.cod}${periodo}00`;
+                                html += `<div style="margin: 4px 0;">${turno.nombre}: <strong>${codigo}</strong></div>`;
+                            });
+
+                            previewDiv.innerHTML = html;
+                        }
+                    });
+                }
             }
-          });
+        } catch (error) {
+            console.error('Error al cargar periodos:', error);
         }
-      }
-    } catch (error) {
-      console.error('Error al cargar periodos:', error);
+    }, 500);
+
+    if (esEdicion) {
+        cargarDatosMateria(materiaId);
     }
-  }, 500);
-  
-  if (esEdicion) {
-    cargarDatosMateria(materiaId);
-  }
 }
 
 
 async function cargarDatosMateria(materiaId) {
-  try {
-    const doc = await db.collection('materias').doc(materiaId).get();
-    if (doc.exists) {
-      const materia = doc.data();
-      document.getElementById('nombreMateria').value = materia.nombre;
-      document.getElementById('creditos').value = materia.creditos || 6;
-      document.getElementById('periodo').value = materia.periodo || 1;
-      
-      // Disparar evento change para mostrar preview
-      const periodoSelect = document.getElementById('periodo');
-      if (periodoSelect) {
-        periodoSelect.dispatchEvent(new Event('change'));
-      }
+    try {
+        const doc = await db.collection('materias').doc(materiaId).get();
+        if (doc.exists) {
+            const materia = doc.data();
+            document.getElementById('nombreMateria').value = materia.nombre;
+            document.getElementById('creditos').value = materia.creditos || 6;
+            document.getElementById('periodo').value = materia.periodo || 1;
+
+            // Disparar evento change para mostrar preview
+            const periodoSelect = document.getElementById('periodo');
+            if (periodoSelect) {
+                periodoSelect.dispatchEvent(new Event('change'));
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
     }
-  } catch (error) {
-    console.error('Error:', error);
-  }
 }
 
 //guardar materia
 async function guardarMateria(event, materiaId) {
-  event.preventDefault();
-  
-  const nombre = document.getElementById('nombreMateria').value.trim();
-  const creditos = parseInt(document.getElementById('creditos').value);
-  const periodo = parseInt(document.getElementById('periodo').value);
-  
-  if (!nombre || !periodo || !creditos) {
-    alert('Todos los campos son obligatorios');
-    return;
-  }
-  
-  try {
-    // Obtener datos de la carrera
-    const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
-    if (!carreraDoc.exists) {
-      alert('Error: No se encontro la carrera');
-      return;
+    event.preventDefault();
+
+    const nombre = document.getElementById('nombreMateria').value.trim();
+    const creditos = parseInt(document.getElementById('creditos').value);
+    const periodo = parseInt(document.getElementById('periodo').value);
+
+    if (!nombre || !periodo || !creditos) {
+        alert('Todos los campos son obligatorios');
+        return;
     }
-    
-    const codigoCarrera = carreraDoc.data().codigo;
-    const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
-    
-    // Validar que el periodo existe en la carrera
-    if (periodo < 1 || periodo > numeroPeriodos) {
-      alert(`El periodo debe estar entre 1 y ${numeroPeriodos}`);
-      return;
+
+    try {
+        // Obtener datos de la carrera
+        const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+        if (!carreraDoc.exists) {
+            alert('Error: No se encontro la carrera');
+            return;
+        }
+
+        const codigoCarrera = carreraDoc.data().codigo;
+        const numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
+
+        // Validar que el periodo existe en la carrera
+        if (periodo < 1 || periodo > numeroPeriodos) {
+            alert(`El periodo debe estar entre 1 y ${numeroPeriodos}`);
+            return;
+        }
+
+        // Obtener documento de grupos de la carrera
+        const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
+
+        if (!gruposDoc.exists) {
+            alert('Error: No existe matriz de grupos para esta carrera.\nPrimero debe crear la estructura de grupos.');
+            return;
+        }
+
+        const gruposData = gruposDoc.data();
+
+        // Generar los 4 codigos (uno por turno) y verificar que existan en la matriz
+        const turnos = [{
+                num: '1',
+                nombre: 'Matutino'
+            },
+            {
+                num: '2',
+                nombre: 'Vespertino'
+            },
+            {
+                num: '3',
+                nombre: 'Nocturno'
+            },
+            {
+                num: '4',
+                nombre: 'Sabatino'
+            }
+        ];
+
+        const codigosGenerados = [];
+        const gruposEnlazados = [];
+
+        for (const turno of turnos) {
+            const codigoGrupo = `${turno.num}${periodo}00`;
+            const codigoCompleto = `${codigoCarrera}-${codigoGrupo}`;
+
+            // Verificar que el grupo existe en la matriz
+            if (!gruposData.grupos || !gruposData.grupos[codigoGrupo]) {
+                console.warn(`Grupo ${codigoGrupo} no existe en la matriz`);
+                continue;
+            }
+
+            codigosGenerados.push(codigoCompleto);
+            gruposEnlazados.push({
+                codigo: codigoGrupo,
+                codigoCompleto: codigoCompleto,
+                turno: parseInt(turno.num),
+                nombreTurno: turno.nombre,
+                periodo: periodo
+            });
+        }
+
+        if (codigosGenerados.length === 0) {
+            alert('Error: No se encontraron grupos validos para este periodo');
+            return;
+        }
+
+        // Datos de la materia
+        const materiaData = {
+            nombre: nombre,
+            codigos: codigosGenerados,
+            grupos: gruposEnlazados,
+            periodo: periodo,
+            creditos: creditos,
+            carreraId: usuarioActual.carreraId,
+            codigoCarrera: codigoCarrera,
+            activa: true,
+            fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (materiaId) {
+            // Actualizar materia existente
+            await db.collection('materias').doc(materiaId).update(materiaData);
+            alert('Materia actualizada correctamente');
+        } else {
+            // Crear nueva materia
+            materiaData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection('materias').add(materiaData);
+
+            let mensaje = 'Materia creada correctamente\n\n';
+            mensaje += 'Codigos generados:\n';
+            codigosGenerados.forEach((cod, idx) => {
+                mensaje += `${gruposEnlazados[idx].nombreTurno}: ${cod}\n`;
+            });
+            alert(mensaje);
+        }
+
+        cerrarModal();
+        cargarMaterias();
+
+    } catch (error) {
+        console.error('Error al guardar materia:', error);
+        alert('Error al guardar: ' + error.message);
     }
-    
-    // Obtener documento de grupos de la carrera
-    const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
-    
-    if (!gruposDoc.exists) {
-      alert('Error: No existe matriz de grupos para esta carrera.\nPrimero debe crear la estructura de grupos.');
-      return;
-    }
-    
-    const gruposData = gruposDoc.data();
-    
-    // Generar los 4 codigos (uno por turno) y verificar que existan en la matriz
-    const turnos = [
-      { num: '1', nombre: 'Matutino' },
-      { num: '2', nombre: 'Vespertino' },
-      { num: '3', nombre: 'Nocturno' },
-      { num: '4', nombre: 'Sabatino' }
-    ];
-    
-    const codigosGenerados = [];
-    const gruposEnlazados = [];
-    
-    for (const turno of turnos) {
-      const codigoGrupo = `${turno.num}${periodo}00`;
-      const codigoCompleto = `${codigoCarrera}-${codigoGrupo}`;
-      
-      // Verificar que el grupo existe en la matriz
-      if (!gruposData.grupos || !gruposData.grupos[codigoGrupo]) {
-        console.warn(`Grupo ${codigoGrupo} no existe en la matriz`);
-        continue;
-      }
-      
-      codigosGenerados.push(codigoCompleto);
-      gruposEnlazados.push({
-        codigo: codigoGrupo,
-        codigoCompleto: codigoCompleto,
-        turno: parseInt(turno.num),
-        nombreTurno: turno.nombre,
-        periodo: periodo
-      });
-    }
-    
-    if (codigosGenerados.length === 0) {
-      alert('Error: No se encontraron grupos validos para este periodo');
-      return;
-    }
-    
-    // Datos de la materia
-    const materiaData = {
-      nombre: nombre,
-      codigos: codigosGenerados,
-      grupos: gruposEnlazados,
-      periodo: periodo,
-      creditos: creditos,
-      carreraId: usuarioActual.carreraId,
-      codigoCarrera: codigoCarrera,
-      activa: true,
-      fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
-    if (materiaId) {
-      // Actualizar materia existente
-      await db.collection('materias').doc(materiaId).update(materiaData);
-      alert('Materia actualizada correctamente');
-    } else {
-      // Crear nueva materia
-      materiaData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection('materias').add(materiaData);
-      
-      let mensaje = 'Materia creada correctamente\n\n';
-      mensaje += 'Codigos generados:\n';
-      codigosGenerados.forEach((cod, idx) => {
-        mensaje += `${gruposEnlazados[idx].nombreTurno}: ${cod}\n`;
-      });
-      alert(mensaje);
-    }
-    
-    cerrarModal();
-    cargarMaterias();
-    
-  } catch (error) {
-    console.error('Error al guardar materia:', error);
-    alert('Error al guardar: ' + error.message);
-  }
 }
 
 // FUNCION AUXILIAR: Obtener materias de un periodo especifico
 async function obtenerMateriasPorPeriodo(carreraId, periodo) {
-  try {
-    const materiasSnap = await db.collection('materias')
-      .where('carreraId', '==', carreraId)
-      .where('periodo', '==', periodo)
-      .where('activa', '==', true)
-      .get();
-    
-    const materias = [];
-    materiasSnap.forEach(doc => {
-      materias.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    return materias;
-    
-  } catch (error) {
-    console.error('Error al obtener materias:', error);
-    return [];
-  }
+    try {
+        const materiasSnap = await db.collection('materias')
+            .where('carreraId', '==', carreraId)
+            .where('periodo', '==', periodo)
+            .where('activa', '==', true)
+            .get();
+
+        const materias = [];
+        materiasSnap.forEach(doc => {
+            materias.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
+
+        return materias;
+
+    } catch (error) {
+        console.error('Error al obtener materias:', error);
+        return [];
+    }
 }
 
 // FUNCION AUXILIAR: Obtener materias de un grupo especifico
 async function obtenerMateriasPorGrupo(carreraId, codigoGrupo) {
-  try {
-    const materiasSnap = await db.collection('materias')
-      .where('carreraId', '==', carreraId)
-      .where('activa', '==', true)
-      .get();
-    
-    const materias = [];
-    materiasSnap.forEach(doc => {
-      const data = doc.data();
-      
-      // Verificar si el grupo esta en los grupos enlazados
-      const tieneGrupo = data.grupos && data.grupos.some(g => g.codigo === codigoGrupo);
-      
-      if (tieneGrupo) {
-        materias.push({
-          id: doc.id,
-          ...data
+    try {
+        const materiasSnap = await db.collection('materias')
+            .where('carreraId', '==', carreraId)
+            .where('activa', '==', true)
+            .get();
+
+        const materias = [];
+        materiasSnap.forEach(doc => {
+            const data = doc.data();
+
+            // Verificar si el grupo esta en los grupos enlazados
+            const tieneGrupo = data.grupos && data.grupos.some(g => g.codigo === codigoGrupo);
+
+            if (tieneGrupo) {
+                materias.push({
+                    id: doc.id,
+                    ...data
+                });
+            }
         });
-      }
-    });
-    
-    return materias;
-    
-  } catch (error) {
-    console.error('Error al obtener materias por grupo:', error);
-    return [];
-  }
+
+        return materias;
+
+    } catch (error) {
+        console.error('Error al obtener materias por grupo:', error);
+        return [];
+    }
 }
 
 // FUNCION AUXILIAR: Verificar si una materia pertenece a un grupo
 function materiaPertenecealGrupo(materia, codigoGrupo) {
-  if (!materia.grupos || !Array.isArray(materia.grupos)) {
-    return false;
-  }
-  
-  return materia.grupos.some(g => g.codigo === codigoGrupo);
+    if (!materia.grupos || !Array.isArray(materia.grupos)) {
+        return false;
+    }
+
+    return materia.grupos.some(g => g.codigo === codigoGrupo);
 }
 
 // ===== GESTIÓN DE GRUPOS =====
@@ -1228,7 +1250,7 @@ async function guardarGrupo(event, grupoId) {
 async function cargarAsignaciones() {
     try {
         console.log('=== Cargando asignaciones ===');
-        
+
         // Cargar asignaciones activas de la carrera
         let query = db.collection('profesorMaterias')
             .where('activa', '==', true)
@@ -1248,11 +1270,14 @@ async function cargarAsignaciones() {
 
         // Agrupar asignaciones por periodo
         const asignacionesPorPeriodo = {};
-        
+
         snapshot.forEach(doc => {
-            const asignacion = { id: doc.id, ...doc.data() };
+            const asignacion = {
+                id: doc.id,
+                ...doc.data()
+            };
             const periodo = asignacion.periodo || 0;
-            
+
             if (!asignacionesPorPeriodo[periodo]) {
                 asignacionesPorPeriodo[periodo] = [];
             }
@@ -1261,7 +1286,7 @@ async function cargarAsignaciones() {
 
         // Ordenar periodos de menor a mayor
         const periodos = Object.keys(asignacionesPorPeriodo).map(p => parseInt(p)).sort((a, b) => a - b);
-        
+
         console.log('Periodos encontrados:', periodos);
         console.log('Total asignaciones:', snapshot.size);
 
@@ -1277,7 +1302,7 @@ async function cargarAsignaciones() {
         // Generar HTML por cada periodo
         periodos.forEach(periodo => {
             const asignaciones = asignacionesPorPeriodo[periodo];
-            
+
             html += `
                 <div style="margin-bottom: 30px;">
                     <h3 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; margin: 0 0 15px 0;">
@@ -1680,13 +1705,13 @@ async function guardarAsignacionProfesor(event) {
     const materiaId = materiaSelect.value;
     const materiaNombre = materiaSelect.options[materiaSelect.selectedIndex].text;
     const periodo = parseInt(materiaSelect.options[materiaSelect.selectedIndex].dataset.periodo);
-    
+
     const profesorId = profesorSelect.value;
     const profesorNombre = profesorSelect.options[profesorSelect.selectedIndex].dataset.nombre;
-    
+
     const turno = parseInt(turnoSelect.value);
     const turnoTexto = turnoSelect.options[turnoSelect.selectedIndex].text;
-    
+
     const orden = ordenInput.value.padStart(2, '0');
 
     if (!materiaId || !profesorId || !turno || !orden) {
@@ -1698,7 +1723,7 @@ async function guardarAsignacionProfesor(event) {
         // Obtener código de carrera
         const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
         const codigoCarrera = carreraDoc.exists ? carreraDoc.data().codigo : 'XXX';
-        
+
         // Generar código de grupo
         const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${orden}`;
 
@@ -1730,7 +1755,7 @@ async function guardarAsignacionProfesor(event) {
                 `Profesor actual: ${asignacionExistente.profesorNombre}\n\n` +
                 `¿Deseas reemplazarla con: ${profesorNombre}?`
             );
-            
+
             if (!confirmar) return;
 
             // REEMPLAZAR: Actualizar el documento existente
@@ -1780,7 +1805,7 @@ async function guardarAsignacionProfesor(event) {
         }
 
         cerrarModal();
-        
+
         // Recargar asignaciones
         if (typeof cargarAsignaciones === 'function') {
             cargarAsignaciones();
@@ -1796,7 +1821,7 @@ async function mostrarFormAsignarProfesor2() {
 
     try {
         console.log('=== mostrarFormAsignarProfesor2 INICIADA ===');
-        
+
         // ====== CARGAR PROFESORES ======
         const profesoresValidos = [];
 
@@ -1815,7 +1840,10 @@ async function mostrarFormAsignarProfesor2() {
                     else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
                     return false;
                 });
-                if (tieneCarrera) profesoresValidos.push({ id: doc.id, ...data });
+                if (tieneCarrera) profesoresValidos.push({
+                    id: doc.id,
+                    ...data
+                });
             }
         });
 
@@ -1840,7 +1868,10 @@ async function mostrarFormAsignarProfesor2() {
             } else if (data.carreraId === usuarioActual.carreraId) {
                 tieneAcceso = true;
             }
-            if (tieneAcceso) profesoresValidos.push({ id: doc.id, ...data });
+            if (tieneAcceso) profesoresValidos.push({
+                id: doc.id,
+                ...data
+            });
         });
 
         profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -1852,13 +1883,13 @@ async function mostrarFormAsignarProfesor2() {
             alert('No se encontro informacion de la carrera');
             return;
         }
-        
+
         const carreraData = carreraDoc.data();
         const codigoCarrera = carreraData.codigo || 'XXX';
         const numeroPeriodos = carreraData.numeroPeriodos || 8;
-        
+
         window.codigoCarreraAsignar2 = codigoCarrera;
-        
+
         console.log('Codigo carrera:', codigoCarrera);
         console.log('Numero periodos:', numeroPeriodos);
 
@@ -1949,11 +1980,11 @@ async function mostrarFormAsignarProfesor2() {
 async function cargarMateriasAsignar2Automatico() {
     // Actualizar preview primero
     actualizarPreviewAsignar2();
-    
+
     const periodoElement = document.getElementById('periodoAsignar2');
     const turnoElement = document.getElementById('turnoAsignar2');
     const ordenElement = document.getElementById('ordenAsignar2');
-    
+
     if (!periodoElement || !turnoElement || !ordenElement) {
         return;
     }
@@ -1967,10 +1998,11 @@ async function cargarMateriasAsignar2Automatico() {
         document.getElementById('areaMateriasAsignar2').style.display = 'none';
         return;
     }
-    
+
     // Cargar materias automáticamente
     await cargarMateriasAsignar2();
 }
+
 function actualizarPreviewAsignar2() {
     const periodoSelect = document.getElementById('periodoAsignar2');
     const turnoSelect = document.getElementById('turnoAsignar2');
@@ -2011,7 +2043,7 @@ function actualizarPreviewAsignar2() {
 }
 async function cargarMateriasAsignar2() {
     console.log('=== cargarMateriasAsignar2 INICIADA ===');
-    
+
     const periodoElement = document.getElementById('periodoAsignar2');
     const turnoElement = document.getElementById('turnoAsignar2');
     const ordenElement = document.getElementById('ordenAsignar2');
@@ -2038,7 +2070,7 @@ async function cargarMateriasAsignar2() {
 
     try {
         console.log('1. Cargando materias del periodo', periodo);
-        
+
         // Cargar materias que tengan el campo "periodo" igual al seleccionado
         const materiasQuery = db.collection('materias')
             .where('carreraId', '==', usuarioActual.carreraId)
@@ -2046,7 +2078,7 @@ async function cargarMateriasAsignar2() {
 
         const materiasSnap = await materiasQuery.get();
         console.log('Materias encontradas para periodo', periodo, ':', materiasSnap.size);
-        
+
         if (materiasSnap.empty) {
             listaMaterias.innerHTML = `
                 <div style="background: #fff3cd; padding: 20px; border-radius: 8px; text-align: center;">
@@ -2076,7 +2108,7 @@ async function cargarMateriasAsignar2() {
 
         const profesores = window.profesoresDisponiblesAsignar2 || [];
         console.log('3. Profesores disponibles:', profesores.length);
-        
+
         let profesoresOptions = '<option value="">Seleccionar profesor...</option>';
         profesores.forEach(prof => {
             const rolDisplay = prof.rol === 'coordinador' ? ' (Coordinador)' : '';
@@ -2086,7 +2118,7 @@ async function cargarMateriasAsignar2() {
         const ordenFormateado = orden.padStart(2, '0');
         const codigoCarrera = window.codigoCarreraAsignar2 || 'XXX';
         const codigoGrupo = `${codigoCarrera}-${turno}${periodo}${ordenFormateado}`;
-        
+
         const turnosNombres = {
             '1': 'Matutino',
             '2': 'Vespertino',
@@ -2143,7 +2175,7 @@ async function cargarMateriasAsignar2() {
             select.addEventListener('change', function() {
                 const row = this.closest('div[style*="grid-template-columns"]');
                 const indicador = row.querySelector('.indicador-estado');
-                
+
                 if (this.value) {
                     indicador.innerHTML = '<span style="color: #4caf50; font-weight: 600;">✓ Asignado</span>';
                     this.style.borderColor = '#4caf50';
@@ -2166,7 +2198,7 @@ async function cargarMateriasAsignar2() {
 }
 async function guardarAsignacionesAsignar2() {
     console.log('=== guardarAsignacionesAsignar2 INICIADA ===');
-    
+
     const turnoSelect = document.getElementById('turnoAsignar2');
     const periodoInput = document.getElementById('periodoAsignar2');
     const turno = parseInt(turnoSelect.value);
@@ -2186,7 +2218,7 @@ async function guardarAsignacionesAsignar2() {
     selectores.forEach((select, index) => {
         if (select.value) {
             const profesorNombre = select.options[select.selectedIndex].dataset.nombre;
-            
+
             asignaciones.push({
                 materiaId: select.dataset.materiaId,
                 materiaNombre: select.dataset.materiaNombre,
@@ -2239,17 +2271,17 @@ async function guardarAsignacionesAsignar2() {
                     // Ya existe, preguntar si reemplazar
                     const docId = existente.docs[0].id;
                     const asigExistente = existente.docs[0].data();
-                    
+
                     // REEMPLAZAR: Actualizar el documento
                     await db.collection('profesorMaterias').doc(docId).update({
                         profesorId: asig.profesorId,
                         profesorNombre: asig.profesorNombre,
                         fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    
+
                     actualizadas++;
-                    console.log('Actualizada:', asig.materiaNombre, 
-                               `${asigExistente.profesorNombre} -> ${asig.profesorNombre}`);
+                    console.log('Actualizada:', asig.materiaNombre,
+                        `${asigExistente.profesorNombre} -> ${asig.profesorNombre}`);
                     continue;
                 }
 
@@ -2366,7 +2398,10 @@ async function reasignarProfesorDirecto(asignacionId) {
                     else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
                     return false;
                 });
-                if (tieneCarrera) profesoresValidos.push({ id: doc.id, ...data });
+                if (tieneCarrera) profesoresValidos.push({
+                    id: doc.id,
+                    ...data
+                });
             }
         });
 
@@ -2389,7 +2424,10 @@ async function reasignarProfesorDirecto(asignacionId) {
             } else if (data.carreraId === usuarioActual.carreraId) {
                 tieneAcceso = true;
             }
-            if (tieneAcceso) profesoresValidos.push({ id: doc.id, ...data });
+            if (tieneAcceso) profesoresValidos.push({
+                id: doc.id,
+                ...data
+            });
         });
 
         profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -2913,7 +2951,7 @@ async function cargarAlumnos() {
             .where('rol', '==', 'alumno')
             .where('carreraId', '==', usuarioActual.carreraId)
             .get();
-        
+
         const container = document.getElementById('listaAlumnos');
 
         if (snapshot.empty) {
@@ -2924,23 +2962,23 @@ async function cargarAlumnos() {
         // Cargar matriz de grupos de la carrera
         const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
         const gruposData = gruposDoc.exists ? gruposDoc.data() : null;
-        
+
         let html = '';
         snapshot.forEach(doc => {
             const alumno = doc.data();
-            
+
             // Determinar el nombre del grupo
             let grupoNombre = 'Sin grupo';
-            
+
             if (alumno.codigoGrupo) {
                 // El alumno tiene codigoGrupo (ej: "HIS-1500")
                 grupoNombre = alumno.codigoGrupo;
-                
+
                 // Intentar obtener info adicional del grupo si existe en la matriz
                 if (gruposData && gruposData.grupos) {
                     // Extraer codigo simple del codigoCompleto (ej: "1500" de "HIS-1500")
                     const codigoSimple = alumno.codigoGrupo.split('-')[1];
-                    
+
                     if (codigoSimple && gruposData.grupos[codigoSimple]) {
                         const grupoInfo = gruposData.grupos[codigoSimple];
                         grupoNombre = `${alumno.codigoGrupo} (${grupoInfo.nombreTurno}, P${grupoInfo.periodo})`;
@@ -2979,27 +3017,27 @@ async function cargarAlumnos() {
 
 
 async function mostrarFormAlumno(alumnoId = null) {
-  const esEdicion = alumnoId !== null;
-  document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Alumno' : '1 Nuevo Alumno';
-  
-  // Cargar datos de la carrera
-  let numeroPeriodos = 8; // Default
-  try {
-    const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
-    if (carreraDoc.exists) {
-      numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
+    const esEdicion = alumnoId !== null;
+    document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Alumno' : '1 Nuevo Alumno';
+
+    // Cargar datos de la carrera
+    let numeroPeriodos = 8; // Default
+    try {
+        const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+        if (carreraDoc.exists) {
+            numeroPeriodos = carreraDoc.data().numeroPeriodos || 8;
+        }
+    } catch (error) {
+        console.error('Error al cargar carrera:', error);
     }
-  } catch (error) {
-    console.error('Error al cargar carrera:', error);
-  }
-  
-  // Generar opciones de periodo
-  let periodosHtml = '<option value="">Seleccionar periodo...</option>';
-  for (let i = 1; i <= numeroPeriodos; i++) {
-    periodosHtml += `<option value="${i}">${i}°</option>`;
-  }
-  
-  const html = `
+
+    // Generar opciones de periodo
+    let periodosHtml = '<option value="">Seleccionar periodo...</option>';
+    for (let i = 1; i <= numeroPeriodos; i++) {
+        periodosHtml += `<option value="${i}">${i}°</option>`;
+    }
+
+    const html = `
     <form onsubmit="guardarAlumno(event, '${alumnoId || ''}')">
       <div class="form-grupo">
         <label>Nombre Completo: *</label>
@@ -3062,44 +3100,44 @@ async function mostrarFormAlumno(alumnoId = null) {
       </div>
     </form>
   `;
-  
-  document.getElementById('contenidoModal').innerHTML = html;
-  document.getElementById('modalGenerico').style.display = 'block';
-  
-  if (esEdicion) {
-    cargarDatosAlumno(alumnoId);
-  }
+
+    document.getElementById('contenidoModal').innerHTML = html;
+    document.getElementById('modalGenerico').style.display = 'block';
+
+    if (esEdicion) {
+        cargarDatosAlumno(alumnoId);
+    }
 }
 
 
 function actualizarPreviewGrupoCoord() {
-  const periodo = document.getElementById('periodoAlumno').value;
-  const turno = document.getElementById('turnoAlumno').value;
-  const orden = document.getElementById('ordenAlumno').value || '01';
-  
-  const previewDiv = document.getElementById('previewGrupoCoord');
-  
-  if (!periodo || !turno) {
-    previewDiv.innerHTML = '<em style="color: #999;">Selecciona periodo y turno para ver el codigo</em>';
-    return;
-  }
-  
-  if (!carreraActualData || !carreraActualData.codigo) {
-    previewDiv.innerHTML = '<em style="color: #f44336;">Error: Carrera no cargada</em>';
-    return;
-  }
-  
-  const ordenFormateado = orden.toString().padStart(2, '0');
-  const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
-  
-  const turnosNombres = {
-    '1': 'Matutino',
-    '2': 'Vespertino',
-    '3': 'Nocturno',
-    '4': 'Sabatino'
-  };
-  
-  previewDiv.innerHTML = `
+    const periodo = document.getElementById('periodoAlumno').value;
+    const turno = document.getElementById('turnoAlumno').value;
+    const orden = document.getElementById('ordenAlumno').value || '01';
+
+    const previewDiv = document.getElementById('previewGrupoCoord');
+
+    if (!periodo || !turno) {
+        previewDiv.innerHTML = '<em style="color: #999;">Selecciona periodo y turno para ver el codigo</em>';
+        return;
+    }
+
+    if (!carreraActualData || !carreraActualData.codigo) {
+        previewDiv.innerHTML = '<em style="color: #f44336;">Error: Carrera no cargada</em>';
+        return;
+    }
+
+    const ordenFormateado = orden.toString().padStart(2, '0');
+    const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
+
+    const turnosNombres = {
+        '1': 'Matutino',
+        '2': 'Vespertino',
+        '3': 'Nocturno',
+        '4': 'Sabatino'
+    };
+
+    previewDiv.innerHTML = `
     <strong style="color: #667eea; font-size: 1.2rem;">${codigoGrupo}</strong>
     <div style="font-size: 0.85rem; color: #666; margin-top: 5px;">
       ${turnosNombres[turno]} - Periodo ${periodo} - Grupo ${ordenFormateado}
@@ -3108,94 +3146,94 @@ function actualizarPreviewGrupoCoord() {
 }
 
 async function cargarDatosAlumno(alumnoId) {
-  try {
-    const doc = await db.collection('usuarios').doc(alumnoId).get();
-    if (doc.exists) {
-      const alumno = doc.data();
-      document.getElementById('nombreAlumno').value = alumno.nombre;
-      document.getElementById('matriculaAlumno').value = alumno.matricula || '';
-      document.getElementById('emailAlumno').value = alumno.email;
-      document.getElementById('periodoAlumno').value = alumno.periodo || '';
-      document.getElementById('turnoAlumno').value = alumno.turno || '1';
-      document.getElementById('ordenAlumno').value = alumno.orden || '01';
-      document.getElementById('activoAlumno').checked = alumno.activo;
-      
-      // Actualizar preview
-      setTimeout(() => {
-        actualizarPreviewGrupoCoord();
-      }, 100);
+    try {
+        const doc = await db.collection('usuarios').doc(alumnoId).get();
+        if (doc.exists) {
+            const alumno = doc.data();
+            document.getElementById('nombreAlumno').value = alumno.nombre;
+            document.getElementById('matriculaAlumno').value = alumno.matricula || '';
+            document.getElementById('emailAlumno').value = alumno.email;
+            document.getElementById('periodoAlumno').value = alumno.periodo || '';
+            document.getElementById('turnoAlumno').value = alumno.turno || '1';
+            document.getElementById('ordenAlumno').value = alumno.orden || '01';
+            document.getElementById('activoAlumno').checked = alumno.activo;
+
+            // Actualizar preview
+            setTimeout(() => {
+                actualizarPreviewGrupoCoord();
+            }, 100);
+        }
+    } catch (error) {
+        console.error('Error:', error);
     }
-  } catch (error) {
-    console.error('Error:', error);
-  }
 }
 
 
 async function guardarAlumno(event, alumnoId) {
-  event.preventDefault();
-  
-  const nombre = document.getElementById('nombreAlumno').value.trim();
-  const matricula = document.getElementById('matriculaAlumno').value.trim();
-  const email = document.getElementById('emailAlumno').value.trim();
-  const periodo = parseInt(document.getElementById('periodoAlumno').value);
-  const turno = document.getElementById('turnoAlumno').value;
-  const orden = document.getElementById('ordenAlumno').value || '01';
-  const activo = document.getElementById('activoAlumno').checked;
-  
-  if (!periodo || !turno) {
-    alert('Debes seleccionar periodo y turno');
-    return;
-  }
-  
-  // Generar codigo de grupo
-  const ordenFormateado = orden.toString().padStart(2, '0');
-  const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
-  
-  const userData = {
-    nombre: nombre,
-    matricula: matricula,
-    email: email.toLowerCase(),
-    rol: 'alumno',
-    periodo: periodo,
-    turno: turno,
-    orden: ordenFormateado,
-    codigoGrupo: codigoGrupo,
-    carreraId: usuarioActual.carreraId,
-    activo: activo
-  };
-  
-  // Si es nuevo alumno, agregar info adicional
-  if (!alumnoId) {
-    userData.periodoIngreso = periodoActualCarrera;
-    userData.generacion = periodoActualCarrera;
-    userData.graduado = false;
-    userData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
-  }
-  
-  try {
-    if (alumnoId) {
-      // Editar
-      await db.collection('usuarios').doc(alumnoId).update(userData);
-      alert('Alumno actualizado');
-    } else {
-      // Crear nuevo
-      await db.collection('usuarios').add(userData);
-      
-      alert(
-        `Alumno registrado!\n\n` +
-        `Nombre: ${nombre}\n` +
-        `Matricula: ${matricula}\n` +
-        `Codigo de Grupo: ${codigoGrupo}\n` +
-        `Periodo: ${periodoActualCarrera}`
-      );
+    event.preventDefault();
+
+    const nombre = document.getElementById('nombreAlumno').value.trim();
+    const matricula = document.getElementById('matriculaAlumno').value.trim();
+    const email = document.getElementById('emailAlumno').value.trim();
+    const periodo = parseInt(document.getElementById('periodoAlumno').value);
+    const turno = document.getElementById('turnoAlumno').value;
+    const orden = document.getElementById('ordenAlumno').value || '01';
+    const activo = document.getElementById('activoAlumno').checked;
+
+    if (!periodo || !turno) {
+        alert('Debes seleccionar periodo y turno');
+        return;
     }
-    
-    cerrarModal();
-    cargarAlumnos();
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Error al guardar alumno: ' + error.message);
-  }
+
+    // Generar codigo de grupo
+    const ordenFormateado = orden.toString().padStart(2, '0');
+    const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
+
+    const userData = {
+        nombre: nombre,
+        matricula: matricula,
+        email: email.toLowerCase(),
+        rol: 'alumno',
+        periodo: periodo,
+        turno: turno,
+        orden: ordenFormateado,
+        codigoGrupo: codigoGrupo,
+        carreraId: usuarioActual.carreraId,
+        activo: activo
+    };
+
+    // Si es nuevo alumno, agregar info adicional
+    if (!alumnoId) {
+        userData.periodoIngreso = periodoActualCarrera;
+        userData.generacion = periodoActualCarrera;
+        userData.graduado = false;
+        userData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
+    }
+
+    try {
+        if (alumnoId) {
+            // Editar
+            await db.collection('usuarios').doc(alumnoId).update(userData);
+            alert('Alumno actualizado');
+        } else {
+            // Crear nuevo
+            await db.collection('usuarios').add(userData);
+
+            alert(
+                `Alumno registrado!\n\n` +
+                `Nombre: ${nombre}\n` +
+                `Matricula: ${matricula}\n` +
+                `Codigo de Grupo: ${codigoGrupo}\n` +
+                `Periodo: ${periodoActualCarrera}`
+            );
+        }
+
+        cerrarModal();
+        cargarAlumnos();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al guardar alumno: ' + error.message);
+    }
 }
 
 
@@ -3935,72 +3973,149 @@ async function solicitarCambioPeriodo() {
 // Ejecutar cambio de periodo (solo avanza al siguiente)
 async function ejecutarCambioPeriodoSecuencial(siguientePeriodo) {
     try {
+        console.log('=== INICIANDO CAMBIO DE PERIODO ===');
+        console.log('Periodo actual:', periodoActualCarrera);
+        console.log('Siguiente periodo:', siguientePeriodo);
+        
         const infoPeriodo = document.getElementById('infoPeriodoActual');
         if (infoPeriodo) {
             infoPeriodo.innerHTML = `
- <div style="text-align: center; padding: 20px;">
- <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">Cambiando periodo...</div>
- <div style="color: #666;">Por favor espera, esto puede tomar unos momentos.</div>
- </div>
- `;
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">Cambiando periodo...</div>
+                    <div style="color: #666;">Por favor espera, esto puede tomar unos momentos.</div>
+                </div>
+            `;
         }
 
         let alumnosAvanzados = 0;
         let alumnosGraduados = 0;
         let asignacionesDesactivadas = 0;
+        let calificacionesArchivadas = 0;
 
-        // 1. Obtener todos los alumnos activos del periodo actual
+        // Obtener información de la carrera
+        const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+        if (!carreraDoc.exists) {
+            throw new Error('No se encontró información de la carrera');
+        }
+        
+        const carreraData = carreraDoc.data();
+        const numeroPeriodos = carreraData.numeroPeriodos || 8;
+        const codigoCarrera = carreraData.codigo || 'XXX';
+        
+        console.log('Carrera:', carreraData.nombre);
+        console.log('Número de periodos:', numeroPeriodos);
+        console.log('Código:', codigoCarrera);
+
+        // ========== PASO 1: ARCHIVAR CALIFICACIONES DEL PERIODO ACTUAL ==========
+        console.log('\n=== PASO 1: Archivando calificaciones ===');
+        
+        const calificacionesSnap = await db.collection('calificaciones')
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .where('periodo', '==', periodoActualCarrera)
+            .get();
+        
+        console.log('Calificaciones encontradas:', calificacionesSnap.size);
+        
+        for (const calDoc of calificacionesSnap.docs) {
+            const calData = calDoc.data();
+            
+            // Archivar en historialCalificaciones
+            await db.collection('historialCalificaciones').add({
+                ...calData,
+                periodoArchivado: periodoActualCarrera,
+                fechaArchivado: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            calificacionesArchivadas++;
+        }
+        
+        console.log('Calificaciones archivadas:', calificacionesArchivadas);
+
+        // ========== PASO 2: AVANZAR ALUMNOS ==========
+        console.log('\n=== PASO 2: Avanzando alumnos ===');
+        
         const alumnosSnap = await db.collection('usuarios')
             .where('rol', '==', 'alumno')
             .where('carreraId', '==', usuarioActual.carreraId)
-            .where('periodo', '==', periodoActualCarrera)
             .where('activo', '==', true)
             .get();
+        
+        console.log('Alumnos encontrados:', alumnosSnap.size);
 
-        // 2. Avanzar cada alumno
         for (const alumnoDoc of alumnosSnap.docs) {
             const alumno = alumnoDoc.data();
-            const semestreActual = alumno.semestreActual || 1;
-            const nuevoSemestre = semestreActual + 1;
-
-            if (nuevoSemestre > 9) {
-                // Graduar alumno
+            
+            // Verificar que tenga codigoGrupo
+            if (!alumno.codigoGrupo) {
+                console.log(`Alumno ${alumno.nombre} sin codigoGrupo, omitiendo`);
+                continue;
+            }
+            
+            const periodoActual = alumno.periodo || 1;
+            const nuevoPeriodo = periodoActual + 1;
+            
+            console.log(`\nAlumno: ${alumno.nombre}`);
+            console.log(`  codigoGrupo actual: ${alumno.codigoGrupo}`);
+            console.log(`  periodo actual: ${periodoActual}`);
+            console.log(`  nuevo periodo: ${nuevoPeriodo}`);
+            
+            // Verificar si debe graduarse
+            if (nuevoPeriodo > numeroPeriodos) {
+                console.log(`  -> GRADUANDO (superó ${numeroPeriodos} periodos)`);
+                
                 await alumnoDoc.ref.update({
                     activo: false,
                     graduado: true,
-                    grupoId: 'GRADUADO',
+                    codigoGrupo: 'EGRESADO',
                     fechaGraduacion: firebase.firestore.FieldValue.serverTimestamp(),
-                    periodoGraduacion: siguientePeriodo
+                    periodoGraduacion: siguientePeriodo,
+                    periodoAcademico: siguientePeriodo
                 });
+                
                 alumnosGraduados++;
             } else {
-                // Calcular nuevo grupo
-                const grupoActual = alumno.grupoId || '';
-                const turnoMatch = grupoActual.match(/^([123])/);
-                const siglaMatch = grupoActual.match(/-(.+)$/);
-
-                const turno = turnoMatch ? turnoMatch[1] : '1';
-                const sigla = siglaMatch ? siglaMatch[1] : 'MAT';
-
-                const nuevoGrupo = `${turno}${nuevoSemestre}01-${sigla}`;
-
-                // Actualizar alumno
+                // Avanzar al siguiente periodo
+                // Formato actual: CODIGO-TURNOPERIODOORDEN
+                // Ejemplo: DE-1101 -> DE-1201
+                
+                const partes = alumno.codigoGrupo.split('-');
+                if (partes.length !== 2) {
+                    console.log(`  -> ERROR: formato de código incorrecto: ${alumno.codigoGrupo}`);
+                    continue;
+                }
+                
+                const codigo = partes[0]; // Ej: "DE"
+                const grupoInfo = partes[1]; // Ej: "1101"
+                
+                // Extraer turno (primer dígito), periodo (segundo dígito), orden (últimos 2 dígitos)
+                const turno = grupoInfo.charAt(0); // "1"
+                const orden = grupoInfo.slice(-2); // "01"
+                
+                // Construir nuevo código con el nuevo periodo
+                const nuevoCodigoGrupo = `${codigo}-${turno}${nuevoPeriodo}${orden}`;
+                
+                console.log(`  -> AVANZANDO a ${nuevoCodigoGrupo}`);
+                
                 await alumnoDoc.ref.update({
-                    semestreActual: nuevoSemestre,
-                    grupoId: nuevoGrupo,
-                    periodo: siguientePeriodo,
+                    periodo: nuevoPeriodo,
+                    codigoGrupo: nuevoCodigoGrupo,
+                    periodoAcademico: siguientePeriodo,
                     ultimoCambio: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                
                 alumnosAvanzados++;
             }
         }
 
-        // 3. Desactivar asignaciones del periodo anterior
+        // ========== PASO 3: DESACTIVAR ASIGNACIONES DEL PERIODO ANTERIOR ==========
+        console.log('\n=== PASO 3: Desactivando asignaciones ===');
+        
         const asignacionesSnap = await db.collection('profesorMaterias')
             .where('carreraId', '==', usuarioActual.carreraId)
-            .where('periodo', '==', periodoActualCarrera)
             .where('activa', '==', true)
             .get();
+        
+        console.log('Asignaciones encontradas:', asignacionesSnap.size);
 
         const batch = db.batch();
         asignacionesSnap.forEach(doc => {
@@ -4011,46 +4126,80 @@ async function ejecutarCambioPeriodoSecuencial(siguientePeriodo) {
             asignacionesDesactivadas++;
         });
         await batch.commit();
+        
+        console.log('Asignaciones desactivadas:', asignacionesDesactivadas);
 
-        // 4. Actualizar periodo actual en config
+        // ========== PASO 4: DESACTIVAR INSCRIPCIONES ESPECIALES ==========
+        console.log('\n=== PASO 4: Desactivando inscripciones especiales ===');
+        
+        const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .where('activa', '==', true)
+            .get();
+        
+        const batchInscripciones = db.batch();
+        let inscripcionesDesactivadas = 0;
+        
+        inscripcionesSnap.forEach(doc => {
+            batchInscripciones.update(doc.ref, {
+                activa: false,
+                fechaFin: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            inscripcionesDesactivadas++;
+        });
+        
+        await batchInscripciones.commit();
+        console.log('Inscripciones especiales desactivadas:', inscripcionesDesactivadas);
+
+        // ========== PASO 5: ACTUALIZAR PERIODO ACTUAL EN CONFIG ==========
+        console.log('\n=== PASO 5: Actualizando configuración ===');
+        
         await db.collection('config').doc('periodoActualCarrera').update({
             periodo: siguientePeriodo,
             periodoAnterior: periodoActualCarrera,
             fechaCambio: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 5. Actualizar variable global
+        // ========== PASO 6: ACTUALIZAR VARIABLE GLOBAL ==========
         periodoActualCarrera = siguientePeriodo;
         periodoActivo = siguientePeriodo;
 
-        // 6. Actualizar displays
+        // ========== PASO 7: ACTUALIZAR DISPLAYS ==========
         const elementos = ['periodoActualDisplay', 'periodoUsuario', 'periodoFooter'];
         elementos.forEach(id => {
             const elem = document.getElementById(id);
             if (elem) elem.textContent = periodoActualCarrera;
         });
 
-        // 7. Mostrar resultado
+        // ========== PASO 8: MOSTRAR RESULTADO ==========
+        console.log('\n=== CAMBIO DE PERIODO COMPLETADO ===');
+        
         alert(
             `CAMBIO DE PERIODO COMPLETADO\n\n` +
             `Nuevo periodo: ${siguientePeriodo}\n\n` +
             `Estadísticas:\n` +
             `Alumnos avanzados: ${alumnosAvanzados}\n` +
             `Alumnos graduados: ${alumnosGraduados}\n` +
-            `Asignaciones desactivadas: ${asignacionesDesactivadas}\n\n` +
+            `Calificaciones archivadas: ${calificacionesArchivadas}\n` +
+            `Asignaciones desactivadas: ${asignacionesDesactivadas}\n` +
+            `Inscripciones especiales desactivadas: ${inscripcionesDesactivadas}\n\n` +
+            `IMPORTANTE:\n` +
+            `- Los alumnos han avanzado al siguiente periodo\n` +
+            `- Las asignaciones profesor-materia se han limpiado\n` +
+            `- Debes volver a asignar profesores a las materias\n\n` +
             `La página se recargará para aplicar los cambios.`
         );
 
-        // 8. Recargar página
+        // ========== PASO 9: RECARGAR PÁGINA ==========
         location.reload();
 
     } catch (error) {
-        console.error('Error:', error);
+        console.error('ERROR en cambio de periodo:', error);
         alert('Error al cambiar periodo: ' + error.message);
 
         const infoPeriodo = document.getElementById('infoPeriodoActual');
         if (infoPeriodo) {
-            infoPeriodo.innerHTML = '<p style="color: red;">Error al cambiar periodo</p>';
+            infoPeriodo.innerHTML = '<p style="color: red;">Error al cambiar periodo. Ver consola para detalles.</p>';
         }
     }
 }
