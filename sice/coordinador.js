@@ -106,42 +106,74 @@ async function cargarPeriodoActual() {
 
 
 
-// NUEVA FUNCION: Cargar estadisticas del periodo actual
+// Cargar estadisticas del periodo actual
 async function cargarEstadisticasPeriodo() {
     try {
-        // Contar alumnos activos
-        const alumnosSnap = await db.collection('usuarios')
+        console.log('=== Cargando estadísticas del periodo ===');
+        console.log('Periodo actual:', periodoActualCarrera);
+        console.log('Carrera ID:', usuarioActual.carreraId);
+        
+            const alumnosSnap = await db.collection('usuarios')
             .where('rol', '==', 'alumno')
             .where('carreraId', '==', usuarioActual.carreraId)
-            .where('periodo', '==', periodoActualCarrera)
             .where('activo', '==', true)
             .get();
 
-        // Contar grupos activos
+        console.log('✓ Alumnos activos encontrados:', alumnosSnap.size);
+
+        // Contar grupos activos de esta carrera
         const gruposSnap = await db.collection('grupos')
             .where('carreraId', '==', usuarioActual.carreraId)
             .where('activo', '==', true)
             .get();
 
-        // Contar asignaciones activas
+        console.log('✓ Grupos activos encontrados:', gruposSnap.size);
+
+        // Contar asignaciones activas del periodo actual
         const asignacionesSnap = await db.collection('profesorMaterias')
             .where('carreraId', '==', usuarioActual.carreraId)
             .where('periodo', '==', periodoActualCarrera)
             .where('activa', '==', true)
             .get();
 
+        console.log('✓ Asignaciones activas encontradas:', asignacionesSnap.size);
+
         // Actualizar displays
         const elemAlumnos = document.getElementById('alumnosActivosDisplay');
-        if (elemAlumnos) elemAlumnos.textContent = alumnosSnap.size;
+        if (elemAlumnos) {
+            elemAlumnos.textContent = alumnosSnap.size;
+            console.log('Display alumnos actualizado:', alumnosSnap.size);
+        } else {
+            console.warn('Elemento alumnosActivosDisplay no encontrado');
+        }
 
         const elemGrupos = document.getElementById('gruposActivosDisplay');
-        if (elemGrupos) elemGrupos.textContent = gruposSnap.size;
+        if (elemGrupos) {
+            elemGrupos.textContent = gruposSnap.size;
+            console.log('Display grupos actualizado:', gruposSnap.size);
+        } else {
+            console.warn('Elemento gruposActivosDisplay no encontrado');
+        }
 
         const elemAsignaciones = document.getElementById('asignacionesActivasDisplay');
-        if (elemAsignaciones) elemAsignaciones.textContent = asignacionesSnap.size;
+        if (elemAsignaciones) {
+            elemAsignaciones.textContent = asignacionesSnap.size;
+            console.log('Display asignaciones actualizado:', asignacionesSnap.size);
+        } else {
+            console.warn('Elemento asignacionesActivasDisplay no encontrado');
+        }
+
+        console.log('Estadísticas del periodo actualizadas correctamente');
 
     } catch (error) {
-        console.error('Error al cargar estadisticas:', error);
+        console.error('Error al cargar estadísticas:', error);
+        console.error('Stack trace:', error.stack);
+        
+        // Mostrar 0 en caso de error
+        ['alumnosActivosDisplay', 'gruposActivosDisplay', 'asignacionesActivasDisplay'].forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem) elem.textContent = '0';
+        });
     }
 }
 
