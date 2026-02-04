@@ -116,16 +116,16 @@ async function redirigirSegunRol(rol) {
   
   switch (rol) {
     case 'admin':
-      window.location.href = 'sice/controlAdmin.html';
+      window.location.href = 'controlAdmin.html';
       break;
     case 'coordinador':
-      window.location.href = 'sice/controlCoordinador.html';
+      window.location.href = 'controlCoordinador.html';
       break;
     case 'profesor':
-      window.location.href = 'sice/controlProfe.html';
+      window.location.href = 'controlProfe.html';
       break;
     case 'controlEscolar':
-      window.location.href = 'sice/controlEscolar.html';
+      window.location.href = 'controlEscolar.html';
       break;
     case 'alumno':
       // Bloquear login de alumnos - solo consulta pública
