@@ -116,16 +116,16 @@ async function redirigirSegunRol(rol) {
   
   switch (rol) {
     case 'admin':
-      window.location.href = 'controlAdmin.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/';
       break;
     case 'coordinador':
-      window.location.href = 'controlCoordinador.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/controlCoordinador.html';
       break;
     case 'profesor':
-      window.location.href = 'controlProfe.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/controlProfe.html';
       break;
     case 'controlEscolar':
-      window.location.href = 'controlEscolar.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/controlEscolar.html';
       break;
     case 'alumno':
       // Bloquear login de alumnos - solo consulta pública
