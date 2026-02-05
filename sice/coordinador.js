@@ -513,7 +513,7 @@ auth.onAuthStateChanged(async (user) => {
     if (!user) {
         console.log('No hay sesión activa');
         // alert('Debes iniciar sesión');
-        window.location.href = 'login.html';
+        window.location.href = 'https://ilbcontrol.mx/sice';
         return;
     }
 
@@ -523,7 +523,7 @@ auth.onAuthStateChanged(async (user) => {
         if (!userDoc.exists) {
             console.log('Usuario no encontrado');
             await auth.signOut();
-            window.location.href = 'login.html';
+            window.location.href = 'https://ilbcontrol.mx/sice';
             return;
         }
 
@@ -534,7 +534,7 @@ auth.onAuthStateChanged(async (user) => {
         if (usuarioActual.rol !== 'coordinador' && usuarioActual.rol !== 'admin') {
             console.log('No tienes permisos de coordinador');
             alert('No tienes permisos para acceder');
-            window.location.href = 'login.html';
+            window.location.href = 'https://ilbcontrol.mx/sice';
             return;
         }
 
@@ -590,7 +590,7 @@ auth.onAuthStateChanged(async (user) => {
     } catch (error) {
         console.error('Error:', error);
         alert('Error al verificar permisos: ' + error.message);
-        window.location.href = 'login.html';
+        window.location.href = 'https://ilbcontrol.mx/sice';
     }
 });
 
