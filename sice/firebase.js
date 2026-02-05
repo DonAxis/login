@@ -2,7 +2,7 @@
 // Configuración de Firebase (versión compat)
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAoU5hrsEM1G1WqmTzkCc2byQoUH6ykgTg",
+  apiKey: "AIzaSyDVgbGLLnL8plN1qatCoEXMS6jm5CD1rVc",
   authDomain: "registrosescolares9.firebaseapp.com",
   projectId: "registrosescolares9",
   storageBucket: "registrosescolares9.firebasestorage.app",
