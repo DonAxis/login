@@ -1,7 +1,7 @@
 // ===== NUEVA FUNCIÓN: Descargar PDF del historial del alumno =====
 async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
   try {
-    console.log('INICIANDO generacion de PDF para alumno:', alumnoId, nombreAlumno);
+    console.log('Iniciando generacion de PDF para alumno:', alumnoId, nombreAlumno);
     
     // Verificar que jsPDF este cargado
     if (typeof window.jspdf === 'undefined') {
