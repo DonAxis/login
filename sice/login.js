@@ -116,7 +116,7 @@ async function redirigirSegunRol(rol) {
   
   switch (rol) {
     case 'admin':
-      window.location.href = 'https://ilbcontrol.mx/sice/';
+      window.location.href = 'https://ilbcontrol.mx/sice/controlAdmin.html';
       break;
     case 'coordinador':
       window.location.href = 'https://ilbcontrol.mx/sice/controlCoordinador.html';
