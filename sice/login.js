@@ -136,7 +136,7 @@ async function redirigirSegunRol(rol) {
       }, 3000);
       break;
     default:
-      mostrarMensaje('Rol no reconocido. Contacta al administrador', 'error');
+      mostrarMensaje('Rol no reconocido, contacta al administrador', 'error');
       setTimeout(async () => {
         await auth.signOut();
       }, 2000);
