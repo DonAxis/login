@@ -1,5 +1,5 @@
-// gestionUsuarios.js
-// Sistema de Gestión de Usuarios para Admin - CON ROLES AUTOMÁTICOS
+// gestionUsuariosV2.js
+// Sistema de Gestión de Usuarios - INCLUYE NUEVOS ROLES: controlCaja y coordinadorAcademia
 
 const auth = firebase.auth();
 let usuariosData = [];
@@ -99,7 +99,9 @@ function mostrarUsuarios() {
       'coordinador': 'Coordinador',
       'profesor': 'Profesor',
       'alumno': 'Alumno',
-      'controlEscolar': 'Control Escolar'
+      'controlEscolar': 'Control Escolar',
+      'controlCaja': 'Control Caja',
+      'coordinadorAcademia': 'Coord. Academia'
     }[usuario.rol] || usuario.rol;
     
     // Buscar nombre de carrera si es coordinador
@@ -115,6 +117,12 @@ function mostrarUsuarios() {
       matriculaInfo = `<p>Matrícula: ${usuario.matricula}</p>`;
     }
     
+    // Mostrar academia si es coordinador academia
+    let academiaInfo = '';
+    if (usuario.rol === 'coordinadorAcademia' && usuario.academiaNombre) {
+      academiaInfo = `<p>Academia: ${usuario.academiaNombre}</p>`;
+    }
+    
     // NUEVO: Mostrar si tiene acceso a profesor
     let rolesInfo = '';
     if (usuario.rol === 'coordinador' && usuario.roles && usuario.roles.includes('profesor')) {
@@ -125,9 +133,10 @@ function mostrarUsuarios() {
       <div class="usuario-card">
         <div class="usuario-info">
           <h3>${usuario.nombre}</h3>
-          <p>Email: ${usuario.email}</p>
+          <p>${usuario.email}</p>
           ${carreraInfo}
           ${matriculaInfo}
+          ${academiaInfo}
           ${rolesInfo}
           <p>
             <span class="rol-badge ${rolClass}">${rolTexto}</span>
@@ -135,12 +144,12 @@ function mostrarUsuarios() {
           </p>
         </div>
         <div class="usuario-acciones">
-          <button onclick="editarUsuario('${usuario.uid}')" class="btn-editar">Editar</button>
+          <button onclick="editarUsuario('${usuario.uid}')" class="btn-editar">✏️ Editar</button>
           <button onclick="toggleActivo('${usuario.uid}', ${!usuario.activo})" 
                   class="botAzu" style="font-size: 0.9rem;">
             ${usuario.activo ? 'Desactivar' : 'Activar'}
           </button>
-          <button onclick="eliminarUsuario('${usuario.uid}')" class="btn-eliminar">Eliminar</button>
+          <button onclick="eliminarUsuario('${usuario.uid}')" class="btn-eliminar">🗑️ Eliminar</button>
         </div>
       </div>
     `;
@@ -177,6 +186,8 @@ function mostrarFormUsuario(rol) {
     rol === 'coordinador' ? 'block' : 'none';
   document.getElementById('campoMatricula').style.display = 
     rol === 'alumno' ? 'block' : 'none';
+  document.getElementById('campoAcademia').style.display = 
+    rol === 'coordinadorAcademia' ? 'block' : 'none';
   
   // Cargar carreras en el selector si es coordinador
   if (rol === 'coordinador') {
@@ -199,7 +210,9 @@ function generarCredencialesSugeridas(rol) {
     'admin': 'admin',
     'coordinador': 'coord',
     'profesor': 'prof',
-    'alumno': 'alumno'
+    'alumno': 'alumno',
+    'controlCaja': 'caja',
+    'coordinadorAcademia': 'academia'
   };
   
   const random = Math.floor(Math.random() * 1000);
@@ -236,11 +249,9 @@ async function guardarUsuario(event) {
     fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
   };
   
-  // NUEVO: Asignar roles automáticamente según el rol
+  // Asignar roles según el tipo de usuario
   if (rol === 'coordinador') {
-    // TODOS los coordinadores son también profesores
     userData.roles = ['coordinador', 'profesor'];
-    console.log('Coordinador creado con roles: coordinador y profesor');
     
     const carreraId = document.getElementById('carreraId').value;
     if (!carreraId) {
@@ -248,23 +259,32 @@ async function guardarUsuario(event) {
       return;
     }
     
-    // Buscar color de la carrera
     const carrera = carrerasData.find(c => c.id === carreraId);
     const colorCarrera = carrera ? carrera.color : '#43a047';
     
-    // Sistema NUEVO: usar array carreras con objetos {carreraId, color}
     userData.carreras = [{
       carreraId: carreraId,
       color: colorCarrera
     }];
     
-    // Mantener carreraId para compatibilidad con código antiguo
     userData.carreraId = carreraId;
     userData.carreraActual = carreraId;
     
-    console.log(`Coordinador con carrera ${carreraId} (${colorCarrera})`);
+  } else if (rol === 'coordinadorAcademia') {
+    // Coordinador Academia: no tiene carrera específica
+    userData.roles = [rol];
+    const academiaNombre = document.getElementById('academiaNombre').value.trim();
+    if (!academiaNombre) {
+      alert('Debes proporcionar el nombre de la academia');
+      return;
+    }
+    userData.academiaNombre = academiaNombre;
+    
+  } else if (rol === 'controlCaja') {
+    // Control Caja: solo su rol
+    userData.roles = [rol];
+    
   } else {
-    // Otros roles solo tienen su rol principal
     userData.roles = [rol];
   }
   
@@ -283,7 +303,6 @@ async function guardarUsuario(event) {
       // EDITAR USUARIO EXISTENTE
       console.log('Actualizando usuario...');
       
-      // Actualizar solo en Firestore
       const updateData = { ...userData };
       delete updateData.fechaCreacion;
       
@@ -295,7 +314,6 @@ async function guardarUsuario(event) {
       // CREAR NUEVO USUARIO
       console.log('Creando usuario en Authentication...');
       
-      // Guardar el usuario actual admin
       const adminUser = auth.currentUser;
       
       // 1. Crear en Authentication
@@ -313,9 +331,15 @@ async function guardarUsuario(event) {
       await auth.signInWithEmailAndPassword(adminUser.email, prompt('Por seguridad, ingresa tu contraseña de admin para continuar:'));
       
       let mensaje = `Usuario creado exitosamente!\n\nEmail: ${email}\nPassword: ${password}\nUID: ${newUid}`;
+      
       if (rol === 'coordinador') {
         mensaje += '\n\nEste coordinador también tiene acceso como profesor.';
+      } else if (rol === 'coordinadorAcademia') {
+        mensaje += '\n\nEste coordinador gestiona una academia (sin carrera específica).';
+      } else if (rol === 'controlCaja') {
+        mensaje += '\n\nEste usuario puede activar/desactivar alumnos (gestión de pagos).';
       }
+      
       mensaje += '\n\nEl usuario ya puede hacer login.';
       
       alert(mensaje);
@@ -380,6 +404,11 @@ async function editarUsuario(uid) {
     document.getElementById('matricula').value = usuario.matricula || '';
   }
   
+  if (usuario.rol === 'coordinadorAcademia') {
+    document.getElementById('campoAcademia').style.display = 'block';
+    document.getElementById('academiaNombre').value = usuario.academiaNombre || '';
+  }
+  
   document.getElementById('modalFormulario').style.display = 'block';
 }
 
@@ -430,4 +459,4 @@ window.onclick = function(event) {
   }
 }
 
-console.log('Sistema de Gestión de Usuarios cargado - Coordinadores son automáticamente profesores');
+console.log('Sistema de Gestión de Usuarios V2 cargado - Con Control Caja y Coordinador Academia');

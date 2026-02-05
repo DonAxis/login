@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="botones.css">
+  <link rel="stylesheet" href="Personas.css">
+  <title>Control de Caja - Pagos</title>
+  <style>
+    .header {
+      background: linear-gradient(135deg, #2e7d32 0%, #43a047 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      color: white;
+      margin: 0;
+    }
+
+    .user-info {
+      text-align: right;
+    }
+
+    .user-info p {
+      margin: 5px 0;
+      font-size: 0.9rem;
+    }
+
+    .btn-logout {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid white;
+      padding: 8px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 10px;
+      transition: all 0.3s;
+    }
+
+    .btn-logout:hover {
+      background: white;
+      color: #2e7d32;
+    }
+
+    .search-container {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 12px 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: #2e7d32;
+    }
+
+    .search-box button {
+      padding: 12px 25px;
+      background: linear-gradient(135deg, #2e7d32 0%, #43a047 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .search-box button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .filtros {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filtro-btn {
+      padding: 8px 16px;
+      border: 2px solid #2e7d32;
+      background: white;
+      color: #2e7d32;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .filtro-btn.active {
+      background: #2e7d32;
+      color: white;
+    }
+
+    .stats-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .stat-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 2rem;
+      color: #2e7d32;
+    }
+
+    .stat-card p {
+      margin: 0;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .lista-alumnos {
+      display: grid;
+      gap: 15px;
+    }
+
+    .alumno-card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s;
+    }
+
+    .alumno-card:hover {
+      transform: translateX(5px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .alumno-card.inactivo {
+      opacity: 0.6;
+      background: #f5f5f5;
+    }
+
+    .alumno-info h3 {
+      margin: 0 0 5px 0;
+      color: #333;
+    }
+
+    .alumno-info p {
+      margin: 3px 0;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .estado-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    .estado-activo {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .estado-inactivo {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .alumno-acciones {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-activar {
+      padding: 10px 20px;
+      background: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-activar:hover {
+      background: #1b5e20;
+    }
+
+    .btn-desactivar {
+      padding: 10px 20px;
+      background: #d32f2f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-desactivar:hover {
+      background: #b71c1c;
+    }
+
+    .sin-resultados {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    @media (max-width: 768px) {
+      .alumno-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .alumno-acciones {
+        margin-top: 15px;
+        width: 100%;
+      }
+
+      .alumno-acciones button {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>Control de Caja</h1>
+      <p style="margin: 5px 0;">Gestión de Pagos y Activaciones</p>
+    </div>
+    <div class="user-info">
+      <p><strong id="userName">Cargando...</strong></p>
+      <p id="userEmail"></p>
+      <button onclick="cerrarSesion()" class="btn-logout">Cerrar Sesión</button>
+    </div>
+  </div>
+
+  <!-- Estadísticas -->
+  <div class="stats-container">
+    <div class="stat-card">
+      <h3 id="totalAlumnos">0</h3>
+      <p>Total Alumnos</p>
+    </div>
+    <div class="stat-card">
+      <h3 id="alumnosActivos" style="color: #2e7d32;">0</h3>
+      <p>Activos (Al corriente)</p>
+    </div>
+    <div class="stat-card">
+      <h3 id="alumnosInactivos" style="color: #d32f2f;">0</h3>
+      <p>Inactivos (Debe pagos)</p>
+    </div>
+  </div>
+
+  <!-- Buscador y Filtros -->
+  <div class="search-container">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Buscar por nombre o matrícula..." onkeyup="buscarAlumnos()">
+      <button onclick="buscarAlumnos()">🔍 Buscar</button>
+      <button onclick="limpiarBusqueda()" style="background: #666;">Limpiar</button>
+    </div>
+
+    <div class="filtros">
+      <button class="filtro-btn active" onclick="filtrarPorEstado('todos')">Todos</button>
+      <button class="filtro-btn" onclick="filtrarPorEstado('activo')">Activos</button>
+      <button class="filtro-btn" onclick="filtrarPorEstado('inactivo')">Inactivos</button>
+    </div>
+  </div>
+
+  <!-- Lista de alumnos -->
+  <div id="listaAlumnos" class="lista-alumnos">
+    <p style="text-align: center; color: #999;">Cargando alumnos...</p>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <script src="firebase.js"></script>
+  <script src="controlCaja.js"></script>
+</body>
+</html>

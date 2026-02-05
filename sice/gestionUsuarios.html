@@ -124,13 +124,23 @@
     }
 
     .rol-alumno {
+      background: #f3e5f5;
+      color: #7b1fa2;
     }
 
     .rol-controlEscolar {
       background: #fff3e0;
-      color: #ff6b35;
-      background: #fff3e0;
       color: #ef6c00;
+    }
+
+    .rol-controlCaja {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .rol-coordinadorAcademia {
+      background: #ede7f6;
+      color: #5e35b1;
     }
 
     .usuario-acciones {
@@ -161,7 +171,7 @@
 
   <div class="header">
     <div>
-      <h1> Gestión de Usuarios</h1>
+      <h1>👥 Gestión de Usuarios</h1>
       <p style="margin: 5px 0;">Administración del Sistema</p>
     </div>
     <button onclick="window.location.href='controlAdmin.html'" class="btn-volver">
@@ -172,8 +182,9 @@
   <!-- Botones de acción -->
   <div class="botones-accion">
     <p style="text-align: center; color: #666; padding: 20px; background: #f5f5f5; border-radius: 10px; margin: 20px 0;">
-       Los usuarios se crean desde sus respectivos paneles:<br><br>
-      
+      🔧 Los usuarios se crean desde sus respectivos paneles:<br><br>
+      <strong>Control Caja:</strong> Gestión de pagos y activaciones<br>
+      <strong>Coordinador Academia:</strong> Gestión de profesores sin carrera específica
     </p>
   </div>
 
@@ -184,6 +195,8 @@
     <button class="filtro-btn" onclick="filtrarPorRol('coordinador')">Coordinadores</button>
     <button class="filtro-btn" onclick="filtrarPorRol('profesor')">Profesores</button>
     <button class="filtro-btn" onclick="filtrarPorRol('controlEscolar')">Control Escolar</button>
+    <button class="filtro-btn" onclick="filtrarPorRol('controlCaja')">Control Caja</button>
+    <button class="filtro-btn" onclick="filtrarPorRol('coordinadorAcademia')">Coord. Academia</button>
     <button class="filtro-btn" onclick="filtrarPorRol('alumno')">Alumnos</button>
   </div>
 
@@ -233,6 +246,12 @@
           <input type="text" id="matricula" placeholder="Ej: 2024001">
         </div>
 
+        <!-- Campo específico para Coordinador Academia -->
+        <div id="campoAcademia" class="form-grupo" style="display: none;">
+          <label for="academiaNombre">Nombre de la Academia: *</label>
+          <input type="text" id="academiaNombre" placeholder="Ej: Academia de Matemáticas">
+        </div>
+
         <div class="form-grupo">
           <label>
             <input type="checkbox" id="activo" checked>
@@ -241,8 +260,8 @@
         </div>
 
         <div class="form-botones">
-          <button type="submit" class="btn-guardar"> Crear Usuario</button>
-          <button type="button" onclick="cerrarModal()" class="btn-cancelar"> Cancelar</button>
+          <button type="submit" class="btn-guardar">Crear Usuario</button>
+          <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </div>
@@ -254,6 +273,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   
   <script src="firebase.js"></script>
-  <script src="gestionUsuarios.js"></script>
+  <script src="gestionUsuariosV2.js"></script>
 </body>
 </html>
