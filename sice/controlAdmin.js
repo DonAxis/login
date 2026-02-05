@@ -49,7 +49,7 @@ const TIPOS_PERIODO = [
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     console.log('No hay usuario autenticado');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice/';
     return;
   }
 
@@ -58,7 +58,7 @@ auth.onAuthStateChanged(async (user) => {
   if (!userDoc.exists) {
     console.log('Usuario no encontrado en Firestore');
     await auth.signOut();
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice/';
     return;
   }
 
@@ -67,7 +67,7 @@ auth.onAuthStateChanged(async (user) => {
   if (userData.rol !== 'admin') {
     console.log('No tienes permisos de administrador');
     alert('No tienes permisos para acceder a esta pagina');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice/';
     return;
   }
 
@@ -82,7 +82,7 @@ async function cerrarSesion() {
     try {
       await auth.signOut();
       sessionStorage.clear();
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/';
     } catch (error) {
       console.error('Error al cerrar sesion:', error);
       alert('Error al cerrar sesion');
