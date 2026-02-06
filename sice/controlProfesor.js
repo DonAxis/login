@@ -59,8 +59,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
       document.getElementById('btnVolverCoord').style.display = 'inline-block';
     }
     
-    // Cargar materias
-    await mostrarMisMaterias();
+    // Mostrar menú principal al iniciar
+    document.getElementById('menuMaterias').style.display = 'grid';
     
   } catch (error) {
     console.error('Error al cargar usuario:', error);
