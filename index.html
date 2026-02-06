@@ -102,7 +102,7 @@ async function cerrarSesion() {
   try {
     await firebase.auth().signOut();
     alert('Sesión cerrada. Ahora puedes consultar como alumno o ir al login del staff.');
-    window.location.href = 'https://ilbcontrol.mx/sice/';
+    window.location.href = 'https://ilbcontrol.mx';
   } catch (error) {
     console.error('Error:', error);
     alert('Error al cerrar sesión');
