@@ -558,7 +558,7 @@ auth.onAuthStateChanged(async (user) => {
         // Mostrar info del usuario (intentar con ambos IDs por compatibilidad)
         const nombreElem = document.getElementById('nombreUsuario') || document.getElementById('userName');
         const emailElem = document.getElementById('emailUsuario') || document.getElementById('userEmail');
-        const carreraInfoElem = document.getElementById('carreraInfo');
+        const carreraNombreDisplay = document.getElementById('carreraNombreDisplay');
 
         if (nombreElem) nombreElem.textContent = usuarioActual.nombre;
         if (emailElem) emailElem.textContent = user.email;
@@ -571,13 +571,13 @@ auth.onAuthStateChanged(async (user) => {
 
         // Cargar carrera
         if (usuarioActual.rol === 'admin') {
-            if (carreraInfoElem) carreraInfoElem.textContent = 'Administrador - Todas las carreras';
+            if (carreraNombreDisplay) carreraNombreDisplay.textContent = 'ADMINISTRADOR - TODAS LAS CARRERAS';
         } else if (usuarioActual.carreraId) {
             try {
                 const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
                 if (carreraDoc.exists) {
                     const carrera = carreraDoc.data();
-                    if (carreraInfoElem) carreraInfoElem.textContent = `Carrera: ${carrera.nombre}`;
+                    if (carreraNombreDisplay) carreraNombreDisplay.textContent = carrera.nombre.toUpperCase();
 
                     // También actualizar en user-info si existe
                     const carreraUsuarioElem = document.getElementById('carreraUsuario');
@@ -585,14 +585,14 @@ auth.onAuthStateChanged(async (user) => {
 
                     carreraActual = carrera;
                 } else {
-                    if (carreraInfoElem) carreraInfoElem.textContent = 'Carrera no encontrada';
+                    if (carreraNombreDisplay) carreraNombreDisplay.textContent = 'CARRERA NO ENCONTRADA';
                 }
             } catch (error) {
                 console.error('Error al cargar carrera:', error);
-                if (carreraInfoElem) carreraInfoElem.textContent = 'Error al cargar carrera';
+                if (carreraNombreDisplay) carreraNombreDisplay.textContent = 'ERROR AL CARGAR CARRERA';
             }
         } else {
-            if (carreraInfoElem) carreraInfoElem.textContent = 'Sin carrera asignada';
+            if (carreraNombreDisplay) carreraNombreDisplay.textContent = 'SIN CARRERA ASIGNADA';
         }
 
     } catch (error) {

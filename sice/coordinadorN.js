@@ -1,14 +1,3 @@
-// =====================================================
-// COORDINADOR.JS - Archivo Principal
-// =====================================================
-// Este es el archivo principal que coordina todos los módulos
-// Requiere que se carguen primero en este orden:
-// 1. core.js    - Sistema central, auth, periodos, navegación
-// 2. utils.js   - Utilidades y helpers
-// 3. modules.js - Módulos de gestión (carreras, materias, etc.)
-// 4. coordinador.js (este archivo) - Inicialización y coordinación
-// =====================================================
-
 console.log('=== Iniciando Panel de Coordinador ===');
 console.log('core.js debe estar cargado');
 console.log('utils.js debe estar cargado');
