@@ -5804,5 +5804,3 @@ async function eliminarAlumnoDesdeEdicion(alumnoId) {
     if (!confirmacion1) return;
 
     const confirmacion2 = confirm('¿Estás seguro? Esta acción no se puede deshacer.');
-
-console.log('modules.js cargado');

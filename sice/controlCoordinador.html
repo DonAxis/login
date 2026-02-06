@@ -197,11 +197,12 @@
  
  <!-- Lado izquierdo: Titulo y selector de carrera -->
  <div style="flex: 1;">
- <h1 style="margin: 0 0 5px 0; font-size: 1.8rem; color: white;">Panel de Coordinador</h1>
+ <p style="margin: 0 0 2px 0; font-size: 0.85rem; color: rgba(255,255,255,0.8); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Panel de Coordinador</p>
  <div id="carreraInfo" style="margin-bottom: 10px;">
- <span style="font-size: 1.5rem; font-weight: 800; text-shadow: 2px 2px 6px rgba(0,0,0,0.25);">
- Cargando...
- </span>
+ <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: white; text-shadow: 2px 2px 6px rgba(0,0,0,0.25); line-height: 1.2;">
+ <span style="font-size: 0.75em; font-weight: 600; color: rgba(255,255,255,0.9);">Carrera:</span>
+ <span id="carreraNombreDisplay">Cargando...</span>
+ </h1>
  </div>
  
  <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
@@ -843,12 +844,18 @@
  <!-- FIN MODO PROFESOR -->
 
  <!-- Firebase SDK -->
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+
+
+
+
+
 
   <script src="firebase.js"></script>
 
@@ -870,9 +877,8 @@
 <!-- ============================================= -->
  
 
-  <script src="controlAlumnoEspecial.js"></script>  <!-- NUEVO -->
+  <script src="controlAlumnoEspecial.js"></script>  
   <script src="cambioPeriodo.js"></script>
-
   <script src="registroMasivoAlumno.js"></script>
   <script src="registroMasivoMaterias.js"></script>
   <script src="registroMasivoProfes.js"></script>
