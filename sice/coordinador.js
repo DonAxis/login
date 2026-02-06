@@ -858,6 +858,24 @@ function mostrarFormMateria(materiaId = null) {
           </small>
         </div>
         
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">SATCA (Sistema de Asignación y Transferencia de Créditos Académicos):</label>
+          <input type="text" id="satca" placeholder="Ej: 2-2-4 o 3-1-4" 
+            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+          <small style="color: #666; display: block; margin-top: 5px;">
+            Formato: Teoría-Práctica-Total (ejemplo: 2-2-4)
+          </small>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">TEPIC (Horas de Teoría, Experimentación, Prácticas, Independiente, Créditos):</label>
+          <input type="text" id="tepic" placeholder="Ej: 2-2-0-2-6" 
+            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+          <small style="color: #666; display: block; margin-top: 5px;">
+            Formato: T-E-P-I-C (ejemplo: 2-2-0-2-6)
+          </small>
+        </div>
+        
         <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #1976d2;">
           <strong style="color: #0d47a1; font-size: 0.9rem;">Codigos que se generaran:</strong>
           <div id="codigosPreview" style="margin-top: 8px; font-family: monospace; font-size: 0.85rem; color: #555;">
@@ -955,6 +973,14 @@ async function cargarDatosMateria(materiaId) {
             document.getElementById('nombreMateria').value = materia.nombre;
             document.getElementById('creditos').value = materia.creditos || 6;
             document.getElementById('periodo').value = materia.periodo || 1;
+            
+            // Cargar SATCA y TEPIC si existen
+            if (materia.satca) {
+                document.getElementById('satca').value = materia.satca;
+            }
+            if (materia.tepic) {
+                document.getElementById('tepic').value = materia.tepic;
+            }
 
             // Disparar evento change para mostrar preview
             const periodoSelect = document.getElementById('periodo');
@@ -1061,6 +1087,8 @@ async function guardarMateria(event, materiaId) {
             grupos: gruposEnlazados,
             periodo: periodo,
             creditos: creditos,
+            satca: satca,
+            tepic: tepic,
             carreraId: usuarioActual.carreraId,
             codigoCarrera: codigoCarrera,
             activa: true,
