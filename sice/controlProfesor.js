@@ -105,7 +105,7 @@ async function mostrarMisMaterias() {
     const container = document.getElementById('listaMaterias');
     container.innerHTML = '<p style="text-align: center; color: #999;">Cargando materias...</p>';
     
-    // ✨ SCROLL A LA SECCIÓN DE MATERIAS (temprano)
+    //  SCROLL A LA SECCIÓN DE MATERIAS (temprano)
     setTimeout(() => {
       const seccionMaterias = document.getElementById('seccionMaterias');
       if (seccionMaterias) {
@@ -1214,10 +1214,10 @@ function togglePassword(inputId) {
   
   if (input.type === 'password') {
     input.type = 'text';
-    button.innerHTML = '🙈'; // Emoji de "ocultar"
+    button.innerHTML = '🚫'; // Emoji de "ocultar"
   } else {
     input.type = 'password';
-    button.innerHTML = '👁️'; // Emoji de "ver"
+    button.innerHTML = '👁️‍🗨️'; // Emoji de "ver"
   }
 }
 
