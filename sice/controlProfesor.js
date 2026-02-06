@@ -1211,14 +1211,17 @@ async function cerrarSesion() {
 function togglePassword(inputId) {
   const input = document.getElementById(inputId);
   const button = input.nextElementSibling;
-  
+  const icon = button.querySelector('.ojoicon');
+
   if (input.type === 'password') {
     input.type = 'text';
-    button.innerHTML = '🚫'; // Emoji de "ocultar"
+    icon.classList.remove('ojoeye');
+    icon.classList.add('ojoeye-off');
+    button.setAttribute('aria-label', 'Ocultar contraseña');
   } else {
     input.type = 'password';
-    button.innerHTML = '👁️‍🗨️'; // Emoji de "ver"
+    icon.classList.remove('ojoeye-off');
+    icon.classList.add('ojoeye');
+    button.setAttribute('aria-label', 'Mostrar contraseña');
   }
 }
-
-console.log('Control Profesor cargado correctamente');
