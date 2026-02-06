@@ -357,14 +357,10 @@ async function establecerCarreraActual(carreraId, color) {
         } else {
             console.warn('Elemento headerCoordinador no encontrado');
         }
-        // Actualizar nombre de carrera en el header (con tamaño más grande)
-        const carreraInfo = document.getElementById('carreraInfo');
-        if (carreraInfo) {
-            carreraInfo.innerHTML = `
-        <span style="font-size: 2rem; font-weight: 800; text-shadow: 2px 2px 6px rgba(0,0,0,0.25); letter-spacing: 0.5px;">
-          ${carrera.nombre.toUpperCase()}
-        </span>
-      `;
+        // Actualizar nombre de carrera en el header
+        const carreraNombreDisplay = document.getElementById('carreraNombreDisplay');
+        if (carreraNombreDisplay) {
+            carreraNombreDisplay.textContent = carrera.nombre.toUpperCase();
         }
 
         // Actualizar en user-info (si existe)
