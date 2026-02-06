@@ -259,7 +259,7 @@ async function verCalificacionesMateria(asignacionId) {
     // Cargar alumnos y calificaciones
     await cargarAlumnosYCalificaciones();
     
-    // ✓ SCROLL AUTOMÁTICO SUAVE
+    // SCROLL AUTOMÁTICO SUAVE
     setTimeout(() => {
       const seccion = document.getElementById('seccionCalificaciones');
       if (seccion) {
@@ -730,12 +730,12 @@ async function guardarCalificacionesProfe() {
         });
         
         guardadas++;
-        console.log('  ✓ Guardado correctamente');
+        console.log('  Guardado correctamente');
         
       } catch (error) {
         errores++;
         erroresDetalle.push(`${alumno.nombre}: ${error.message}`);
-        console.error('  ✗ Error al guardar:', error);
+        console.error('Error al guardar:', error);
       }
     }
     
@@ -746,14 +746,14 @@ async function guardarCalificacionesProfe() {
     if (errores > 0) {
       alert(
         `CALIFICACIONES GUARDADAS CON ERRORES\n\n` +
-        `✓ Guardadas: ${guardadas}\n` +
-        `✗ Errores: ${errores}\n\n` +
+        `Guardadas: ${guardadas}\n` +
+        `Errores: ${errores}\n\n` +
         `Errores:\n${erroresDetalle.join('\n')}`
       );
     } else if (guardadas > 0) {
       alert(
         `¡CALIFICACIONES GUARDADAS!\n\n` +
-        `✓ ${guardadas} alumno(s) actualizado(s)\n\n` +
+        `${guardadas} alumno(s) actualizado(s)\n\n` +
         `Las calificaciones y faltas han sido guardadas.`
       );
       
@@ -788,7 +788,7 @@ async function verExtraordinarios() {
     const tablaContainer = document.getElementById('tablaCalificaciones');
     tablaContainer.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">Cargando materias...</p>';
     
-    // ✓ SCROLL AUTOMÁTICO SUAVE (temprano, antes de cargar datos)
+    // SCROLL AUTOMÁTICO SUAVE (temprano, antes de cargar datos)
     setTimeout(() => {
       const seccion = document.getElementById('seccionCalificaciones');
       if (seccion) {
@@ -922,7 +922,7 @@ async function verExtraordinarios() {
     if (!hayReprobados) {
       html += `
         <div style="text-align: center; padding: 40px; color: #4caf50;">
-          <p style="font-size: 1.2rem; font-weight: 600;">✓ No hay alumnos reprobados</p>
+          <p style="font-size: 1.2rem; font-weight: 600;">No hay alumnos reprobados</p>
           <p style="color: #666; margin-top: 10px;">Todos los alumnos han aprobado sus materias</p>
         </div>
       `;

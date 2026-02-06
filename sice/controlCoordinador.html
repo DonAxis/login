@@ -856,10 +856,23 @@
   <script src="logoPdf.js"></script>
   <script src="HistorialCoorPDF.js"></script>
   <script src="HistorialAlumnoPDF.js"></script>
-  <script src="coordinador.js"></script>   
+<!-- ============================================= -->
+<!-- coordinador demaciado pesado ya -->
+<!-- <script src="coordinador.js"></script>  -->
+  <!-- 1. CORE: Sistema central (auth, periodos, multi-carrera, navegación) -->
+  <script src="coordinaCore.js"></script>
+  <!-- 2. UTILS: Utilidades y helpers (modales, validaciones, formateo) -->
+  <script src="coordinaUtils.js"></script>
+  <!-- 3. MODULES: Módulos de gestión (carreras, materias, grupos, profesores, alumnos, calificaciones) -->
+  <script src="coordinaModules.js"></script>
+  <!-- 4. COORDINADOR: Archivo principal de inicialización y coordinación -->
+  <script src="coordinadorN.js"></script>
+<!-- ============================================= -->
+ 
 
   <script src="controlAlumnoEspecial.js"></script>  <!-- NUEVO -->
   <script src="cambioPeriodo.js"></script>
+
   <script src="registroMasivoAlumno.js"></script>
   <script src="registroMasivoMaterias.js"></script>
   <script src="registroMasivoProfes.js"></script>
