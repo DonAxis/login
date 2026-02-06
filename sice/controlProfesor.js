@@ -259,7 +259,7 @@ async function verCalificacionesMateria(asignacionId) {
     // Cargar alumnos y calificaciones
     await cargarAlumnosYCalificaciones();
     
-    // SCROLL AUTOMÁTICO SUAVE
+    // ✓ SCROLL AUTOMÁTICO SUAVE
     setTimeout(() => {
       const seccion = document.getElementById('seccionCalificaciones');
       if (seccion) {
@@ -730,12 +730,12 @@ async function guardarCalificacionesProfe() {
         });
         
         guardadas++;
-        console.log('  Guardado correctamente');
+        console.log('  ✓ Guardado correctamente');
         
       } catch (error) {
         errores++;
         erroresDetalle.push(`${alumno.nombre}: ${error.message}`);
-        console.error('Error al guardar:', error);
+        console.error('  ✗ Error al guardar:', error);
       }
     }
     
@@ -1122,7 +1122,7 @@ function volverMenuProfe() {
   asignacionActual = null;
   alumnosMateria = [];
   
-  // ✨ SCROLL AL TOP DE LA PÁGINA
+  // SCROLL AL TOP DE LA PÁGINA
   window.scrollTo({ 
     top: 0, 
     behavior: 'smooth' 
@@ -1201,6 +1201,23 @@ async function cerrarSesion() {
       console.error('Error:', error);
       alert('Error al cerrar sesión');
     }
+  }
+}
+
+// ============================================================================
+// SECCIÓN 9: UTILIDADES
+// ============================================================================
+
+function togglePassword(inputId) {
+  const input = document.getElementById(inputId);
+  const button = input.nextElementSibling;
+  
+  if (input.type === 'password') {
+    input.type = 'text';
+    button.innerHTML = '🙈'; // Emoji de "ocultar"
+  } else {
+    input.type = 'password';
+    button.innerHTML = '👁️'; // Emoji de "ver"
   }
 }
 
