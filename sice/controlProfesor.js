@@ -1211,17 +1211,17 @@ async function cerrarSesion() {
 function togglePassword(inputId) {
   const input = document.getElementById(inputId);
   const button = input.nextElementSibling;
-  const icon = button.querySelector('.ojoicon');
+  const icon = button.querySelector('.icon');
 
   if (input.type === 'password') {
     input.type = 'text';
-    icon.classList.remove('ojoeye');
-    icon.classList.add('ojoeye-off');
+    icon.classList.remove('eye');
+    icon.classList.add('eye-off');
     button.setAttribute('aria-label', 'Ocultar contraseña');
   } else {
     input.type = 'password';
-    icon.classList.remove('ojoeye-off');
-    icon.classList.add('ojoeye');
+    icon.classList.remove('eye-off');
+    icon.classList.add('eye');
     button.setAttribute('aria-label', 'Mostrar contraseña');
   }
 }

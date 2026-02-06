@@ -449,7 +449,7 @@ button {
   cursor: pointer;
 }
 
-.ojoicon {
+.icon {
   width: 20px;
   height: 20px;
   display: inline-block;
@@ -458,7 +458,7 @@ button {
 }
 
 /* Ojo */
-.ojoeye {
+.eye {
   background-image: url("data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'>\
 <path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z'/>\
@@ -467,7 +467,7 @@ button {
 }
 
 /* Ojo tachado */
-.ojoeye-off {
+.eye-off {
   background-image: url("data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'>\
 <path d='M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.8 21.8 0 0 1 5.06-5.94'/>\
