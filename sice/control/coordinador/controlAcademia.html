@@ -32,7 +32,7 @@
       font-size: 0.9rem;
     }
 
-    .btn-logout {
+    .btn-volver {
       background: rgba(255, 255, 255, 0.2);
       color: white;
       border: 2px solid white;
@@ -40,47 +40,30 @@
       border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
-      margin-top: 10px;
       transition: all 0.3s;
     }
 
-    .btn-logout:hover {
+    .btn-volver:hover {
       background: white;
       color: #5e35b1;
     }
 
-    .menu-opciones {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
+    .alerta-lectura {
+      background: #fff3cd;
+      padding: 20px;
+      border-radius: 10px;
+      border-left: 4px solid #ffc107;
       margin-bottom: 30px;
     }
 
-    .opcion {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s;
-      border: 2px solid transparent;
+    .alerta-lectura h3 {
+      margin: 0 0 10px 0;
+      color: #856404;
     }
 
-    .opcion:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-      border-color: #5e35b1;
-    }
-
-    .opcion h3 {
-      color: #5e35b1;
-      margin-bottom: 10px;
-    }
-
-    .opcion p {
-      color: #666;
-      font-size: 0.9rem;
+    .alerta-lectura p {
+      margin: 5px 0;
+      color: #856404;
     }
 
     .info-academia {
@@ -112,6 +95,7 @@
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       transition: all 0.3s;
+      border-left: 4px solid #5e35b1;
     }
 
     .materia-card:hover {
@@ -137,8 +121,6 @@
       border-radius: 20px;
       font-size: 0.85rem;
       font-weight: 600;
-      background: #e1f5fe;
-      color: #0277bd;
     }
 
     .materia-info {
@@ -168,8 +150,24 @@
       background: #4527a0;
     }
 
-    /* Modal para ver calificaciones */
-    .modal-calificaciones {
+    .btn-asignar {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-asignar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Modal */
+    .modal {
       display: none;
       position: fixed;
       top: 0;
@@ -181,7 +179,7 @@
       overflow-y: auto;
     }
 
-    .modal-content-cal {
+    .modal-content {
       background: white;
       padding: 30px;
       border-radius: 15px;
@@ -216,8 +214,48 @@
 
     .sin-datos {
       text-align: center;
-      padding: 40px;
+      padding: 60px 20px;
       color: #999;
+    }
+
+    /* Modal Asignar Materia */
+    .lista-materias-disponibles {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+
+    .materia-item {
+      padding: 15px;
+      background: #f5f5f5;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      border-left: 4px solid #ddd;
+    }
+
+    .materia-item:hover {
+      background: #e8eaf6;
+      border-left-color: #5e35b1;
+    }
+
+    .materia-item.seleccionada {
+      background: #e8eaf6;
+      border-left-color: #5e35b1;
+      box-shadow: 0 2px 8px rgba(94, 53, 177, 0.2);
+    }
+
+    .filtro-carrera {
+      margin-bottom: 20px;
+    }
+
+    .filtro-carrera select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
     }
   </style>
 </head>
@@ -225,78 +263,67 @@
 
   <div class="header">
     <div>
-      <h1>Coordinador de Academia</h1>
-      <p style="margin: 5px 0;" id="academiaNombre">Gestión de Profesores y Materias</p>
+      <h1>Modo Academia - Solo Lectura</h1>
+      <p style="margin: 5px 0;" id="academiaNombre">Gestión de Materias Transversales</p>
     </div>
     <div class="user-info">
       <p><strong id="userName">Cargando...</strong></p>
-      <p id="userEmail"></p>
-      <button onclick="cerrarSesion()" class="btn-logout">Cerrar Sesión</button>
+      <p id="userRol"></p>
+      <button onclick="volverCoordinador()" class="btn-volver">← Volver a Mi Carrera</button>
     </div>
+  </div>
+
+  <!-- Alerta de Solo Lectura -->
+  <div class="alerta-lectura">
+    <h3>Modo Solo Lectura</h3>
+    <p><strong>En este modo puedes:</strong></p>
+    <p>✓ Ver materias asignadas a tu academia (de todas las carreras)</p>
+    <p>✓ Ver asignaciones de profesores</p>
+    <p>✓ Consultar calificaciones de alumnos</p>
+    <p>✓ Asignar materias existentes a tu academia</p>
+    <br>
+    <p><strong>NO puedes:</strong></p>
+    <p>✗ Crear materias nuevas</p>
+    <p>✗ Editar calificaciones</p>
+    <p>✗ Cambiar asignaciones de profesores</p>
+    <p>✗ Gestionar alumnos</p>
   </div>
 
   <!-- Información de la Academia -->
   <div class="info-academia">
-    <h3>Información de tu Academia</h3>
-    <p><strong>Materias bajo tu gestión:</strong> <span id="totalMaterias">0</span></p>
-    <p><strong>Profesores asignados:</strong> <span id="totalProfesores">0</span></p>
-    <p style="margin-top: 10px; font-size: 0.9rem; color: #5e35b1;">
-      Como coordinador de academia, puedes gestionar profesores que dan clases en múltiples carreras y ver sus calificaciones (sin editarlas).
-    </p>
+    <h3>Estadísticas de tu Academia</h3>
+    <p><strong>Materias asignadas:</strong> <span id="totalMaterias">0</span></p>
+    <p><strong>Carreras cubiertas:</strong> <span id="totalCarreras">0</span></p>
+    <p><strong>Alumnos totales:</strong> <span id="totalAlumnos">0</span></p>
   </div>
 
-  <!-- Menú de opciones -->
-  <div class="menu-opciones">
-    <div class="opcion" onclick="mostrarGestionProfesores()">
-      <h3>Gestionar Profesores</h3>
-      <p>Crear y administrar profesores de la academia</p>
-    </div>
-
-    <div class="opcion" onclick="mostrarMaterias()">
-      <h3>Ver Materias</h3>
-      <p>Consultar materias y sus calificaciones</p>
-    </div>
-
-    <div class="opcion" onclick="window.location.href='../escolar/gestionMaterias.html'">
-      <h3>Registrar Materia</h3>
-      <p>Asociar materia existente a tu academia</p>
-    </div>
-
-    <div class="opcion" onclick="mostrarReportes()">
-      <h3>Reportes</h3>
-      <p>Estadísticas y reportes de desempeño</p>
-    </div>
+  <!-- Botón Asignar Materia -->
+  <div style="margin-bottom: 20px; text-align: right;">
+    <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">
+      ➕ Asignar Materia Existente a Academia
+    </button>
   </div>
 
   <!-- Lista de materias -->
-  <div id="contenidoMaterias" style="display: none;">
+  <div id="contenidoMaterias">
     <h2 style="margin-bottom: 20px;">Materias de la Academia</h2>
     <div id="listaMaterias" class="lista-materias">
       <p style="text-align: center; color: #999;">Cargando materias...</p>
     </div>
   </div>
 
-  <!-- Modal Ver Calificaciones (solo lectura) -->
-  <div id="modalCalificaciones" class="modal-calificaciones">
-    <div class="modal-content-cal">
+  <!-- Modal Ver Calificaciones -->
+  <div id="modalCalificaciones" class="modal">
+    <div class="modal-content">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
-          <h2 style="margin: 0; color: #5e35b1;">Calificaciones</h2>
+          <h2 style="margin: 0; color: #5e35b1;">📋 Calificaciones - Solo Lectura</h2>
           <p style="margin: 5px 0 0 0; color: #666;" id="infoMateriaModal">-</p>
         </div>
         <button onclick="cerrarModalCalificaciones()" 
                 style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999;">
           &times;
         </button>
-      </div>
-
-      <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
-        <p style="margin: 0; color: #856404; font-weight: 600;">
-          Modo Solo Lectura
-        </p>
-        <p style="margin: 5px 0 0 0; color: #856404; font-size: 0.9rem;">
-          Solo puedes consultar las calificaciones. No tienes permisos para editarlas.
-        </p>
       </div>
 
       <div id="contenidoCalificaciones">
@@ -312,12 +339,50 @@
     </div>
   </div>
 
+  <!-- Modal Asignar Materia -->
+  <div id="modalAsignarMateria" class="modal">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+          <h2 style="margin: 0; color: #5e35b1;">Asignar Materia a Academia</h2>
+          <p style="margin: 5px 0 0 0; color: #666;">Selecciona una materia existente para agregar a tu academia</p>
+        </div>
+        <button onclick="cerrarModalAsignarMateria()" 
+                style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999;">
+          &times;
+        </button>
+      </div>
+
+      <div class="filtro-carrera">
+        <label style="font-weight: 600; display: block; margin-bottom: 5px;">Filtrar por carrera:</label>
+        <select id="filtroCarrera" onchange="filtrarMateriasDisponibles()">
+          <option value="">Todas las carreras</option>
+        </select>
+      </div>
+
+      <div id="listaMateriasDisponibles" class="lista-materias-disponibles">
+        <p style="text-align: center; color: #999;">Cargando materias disponibles...</p>
+      </div>
+
+      <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <button onclick="asignarMateriaSeleccionada()" 
+                style="flex: 1; padding: 12px; background: #5e35b1; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+          Asignar a Academia
+        </button>
+        <button onclick="cerrarModalAsignarMateria()" 
+                style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   
   <script src="../../js/utils/firebase.js"></script>
-  <script src="../../js/coordinador/academia.js"></script>
+  <script src="../../js/coordinador/controlAcademia.js"></script>
 </body>
 </html>

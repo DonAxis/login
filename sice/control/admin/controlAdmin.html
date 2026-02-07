@@ -157,6 +157,11 @@
       <p>Registrar personal de control escolar</p>
     </div>
 
+    <div class="opcion" onclick="mostrarModalControlCaja()">
+      <h3>Crear Control Caja</h3>
+      <p>Registrar personal de control de pagos</p>
+    </div>
+
     <!-- NUEVO: Gestionar Coordinadores -->
     <div class="opcion" onclick="gestionarCoordinadores()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: 3px solid transparent;">
       <h3 style="color: white;">Gestionar Coordinadores</h3>
@@ -228,6 +233,32 @@
                   style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
             <option value="">Seleccionar carrera...</option>
           </select>
+        </div>
+
+        <!-- ACADEMIA OPCIONAL -->
+        <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; border-left: 4px solid #5e35b1;">
+          <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 10px;">
+            <input type="checkbox" id="tieneAcademia" onchange="toggleCamposAcademia()" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+            <span style="font-weight: 600; color: #5e35b1;">Este coordinador también gestiona una academia</span>
+          </label>
+          <small style="color: #666; display: block; margin-top: 5px;">
+            Las academias permiten ver materias transversales de múltiples carreras (solo lectura)
+          </small>
+
+          <div id="camposAcademia" style="display: none; margin-top: 15px;">
+            <div style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Nombre de la Academia:</label>
+              <input type="text" id="academiaNombre" placeholder="Ej: Academia de Matemáticas"
+                     style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">ID de Academia:</label>
+              <input type="text" id="academiaId" placeholder="Ej: ACAD_MAT" maxlength="20"
+                     style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; text-transform: uppercase;">
+              <small style="color: #666;">Código único para identificar la academia (Ej: ACAD_MAT, ACAD_FIS)</small>
+            </div>
+          </div>
         </div>
 
         <div style="display: flex; gap: 10px;">
@@ -389,6 +420,48 @@
       <!-- Mensaje de Estado -->
       <div id="mensajeAsignacion" style="margin-top: 20px; display: none;"></div>
 
+    </div>
+  </div>
+
+  <!-- MODAL CREAR CONTROL CAJA -->
+  <div id="modalControlCaja" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 40px; border-radius: 15px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #2e7d32;">Nuevo Control de Caja</h2>
+        <button onclick="cerrarModalControlCaja()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999;">&times;</button>
+      </div>
+
+      <form id="formControlCaja" onsubmit="crearControlCaja(event)">
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Nombre Completo: *</label>
+          <input type="text" id="nombreCaja" required placeholder="Ej: María González López" 
+                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Email: *</label>
+          <input type="email" id="emailCaja" required placeholder="caja@escuela.com"
+                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Contraseña: *</label>
+          <input type="password" id="passCaja" required placeholder="Mínimo 6 caracteres" value="Caja123!"
+                 style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+          <small style="color: #666;">El usuario podrá cambiarla después</small>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #2e7d32 0%, #43a047 100%); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">
+            Crear Control Caja
+          </button>
+          <button type="button" onclick="cerrarModalControlCaja()" style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">
+            Cancelar
+          </button>
+        </div>
+      </form>
+
+      <div id="mensajeCaja" style="margin-top: 15px; padding: 15px; border-radius: 8px; display: none;"></div>
     </div>
   </div>
 

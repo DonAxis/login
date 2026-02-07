@@ -124,6 +124,11 @@ async function crearCoordinador(event) {
   const password = document.getElementById("passCoord").value;
   const carreraId = document.getElementById("carreraCoord").value;
   
+  // Academia opcional
+  const tieneAcademia = document.getElementById("tieneAcademia").checked;
+  const academiaNombre = tieneAcademia ? document.getElementById("academiaNombre").value.trim() : null;
+  const academiaId = tieneAcademia ? document.getElementById("academiaId").value.trim().toUpperCase() : null;
+  
   // Validaciones
   if (!nombre) {
     mostrarMensaje("El nombre es obligatorio", "error");
@@ -145,7 +150,33 @@ async function crearCoordinador(event) {
     return;
   }
   
-  console.log('Valores capturados:', {nombre, email, password: '***', carreraId});
+  // Validar academia si está activada
+  if (tieneAcademia) {
+    if (!academiaNombre) {
+      mostrarMensaje("Debes proporcionar el nombre de la academia", "error");
+      return;
+    }
+    if (!academiaId) {
+      mostrarMensaje("Debes proporcionar el ID de la academia", "error");
+      return;
+    }
+    
+    // Validar que el ID de academia sea único
+    try {
+      const academiaExiste = await db.collection('usuarios')
+        .where('academiaId', '==', academiaId)
+        .get();
+      
+      if (!academiaExiste.empty) {
+        mostrarMensaje("El ID de academia '" + academiaId + "' ya está en uso. Usa otro código.", "error");
+        return;
+      }
+    } catch (error) {
+      console.error('Error al verificar academia:', error);
+    }
+  }
+  
+  console.log('Valores capturados:', {nombre, email, password: '***', carreraId, tieneAcademia, academiaNombre, academiaId});
   
   try {
     mostrarMensaje("Creando coordinador...", "info");
@@ -182,6 +213,13 @@ async function crearCoordinador(event) {
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     };
     
+    // Agregar campos de academia si aplica
+    if (tieneAcademia) {
+      userData.tieneAcademia = true;
+      userData.academiaNombre = academiaNombre;
+      userData.academiaId = academiaId;
+    }
+    
     console.log('Guardando usuario con datos:', userData);
     
     await db.collection("usuarios").doc(newUid).set(userData);
@@ -199,20 +237,28 @@ async function crearCoordinador(event) {
     await secondaryAuth.signOut();
     await secondaryApp.delete();
     
-    mostrarMensaje(
-      "Coordinador creado exitosamente\n\n" +
+    let mensaje = "Coordinador creado exitosamente\n\n" +
       "Nombre: " + nombre + "\n" +
       "Email: " + email + "\n" +
-      "Password: " + password + "\n\n" +
-      "El coordinador ya puede iniciar sesion",
-      "success"
-    );
+      "Password: " + password + "\n" +
+      "Carrera: " + carreraId + "\n";
+    
+    if (tieneAcademia) {
+      mensaje += "\nAcademia: " + academiaNombre + "\n" +
+        "ID Academia: " + academiaId + "\n" +
+        "Este coordinador puede ver materias transversales en modo academia.";
+    }
+    
+    mensaje += "\n\nEl coordinador ya puede iniciar sesion";
+    
+    mostrarMensaje(mensaje, "success");
     
     document.getElementById('formCoordinador').reset();
+    document.getElementById('camposAcademia').style.display = 'none';
     
     setTimeout(() => {
       cerrarModalCoordinador();
-    }, 3000);
+    }, 4000);
     
   } catch (error) {
     console.error("Error completo:", error);
@@ -230,6 +276,24 @@ async function crearCoordinador(event) {
     }
     
     mostrarMensaje(mensaje, "error");
+  }
+}
+
+// Toggle campos de academia
+function toggleCamposAcademia() {
+  const checkbox = document.getElementById('tieneAcademia');
+  const campos = document.getElementById('camposAcademia');
+  
+  if (checkbox.checked) {
+    campos.style.display = 'block';
+    document.getElementById('academiaNombre').required = true;
+    document.getElementById('academiaId').required = true;
+  } else {
+    campos.style.display = 'none';
+    document.getElementById('academiaNombre').required = false;
+    document.getElementById('academiaId').required = false;
+    document.getElementById('academiaNombre').value = '';
+    document.getElementById('academiaId').value = '';
   }
 }
 
@@ -933,3 +997,139 @@ async function obtenerTodosLosGrupos(carreraId) {
     return [];
   }
 }
+// ===== CREAR CONTROL DE CAJA =====
+function mostrarModalControlCaja() {
+  document.getElementById('modalControlCaja').style.display = 'flex';
+}
+
+function cerrarModalControlCaja() {
+  document.getElementById('modalControlCaja').style.display = 'none';
+  document.getElementById('formControlCaja').reset();
+  const mensaje = document.getElementById('mensajeCaja');
+  if (mensaje) mensaje.style.display = 'none';
+}
+
+async function crearControlCaja(event) {
+  event.preventDefault();
+  
+  const nombre = document.getElementById("nombreCaja").value.trim();
+  const email = document.getElementById("emailCaja").value.trim().toLowerCase();
+  const password = document.getElementById("passCaja").value;
+  
+  // Validaciones
+  if (!nombre) {
+    mostrarMensajeCaja("El nombre es obligatorio", "error");
+    return;
+  }
+  
+  if (!email) {
+    mostrarMensajeCaja("El email es obligatorio", "error");
+    return;
+  }
+  
+  if (password.length < 6) {
+    mostrarMensajeCaja("La contraseña debe tener al menos 6 caracteres", "error");
+    return;
+  }
+  
+  console.log('Creando Control de Caja:', {nombre, email, password: '***'});
+  
+  try {
+    mostrarMensajeCaja("Creando usuario de Control de Caja...", "info");
+    
+    // Crear secundaria app de Firebase para no cerrar sesión del admin
+    const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryCaja");
+    const secondaryAuth = secondaryApp.auth();
+    
+    const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+    const newUid = userCredential.user.uid;
+    console.log("Usuario creado en Authentication:", newUid);
+    
+    const userData = {
+      nombre: nombre,
+      email: email,
+      rol: "controlCaja",
+      roles: ["controlCaja"],
+      activo: true,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    console.log('Guardando usuario con datos:', userData);
+    
+    await db.collection("usuarios").doc(newUid).set(userData);
+    
+    console.log("Guardado exitosamente en Firestore");
+    
+    // Verificar que se guardó
+    const verificar = await db.collection("usuarios").doc(newUid).get();
+    
+    if (!verificar.exists) {
+      throw new Error("El documento no se guardó en Firestore");
+    }
+    
+    console.log("Documento verificado:", verificar.data());
+    
+    // Cerrar sesión secundaria y eliminar app
+    await secondaryAuth.signOut();
+    await secondaryApp.delete();
+    
+    mostrarMensajeCaja(
+      "Control de Caja creado exitosamente\n\n" +
+      "Nombre: " + nombre + "\n" +
+      "Email: " + email + "\n" +
+      "Password: " + password + "\n\n" +
+      "El usuario puede activar/desactivar alumnos (gestión de pagos).\n" +
+      "Ya puede iniciar sesión.",
+      "success"
+    );
+    
+    document.getElementById('formControlCaja').reset();
+    
+    setTimeout(() => {
+      cerrarModalControlCaja();
+    }, 4000);
+    
+  } catch (error) {
+    console.error("Error completo:", error);
+    
+    let mensaje = "Error: ";
+    
+    if (error.code === "auth/email-already-in-use") {
+      mensaje += "Este email ya está registrado";
+    } else if (error.code === "auth/invalid-email") {
+      mensaje += "Email inválido";
+    } else if (error.code === "auth/weak-password") {
+      mensaje += "Contraseña muy débil";
+    } else {
+      mensaje += error.message;
+    }
+    
+    mostrarMensajeCaja(mensaje, "error");
+  }
+}
+
+function mostrarMensajeCaja(texto, tipo) {
+  const mensaje = document.getElementById('mensajeCaja');
+  if (!mensaje) return;
+  
+  mensaje.textContent = texto;
+  mensaje.style.display = 'block';
+  mensaje.style.whiteSpace = 'pre-line';
+  
+  if (tipo === 'success') {
+    mensaje.style.background = '#d4edda';
+    mensaje.style.color = '#155724';
+    mensaje.style.border = '2px solid #c3e6cb';
+  } else if (tipo === 'error') {
+    mensaje.style.background = '#f8d7da';
+    mensaje.style.color = '#721c24';
+    mensaje.style.border = '2px solid #f5c6cb';
+  } else {
+    mensaje.style.background = '#d1ecf1';
+    mensaje.style.color = '#0c5460';
+    mensaje.style.border = '2px solid #bee5eb';
+  }
+}
+
+
+console.log('Sistema de Control Admin V4 cargado - Con Academia como característica de coordinadores');
