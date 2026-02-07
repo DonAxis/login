@@ -120,29 +120,29 @@ async function redirigirSegunRol(rol) {
   
   switch (rol) {
     case 'admin':
-      window.location.href = 'https://ilbcontrol.mx/sice/controlAdmin.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/control/admin/controlAdmin.html';
       break;
     case 'coordinador':
-      window.location.href = 'https://ilbcontrol.mx/sice/controlCoordinador.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/control/coordinador/controlCoordinador.html';
       break;
     case 'profesor':
-      window.location.href = 'https://ilbcontrol.mx/sice/controlProfe.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/control/profe/controlProfe.html';
       break;
     case 'controlEscolar':
-      window.location.href = 'https://ilbcontrol.mx/sice/controlEscolar.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/control/escolar/controlEscolar.html';
       break;
     case 'controlCaja':
-      window.location.href = 'https://ilbcontrol.mx/sice/controlCaja.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/control/caja/controlCaja.html';
       break;
     case 'coordinadorAcademia':
-      window.location.href = 'https://ilbcontrol.mx/sice/controlAcademia.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/control/coordinador/controlAcademia.html';
       break;
     case 'alumno':
       // Bloquear login de alumnos - solo consulta pública
       await auth.signOut();
       mostrarMensaje('Los alumnos ya no necesitan iniciar sesión.\n\nVe a ControlAlumno.html y consulta con tu matrícula y correo.', 'info');
       setTimeout(() => {
-        window.location.href = 'controlAlumno.html';
+        window.location.href = 'https://ilbcontrol.mx';
       }, 3000);
       break;
     default:

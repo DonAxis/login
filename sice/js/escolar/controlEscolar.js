@@ -13,7 +13,7 @@ let periodoActual = '2026-1';
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     //alert('Debes iniciar sesion para acceder');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice/';
     return;
   }
 
@@ -22,7 +22,7 @@ auth.onAuthStateChanged(async (user) => {
     
     if (!userDoc.exists || userDoc.data().rol !== 'controlEscolar') {
       alert('Solo personal de Control Escolar puede acceder');
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/';
       return;
     }
 
@@ -36,7 +36,7 @@ auth.onAuthStateChanged(async (user) => {
   } catch (error) {
     console.error('Error:', error);
     alert('Error al verificar permisos');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice/';
   }
 });
 

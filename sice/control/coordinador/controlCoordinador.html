@@ -3,8 +3,8 @@
 <head>
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <link rel="stylesheet" href="botones.css">
- <link rel="stylesheet" href="Personas.css">
+ <link rel="stylesheet" href="../../css/common/botones.css">
+ <link rel="stylesheet" href="../../css/common/Personas.css">
  <title>Panel de Coordinador</title>
  <style>
  .header {
@@ -859,31 +859,30 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 
-  <script src="firebase.js"></script>
+  <script src="../../js/utils/firebase.js"></script>
 
 
-  <script src="logoPdf.js"></script>
-  <script src="HistorialCoorPDF.js"></script>
-  <script src="HistorialAlumnoPDF.js"></script>
-<!-- ============================================= -->
-<!-- coordinador demaciado pesado ya -->
-<!-- <script src="coordinador.js"></script>  -->
+  <script src="../../js/utils/logoPdf.js"></script>
+  <script src="../../js/coordinador/HistorialCoorPDF.js"></script>
+  <script src="../../js/coordinador/HistorialAlumnoPDF.js"></script>
+  <!-- ============================================= -->
+  <!-- coordinador demaciado pesado ya -->
+  <!-- <script src="coordinador.js"></script>  -->
   <!-- 1. CORE: Sistema central (auth, periodos, multi-carrera, navegación) -->
-  <script src="coordinaCore.js"></script>
   <!-- 2. UTILS: Utilidades y helpers (modales, validaciones, formateo) -->
-  <script src="coordinaUtils.js"></script>
   <!-- 3. MODULES: Módulos de gestión (carreras, materias, grupos, profesores, alumnos, calificaciones) -->
-  <script src="coordinaModules.js"></script>
   <!-- 4. COORDINADOR: Archivo principal de inicialización y coordinación -->
-  <script src="coordinadorN.js"></script>
-<!-- ============================================= -->
- 
+  <script src="../../js/coordinador/coordinaCore.js"></script>
+  <script src="../../js/coordinador/coordinaUtils.js"></script>
+  <script src="../../js/coordinador/coordinaModules.js"></script>
+  <script src="../../js/coordinador/coordinadorN.js"></script>
+  <!-- ============================================= -->
 
-  <script src="controlAlumnoEspecial.js"></script>  
-  <script src="cambioPeriodo.js"></script>
-  <script src="registroMasivoAlumno.js"></script>
-  <script src="registroMasivoMaterias.js"></script>
-  <script src="registroMasivoProfes.js"></script>
+  <script src="../../js/escolar/controlAlumnoEspecial.js"></script>  
+  <script src="../../js/escolar/cambioPeriodo.js"></script>
+  <script src="../../js/escolar/registroMasivoAlumno.js"></script>
+  <script src="../../js/escolar/registroMasivoMaterias.js"></script>
+  <script src="../../js/escolar/registroMasivoProfes.js"></script>
 
 
 

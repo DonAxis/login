@@ -1,10 +1,11 @@
+<!--login alumnos-->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Consulta de Calificaciones</title>
-  <link rel="stylesheet" type="text/css" href="sice/controlAlumnoEstilo.css">
+  <link rel="stylesheet" type="text/css" href="sice/css/modules/controlAlumnoEstilo.css">
 </head>
 <body>
 
@@ -84,7 +85,7 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <script src="sice/firebase.js"></script>
+  <script src="sice/js/utils/firebase.js"></script>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script>
@@ -350,11 +351,11 @@ function nuevaConsulta() {
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   
   <!-- Logos y funciones de PDF -->
-  <script src="sice/logoPdf.js"></script>
-  <script src="sice/boletaPDF.js"></script>
+  <script src="sice/js/utils/logoPdf.js"></script>
+  <script src="sice/js/utils/boletaPDF.js"></script>
   
-  <script src="sice/controlAlumnoHistorial.js"></script>
-  <script src="sice/controlAlumnoEspecial.js"></script> 
+  <script src="sice/js/alumnos/controlAlumnoHistorial.js"></script>
+  <script src="sice/js/escolar/controlAlumnoEspecial.js"></script> 
   
 </body>
 </html>

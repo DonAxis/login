@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="botones.css">
-  <link rel="stylesheet" href="Personas.css">
+  <link rel="stylesheet" href="../../css/common/botones.css">
+  <link rel="stylesheet" href="../../css/common/Personas.css">
   <title>Panel de Administrador</title>
   <style>
     .header {
@@ -168,12 +168,12 @@
       <p>Crear profesores y alumnos</p>
     </div>
 
-    <div class="opcion" onclick="window.location.href='MenuPersonas.html'">
+    <div class="opcion" onclick="window.location.href='../escolar/MenuPersonas.html'">
       <h3>Gestionar Alumnos (Viejo)</h3>
       <p>Sistema anterior de alumnos</p>
     </div>
 
-    <div class="opcion" onclick="window.location.href='controlCoordinador.html'">
+    <div class="opcion" onclick="window.location.href='../coordinador/controlCoordinador.html'">
       <h3>Control Coordinador</h3>
       <p>Gestionar carreras, materias, grupos, profesores y alumnos</p>
     </div>
@@ -397,7 +397,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   
-  <script src="firebase.js"></script>
-  <script src="controlAdmin.js"></script>
+  <script src="../../js/utils/firebase.js"></script>
+  <script src="../../js/admin/controlAdmin.js"></script>
 </body>
 </html>

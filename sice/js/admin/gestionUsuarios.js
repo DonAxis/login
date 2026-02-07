@@ -1,4 +1,4 @@
-// gestionUsuariosV2.js
+// gestionUsuarios.js
 // Sistema de Gestión de Usuarios - INCLUYE NUEVOS ROLES: controlCaja y coordinadorAcademia
 
 const auth = firebase.auth();
@@ -10,7 +10,7 @@ let filtroActual = 'todos';
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     alert('Debes iniciar sesión');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice';
     return;
   }
 
@@ -19,7 +19,7 @@ auth.onAuthStateChanged(async (user) => {
     
     if (!userDoc.exists || userDoc.data().rol !== 'admin') {
       alert('Solo administradores pueden acceder');
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice';
       return;
     }
 
@@ -30,7 +30,7 @@ auth.onAuthStateChanged(async (user) => {
   } catch (error) {
     console.error('Error:', error);
     alert('Error al verificar permisos');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice';
   }
 });
 

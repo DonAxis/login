@@ -10,7 +10,7 @@ let filtroActual = 'todos';
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     alert('Debes iniciar sesión');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice';
     return;
   }
 
@@ -19,7 +19,7 @@ auth.onAuthStateChanged(async (user) => {
     
     if (!userDoc.exists || userDoc.data().rol !== 'controlCaja') {
       alert('Solo personal de caja puede acceder');
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice';
       return;
     }
 
@@ -33,7 +33,7 @@ auth.onAuthStateChanged(async (user) => {
   } catch (error) {
     console.error('Error:', error);
     alert('Error al verificar permisos');
-    window.location.href = 'login.html';
+    window.location.href = 'https://ilbcontrol.mx/sice';
   }
 });
 
@@ -321,7 +321,7 @@ async function cerrarSesion() {
     try {
       await auth.signOut();
       sessionStorage.clear();
-      window.location.href = 'login.html';
+      window.location.href = 'https://ilbcontrol.mx/sice';
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
       alert('Error al cerrar sesión');
