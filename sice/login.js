@@ -213,3 +213,22 @@ if (sessionStorage.getItem('returnToCoord') === 'true') {
     sessionStorage.removeItem('coordEmail');
   }
 }
+
+// ============================================================================
+// FUNCIÓN PARA MOSTRAR/OCULTAR CONTRASEÑA
+// ============================================================================
+
+function toggleLoginPassword() {
+  const passwordInput = document.getElementById('password');
+  const toggleButton = document.querySelector('.toggle-password');
+  
+  if (passwordInput.type === 'password') {
+    passwordInput.type = 'text';
+    toggleButton.innerHTML = '✕';
+    toggleButton.title = 'Ocultar contraseña';
+  } else {
+    passwordInput.type = 'password';
+    toggleButton.innerHTML = '👁‍🗨';
+    toggleButton.title = 'Mostrar contraseña';
+  }
+}

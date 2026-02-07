@@ -1211,30 +1211,12 @@ async function cerrarSesion() {
 function togglePassword(inputId) {
   const input = document.getElementById(inputId);
   const button = input.nextElementSibling;
-
-  const eye = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"
-fill="none" stroke="black" stroke-width="2">
-  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
-  <circle cx="12" cy="12" r="3"/>
-</svg>`;
-
-  const eyeOff = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"
-fill="none" stroke="black" stroke-width="2">
-  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.8 21.8 0 0 1 5.06-5.94"/>
-  <path d="M1 1l22 22"/>
-  <path d="M9.9 4.24A10.94 10.94 0 0 1 12 5c7 0 11 7 11 7a21.8 21.8 0 0 1-4.12 5.09"/>
-</svg>`;
-
+  
   if (input.type === 'password') {
     input.type = 'text';
-    button.innerHTML = eyeOff;
-    button.setAttribute('aria-label', 'Ocultar contraseña');
+    button.innerHTML = '✕';
   } else {
     input.type = 'password';
-    button.innerHTML = eye;
-    button.setAttribute('aria-label', 'Mostrar contraseña');
+    button.innerHTML = '👁‍🗨';
   }
 }
-
