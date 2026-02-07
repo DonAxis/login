@@ -2862,7 +2862,9 @@ async function cargarCalificacionesMateria() {
 
         asignacionCalifActual = {
             id: asignacionId,
-            ...asigDoc.data()
+            ...asigDoc.data(),
+            // ✅ Protección adicional: asegurar que grupoId nunca sea undefined
+            grupoId: asigDoc.data().grupoId || null
         };
 
         // Mostrar info
@@ -3048,7 +3050,7 @@ async function guardarTodasCalificacionesCoord() {
             await db.collection('calificaciones').doc(docId).set({
                 alumnoId: alumno.id,
                 materiaId: asignacionCalifActual.materiaId,
-                grupoId: asignacionCalifActual.grupoId,
+                grupoId: asignacionCalifActual.grupoId || null,  // ✅ Previene undefined
                 profesorId: asignacionCalifActual.profesorId,
                 periodo: asignacionCalifActual.periodo,
                 parciales: {
