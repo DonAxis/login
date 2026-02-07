@@ -3050,7 +3050,7 @@ async function guardarTodasCalificacionesCoord() {
             await db.collection('calificaciones').doc(docId).set({
                 alumnoId: alumno.id,
                 materiaId: asignacionCalifActual.materiaId,
-              //  grupoId: asignacionCalifActual.grupoId || null,  // ✅ Previene undefined
+                grupoId: asignacionCalifActual.grupoId || null,  // ✅ Previene undefined
                 profesorId: asignacionCalifActual.profesorId,
                 periodo: asignacionCalifActual.periodo,
                 parciales: {
