@@ -1,5 +1,4 @@
- 
-    * {
+* {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
@@ -7,13 +6,14 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      background: linear-gradient(135deg, #f5f7fa 0%, #e0d4d9 100%);
       padding: 20px;
       min-height: 100vh;
     }
 
     .header {
-      background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%);
+      /* Cambio a colores base solicitado */
+      background: linear-gradient(135deg, #6F1D46 0%, #9F2241 100%);
       color: white;
       padding: 20px;
       border-radius: 10px;
@@ -21,6 +21,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      box-shadow: 0 4px 15px rgba(111, 29, 70, 0.2);
     }
 
     .header h1 {
@@ -51,7 +52,7 @@
 
     .btn-volver:hover {
       background: white;
-      color: #5e35b1;
+      color: #6F1D46;
     }
 
     /* Menú Academia */
@@ -69,16 +70,16 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       cursor: pointer;
       transition: all 0.3s;
-      border-left: 5px solid #5e35b1;
+      border-left: 5px solid #6F1D46;
     }
 
     .card-academia:hover {
       transform: translateY(-5px);
-      box-shadow: 0 8px 20px rgba(94, 53, 177, 0.3);
+      box-shadow: 0 8px 20px rgba(111, 29, 70, 0.2);
     }
 
     .card-academia h3 {
-      color: #5e35b1;
+      color: #6F1D46;
       margin-bottom: 10px;
       font-size: 1.5rem;
     }
@@ -89,17 +90,17 @@
     }
 
     .info-academia {
-      background: linear-gradient(135deg, rgba(94, 53, 177, 0.1) 0%, rgba(126, 87, 194, 0.1) 100%);
+      background: linear-gradient(135deg, rgba(111, 29, 70, 0.05) 0%, rgba(159, 34, 65, 0.05) 100%);
       padding: 25px;
       border-radius: 12px;
       margin-bottom: 20px;
-      border-left: 5px solid #5e35b1;
+      border-left: 5px solid #9F2241;
       grid-column: 1 / -1;
     }
 
     .info-academia h3 {
       margin: 0 0 15px 0;
-      color: #5e35b1;
+      color: #6F1D46;
       font-size: 1.3rem;
     }
 
@@ -127,13 +128,13 @@
     }
 
     .seccion-header h2 {
-      color: #5e35b1;
+      color: #6F1D46;
       margin: 0;
     }
 
     .btn-asignar {
       padding: 12px 24px;
-      background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%);
+      background: linear-gradient(135deg, #6F1D46 0%, #9F2241 100%);
       color: white;
       border: none;
       border-radius: 8px;
@@ -145,7 +146,7 @@
 
     .btn-asignar:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(94, 53, 177, 0.4);
+      box-shadow: 0 4px 12px rgba(111, 29, 70, 0.4);
     }
 
     /* Buscador */
@@ -164,8 +165,8 @@
 
     .input-buscador:focus {
       outline: none;
-      border-color: #5e35b1;
-      box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.1);
+      border-color: #6F1D46;
+      box-shadow: 0 0 0 3px rgba(111, 29, 70, 0.1);
     }
 
     /* Contenido de carreras */
@@ -178,7 +179,7 @@
       background: #f9f9f9;
       padding: 20px;
       border-radius: 10px;
-      border-left: 4px solid #5e35b1;
+      border-left: 4px solid #6F1D46;
     }
 
     .carrera-header {
@@ -198,14 +199,14 @@
     }
 
     .carrera-header h3 {
-      color: #5e35b1;
+      color: #6F1D46;
       margin: 0;
       font-size: 1.3rem;
     }
 
     .carrera-toggle {
       font-size: 1.5rem;
-      color: #5e35b1;
+      color: #6F1D46;
       font-weight: bold;
     }
 
@@ -231,7 +232,7 @@
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       transition: all 0.3s;
-      border-left: 4px solid #5e35b1;
+      border-left: 4px solid #9F2241;
     }
 
     .materia-card:hover {
@@ -257,7 +258,7 @@
       border-radius: 20px;
       font-size: 0.85rem;
       font-weight: 600;
-      background: #5e35b1;
+      background: #6F1D46;
       color: white;
     }
 
@@ -275,7 +276,7 @@
 
     .btn-ver {
       padding: 8px 16px;
-      background: #5e35b1;
+      background: #6F1D46;
       color: white;
       border: none;
       border-radius: 8px;
@@ -285,7 +286,7 @@
     }
 
     .btn-ver:hover {
-      background: #4527a0;
+      background: #9F2241;
     }
 
     /* Modal */
@@ -325,7 +326,7 @@
     }
 
     .tabla-calificaciones th {
-      background: #5e35b1;
+      background: #6F1D46;
       color: white;
       font-weight: 600;
     }
@@ -358,14 +359,14 @@
     }
 
     .materia-item:hover {
-      background: #e8eaf6;
-      border-left-color: #5e35b1;
+      background: #fff5f8;
+      border-left-color: #6F1D46;
     }
 
     .materia-item.seleccionada {
-      background: #e8eaf6;
-      border-left-color: #5e35b1;
-      box-shadow: 0 2px 8px rgba(94, 53, 177, 0.2);
+      background: #fff5f8;
+      border-left-color: #6F1D46;
+      box-shadow: 0 2px 8px rgba(111, 29, 70, 0.2);
     }
 
     .filtro-carrera {
@@ -379,4 +380,3 @@
       border-radius: 8px;
       font-size: 1rem;
     }
-  
