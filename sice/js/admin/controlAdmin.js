@@ -103,9 +103,55 @@ async function mostrarModalCoordinador() {
       const carrera = doc.data();
       select.innerHTML += `<option value="${doc.id}">${carrera.nombre} (${carrera.codigo})</option>`;
     });
+    
+    // Cargar academias disponibles
+    await cargarAcademiasEnSelector();
   } catch (error) {
     console.error('Error al cargar carreras:', error);
     alert('Error al cargar carreras');
+  }
+}
+
+async function cargarAcademiasEnSelector() {
+  try {
+    const select = document.getElementById('academiaSelect');
+    select.innerHTML = '<option value="">Seleccionar academia existente...</option>';
+    
+    const academiasSnap = await db.collection('academias').get();
+    
+    if (academiasSnap.empty) {
+      select.innerHTML += '<option value="" disabled>No hay academias creadas</option>';
+      return;
+    }
+    
+    academiasSnap.forEach(doc => {
+      const academia = doc.data();
+      select.innerHTML += `<option value="${doc.id}" data-nombre="${academia.nombre}">${academia.nombre} (${doc.id})</option>`;
+    });
+    
+  } catch (error) {
+    console.error('Error al cargar academias:', error);
+  }
+}
+
+function actualizarCamposAcademia() {
+  const select = document.getElementById('academiaSelect');
+  const selectedOption = select.options[select.selectedIndex];
+  
+  if (select.value) {
+    const academiaId = select.value;
+    const academiaNombre = selectedOption.getAttribute('data-nombre');
+    
+    document.getElementById('academiaId').value = academiaId;
+    document.getElementById('academiaNombre').value = academiaNombre;
+    
+    document.getElementById('infoAcademiaSeleccionada').style.display = 'block';
+    document.getElementById('academiaSelecNombre').textContent = academiaNombre;
+    document.getElementById('academiaSelecId').textContent = `ID: ${academiaId}`;
+  } else {
+    document.getElementById('academiaId').value = '';
+    document.getElementById('academiaNombre').value = '';
+    document.getElementById('infoAcademiaSeleccionada').style.display = 'none';
   }
 }
 
@@ -152,27 +198,9 @@ async function crearCoordinador(event) {
   
   // Validar academia si está activada
   if (tieneAcademia) {
-    if (!academiaNombre) {
-      mostrarMensaje("Debes proporcionar el nombre de la academia", "error");
+    if (!academiaNombre || !academiaId) {
+      mostrarMensaje("Debes seleccionar una academia", "error");
       return;
-    }
-    if (!academiaId) {
-      mostrarMensaje("Debes proporcionar el ID de la academia", "error");
-      return;
-    }
-    
-    // Validar que el ID de academia sea único
-    try {
-      const academiaExiste = await db.collection('usuarios')
-        .where('academiaId', '==', academiaId)
-        .get();
-      
-      if (!academiaExiste.empty) {
-        mostrarMensaje("El ID de academia '" + academiaId + "' ya está en uso. Usa otro código.", "error");
-        return;
-      }
-    } catch (error) {
-      console.error('Error al verificar academia:', error);
     }
   }
   
@@ -286,14 +314,14 @@ function toggleCamposAcademia() {
   
   if (checkbox.checked) {
     campos.style.display = 'block';
-    document.getElementById('academiaNombre').required = true;
-    document.getElementById('academiaId').required = true;
+    document.getElementById('academiaSelect').required = true;
   } else {
     campos.style.display = 'none';
-    document.getElementById('academiaNombre').required = false;
-    document.getElementById('academiaId').required = false;
-    document.getElementById('academiaNombre').value = '';
+    document.getElementById('academiaSelect').required = false;
+    document.getElementById('academiaSelect').value = '';
     document.getElementById('academiaId').value = '';
+    document.getElementById('academiaNombre').value = '';
+    document.getElementById('infoAcademiaSeleccionada').style.display = 'none';
   }
 }
 
@@ -1133,3 +1161,343 @@ function mostrarMensajeCaja(texto, tipo) {
 
 
 console.log('Sistema de Control Admin V4 cargado - Con Academia como característica de coordinadores');
+
+// ===== GESTIÓN DE ACADEMIAS =====
+let academiasData = [];
+
+async function gestionarAcademias() {
+  document.getElementById('modalGestionAcademias').style.display = 'block';
+  await cargarAcademias();
+}
+
+function cerrarModalGestionAcademias() {
+  document.getElementById('modalGestionAcademias').style.display = 'none';
+  cancelarNuevaAcademia();
+}
+
+function mostrarFormNuevaAcademia() {
+  document.getElementById('formNuevaAcademia').style.display = 'block';
+  document.getElementById('nuevaAcademiaNombre').focus();
+}
+
+function cancelarNuevaAcademia() {
+  document.getElementById('formNuevaAcademia').style.display = 'none';
+  document.getElementById('nuevaAcademiaNombre').value = '';
+  document.getElementById('nuevaAcademiaId').value = '';
+  document.getElementById('nuevaAcademiaDesc').value = '';
+  const mensaje = document.getElementById('mensajeNuevaAcademia');
+  if (mensaje) mensaje.style.display = 'none';
+}
+
+async function cargarAcademias() {
+  try {
+    console.log('Cargando academias...');
+    
+    // Obtener todas las academias (usuarios con tieneAcademia = true)
+    const snapshot = await db.collection('usuarios')
+      .where('tieneAcademia', '==', true)
+      .get();
+    
+    academiasData = [];
+    const academiasMap = new Map();
+    
+    snapshot.forEach(doc => {
+      const usuario = doc.data();
+      if (usuario.academiaId) {
+        if (!academiasMap.has(usuario.academiaId)) {
+          academiasMap.set(usuario.academiaId, {
+            id: usuario.academiaId,
+            nombre: usuario.academiaNombre,
+            coordinadores: []
+          });
+        }
+        academiasMap.get(usuario.academiaId).coordinadores.push({
+          uid: doc.id,
+          nombre: usuario.nombre,
+          email: usuario.email,
+          carrera: usuario.carreraId
+        });
+      }
+    });
+    
+    academiasData = Array.from(academiasMap.values());
+    
+    // Obtener también academias de la colección separada si existe
+    try {
+      const academiasCol = await db.collection('academias').get();
+      academiasCol.forEach(doc => {
+        const data = doc.data();
+        if (!academiasMap.has(doc.id)) {
+          academiasData.push({
+            id: doc.id,
+            nombre: data.nombre,
+            descripcion: data.descripcion,
+            coordinadores: [],
+            fechaCreacion: data.fechaCreacion
+          });
+        } else {
+          // Actualizar con info adicional
+          const academia = academiasData.find(a => a.id === doc.id);
+          if (academia) {
+            academia.descripcion = data.descripcion;
+            academia.fechaCreacion = data.fechaCreacion;
+          }
+        }
+      });
+    } catch (error) {
+      console.log('Colección academias no existe, se creará al crear la primera');
+    }
+    
+    console.log(`${academiasData.length} academias cargadas`);
+    mostrarAcademias();
+    
+  } catch (error) {
+    console.error('Error al cargar academias:', error);
+    document.getElementById('listaAcademias').innerHTML = 
+      '<p style="color: red; text-align: center;">Error al cargar academias</p>';
+  }
+}
+
+function mostrarAcademias() {
+  const container = document.getElementById('listaAcademias');
+  
+  if (academiasData.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 60px; color: #999;">
+        <p style="font-size: 3rem; margin: 0;">📚</p>
+        <p style="font-size: 1.2rem; margin: 10px 0;">No hay academias creadas</p>
+        <p style="margin: 20px 0;">
+          <button onclick="mostrarFormNuevaAcademia()" 
+                  style="padding: 12px 24px; background: #5e35b1; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+            Crear Primera Academia
+          </button>
+        </p>
+      </div>
+    `;
+    return;
+  }
+  
+  let html = '';
+  
+  academiasData.forEach(academia => {
+    const numCoordinadores = academia.coordinadores.length;
+    const coordNames = academia.coordinadores.map(c => c.nombre).join(', ') || 'Sin coordinadores';
+    
+    html += `
+      <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #5e35b1; transition: all 0.3s;"
+           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';">
+        
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 5px 0; color: #5e35b1;">${academia.nombre}</h3>
+            <p style="margin: 0; color: #999; font-size: 0.9rem; font-family: monospace;">ID: ${academia.id}</p>
+            ${academia.descripcion ? `<p style="margin: 10px 0 0 0; color: #666; font-size: 0.95rem;">${academia.descripcion}</p>` : ''}
+          </div>
+          <div style="text-align: right;">
+            <span style="padding: 6px 14px; background: #e8eaf6; color: #5e35b1; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
+              ${numCoordinadores} coordinador${numCoordinadores !== 1 ? 'es' : ''}
+            </span>
+          </div>
+        </div>
+        
+        ${numCoordinadores > 0 ? `
+          <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; margin-top: 15px;">
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #333; font-size: 0.9rem;">Coordinadores:</p>
+            ${academia.coordinadores.map(coord => `
+              <div style="padding: 8px; background: white; margin-bottom: 6px; border-radius: 6px; font-size: 0.9rem;">
+                <strong>${coord.nombre}</strong> - ${coord.email}
+                <br>
+                <span style="color: #666;">Carrera: ${coord.carrera}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-top: 15px; border-left: 3px solid #ffc107;">
+            <p style="margin: 0; color: #856404; font-size: 0.9rem;">
+              Sin coordinadores asignados. Asigna un coordinador al crear uno nuevo.
+            </p>
+          </div>
+        `}
+        
+        <div style="margin-top: 15px; display: flex; gap: 8px; justify-content: flex-end;">
+          <button onclick="editarAcademia('${academia.id}')" 
+                  style="padding: 8px 16px; background: #5e35b1; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
+            Editar
+          </button>
+          <button onclick="eliminarAcademia('${academia.id}', '${academia.nombre}')" 
+                  style="padding: 8px 16px; background: #d32f2f; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
+            Eliminar
+          </button>
+        </div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+}
+
+async function crearAcademia() {
+  const nombre = document.getElementById('nuevaAcademiaNombre').value.trim();
+  const id = document.getElementById('nuevaAcademiaId').value.trim().toUpperCase();
+  const descripcion = document.getElementById('nuevaAcademiaDesc').value.trim();
+  
+  if (!nombre) {
+    mostrarMensajeAcademia('El nombre de la academia es obligatorio', 'error');
+    return;
+  }
+  
+  if (!id) {
+    mostrarMensajeAcademia('El ID de la academia es obligatorio', 'error');
+    return;
+  }
+  
+  // Validar formato del ID
+  if (!/^[A-Z0-9_]+$/.test(id)) {
+    mostrarMensajeAcademia('El ID solo puede contener letras mayúsculas, números y guiones bajos', 'error');
+    return;
+  }
+  
+  try {
+    // Verificar que el ID no exista
+    const existeEnUsuarios = await db.collection('usuarios')
+      .where('academiaId', '==', id)
+      .get();
+    
+    const existeEnAcademias = await db.collection('academias').doc(id).get();
+    
+    if (!existeEnUsuarios.empty || existeEnAcademias.exists) {
+      mostrarMensajeAcademia(`El ID "${id}" ya está en uso. Usa otro código.`, 'error');
+      return;
+    }
+    
+    // Crear academia
+    await db.collection('academias').doc(id).set({
+      nombre: nombre,
+      descripcion: descripcion || '',
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+      activa: true
+    });
+    
+    mostrarMensajeAcademia(`Academia "${nombre}" creada exitosamente\n\nID: ${id}\n\nAhora puedes asignar coordinadores al crear o editar usuarios.`, 'success');
+    
+    setTimeout(() => {
+      cancelarNuevaAcademia();
+      cargarAcademias();
+    }, 2500);
+    
+  } catch (error) {
+    console.error('Error al crear academia:', error);
+    mostrarMensajeAcademia('Error al crear academia: ' + error.message, 'error');
+  }
+}
+
+function mostrarMensajeAcademia(texto, tipo) {
+  const mensaje = document.getElementById('mensajeNuevaAcademia');
+  if (!mensaje) return;
+  
+  mensaje.textContent = texto;
+  mensaje.style.display = 'block';
+  mensaje.style.padding = '15px';
+  mensaje.style.borderRadius = '8px';
+  mensaje.style.whiteSpace = 'pre-line';
+  
+  if (tipo === 'success') {
+    mensaje.style.background = '#d4edda';
+    mensaje.style.color = '#155724';
+    mensaje.style.border = '2px solid #c3e6cb';
+  } else if (tipo === 'error') {
+    mensaje.style.background = '#f8d7da';
+    mensaje.style.color = '#721c24';
+    mensaje.style.border = '2px solid #f5c6cb';
+  } else {
+    mensaje.style.background = '#d1ecf1';
+    mensaje.style.color = '#0c5460';
+    mensaje.style.border = '2px solid #bee5eb';
+  }
+}
+
+async function editarAcademia(academiaId) {
+  const academia = academiasData.find(a => a.id === academiaId);
+  if (!academia) return;
+  
+  const nuevoNombre = prompt('Nuevo nombre de la academia:', academia.nombre);
+  if (!nuevoNombre || nuevoNombre.trim() === '') return;
+  
+  const nuevaDesc = prompt('Nueva descripción (opcional):', academia.descripcion || '');
+  
+  try {
+    // Actualizar en colección academias
+    await db.collection('academias').doc(academiaId).update({
+      nombre: nuevoNombre.trim(),
+      descripcion: nuevaDesc ? nuevaDesc.trim() : '',
+      fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Actualizar en todos los coordinadores que la usan
+    const coordinadores = await db.collection('usuarios')
+      .where('academiaId', '==', academiaId)
+      .get();
+    
+    const batch = db.batch();
+    coordinadores.forEach(doc => {
+      batch.update(doc.ref, {
+        academiaNombre: nuevoNombre.trim()
+      });
+    });
+    await batch.commit();
+    
+    alert('Academia actualizada exitosamente');
+    await cargarAcademias();
+    
+  } catch (error) {
+    console.error('Error al editar academia:', error);
+    alert('Error al actualizar academia: ' + error.message);
+  }
+}
+
+async function eliminarAcademia(academiaId, academiaNombre) {
+  const academia = academiasData.find(a => a.id === academiaId);
+  
+  if (academia.coordinadores.length > 0) {
+    alert(`No se puede eliminar "${academiaNombre}"\n\nHay ${academia.coordinadores.length} coordinador(es) asignado(s) a esta academia.\n\nPrimero debes desasignar la academia de estos coordinadores.`);
+    return;
+  }
+  
+  if (!confirm(`¿Eliminar la academia "${academiaNombre}"?\n\nEsta acción no se puede deshacer.`)) {
+    return;
+  }
+  
+  try {
+    // Eliminar de colección academias
+    await db.collection('academias').doc(academiaId).delete();
+    
+    // Verificar que no haya materias asignadas
+    const materias = await db.collection('materias')
+      .where('academiaId', '==', academiaId)
+      .get();
+    
+    if (!materias.empty) {
+      // Limpiar academiaId de las materias
+      const batch = db.batch();
+      materias.forEach(doc => {
+        batch.update(doc.ref, {
+          enAcademia: firebase.firestore.FieldValue.delete(),
+          academiaId: firebase.firestore.FieldValue.delete(),
+          academiaNombre: firebase.firestore.FieldValue.delete()
+        });
+      });
+      await batch.commit();
+      console.log(`${materias.size} materias desasignadas de la academia`);
+    }
+    
+    alert('Academia eliminada exitosamente');
+    await cargarAcademias();
+    
+  } catch (error) {
+    console.error('Error al eliminar academia:', error);
+    alert('Error al eliminar academia: ' + error.message);
+  }
+}
+
+console.log('Sistema de Gestión de Academias cargado');
