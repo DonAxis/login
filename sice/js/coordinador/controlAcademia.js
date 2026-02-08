@@ -41,16 +41,6 @@ function mostrarVerCarreras() {
   mostrarMateriasPorCarrera();
 }
 
-// vistaAcademia.js
-// Vista de Academia para Coordinadores 
-
-const auth = firebase.auth();
-let usuarioActual = null;
-let materiasAcademia = [];
-let materiasDisponibles = [];
-let carrerasData = [];
-let materiaSeleccionada = null;
-
 // ===== PROTECCIÓN =====
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
@@ -834,5 +824,3 @@ async function verCalificacionesMateriaCarrera(materiaId, materiaNombre) {
       '<p style="color: red; text-align: center;">Error al cargar calificaciones</p>';
   }
 }
-
-console.log('Funciones de navegación y filtrado agregadas');
