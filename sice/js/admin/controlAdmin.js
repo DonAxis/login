@@ -621,8 +621,21 @@ async function gestionarCoordinadores() {
       ...doc.data()
     }));
     
+    // Cargar academias disponibles
+    try {
+      const academiasSnap = await db.collection('academias').get();
+      academiasData = academiasSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.log('No se pudieron cargar academias:', error);
+      academiasData = [];
+    }
+    
     console.log('Coordinadores:', coordinadoresData.length);
     console.log('Carreras:', carrerasData.length);
+    console.log('Academias:', academiasData.length);
     
     mostrarListaCoordinadores();
     
@@ -673,102 +686,89 @@ function cerrarListaCoordinadores() {
   if (overlay) overlay.remove();
 }
 
+async function asignarCarreras(coordUid) {
+  coordinadorActual = coordinadoresData.find(c => c.uid === coordUid);
+  
+  if (!coordinadorActual) {
+    alert('Error: Coordinador no encontrado');
+    return;
+  }
+  
+  document.getElementById('nombreCoordActual').textContent = coordinadorActual.nombre;
+  document.getElementById('emailCoordActual').textContent = coordinadorActual.email;
+  
+  const carrerasAsignadas = coordinadorActual.carreras || [];
+  const academiasAsignadas = coordinadorActual.academias || [];
+  
+  // Cargar carreras
+  let htmlCarreras = '';
+  
+  if (carrerasData.length === 0) {
+    htmlCarreras = '<div style="text-align: center; padding: 40px; color: #999;">No hay carreras disponibles. Crea carreras primero.</div>';
+  } else {
+    carrerasData.forEach(carrera => {
+      const asignacion = carrerasAsignadas.find(c => c.carreraId === carrera.id);
+      const estaAsignada = !!asignacion;
+      const colorActual = asignacion ? asignacion.color : COLORES_DISPONIBLES[0].hex;
 
-  async function asignarCarreras(coordUid) {
-    coordinadorActual = coordinadoresData.find(c => c.uid === coordUid);
-    
-    if (!coordinadorActual) {
-      alert('Error: Coordinador no encontrado');
-      return;
-    }
-    
-    document.getElementById('nombreCoordActual').textContent = coordinadorActual.nombre;
-    document.getElementById('emailCoordActual').textContent = coordinadorActual.email;
-    
-    // Cargar academias disponibles
-    await cargarAcademiasEnAsignacion();
-    
-    // Mostrar academia actual si tiene
-    if (coordinadorActual.tieneAcademia && coordinadorActual.academiaId) {
-      document.getElementById('academiaAsignar').value = coordinadorActual.academiaId;
-      document.getElementById('infoAcademiaActual').style.display = 'block';
-      document.getElementById('academiaActualNombre').textContent = coordinadorActual.academiaNombre;
-      document.getElementById('academiaActualId').textContent = 'ID: ' + coordinadorActual.academiaId;
-    } else {
-      document.getElementById('academiaAsignar').value = '';
-      document.getElementById('infoAcademiaActual').style.display = 'none';
-    }
-    
-    const carrerasAsignadas = coordinadorActual.carreras || [];
-    
-    let html = '';
-
-    if (carrerasData.length === 0) {
-      html = '<div style="text-align: center; padding: 40px; color: #999;">No hay carreras disponibles. Crea carreras primero.</div>';
-    } else {
-      carrerasData.forEach(carrera => {
-        const asignacion = carrerasAsignadas.find(c => c.carreraId === carrera.id);
-        const estaAsignada = !!asignacion;
-        const colorActual = asignacion ? asignacion.color : COLORES_DISPONIBLES[0].hex;
-
-        html += '<div class="carrera-item" style="background: ' + (estaAsignada ? 'linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%)' : '#f9f9f9') + '; padding: 18px; border-radius: 10px; margin-bottom: 12px; border: 2px solid ' + (estaAsignada ? '#667eea' : '#ddd') + '; transition: all 0.3s;">';
-        html += '<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">';
-        
-        html += '<div style="display: flex; align-items: center; flex: 1; min-width: 200px;">';
-        html += '<input type="checkbox" id="carrera_' + carrera.id + '" ' + (estaAsignada ? 'checked' : '') + ' onchange="toggleCarreraAsignacion(\'' + carrera.id + '\')" style="width: 22px; height: 22px; margin-right: 15px; cursor: pointer; accent-color: #667eea;">';
-        html += '<label for="carrera_' + carrera.id + '" style="cursor: pointer; font-weight: 600; font-size: 1.1rem; color: #333;">' + carrera.nombre + '</label>';
-        html += '</div>';
-        
-        html += '<div id="colorSelector_' + carrera.id + '" style="display: ' + (estaAsignada ? 'flex' : 'none') + '; align-items: center; gap: 12px; background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">';
-        html += '<span style="font-size: 0.95rem; color: #666; font-weight: 600;">Color:</span>';
-        html += '<select id="colorCarrera_' + carrera.id + '" onchange="actualizarVistaPrevia(\'' + carrera.id + '\')" style="padding: 8px 14px; border: 2px solid #ddd; border-radius: 6px; font-size: 0.95rem; cursor: pointer; background: white; font-weight: 500; min-width: 160px;">';
-        
-        COLORES_DISPONIBLES.forEach(color => {
-          html += '<option value="' + color.hex + '" ' + (color.hex === colorActual ? 'selected' : '') + '>' + color.nombre + '</option>';
-        });
-        
-        html += '</select>';
-        html += '<div id="preview_' + carrera.id + '" style="width: 45px; height: 45px; border-radius: 10px; background: ' + colorActual + '; border: 4px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.25); transition: all 0.3s; cursor: pointer;"></div>';
-        html += '</div>';
-        
-        html += '</div>';
-        html += '</div>';
+      htmlCarreras += '<div class="carrera-item" style="background: ' + (estaAsignada ? 'linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%)' : '#f9f9f9') + '; padding: 18px; border-radius: 10px; margin-bottom: 12px; border: 2px solid ' + (estaAsignada ? '#667eea' : '#ddd') + '; transition: all 0.3s;">';
+      htmlCarreras += '<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">';
+      
+      htmlCarreras += '<div style="display: flex; align-items: center; flex: 1; min-width: 200px;">';
+      htmlCarreras += '<input type="checkbox" id="carrera_' + carrera.id + '" ' + (estaAsignada ? 'checked' : '') + ' onchange="toggleCarreraAsignacion(\'' + carrera.id + '\')" style="width: 22px; height: 22px; margin-right: 15px; cursor: pointer; accent-color: #667eea;">';
+      htmlCarreras += '<label for="carrera_' + carrera.id + '" style="cursor: pointer; font-weight: 600; font-size: 1.1rem; color: #333;">' + carrera.nombre + '</label>';
+      htmlCarreras += '</div>';
+      
+      htmlCarreras += '<div id="colorSelector_' + carrera.id + '" style="display: ' + (estaAsignada ? 'flex' : 'none') + '; align-items: center; gap: 12px; background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">';
+      htmlCarreras += '<span style="font-size: 0.95rem; color: #666; font-weight: 600;">Color:</span>';
+      htmlCarreras += '<select id="colorCarrera_' + carrera.id + '" onchange="actualizarVistaPrevia(\'' + carrera.id + '\')" style="padding: 8px 14px; border: 2px solid #ddd; border-radius: 6px; font-size: 0.95rem; cursor: pointer; background: white; font-weight: 500; min-width: 160px;">';
+      
+      COLORES_DISPONIBLES.forEach(color => {
+        htmlCarreras += '<option value="' + color.hex + '" ' + (color.hex === colorActual ? 'selected' : '') + '>' + color.nombre + '</option>';
       });
-    }
-
-    document.getElementById('listaCarrerasAsignar').innerHTML = html;
-    document.getElementById('modalAsignarCarreras').style.display = 'flex';
-  }
-
-async function cargarAcademiasEnAsignacion() {
-  try {
-    const select = document.getElementById('academiaAsignar');
-    select.innerHTML = '<option value="">Sin academia</option>';
-    
-    const academiasSnap = await db.collection('academias').get();
-    
-    academiasSnap.forEach(doc => {
-      const academia = doc.data();
-      select.innerHTML += '<option value="' + doc.id + '" data-nombre="' + academia.nombre + '">' + academia.nombre + ' (' + doc.id + ')</option>';
+      
+      htmlCarreras += '</select>';
+      htmlCarreras += '<div id="preview_' + carrera.id + '" style="width: 45px; height: 45px; border-radius: 10px; background: ' + colorActual + '; border: 4px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.25); transition: all 0.3s; cursor: pointer;"></div>';
+      htmlCarreras += '</div>';
+      
+      htmlCarreras += '</div>';
+      htmlCarreras += '</div>';
     });
-    
-    // Agregar evento onchange
-    select.onchange = function() {
-      const selectedOption = this.options[this.selectedIndex];
-      if (this.value) {
-        document.getElementById('infoAcademiaActual').style.display = 'block';
-        document.getElementById('academiaActualNombre').textContent = selectedOption.getAttribute('data-nombre');
-        document.getElementById('academiaActualId').textContent = 'ID: ' + this.value;
-      } else {
-        document.getElementById('infoAcademiaActual').style.display = 'none';
-      }
-    };
-    
-  } catch (error) {
-    console.error('Error al cargar academias:', error);
   }
-}
 
+  document.getElementById('listaCarrerasAsignar').innerHTML = htmlCarreras;
+  
+  // Cargar academias
+  let htmlAcademias = '';
+  
+  if (academiasData.length === 0) {
+    htmlAcademias = '<div style="text-align: center; padding: 40px; color: #999;">No hay academias disponibles. Crea academias primero.</div>';
+  } else {
+    academiasData.forEach(academia => {
+      const estaAsignada = academiasAsignadas.some(a => a.academiaId === academia.id);
+
+      htmlAcademias += '<div class="academia-item" style="background: ' + (estaAsignada ? 'linear-gradient(135deg, #f3e5f5 0%, #e8eaf6 100%)' : '#f9f9f9') + '; padding: 18px; border-radius: 10px; margin-bottom: 12px; border: 2px solid ' + (estaAsignada ? '#5e35b1' : '#ddd') + '; transition: all 0.3s;">';
+      htmlAcademias += '<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">';
+      
+      htmlAcademias += '<div style="display: flex; align-items: center; flex: 1; min-width: 200px;">';
+      htmlAcademias += '<input type="checkbox" id="academia_' + academia.id + '" ' + (estaAsignada ? 'checked' : '') + ' onchange="toggleAcademiaAsignacion(\'' + academia.id + '\')" style="width: 22px; height: 22px; margin-right: 15px; cursor: pointer; accent-color: #5e35b1;">';
+      htmlAcademias += '<div style="cursor: pointer;" onclick="document.getElementById(\'academia_' + academia.id + '\').click()">';
+      htmlAcademias += '<label style="cursor: pointer; font-weight: 600; font-size: 1.1rem; color: #333; display: block;">' + academia.nombre + '</label>';
+      htmlAcademias += '<span style="font-size: 0.85rem; color: #666;">ID: ' + academia.id + '</span>';
+      if (academia.descripcion) {
+        htmlAcademias += '<p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #666;">' + academia.descripcion + '</p>';
+      }
+      htmlAcademias += '</div>';
+      htmlAcademias += '</div>';
+      
+      htmlAcademias += '</div>';
+      htmlAcademias += '</div>';
+    });
+  }
+
+  document.getElementById('listaAcademiasAsignar').innerHTML = htmlAcademias;
+  document.getElementById('modalAsignarCarreras').style.display = 'flex';
+}
 
 function toggleCarreraAsignacion(carreraId) {
   const checkbox = document.getElementById('carrera_' + carreraId);
@@ -784,6 +784,19 @@ function toggleCarreraAsignacion(carreraId) {
     colorSelector.style.display = 'none';
     carreraItem.style.background = '#f9f9f9';
     carreraItem.style.borderColor = '#ddd';
+  }
+}
+
+function toggleAcademiaAsignacion(academiaId) {
+  const checkbox = document.getElementById('academia_' + academiaId);
+  const academiaItem = checkbox.closest('.academia-item');
+  
+  if (checkbox.checked) {
+    academiaItem.style.background = 'linear-gradient(135deg, #f3e5f5 0%, #e8eaf6 100%)';
+    academiaItem.style.borderColor = '#5e35b1';
+  } else {
+    academiaItem.style.background = '#f9f9f9';
+    academiaItem.style.borderColor = '#ddd';
   }
 }
 
@@ -827,27 +840,33 @@ async function guardarAsignacionCarreras() {
 
     const carreraActual = carrerasAsignadas[0].carreraId;
     
-    // Obtener academia seleccionada
-    const academiaSelect = document.getElementById('academiaAsignar');
-    const academiaId = academiaSelect.value;
+    // Procesar academias asignadas
+    const academiasAsignadas = [];
+    
+    academiasData.forEach(academia => {
+      const checkbox = document.getElementById('academia_' + academia.id);
+      if (checkbox && checkbox.checked) {
+        academiasAsignadas.push({
+          academiaId: academia.id,
+          academiaNombre: academia.nombre
+        });
+      }
+    });
     
     const updateData = {
       carreras: carrerasAsignadas,
       carreraActual: carreraActual,
       carreraId: carreraActual,
+      academias: academiasAsignadas,
       fechaActualizacionCarreras: firebase.firestore.FieldValue.serverTimestamp()
     };
     
-    // Agregar o quitar campos de academia
-    if (academiaId) {
-      const selectedOption = academiaSelect.options[academiaSelect.selectedIndex];
-      const academiaNombre = selectedOption.getAttribute('data-nombre');
-      
+    // Campos de retrocompatibilidad para academia única (primer academia si existe)
+    if (academiasAsignadas.length > 0) {
       updateData.tieneAcademia = true;
-      updateData.academiaId = academiaId;
-      updateData.academiaNombre = academiaNombre;
+      updateData.academiaId = academiasAsignadas[0].academiaId;
+      updateData.academiaNombre = academiasAsignadas[0].academiaNombre;
     } else {
-      // Quitar academia
       updateData.tieneAcademia = firebase.firestore.FieldValue.delete();
       updateData.academiaId = firebase.firestore.FieldValue.delete();
       updateData.academiaNombre = firebase.firestore.FieldValue.delete();
@@ -855,7 +874,11 @@ async function guardarAsignacionCarreras() {
 
     await db.collection('usuarios').doc(coordinadorActual.uid).update(updateData);
 
-    alert('Carreras y academia asignadas correctamente');
+    let mensaje = 'Asignaciones guardadas correctamente\n\n';
+    mensaje += 'Carreras: ' + carrerasAsignadas.length + '\n';
+    mensaje += 'Academias: ' + academiasAsignadas.length;
+    
+    alert(mensaje);
     cerrarModalAsignarCarreras();
     gestionarCoordinadores();
 

@@ -30,8 +30,11 @@ auth.onAuthStateChanged(async (user) => {
       ...userDoc.data()
     };
 
-    // Verificar que tenga academia
-    if (!usuarioActual.tieneAcademia) {
+    // Verificar que tenga academia (compatibilidad con múltiples academias)
+    const tieneAcademiaUnica = usuarioActual.tieneAcademia && usuarioActual.academiaId;
+    const tieneAcademias = usuarioActual.academias && usuarioActual.academias.length > 0;
+    
+    if (!tieneAcademiaUnica && !tieneAcademias) {
       alert('Tu usuario no tiene una academia asignada.\nContacta al administrador.');
       window.location.href = './controlCoordinador.html';
       return;
@@ -40,7 +43,11 @@ auth.onAuthStateChanged(async (user) => {
     document.getElementById('userName').textContent = usuarioActual.nombre;
     document.getElementById('userRol').textContent = `Coordinador de ${usuarioActual.carreraId}`;
     
-    if (usuarioActual.academiaNombre) {
+    // Mostrar nombre de academia(s)
+    if (tieneAcademias) {
+      const nombresAcademias = usuarioActual.academias.map(a => a.academiaNombre).join(', ');
+      document.getElementById('academiaNombre').textContent = nombresAcademias;
+    } else if (tieneAcademiaUnica) {
       document.getElementById('academiaNombre').textContent = usuarioActual.academiaNombre;
     }
 
@@ -92,10 +99,27 @@ async function cargarCarreras() {
 async function cargarMateriasAcademia() {
   try {
     console.log('Cargando materias de la academia...');
-    console.log('Buscando academiaId:', usuarioActual.academiaId);
     
+    // Obtener IDs de academias asignadas
+    let academiaIds = [];
+    
+    if (usuarioActual.academias && usuarioActual.academias.length > 0) {
+      academiaIds = usuarioActual.academias.map(a => a.academiaId);
+    } else if (usuarioActual.academiaId) {
+      academiaIds = [usuarioActual.academiaId];
+    }
+    
+    console.log('Buscando materias para academias:', academiaIds);
+    
+    if (academiaIds.length === 0) {
+      materiasAcademia = [];
+      mostrarMaterias();
+      return;
+    }
+    
+    // Obtener materias de todas las academias asignadas
     const snapshot = await db.collection('materias')
-      .where('academiaId', '==', usuarioActual.academiaId)
+      .where('academiaId', 'in', academiaIds)
       .get();
     
     materiasAcademia = [];
@@ -443,15 +467,42 @@ async function asignarMateriaSeleccionada() {
   try {
     const materia = materiasDisponibles.find(m => m.id === materiaSeleccionada);
     
-    if (!confirm(`¿Asignar "${materia.nombre}" a tu academia?\n\nEsto te permitirá verla en modo solo lectura.`)) {
+    // Si tiene múltiples academias, preguntar a cuál asignar
+    let academiaId, academiaNombre;
+    
+    if (usuarioActual.academias && usuarioActual.academias.length > 1) {
+      let opciones = 'Selecciona la academia:\n\n';
+      usuarioActual.academias.forEach((a, idx) => {
+        opciones += `${idx + 1}. ${a.academiaNombre} (${a.academiaId})\n`;
+      });
+      
+      const seleccion = prompt(opciones + '\nIngresa el número:');
+      const idx = parseInt(seleccion) - 1;
+      
+      if (idx < 0 || idx >= usuarioActual.academias.length) {
+        alert('Selección inválida');
+        return;
+      }
+      
+      academiaId = usuarioActual.academias[idx].academiaId;
+      academiaNombre = usuarioActual.academias[idx].academiaNombre;
+    } else if (usuarioActual.academias && usuarioActual.academias.length === 1) {
+      academiaId = usuarioActual.academias[0].academiaId;
+      academiaNombre = usuarioActual.academias[0].academiaNombre;
+    } else {
+      academiaId = usuarioActual.academiaId;
+      academiaNombre = usuarioActual.academiaNombre;
+    }
+    
+    if (!confirm(`Asignar "${materia.nombre}" a ${academiaNombre}?\n\nEsto te permitira verla en modo solo lectura.`)) {
       return;
     }
     
     // Actualizar la materia con los datos de academia
     await db.collection('materias').doc(materiaSeleccionada).update({
       enAcademia: true,
-      academiaId: usuarioActual.academiaId,
-      academiaNombre: usuarioActual.academiaNombre,
+      academiaId: academiaId,
+      academiaNombre: academiaNombre,
       fechaAsignacionAcademia: firebase.firestore.FieldValue.serverTimestamp()
     });
     

@@ -189,6 +189,11 @@
  <button id="tabProfesor" onclick="cambiarModo('profesor')" 
  style="flex: 1; padding: 15px 30px; background: transparent; color: rgba(255,255,255,0.6); border: none; border-bottom: 4px solid transparent; cursor: pointer; font-size: 1.05rem; font-weight: 600; transition: all 0.3s; position: relative;">Modo Profesor
  </button>
+ <button id="tabAcademia" onclick="irModoAcademia()" 
+ style="display: none; flex: 1; padding: 15px 30px; background: transparent; color: rgba(255,255,255,0.6); border: none; border-bottom: 4px solid transparent; cursor: pointer; font-size: 1.05rem; font-weight: 600; transition: all 0.3s; position: relative;">
+ Modo Academia
+ <span style="display: block; font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">Solo lectura</span>
+ </button>
  </div>
  </div>
 
@@ -876,8 +881,7 @@
   <script src="../../js/coordinador/coordinaUtils.js"></script>
   <script src="../../js/coordinador/coordinaModules.js"></script>
   <script src="../../js/coordinador/coordinadorN.js"></script>
-  <!-- ============================================= -->
-
+  
   <script src="../../js/escolar/controlAlumnoEspecial.js"></script>  
   <script src="../../js/escolar/cambioPeriodo.js"></script>
   <script src="../../js/escolar/registroMasivoAlumno.js"></script>
@@ -885,8 +889,44 @@
   <script src="../../js/escolar/registroMasivoProfes.js"></script>
 
 
-
- <script>
+  <!-- Script para habilitar Modo Academia si el coordinador tiene academia -->
+  <script>
+    // Función para ir a modo academia
+    function irModoAcademia() {
+      window.location.href = './vistaAcademia.html';
+    }
+    
+    // Verificar y mostrar botón de academia después de que cargue el usuario
+    function verificarYMostrarAcademia() {
+      if (typeof usuarioActual !== 'undefined' && usuarioActual) {
+        const tieneAcademiaUnica = usuarioActual.tieneAcademia && usuarioActual.academiaId;
+        const tieneAcademias = usuarioActual.academias && usuarioActual.academias.length > 0;
+        
+        if (tieneAcademiaUnica || tieneAcademias) {
+          const btnAcademia = document.getElementById('tabAcademia');
+          if (btnAcademia) {
+            btnAcademia.style.display = 'flex';
+            console.log('Modo Academia habilitado');
+          }
+        }
+      }
+    }
+    
+    // Ejecutar verificación cuando el usuario esté cargado
+    // Se ejecutará múltiples veces para asegurar que se muestre
+    const intervalVerificar = setInterval(() => {
+      if (typeof usuarioActual !== 'undefined' && usuarioActual) {
+        verificarYMostrarAcademia();
+        clearInterval(intervalVerificar);
+      }
+    }, 500);
+    
+    // Timeout de seguridad (dejar de intentar después de 10 segundos)
+    setTimeout(() => {
+      clearInterval(intervalVerificar);
+    }, 10000);
+  </script>
+  <script>
  window.addEventListener('load', () => {
  if (typeof window.jspdf !== 'undefined') {
  console.log('jsPDF cargado correctamente');
