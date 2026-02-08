@@ -14,6 +14,36 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM cargado, verificando autenticación...');
 });
 
+// ===== SISTEMA DE BOTÓN DE ACADEMIA (SIN setInterval) =====
+// Usar un MutationObserver o definir una función global que coordinaCore.js debe llamar
+
+// Opción 1: Función global para que coordinaCore.js la llame
+window.inicializarBotonAcademia = function() {
+    if (typeof window.mostrarBotonAcademiaSegunUsuario === 'function') {
+        window.mostrarBotonAcademiaSegunUsuario();
+    }
+};
+
+// Opción 2: Observador de cambios en window.usuarioActual (sin polling)
+Object.defineProperty(window, '_usuarioActual', {
+    set: function(valor) {
+        this._usuarioActualValue = valor;
+        // Cuando se asigne usuarioActual, mostrar botón automáticamente
+        if (valor && typeof window.mostrarBotonAcademiaSegunUsuario === 'function') {
+            window.mostrarBotonAcademiaSegunUsuario();
+        }
+    },
+    get: function() {
+        return this._usuarioActualValue;
+    },
+    configurable: true
+});
+
+// Si coordinaCore.js ya asignó usuarioActual antes de que este código se ejecutara
+if (typeof usuarioActual !== 'undefined' && usuarioActual) {
+    window.inicializarBotonAcademia();
+}
+
 console.log('Panel de Coordinador cargado exitosamente');
 
 /*
