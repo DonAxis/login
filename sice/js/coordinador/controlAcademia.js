@@ -7,6 +7,49 @@ let materiasAcademia = [];
 let materiasDisponibles = [];
 let carrerasData = [];
 let materiaSeleccionada = null;
+let materiasOriginales = []; // Para el filtro de búsqueda
+
+// ===== NAVEGACIÓN ENTRE SECCIONES =====
+function ocultarTodasSecciones() {
+  document.getElementById('menuAcademia').style.display = 'none';
+  document.getElementById('seccionMateriasAcademia').style.display = 'none';
+  document.getElementById('seccionVerCarreras').style.display = 'none';
+  document.getElementById('seccionCalificaciones').style.display = 'none';
+}
+
+function mostrarMenu() {
+  ocultarTodasSecciones();
+  document.getElementById('menuAcademia').style.display = 'grid';
+  document.getElementById('btnVolverMenu').style.display = 'none';
+}
+
+function volverMenu() {
+  mostrarMenu();
+}
+
+function mostrarMateriasAcademia() {
+  ocultarTodasSecciones();
+  document.getElementById('seccionMateriasAcademia').style.display = 'block';
+  document.getElementById('btnVolverMenu').style.display = 'inline-block';
+  mostrarMaterias();
+}
+
+function mostrarVerCarreras() {
+  ocultarTodasSecciones();
+  document.getElementById('seccionVerCarreras').style.display = 'block';
+  document.getElementById('btnVolverMenu').style.display = 'inline-block';
+  mostrarMateriasPorCarrera();
+}
+
+// vistaAcademia.js
+// Vista de Academia para Coordinadores - Solo Lectura
+
+const auth = firebase.auth();
+let usuarioActual = null;
+let materiasAcademia = [];
+let materiasDisponibles = [];
+let carrerasData = [];
+let materiaSeleccionada = null;
 
 // ===== PROTECCIÓN =====
 auth.onAuthStateChanged(async (user) => {
@@ -568,3 +611,228 @@ window.onclick = function(event) {
 }
 
 console.log('Vista Academia - Solo Lectura cargada');
+// ===== MOSTRAR MATERIAS AGRUPADAS POR CARRERA =====
+function mostrarMateriasPorCarrera() {
+  const container = document.getElementById('contenidoCarreras');
+  materiasOriginales = [...materiasAcademia]; // Guardar copia para filtro
+  
+  if (materiasAcademia.length === 0) {
+    container.innerHTML = `
+      <div class="sin-datos">
+        <p>No hay materias asignadas a tu academia</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Agrupar materias por carrera
+  const materiasPorCarrera = {};
+  
+  materiasAcademia.forEach(materia => {
+    const carreraId = materia.carreraId || 'sin-carrera';
+    if (!materiasPorCarrera[carreraId]) {
+      materiasPorCarrera[carreraId] = {
+        materias: [],
+        nombre: materia.carreraNombre || 'Sin Carrera',
+        color: materia.carreraColor || '#e0e0e0',
+        siglas: carreraId
+      };
+    }
+    materiasPorCarrera[carreraId].materias.push(materia);
+  });
+  
+  let html = '';
+  
+  // Ordenar carreras por nombre
+  const carrerasOrdenadas = Object.values(materiasPorCarrera).sort((a, b) => 
+    a.nombre.localeCompare(b.nombre)
+  );
+  
+  carrerasOrdenadas.forEach((carrera, index) => {
+    html += `
+      <div class="carrera-section" data-carrera="${carrera.siglas}">
+        <div class="carrera-header" onclick="toggleCarrera('carrera-${index}')">
+          <h3>${carrera.nombre} (${carrera.siglas})</h3>
+          <span class="carrera-toggle" id="toggle-carrera-${index}">−</span>
+        </div>
+        
+        <div class="carrera-materias" id="carrera-${index}">
+    `;
+    
+    carrera.materias.forEach(materia => {
+      html += `
+        <div class="materia-card" data-nombre="${materia.nombre.toLowerCase()}">
+          <div class="materia-header">
+            <h3>${materia.nombre}</h3>
+            <span class="carrera-badge" style="background: ${carrera.color}22; color: ${carrera.color};">
+              ${carrera.siglas}
+            </span>
+          </div>
+          <p class="materia-info">Código: ${materia.codigo || 'Sin código'}</p>
+          <p class="materia-info">Periodo: ${materia.periodo || '-'}</p>
+          <p class="materia-info">Grupo: ${materia.grupoId || '-'}</p>
+          ${materia.profesorNombre ? 
+            `<p class="materia-info">Profesor: ${materia.profesorNombre}</p>` : 
+            '<p class="materia-info" style="color: #999;">Sin profesor asignado</p>'}
+          
+          <div class="materia-acciones">
+            <button onclick="verCalificacionesMateriaCarrera('${materia.id}', '${materia.nombre}')" class="btn-ver">
+              Ver Calificaciones
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+}
+
+// ===== TOGGLE CARRERA (EXPANDIR/COLAPSAR) =====
+function toggleCarrera(carreraId) {
+  const materias = document.getElementById(carreraId);
+  const toggleIcon = document.getElementById('toggle-' + carreraId);
+  
+  if (materias.classList.contains('collapsed')) {
+    materias.classList.remove('collapsed');
+    toggleIcon.textContent = '−';
+  } else {
+    materias.classList.add('collapsed');
+    toggleIcon.textContent = '+';
+  }
+}
+
+// ===== FILTRAR MATERIAS POR NOMBRE =====
+function filtrarMateriasPorNombre() {
+  const buscador = document.getElementById('buscadorMateria').value.toLowerCase().trim();
+  const todasLasMaterias = document.querySelectorAll('#contenidoCarreras .materia-card');
+  const todasLasCarreras = document.querySelectorAll('.carrera-section');
+  
+  if (!buscador) {
+    // Mostrar todas las materias y carreras
+    todasLasMaterias.forEach(materia => materia.style.display = 'block');
+    todasLasCarreras.forEach(carrera => carrera.style.display = 'block');
+    return;
+  }
+  
+  // Filtrar materias
+  todasLasMaterias.forEach(materia => {
+    const nombreMateria = materia.getAttribute('data-nombre');
+    if (nombreMateria && nombreMateria.includes(buscador)) {
+      materia.style.display = 'block';
+    } else {
+      materia.style.display = 'none';
+    }
+  });
+  
+  // Ocultar carreras sin materias visibles
+  todasLasCarreras.forEach(carrera => {
+    const materiasEnCarrera = carrera.querySelectorAll('.materia-card');
+    let hayVisibles = false;
+    
+    materiasEnCarrera.forEach(materia => {
+      if (materia.style.display !== 'none') {
+        hayVisibles = true;
+      }
+    });
+    
+    if (hayVisibles) {
+      carrera.style.display = 'block';
+    } else {
+      carrera.style.display = 'none';
+    }
+  });
+}
+
+// ===== VER CALIFICACIONES DESDE SECCIÓN CARRERAS =====
+async function verCalificacionesMateriaCarrera(materiaId, materiaNombre) {
+  ocultarTodasSecciones();
+  document.getElementById('seccionCalificaciones').style.display = 'block';
+  document.getElementById('btnVolverMenu').style.display = 'inline-block';
+  document.getElementById('infoMateriaCalif').textContent = materiaNombre;
+  
+  try {
+    document.getElementById('contenidoCalificaciones').innerHTML = 
+      '<p style="text-align: center; color: #999;">Cargando calificaciones...</p>';
+    
+    const snapshot = await db.collection('calificaciones')
+      .where('materiaId', '==', materiaId)
+      .get();
+    
+    if (snapshot.empty) {
+      document.getElementById('contenidoCalificaciones').innerHTML = `
+        <div class="sin-datos">
+          <p>No hay calificaciones registradas para esta materia</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const calificaciones = [];
+    
+    for (const doc of snapshot.docs) {
+      const cal = doc.data();
+      calificaciones.push({
+        id: doc.id,
+        ...cal
+      });
+    }
+    
+    // Ordenar por nombre de alumno
+    calificaciones.sort((a, b) => (a.nombreAlumno || '').localeCompare(b.nombreAlumno || ''));
+    
+    let html = `
+      <table class="tabla-calificaciones">
+        <thead>
+          <tr>
+            <th>Alumno</th>
+            <th>Matrícula</th>
+            <th>U1</th>
+            <th>U2</th>
+            <th>U3</th>
+            <th>Prom</th>
+            <th>ETS</th>
+            <th>Final</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    calificaciones.forEach(cal => {
+      const promParciales = cal.promedioParciales || '-';
+      const finalCalc = cal.calificacionFinal || '-';
+      
+      html += `
+        <tr>
+          <td>${cal.nombreAlumno || 'Sin nombre'}</td>
+          <td>${cal.matricula || '-'}</td>
+          <td>${cal.u1 !== undefined && cal.u1 !== null ? cal.u1 : '-'}</td>
+          <td>${cal.u2 !== undefined && cal.u2 !== null ? cal.u2 : '-'}</td>
+          <td>${cal.u3 !== undefined && cal.u3 !== null ? cal.u3 : '-'}</td>
+          <td><strong>${promParciales}</strong></td>
+          <td>${cal.ets !== undefined && cal.ets !== null ? cal.ets : '-'}</td>
+          <td><strong>${finalCalc}</strong></td>
+        </tr>
+      `;
+    });
+    
+    html += `
+        </tbody>
+      </table>
+    `;
+    
+    document.getElementById('contenidoCalificaciones').innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error al cargar calificaciones:', error);
+    document.getElementById('contenidoCalificaciones').innerHTML = 
+      '<p style="color: red; text-align: center;">Error al cargar calificaciones</p>';
+  }
+}
+
+console.log('Funciones de navegación y filtrado agregadas');

@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="../../css/common/Personas.css">
   <title>Coordinador de Academia</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
     .header {
       background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%);
       color: white;
@@ -41,6 +54,7 @@
       cursor: pointer;
       font-weight: 600;
       transition: all 0.3s;
+      margin-left: 10px;
     }
 
     .btn-volver:hover {
@@ -48,42 +62,172 @@
       color: #5e35b1;
     }
 
-    .alerta-lectura {
-      background: #fff3cd;
-      padding: 20px;
-      border-radius: 10px;
-      border-left: 4px solid #ffc107;
+    /* Menú Academia */
+    .menu-academia {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
       margin-bottom: 30px;
     }
 
-    .alerta-lectura h3 {
-      margin: 0 0 10px 0;
-      color: #856404;
+    .card-academia {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all 0.3s;
+      border-left: 5px solid #5e35b1;
     }
 
-    .alerta-lectura p {
-      margin: 5px 0;
-      color: #856404;
+    .card-academia:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(94, 53, 177, 0.3);
+    }
+
+    .card-academia h3 {
+      color: #5e35b1;
+      margin-bottom: 10px;
+      font-size: 1.5rem;
+    }
+
+    .card-academia p {
+      color: #666;
+      font-size: 0.95rem;
     }
 
     .info-academia {
       background: linear-gradient(135deg, rgba(94, 53, 177, 0.1) 0%, rgba(126, 87, 194, 0.1) 100%);
-      padding: 20px;
-      border-radius: 10px;
+      padding: 25px;
+      border-radius: 12px;
       margin-bottom: 20px;
-      border-left: 4px solid #5e35b1;
+      border-left: 5px solid #5e35b1;
+      grid-column: 1 / -1;
     }
 
     .info-academia h3 {
-      margin: 0 0 10px 0;
+      margin: 0 0 15px 0;
       color: #5e35b1;
+      font-size: 1.3rem;
     }
 
     .info-academia p {
-      margin: 5px 0;
+      margin: 8px 0;
       color: #666;
+      font-size: 1rem;
     }
 
+    /* Secciones de contenido */
+    .seccion-contenido {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .seccion-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .seccion-header h2 {
+      color: #5e35b1;
+      margin: 0;
+    }
+
+    .btn-asignar {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 0.95rem;
+    }
+
+    .btn-asignar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(94, 53, 177, 0.4);
+    }
+
+    /* Buscador */
+    .buscador-container {
+      margin-bottom: 25px;
+    }
+
+    .input-buscador {
+      width: 100%;
+      padding: 12px 20px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .input-buscador:focus {
+      outline: none;
+      border-color: #5e35b1;
+      box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.1);
+    }
+
+    /* Contenido de carreras */
+    .contenido-carreras {
+      display: grid;
+      gap: 25px;
+    }
+
+    .carrera-section {
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 10px;
+      border-left: 4px solid #5e35b1;
+    }
+
+    .carrera-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      cursor: pointer;
+      padding: 10px;
+      background: white;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+
+    .carrera-header:hover {
+      background: #f0f0f0;
+    }
+
+    .carrera-header h3 {
+      color: #5e35b1;
+      margin: 0;
+      font-size: 1.3rem;
+    }
+
+    .carrera-toggle {
+      font-size: 1.5rem;
+      color: #5e35b1;
+      font-weight: bold;
+    }
+
+    .carrera-materias {
+      display: grid;
+      gap: 15px;
+      padding-top: 10px;
+    }
+
+    .carrera-materias.collapsed {
+      display: none;
+    }
+
+    /* Lista de materias */
     .lista-materias {
       display: grid;
       gap: 15px;
@@ -148,22 +292,6 @@
 
     .btn-ver:hover {
       background: #4527a0;
-    }
-
-    .btn-asignar {
-      padding: 10px 20px;
-      background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    .btn-asignar:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
 
     /* Modal */
@@ -261,6 +389,7 @@
 </head>
 <body>
 
+  <!-- HEADER -->
   <div class="header">
     <div>
       <h1>Modo Academia</h1>
@@ -269,58 +398,75 @@
     <div class="user-info">
       <p><strong id="userName">Cargando...</strong></p>
       <p id="userRol"></p>
+      <button id="btnVolverMenu" onclick="volverMenu()" class="btn-volver" style="display: none;">← Volver</button>
       <button onclick="volverCoordinador()" class="btn-volver">← Volver a Mi Carrera</button>
     </div>
   </div>
 
+  <!-- MENÚ PRINCIPAL -->
+  <div id="menuAcademia" class="menu-academia">
+    <div class="info-academia">
+      <h3>Estadísticas de tu Academia</h3>
+      <p><strong>Materias asignadas:</strong> <span id="totalMaterias">0</span></p>
+      <p><strong>Carreras cubiertas:</strong> <span id="totalCarreras">0</span></p>
+      <p><strong>Alumnos totales:</strong> <span id="totalAlumnos">0</span></p>
+    </div>
 
-  <!-- Información de la Academia -->
-  <div class="info-academia">
-    <h3>Estadísticas de tu Academia</h3>
-    <p><strong>Materias asignadas:</strong> <span id="totalMaterias">0</span></p>
-    <p><strong>Carreras cubiertas:</strong> <span id="totalCarreras">0</span></p>
-    <p><strong>Alumnos totales:</strong> <span id="totalAlumnos">0</span></p>
+    <div class="card-academia" onclick="mostrarMateriasAcademia()">
+      <h3>Materias de Academia</h3>
+      <p>Asignar materias existentes a la academia</p>
+    </div>
+
+    <div class="card-academia" onclick="mostrarVerCarreras()">
+      <h3>Ver Carreras</h3>
+      <p>Consultar materias organizadas por carrera</p>
+    </div>
   </div>
 
-  <!-- Botón Asignar Materia -->
-  <div style="margin-bottom: 20px; text-align: right;">
-    <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">
-      Asignar Materia Existente a Academia
-    </button>
-  </div>
+  <!-- SECCIÓN: MATERIAS DE ACADEMIA -->
+  <div id="seccionMateriasAcademia" class="seccion-contenido" style="display: none;">
+    <div class="seccion-header">
+      <h2>Materias de Academia</h2>
+      <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">
+        + Asignar Materia Existente
+      </button>
+    </div>
 
-  <!-- Lista de materias -->
-  <div id="contenidoMaterias">
-    <h2 style="margin-bottom: 20px;">Materias de la Academia</h2>
     <div id="listaMaterias" class="lista-materias">
       <p style="text-align: center; color: #999;">Cargando materias...</p>
     </div>
   </div>
 
-  <!-- Modal Ver Calificaciones -->
-  <div id="modalCalificaciones" class="modal">
-    <div class="modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div>
-          <h2 style="margin: 0; color: #5e35b1;">Calificaciones - Solo Lectura</h2>
-          <p style="margin: 5px 0 0 0; color: #666;" id="infoMateriaModal">-</p>
-        </div>
-        <button onclick="cerrarModalCalificaciones()" 
-                style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999;">
-          &times;
-        </button>
-      </div>
+  <!-- SECCIÓN: VER CARRERAS -->
+  <div id="seccionVerCarreras" class="seccion-contenido" style="display: none;">
+    <div class="seccion-header">
+      <h2>Materias por Carrera</h2>
+    </div>
 
-      <div id="contenidoCalificaciones">
-        <p style="text-align: center; color: #999;">Cargando...</p>
-      </div>
+    <!-- Buscador -->
+    <div class="buscador-container">
+      <input type="text" 
+             id="buscadorMateria" 
+             placeholder="Buscar materia por nombre..." 
+             onkeyup="filtrarMateriasPorNombre()"
+             class="input-buscador">
+    </div>
 
-      <div style="margin-top: 20px; text-align: center;">
-        <button onclick="cerrarModalCalificaciones()" 
-                style="padding: 12px 30px; background: #5e35b1; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-          Cerrar
-        </button>
-      </div>
+    <!-- Contenido agrupado por carreras -->
+    <div id="contenidoCarreras" class="contenido-carreras">
+      <p style="text-align: center; color: #999;">Cargando carreras...</p>
+    </div>
+  </div>
+
+  <!-- SECCIÓN: CALIFICACIONES -->
+  <div id="seccionCalificaciones" class="seccion-contenido" style="display: none;">
+    <div class="seccion-header">
+      <h2>Calificaciones - Solo Lectura</h2>
+    </div>
+    <p style="margin: 5px 0 20px 0; color: #666;" id="infoMateriaCalif">-</p>
+
+    <div id="contenidoCalificaciones">
+      <p style="text-align: center; color: #999;">Cargando...</p>
     </div>
   </div>
 
