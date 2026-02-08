@@ -2792,7 +2792,7 @@ function cambiarModo(modo) {
 
     } else if (modo === 'profesor') {
         // Redirigir a ControlProfe.html
-        window.location.href = '../../sice/control/controlProfe.html';
+        window.location.href = '../../control/profe/controlProfe.html';
 
     }
 }
