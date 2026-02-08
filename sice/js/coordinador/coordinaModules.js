@@ -2864,7 +2864,7 @@ async function cargarCalificacionesMateria() {
         asignacionCalifActual = {
             id: asignacionId,
             ...asigDoc.data(),
-            // ✅ Protección adicional: asegurar que grupoId nunca sea undefined
+            //  Protección adicional: asegurar que grupoId nunca sea undefined
             grupoId: asigDoc.data().grupoId || null
         };
 
@@ -3051,7 +3051,7 @@ async function guardarTodasCalificacionesCoord() {
             await db.collection('calificaciones').doc(docId).set({
                 alumnoId: alumno.id,
                 materiaId: asignacionCalifActual.materiaId,
-                grupoId: asignacionCalifActual.grupoId || null,  // ✅ Previene undefined
+                grupoId: asignacionCalifActual.grupoId || null,  //  Previene undefined
                 profesorId: asignacionCalifActual.profesorId,
                 periodo: asignacionCalifActual.periodo,
                 parciales: {
@@ -3526,7 +3526,7 @@ async function cargarInformacionPeriodoActual() {
     if (!configDoc.exists) {
       container.innerHTML = `
         <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800;">
-          <p><strong>⚠️ No hay configuración del sistema</strong></p>
+          <p><strong>No hay configuración del sistema</strong></p>
           <p>Por favor, configure el sistema primero.</p>
         </div>
       `;
