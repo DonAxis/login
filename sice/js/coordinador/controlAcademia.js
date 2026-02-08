@@ -1,5 +1,5 @@
 // vistaAcademia.js
-// Vista de Academia para Coordinadores - Solo Lectura
+// Vista de Academia para Coordinadores 
 
 const auth = firebase.auth();
 let usuarioActual = null;
@@ -42,7 +42,7 @@ function mostrarVerCarreras() {
 }
 
 // vistaAcademia.js
-// Vista de Academia para Coordinadores - Solo Lectura
+// Vista de Academia para Coordinadores 
 
 const auth = firebase.auth();
 let usuarioActual = null;
@@ -537,7 +537,7 @@ async function asignarMateriaSeleccionada() {
       academiaNombre = usuarioActual.academiaNombre;
     }
     
-    if (!confirm(`Asignar "${materia.nombre}" a ${academiaNombre}?\n\nEsto te permitira verla en modo solo lectura.`)) {
+    if (!confirm(`Asignar "${materia.nombre}" a ${academiaNombre}?\n\nEsto te permitira verla.`)) {
       return;
     }
     
@@ -610,7 +610,7 @@ window.onclick = function(event) {
   }
 }
 
-console.log('Vista Academia - Solo Lectura cargada');
+console.log('Vista Academia');
 // ===== MOSTRAR MATERIAS AGRUPADAS POR CARRERA =====
 function mostrarMateriasPorCarrera() {
   const container = document.getElementById('contenidoCarreras');
