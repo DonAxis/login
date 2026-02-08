@@ -167,7 +167,7 @@ function mostrarMaterias() {
         <p>No hay materias asignadas a tu academia</p>
         <p style="margin-top: 10px;">
           <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">
-            ➕ Asignar Primera Materia
+            Asignar Primera Materia
           </button>
         </p>
       </div>
