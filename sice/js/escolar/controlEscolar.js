@@ -87,8 +87,9 @@ async function cargarPeriodoActual() {
 
 async function cargarCarreras() {
   try {
+    // CORRECCIÓN: Cambiar 'activa' por 'activo' para que coincida con Firestore
     const snapshot = await db.collection('carreras')
-      .where('activa', '==', true)
+      .where('activo', '==', true)
       .get();
     
     carrerasData = [];

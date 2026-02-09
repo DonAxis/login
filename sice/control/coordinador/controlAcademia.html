@@ -7,133 +7,65 @@
   <link rel="stylesheet" href="../../css/common/Personas.css">
   <link rel="stylesheet" href="../../css/modules/controlAcademia.css">
   <title>Coordinador de Academia</title>
- 
+  
 </head>
 <body>
 
-  <!-- HEADER -->
   <div class="header">
     <div>
       <h1>Modo Academia</h1>
-      <p style="margin: 5px 0;" id="academiaNombre">Gestión de Materias Transversales</p>
+      <p id="academiaNombre" style="color: #94a3b8; font-size: 0.9rem;">Gestión de Materias Transversales</p>
     </div>
     <div class="user-info">
-      <p><strong id="userName">Cargando...</strong></p>
+      <p><strong id="userName" style="color: white;">Cargando...</strong></p>
       <p id="userRol"></p>
-      <button id="btnVolverMenu" onclick="volverMenu()" class="btn-volver" style="display: none;">← Volver</button>
-      <button onclick="volverCoordinador()" class="btn-volver">← Volver a Mi Carrera</button>
+      <div style="margin-top: 10px;">
+        <button id="btnVolverMenu" onclick="volverMenu()" class="btn-volver" style="display: none;">← Volver</button>
+        <button onclick="volverCoordinador()" class="btn-volver">← Mi Carrera</button>
+      </div>
     </div>
   </div>
 
-  <!-- MENÚ PRINCIPAL -->
   <div id="menuAcademia" class="menu-academia">
     <div class="info-academia">
-      <h3>Estadísticas de tu Academia</h3>
-      <p><strong>Materias asignadas:</strong> <span id="totalMaterias">0</span></p>
-      <p><strong>Carreras cubiertas:</strong> <span id="totalCarreras">0</span></p>
-      <p><strong>Alumnos totales:</strong> <span id="totalAlumnos">0</span></p>
+      <h3>Resumen General</h3>
+      <p>Materias: <span id="totalMaterias">0</span></p>
+      <p>Carreras: <span id="totalCarreras">0</span></p>
+      <p>Alumnos: <span id="totalAlumnos">0</span></p>
     </div>
 
     <div class="card-academia" onclick="mostrarMateriasAcademia()">
-      <h3>Materias de Academia</h3>
-      <p>Asignar materias existentes a la academia</p>
+      <h3>Materias Transversales</h3>
+      <p>Configuración y asignación de materias por academia.</p>
     </div>
 
     <div class="card-academia" onclick="mostrarVerCarreras()">
-      <h3>Ver Carreras</h3>
-      <p>Consultar materias organizadas por carrera</p>
+      <h3>Mapa de Carreras</h3>
+      <p>Visualización jerárquica de contenidos por programa educativo.</p>
     </div>
   </div>
 
-  <!-- SECCIÓN: MATERIAS DE ACADEMIA -->
   <div id="seccionMateriasAcademia" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Materias de Academia</h2>
-      <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">
-        + Asignar Materia Existente
-      </button>
+      <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">+ Asignar Materia</button>
     </div>
-
-    <div id="listaMaterias" class="lista-materias">
-      <p style="text-align: center; color: #999;">Cargando materias...</p>
-    </div>
+    <div id="listaMaterias" class="lista-materias" style="margin-top: 20px;"></div>
   </div>
 
-  <!-- SECCIÓN: VER CARRERAS -->
   <div id="seccionVerCarreras" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
-      <h2>Materias por Carrera</h2>
+      <h2>Explorar por Carrera</h2>
     </div>
-
-    <!-- Buscador -->
-    <div class="buscador-container">
-      <input type="text" 
-             id="buscadorMateria" 
-             placeholder="Buscar materia por nombre..." 
-             onkeyup="filtrarMateriasPorNombre()"
-             class="input-buscador">
+    <div class="buscador-container" style="margin: 20px 0;">
+      <input type="text" id="buscadorMateria" placeholder="Escribe el nombre de la materia..." onkeyup="filtrarMateriasPorNombre()" class="input-buscador">
     </div>
-
-    <!-- Contenido agrupado por carreras -->
-    <div id="contenidoCarreras" class="contenido-carreras">
-      <p style="text-align: center; color: #999;">Cargando carreras...</p>
-    </div>
+    <div id="contenidoCarreras" class="contenido-carreras"></div>
   </div>
 
-  <!-- SECCIÓN: CALIFICACIONES -->
-  <div id="seccionCalificaciones" class="seccion-contenido" style="display: none;">
-    <div class="seccion-header">
-      <h2>Calificaciones</h2>
-    </div>
-    <p style="margin: 5px 0 20px 0; color: #666;" id="infoMateriaCalif">-</p>
-
-    <div id="contenidoCalificaciones">
-      <p style="text-align: center; color: #999;">Cargando...</p>
-    </div>
-  </div>
-
-  <div id="modalAsignarMateria" class="modal">
-    <div class="modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div>
-          <h2 style="margin: 0; color: #6F1D46;">Asignar Materia a Academia</h2>
-          <p style="margin: 5px 0 0 0; color: #666;">Selecciona una materia existente para agregar a tu academia</p>
-        </div>
-        <button onclick="cerrarModalAsignarMateria()" 
-                style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999;">
-          &times;
-        </button>
-      </div>
-
-      <div class="filtro-carrera">
-        <label style="font-weight: 600; display: block; margin-bottom: 5px;">Filtrar por carrera:</label>
-        <select id="filtroCarrera" onchange="filtrarMateriasDisponibles()">
-          <option value="">Todas las carreras</option>
-        </select>
-      </div>
-
-      <div id="listaMateriasDisponibles" class="lista-materias-disponibles">
-        <p style="text-align: center; color: #999;">Cargando materias disponibles...</p>
-      </div>
-
-      <div style="margin-top: 20px; display: flex; gap: 10px;">
-        <button onclick="asignarMateriaSeleccionada()" 
-                style="flex: 1; padding: 12px; background: #6F1D46; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-          Asignar a Academia
-        </button>
-        <button onclick="cerrarModalAsignarMateria()" 
-                style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
-          Cancelar
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  
   <script src="../../js/utils/firebase.js"></script>
   <script src="../../js/coordinador/controlAcademia.js"></script>
 </body>
