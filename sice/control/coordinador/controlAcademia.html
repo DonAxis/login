@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="../../css/common/Personas.css">
   <link rel="stylesheet" href="../../css/modules/controlAcademia.css">
   <title>Coordinador de Academia</title>
-  
 </head>
 <body>
 
+  <!-- HEADER -->
   <div class="header">
     <div>
       <h1>Modo Academia</h1>
@@ -26,6 +26,7 @@
     </div>
   </div>
 
+  <!-- MENÚ PRINCIPAL -->
   <div id="menuAcademia" class="menu-academia">
     <div class="info-academia">
       <h3>Resumen General</h3>
@@ -45,6 +46,7 @@
     </div>
   </div>
 
+  <!-- SECCIÓN: MATERIAS DE ACADEMIA -->
   <div id="seccionMateriasAcademia" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Materias de Academia</h2>
@@ -53,6 +55,7 @@
     <div id="listaMaterias" class="lista-materias" style="margin-top: 20px;"></div>
   </div>
 
+  <!-- SECCIÓN: VER CARRERAS -->
   <div id="seccionVerCarreras" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Explorar por Carrera</h2>
@@ -63,6 +66,56 @@
     <div id="contenidoCarreras" class="contenido-carreras"></div>
   </div>
 
+  <!-- SECCIÓN: CALIFICACIONES -->
+  <div id="seccionCalificaciones" class="seccion-contenido" style="display: none;">
+    <div class="seccion-header">
+      <h2>Calificaciones - Solo Lectura</h2>
+    </div>
+    <p style="margin: 5px 0 20px 0; color: #666;" id="infoMateriaCalif">-</p>
+    <div id="contenidoCalificaciones">
+      <p style="text-align: center; color: #999;">Cargando...</p>
+    </div>
+  </div>
+
+  <!-- Modal Asignar Materia -->
+  <div id="modalAsignarMateria" class="modal">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+          <h2 style="margin: 0; color: #5e35b1;">Asignar Materia a Academia</h2>
+          <p style="margin: 5px 0 0 0; color: #666;">Selecciona una materia existente para agregar a tu academia</p>
+        </div>
+        <button onclick="cerrarModalAsignarMateria()" 
+                style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999;">
+          &times;
+        </button>
+      </div>
+
+      <div class="filtro-carrera">
+        <label style="font-weight: 600; display: block; margin-bottom: 5px;">Filtrar por carrera:</label>
+        <select id="filtroCarrera" onchange="filtrarMateriasDisponibles()">
+          <option value="">Todas las carreras</option>
+        </select>
+      </div>
+
+      <div id="listaMateriasDisponibles" class="lista-materias-disponibles">
+        <p style="text-align: center; color: #999;">Cargando materias disponibles...</p>
+      </div>
+
+      <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <button onclick="asignarMateriaSeleccionada()" 
+                style="flex: 1; padding: 12px; background: #5e35b1; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+          Asignar a Academia
+        </button>
+        <button onclick="cerrarModalAsignarMateria()" 
+                style="flex: 1; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
