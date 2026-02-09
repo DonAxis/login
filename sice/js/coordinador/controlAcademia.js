@@ -44,7 +44,7 @@ function mostrarVerCarreras() {
 // ===== PROTECCIÓN =====
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
-    alert('Debes iniciar sesión');
+   // alert('Debes iniciar sesión');
     window.location.href = '../../index.html';
     return;
   }

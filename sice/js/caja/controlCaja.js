@@ -9,7 +9,7 @@ let filtroActual = 'todos';
 // ===== PROTECCIÓN =====
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
-    alert('Debes iniciar sesión');
+   // alert('Debes iniciar sesión');
     window.location.href = 'https://ilbcontrol.mx/sice';
     return;
   }
