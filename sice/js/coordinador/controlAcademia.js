@@ -1,5 +1,5 @@
 // vistaAcademia.js
-// Vista de Academia para Coordinadores - Solo Lectura
+// Vista de Academia para Coordinadores
 
 const auth = firebase.auth();
 let usuarioActual = null;
@@ -701,4 +701,4 @@ window.onclick = function(event) {
   }
 }
 
-console.log('Vista Academia - Solo Lectura cargada');
+console.log('Vista Academia');
