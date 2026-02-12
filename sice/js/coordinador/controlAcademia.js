@@ -1,5 +1,5 @@
 // vistaAcademia.js
-// Vista de Academia para Coordinadores
+// Vista de Academia para Coordinadores 
 
 const auth = firebase.auth();
 let usuarioActual = null;
