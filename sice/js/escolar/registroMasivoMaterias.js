@@ -73,7 +73,7 @@ async function mostrarModalMateriasMasivas() {
 
           <!-- SELECTOR DE PERIODO -->
           <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-            <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 1.2rem;">Selecciona el Periodo (Semestre, cuatrimestre o trimestre) </h3>
+            <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 1.2rem;">Selecciona el periodo (semestre, cuatrimestre o trimestre) </h3>
             <select id="periodoMateriasMasivo" required onchange="actualizarPreviewPeriodo()"
                     style="width: 100%; padding: 12px; border: 2px solid #4caf50; border-radius: 8px; font-size: 1rem; background: white; font-weight: 600;">
               ${periodosHTML}
