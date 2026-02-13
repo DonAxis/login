@@ -730,10 +730,7 @@ async function cargarAsignaciones() {
 
         let html = `
             <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <strong style="color: #1565c0;">Total de asignaciones: ${snapshot.size}</strong>
-                <div style="margin-top: 8px; font-size: 0.9rem; color: #1565c0;">
-                    Agrupadas por periodo
-                </div>
+                <strong style="color: #1565c0;">Orden por periodo</strong>
             </div>
         `;
 
@@ -1016,8 +1013,9 @@ async function mostrarFormAsignarProfesor() {
         
         <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <h4 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Información</h4>
-          <p style="margin: 0; color: #1565c0; font-size: 0.85rem; line-height: 1.6;">
+          <p style="margin: 0; color: #1565c0; font-size: 0.85rem; line-height: 1.2;">
             Selecciona la materia, turno y orden del grupo para asignar un profesor.
+            Periodo se refiere a semestre, cuatrimestre o trimestre
           </p>
         </div>
 
@@ -1344,7 +1342,7 @@ async function mostrarFormAsignarProfesor2() {
         <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
           <strong style="color: #856404; font-size: 1rem;">Instrucciones:</strong>
           <p style="margin: 8px 0 0 0; color: #856404; font-size: 0.9rem; line-height: 1.6;">
-            Selecciona el periodo, turno y orden del grupo para que se muestren las materias correspondientes.<br>
+            Selecciona el periodo (semestre, cuatrimestre o trimestre), turno y orden del grupo para que se muestren las materias correspondientes.<br>
             Después asigna un profesor a cada una según sea necesario y guarda los cambios.<br>
             Solo se guardarán las materias que tengan un profesor asignado.
           </p>
