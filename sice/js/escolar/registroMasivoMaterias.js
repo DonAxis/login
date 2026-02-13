@@ -36,7 +36,7 @@ async function mostrarModalMateriasMasivas() {
           <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
             <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
-              <li>Selecciona el periodo donde se registraran las materias</li>
+              <li>Selecciona el periodo (semestre, cuatrimestre o trimestre ) donde se registraran las materias</li>
               <li>Pega los nombres de materias (uno por linea)</li>
               <li>Pega los creditos SATCA y TEPIC (uno por linea cada columna)</li>
               <li>Las materias se crearan automaticamente para los 4 turnos</li>
@@ -73,7 +73,7 @@ async function mostrarModalMateriasMasivas() {
 
           <!-- SELECTOR DE PERIODO -->
           <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-            <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 1.2rem;">Selecciona el Periodo</h3>
+            <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 1.2rem;">Selecciona el Periodo (Semestre, cuatrimestre o trimestre) </h3>
             <select id="periodoMateriasMasivo" required onchange="actualizarPreviewPeriodo()"
                     style="width: 100%; padding: 12px; border: 2px solid #4caf50; border-radius: 8px; font-size: 1rem; background: white; font-weight: 600;">
               ${periodosHTML}
