@@ -2191,7 +2191,7 @@ async function cargarProfesores() {
  <div class="item-acciones">
  ${profesor.rol === 'profesor' ? `
  <button onclick="editarProfesor('${item.id}')" class="btn-editar">Editar</button>
- <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="botAzu">
+ <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="${profesor.activo ? 'botRojo' : 'botVerde'}">
  ${profesor.activo ? 'Desactivar' : 'Activar'}
  </button>
  ` : `
