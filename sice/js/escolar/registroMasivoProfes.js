@@ -99,16 +99,59 @@ async function mostrarModalProfesoresMasivos() {
 
         </form>
 
+        <!-- BARRA DE PROGRESO MEJORADA -->
         <div id="barraProgresoProfesores" style="display: none; margin-top: 20px;">
-          <div style="background: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden; position: relative;">
+          
+          <!-- Barra principal -->
+          <div style="background: #e0e0e0; border-radius: 10px; height: 40px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
             <div id="barraProgresoProfesoresFill" 
-                 style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                 style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.5s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1rem; box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);">
               0%
             </div>
           </div>
-          <p id="textoProgresoProfesores" style="text-align: center; margin-top: 10px; color: #666; font-size: 0.9rem;">
+          
+          <!-- Texto de estado principal -->
+          <div id="textoProgresoProfesores" style="text-align: center; margin-top: 15px; color: #333; font-size: 1rem; font-weight: 600;">
+            Preparando registro...
+          </div>
+          
+          <!-- Estadísticas en tiempo real -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            
+            <div style="text-align: center;">
+              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
+                Procesados
+              </div>
+              <div id="contadorProcesados" style="font-size: 1.8rem; font-weight: 700; color: #667eea;">
+                0
+              </div>
+            </div>
+            
+            <div style="text-align: center;">
+              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
+                Exitosos
+              </div>
+              <div id="contadorExitosos" style="font-size: 1.8rem; font-weight: 700; color: #4caf50;">
+                0
+              </div>
+            </div>
+            
+            <div style="text-align: center;">
+              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
+                Fallidos
+              </div>
+              <div id="contadorFallidos" style="font-size: 1.8rem; font-weight: 700; color: #f44336;">
+                0
+              </div>
+            </div>
+            
+          </div>
+          
+          <!-- Estado actual detallado -->
+          <div id="estadoActual" style="margin-top: 15px; padding: 12px; background: white; border-left: 4px solid #667eea; border-radius: 4px; font-size: 0.9rem; color: #666; min-height: 40px;">
             Iniciando proceso...
-          </p>
+          </div>
+          
         </div>
 
       </div>
@@ -208,6 +251,27 @@ function previsualizarProfesores() {
   document.getElementById('vistaPreviaProfesores').style.display = 'block';
 }
 
+// Función auxiliar para actualizar contadores visuales
+function actualizarContadores(procesados, exitosos, fallidos) {
+  document.getElementById('contadorProcesados').textContent = procesados;
+  document.getElementById('contadorExitosos').textContent = exitosos;
+  document.getElementById('contadorFallidos').textContent = fallidos;
+}
+
+// Función auxiliar para actualizar estado actual
+function actualizarEstado(mensaje, tipo = 'info') {
+  const estadoDiv = document.getElementById('estadoActual');
+  const colores = {
+    'info': '#667eea',
+    'success': '#4caf50',
+    'warning': '#ff9800',
+    'error': '#f44336'
+  };
+  
+  estadoDiv.style.borderLeftColor = colores[tipo] || colores.info;
+  estadoDiv.innerHTML = mensaje;
+}
+
 async function guardarProfesoresMasivos(event) {
   event.preventDefault();
   
@@ -230,7 +294,14 @@ async function guardarProfesoresMasivos(event) {
     }
   }
   
-  const confirmar = confirm(`¿Crear ${nombres.length} profesores?\n\nContraseña temporal: ilb123\n\nEste proceso puede tardar varios minutos...`);
+  const tiempoEstimado = Math.ceil(nombres.length * 2.5 / 60);
+  const confirmar = confirm(
+    `Crear ${nombres.length} profesores?\n\n` +
+    `Contraseña temporal: ilb123\n` +
+    `Tiempo estimado: ${tiempoEstimado} minuto${tiempoEstimado !== 1 ? 's' : ''}\n\n` +
+    `Continuar?`
+  );
+  
   if (!confirmar) return;
   
   const passwordTemporal = 'ilb123';
@@ -245,9 +316,9 @@ async function guardarProfesoresMasivos(event) {
   let fallidos = 0;
   const erroresDetallados = [];
   
- // console.log('=== INICIANDO REGISTRO MASIVO DE PROFESORES ===');
- // console.log(`Total profesores: ${nombres.length}`);
-  console.log(`Tiempo estimado: ${Math.ceil(nombres.length * 2.5 / 60)} minutos`);
+  console.log('=== INICIANDO REGISTRO MASIVO DE PROFESORES ===');
+  console.log(`Total profesores: ${nombres.length}`);
+  console.log(`Tiempo estimado: ${tiempoEstimado} minutos`);
   
   // PROCESAR CADA PROFESOR CON REINTENTOS
   for (let i = 0; i < nombres.length; i++) {
@@ -257,10 +328,10 @@ async function guardarProfesoresMasivos(event) {
     const porcentaje = Math.round(((i + 1) / nombres.length) * 100);
     barra.style.width = porcentaje + '%';
     barra.textContent = porcentaje + '%';
-    texto.innerHTML = `
-      Creando ${i + 1}/${nombres.length}: ${nombre}<br>
-      <small style="color: #999;">Exitosos: ${exitosos} | Fallidos: ${fallidos}</small>
-    `;
+    texto.textContent = `Procesando: ${i + 1} de ${nombres.length}`;
+    
+    actualizarContadores(i + 1, exitosos, fallidos);
+    actualizarEstado(`Creando profesor: <strong>${nombre}</strong>`, 'info');
     
     // IMPLEMENTAR REINTENTOS
     let intentos = 0;
@@ -275,10 +346,11 @@ async function guardarProfesoresMasivos(event) {
         
         if (intentos > 1) {
           console.log(`[${i + 1}] Reintentando ${email} (intento ${intentos}/${maxIntentos})...`);
-          texto.innerHTML = `
-            Reintentando ${i + 1}/${nombres.length}: ${nombre}<br>
-            <small style="color: #ff9800;">Intento ${intentos} de ${maxIntentos}...</small>
-          `;
+          actualizarEstado(
+            `Reintentando profesor: <strong>${nombre}</strong><br>` +
+            `<small>Intento ${intentos} de ${maxIntentos}</small>`,
+            'warning'
+          );
         }
         
         // USAR INSTANCIA SECUNDARIA CON NOMBRE ÚNICO
@@ -292,7 +364,7 @@ async function guardarProfesoresMasivos(event) {
         const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, passwordTemporal);
         const newUid = userCredential.user.uid;
         
-        console.log(`[${i + 1}] ✓ Profesor creado en Authentication: ${email} (${newUid})`);
+        console.log(`[${i + 1}] Profesor creado en Authentication: ${email} (${newUid})`);
         
         // Guardar en Firestore
         const profesorData = {
@@ -319,7 +391,12 @@ async function guardarProfesoresMasivos(event) {
         await secondaryApp.delete();
         
         exitosos++;
-        exitoCreacion = true; // Marcar como exitoso
+        exitoCreacion = true;
+        
+        actualizarEstado(
+          `Profesor creado exitosamente: <strong>${nombre}</strong>`,
+          'success'
+        );
         
       } catch (authError) {
         // Limpiar instancia secundaria en caso de error
@@ -332,10 +409,17 @@ async function guardarProfesoresMasivos(event) {
         
         // Si es error de red y aún quedan intentos, esperar y reintentar
         if (authError.code === 'auth/network-request-failed' && intentos < maxIntentos) {
-          const esperaMilisegundos = 3000 * intentos; // 3s, 6s, 9s
+          const esperaMilisegundos = 3000 * intentos;
           console.log(`[${i + 1}] Error de red, esperando ${esperaMilisegundos/1000}s antes de reintentar...`);
+          
+          actualizarEstado(
+            `Error de red detectado. Esperando ${esperaMilisegundos/1000} segundos...<br>` +
+            `<small>Reintentando automáticamente...</small>`,
+            'warning'
+          );
+          
           await new Promise(resolve => setTimeout(resolve, esperaMilisegundos));
-          continue; // Reintentar
+          continue;
         }
         
         // Si es email duplicado, intentar agregar a carrera
@@ -356,9 +440,14 @@ async function guardarProfesoresMasivos(event) {
                 await db.collection('usuarios').doc(profesorDoc.id).update({
                   carreras: [...carrerasActuales, usuarioActual.carreraId]
                 });
-                console.log(`[${i + 1}] ✓ Profesor existente agregado a carrera: ${email}`);
+                console.log(`[${i + 1}] Profesor existente agregado a carrera: ${email}`);
                 exitosos++;
                 exitoCreacion = true;
+                
+                actualizarEstado(
+                  `Profesor existente agregado a la carrera: <strong>${nombre}</strong>`,
+                  'success'
+                );
               } else {
                 erroresDetallados.push({
                   numero: i + 1,
@@ -368,7 +457,12 @@ async function guardarProfesoresMasivos(event) {
                   codigo: 'ya-existe'
                 });
                 fallidos++;
-                exitoCreacion = true; // No reintentar
+                exitoCreacion = true;
+                
+                actualizarEstado(
+                  `Profesor ya existe en esta carrera: <strong>${nombre}</strong>`,
+                  'error'
+                );
               }
             } else {
               erroresDetallados.push({
@@ -379,7 +473,12 @@ async function guardarProfesoresMasivos(event) {
                 codigo: authError.code
               });
               fallidos++;
-              exitoCreacion = true; // No reintentar
+              exitoCreacion = true;
+              
+              actualizarEstado(
+                `Email ya registrado (no como profesor): <strong>${email}</strong>`,
+                'error'
+              );
             }
           } catch (firestoreError) {
             console.error(`[${i + 1}] Error al verificar profesor existente:`, firestoreError);
@@ -391,7 +490,13 @@ async function guardarProfesoresMasivos(event) {
               codigo: firestoreError.code
             });
             fallidos++;
-            exitoCreacion = true; // No reintentar
+            exitoCreacion = true;
+            
+            actualizarEstado(
+              `Error al procesar: <strong>${nombre}</strong><br>` +
+              `<small>${firestoreError.message}</small>`,
+              'error'
+            );
           }
         } 
         // Si agotamos los intentos o es otro tipo de error
@@ -405,14 +510,19 @@ async function guardarProfesoresMasivos(event) {
             codigo: authError.code,
             intentos: intentos
           });
-          console.error(`[${i + 1}] ✗ ERROR al crear ${email}:`, authError);
-          exitoCreacion = true; // Dejar de reintentar
+          console.error(`[${i + 1}] ERROR al crear ${email}:`, authError);
+          exitoCreacion = true;
+          
+          actualizarEstado(
+            `Error al crear profesor: <strong>${nombre}</strong><br>` +
+            `<small>${authError.message}</small>`,
+            'error'
+          );
         }
       }
     }
     
     // PAUSA ENTRE PROFESORES PARA EVITAR RATE LIMITING
-    // 2 segundos base + tiempo adicional si hubo reintentos
     const pausa = intentos > 1 ? 3000 : 2000;
     await new Promise(resolve => setTimeout(resolve, pausa));
   }
@@ -420,41 +530,57 @@ async function guardarProfesoresMasivos(event) {
   console.log('=== PROCESO COMPLETADO ===');
   console.log(`Exitosos: ${exitosos} | Fallidos: ${fallidos}`);
   
+  // ACTUALIZAR VISTA FINAL
   barra.style.background = fallidos === 0 
     ? 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)'
     : 'linear-gradient(90deg, #ff9800 0%, #f57c00 100%)';
   
-  texto.innerHTML = `
-    <strong style="color: ${fallidos === 0 ? '#4caf50' : '#ff9800'};">✓ Proceso completado</strong><br>
-    Profesores creados: <strong>${exitosos}</strong><br>
-    ${fallidos > 0 ? `Errores: <strong style="color: #f44336;">${fallidos}</strong>` : ''}
-  `;
+  barra.style.boxShadow = fallidos === 0
+    ? '0 0 10px rgba(76, 175, 80, 0.5)'
+    : '0 0 10px rgba(255, 152, 0, 0.5)';
+  
+  texto.innerHTML = `<strong>Proceso completado</strong>`;
+  
+  actualizarContadores(nombres.length, exitosos, fallidos);
+  
+  if (fallidos === 0) {
+    actualizarEstado(
+      `<strong>Todos los profesores fueron registrados exitosamente</strong>`,
+      'success'
+    );
+  } else {
+    actualizarEstado(
+      `<strong>Proceso completado con algunos errores</strong><br>` +
+      `<small>Revisa el resumen para ver los detalles</small>`,
+      'warning'
+    );
+  }
   
   // CREAR MENSAJE DE RESUMEN
-  let mensaje = `╔════════════════════════════════════════╗\n`;
-  mensaje += `║  REGISTRO MASIVO DE PROFESORES       ║\n`;
-  mensaje += `╚════════════════════════════════════════╝\n\n`;
+  let mensaje = `====================================\n`;
+  mensaje += `REGISTRO MASIVO DE PROFESORES\n`;
+  mensaje += `====================================\n\n`;
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
   mensaje += `Total procesados: ${nombres.length}\n\n`;
   mensaje += `Contraseña temporal: ${passwordTemporal}\n`;
-  mensaje += `Los profesores deben cambiar su contraseña en el primer login.\n`;
+  mensaje += `IMPORTANTE: Los profesores deben cambiar su contraseña en el primer login.\n`;
   
   if (erroresDetallados.length > 0) {
-    mensaje += `\n${'═'.repeat(50)}\n`;
+    mensaje += `\n${'='.repeat(50)}\n`;
     mensaje += `ERRORES DETALLADOS:\n`;
-    mensaje += `${'═'.repeat(50)}\n\n`;
+    mensaje += `${'='.repeat(50)}\n\n`;
     
     erroresDetallados.forEach(err => {
       mensaje += `#${err.numero} - ${err.nombre}\n`;
-      mensaje += `   ${err.email}\n`;
+      mensaje += `   Email: ${err.email}\n`;
       
       if (err.codigo === 'auth/email-already-in-use') {
-        mensaje += `    El email ya está registrado en Firebase\n`;
+        mensaje += `   El email ya está registrado en Firebase\n`;
       } else if (err.codigo === 'ya-existe') {
-        mensaje += `    ${err.error}\n`;
+        mensaje += `   ${err.error}\n`;
       } else if (err.codigo === 'auth/network-request-failed') {
-        mensaje += `    Error de red después de ${err.intentos || 3} intentos\n`;
+        mensaje += `   Error de red después de ${err.intentos || 3} intentos\n`;
         mensaje += `   Consejo: Verifica tu conexión a internet\n`;
       } else {
         mensaje += `   ${err.error}\n`;
@@ -489,4 +615,4 @@ document.addEventListener('click', function(event) {
   }
 });
 
-console.log('Registro masivo de profesores cargado (versión mejorada con reintentos)');
+console.log('Registro masivo de profesores cargado (versión mejorada con barra de progreso detallada)');
