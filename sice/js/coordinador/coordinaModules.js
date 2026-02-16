@@ -2458,11 +2458,11 @@ async function guardarProfesor(event, profesorId) {
 
     try {
         if (profesorId) {
-            // Editar profesor existente
+            // Editar
             await db.collection('usuarios').doc(profesorId).update(userData);
-            alert('Profesor actualizado');
+            alert(' Profesor actualizado');
         } else {
-            // Crear nuevo profesor
+            // Crear nuevo
             const password = document.getElementById('passwordProfesor').value;
 
             if (password.length < 6) {
@@ -2470,151 +2470,64 @@ async function guardarProfesor(event, profesorId) {
                 return;
             }
 
-            // PRIMERO: Buscar si existe un usuario eliminado con este email
-            const usuarioEliminadoSnap = await db.collection('usuarios')
-                .where('email', '==', email)
-                .where('eliminado', '==', true)
-                .limit(1)
-                .get();
-
-            if (!usuarioEliminadoSnap.empty) {
-                // Usuario eliminado encontrado - REUTILIZAR
-                const docEliminado = usuarioEliminadoSnap.docs[0];
-                const uidExistente = docEliminado.id;
-                
-                console.log('Reutilizando usuario eliminado:', uidExistente);
-
-                // Restaurar el usuario con los nuevos datos
-                await db.collection('usuarios').doc(uidExistente).set({
-                    nombre: nombre,
-                    email: email,
-                    rol: 'profesor',
-                    roles: ['profesor'],
-                    carreras: [usuarioActual.carreraId],
-                    activo: activo,
-                    fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
-                    fechaRestauracion: firebase.firestore.FieldValue.serverTimestamp(),
-                    restauradoDe: docEliminado.data(),
-                    eliminado: false
-                });
-
-                alert(`Profesor restaurado exitosamente
-
-El email ${email} ya existía en el sistema y fue reutilizado.
-
-Nombre: ${nombre}
-Email: ${email}
-
-IMPORTANTE:
-La contraseña que ingresaste NO se aplicó.
-El profesor debe usar su contraseña anterior o solicitar
-un restablecimiento de contraseña.`);
-
-                cerrarModal();
-                cargarProfesores();
-                return;
-            }
-
-            // SEGUNDO: Crear con instancia secundaria
+            // Usar instancia secundaria de Firebase para crear sin cerrar sesión
             const secondaryApp = firebase.initializeApp(firebaseConfig, 'SecondaryProfesor_' + Date.now());
             const secondaryAuth = secondaryApp.auth();
 
             try {
-                // Intentar crear en Authentication
+                // Crear en Authentication con instancia secundaria
                 const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
                 const newUid = userCredential.user.uid;
 
                 console.log('Profesor creado en Authentication:', newUid);
 
-                // Guardar en Firestore
+                // Guardar en Firestore CON carreras
                 userData.carreras = [usuarioActual.carreraId];
-                userData.roles = ['profesor'];
+                userData.roles = ['profesor']; // Agregar roles
                 userData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
 
+                console.log('Guardando profesor en Firestore...', newUid);
                 await db.collection('usuarios').doc(newUid).set(userData);
                 console.log('Profesor guardado en Firestore');
 
-                // Cerrar sesión y eliminar app secundaria
+                // Cerrar sesión de la instancia secundaria
                 await secondaryAuth.signOut();
+
+                // Eliminar la app secundaria
                 await secondaryApp.delete();
 
-                alert(`Profesor creado exitosamente
-
-Nombre: ${nombre}
-Email: ${email}
-Contraseña: ${password}
-
-El profesor debe cambiar su contraseña al iniciar sesión.`);
+                // Mostrar éxito SIN cerrar sesión del coordinador
+                alert(`Profesor creado \n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}`);
 
             } catch (authError) {
                 if (authError.code === 'auth/email-already-in-use') {
-                    // TERCERO: Email ya existe en Authentication
-                    console.log('Email ya existe en Authentication, intentando reutilizar...');
-                    
-                    // Buscar si existe en Firestore (como profesor de otra carrera)
+                    // Email ya existe - buscar profesor y agregar carrera
                     const existeSnap = await db.collection('usuarios')
                         .where('email', '==', email)
+                        .where('rol', '==', 'profesor')
                         .limit(1)
                         .get();
 
                     if (!existeSnap.empty) {
-                        // Existe como profesor de otra carrera
                         const profesorDoc = existeSnap.docs[0];
                         const profesorData = profesorDoc.data();
-                        
-                        if (profesorData.rol === 'profesor') {
-                            const carrerasActuales = profesorData.carreras || [];
+                        const carrerasActuales = profesorData.carreras || [];
 
-                            if (!carrerasActuales.includes(usuarioActual.carreraId)) {
-                                await db.collection('usuarios').doc(profesorDoc.id).update({
-                                    carreras: [...carrerasActuales, usuarioActual.carreraId]
-                                });
-                                alert(`Profesor ya existía en otra carrera
-
-Se agregó a tu carrera exitosamente.
-
-Nombre: ${profesorData.nombre}
-Email: ${email}
-
-IMPORTANTE:
-El profesor mantiene su contraseña original.
-La contraseña que ingresaste NO se aplicó.`);
-                            } else {
-                                alert(`Este profesor ya está en tu carrera.
-
-Nombre: ${profesorData.nombre}`);
-                            }
+                        if (!carrerasActuales.includes(usuarioActual.carreraId)) {
+                            await db.collection('usuarios').doc(profesorDoc.id).update({
+                                carreras: [...carrerasActuales, usuarioActual.carreraId]
+                            });
+                            alert(` Profesor ya existía en otra carrera.\n\nSe agregó a tu carrera exitosamente.\n\n IMPORTANTE:\nEl profesor mantiene su contraseña original.\nLa contraseña que ingresaste NO se aplicó.\n\nNombre: ${profesorData.nombre}\nEmail: ${email}`);
                         } else {
-                            alert(`Este email ya está registrado con otro rol: ${profesorData.rol}
-
-No se puede crear como profesor.`);
+                            alert(`ℹ Este profesor ya está en tu carrera.\n\nNombre: ${profesorData.nombre}`);
                         }
-                    } else {
-                        // Email existe en Auth pero NO en Firestore
-                        // Esto pasa cuando se eliminó el documento pero quedó en Auth
-                        alert(`ATENCIÓN: Email huérfano detectado
 
-El email ${email} existe en Authentication pero no tiene datos en la base de datos.
-
-Esto ocurre cuando:
-1. Se eliminó un profesor anteriormente
-2. El email quedó registrado en Authentication
-
-SOLUCIÓN:
-Puedes intentar estas opciones:
-1. Usar otro email
-2. Solicitar que se elimine completamente de Authentication (requiere Cloud Function)
-3. El usuario puede hacer "Olvidé mi contraseña" para recuperar acceso
-
-Por seguridad, no se puede crear automáticamente en este caso.`);
+                        cerrarModal();
+                        cargarProfesores();
+                        return;
                     }
-                    
-                    cerrarModal();
-                    cargarProfesores();
-                    return;
-                } else {
-                    throw authError;
                 }
+                throw authError;
             }
         }
 
@@ -2624,13 +2537,15 @@ Por seguridad, no se puede crear automáticamente en este caso.`);
         console.error('Error:', error);
 
         let mensaje = 'Error al guardar profesor';
-        if (error.code === 'auth/invalid-email') {
+        if (error.code === 'auth/email-already-in-use') {
+            mensaje = 'Este email ya está registrado (pero no como profesor)';
+        } else if (error.code === 'auth/invalid-email') {
             mensaje = 'Email inválido';
         } else if (error.code === 'auth/weak-password') {
             mensaje = 'La contraseña debe tener al menos 6 caracteres';
         }
 
-        alert(mensaje);
+        alert(' ' + mensaje);
     }
 }
 
