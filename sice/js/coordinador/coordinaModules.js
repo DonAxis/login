@@ -2150,9 +2150,10 @@ async function darDeBajaAlumno(inscripcionId) {
 
 // ===== GESTIÓN DE PROFESORES (CREAR/EDITAR) =====
 
+
 async function cargarProfesores() {
     try {
-        // CAMBIO: Cargar TODOS los usuarios de la carrera, luego filtrar
+        // Cargar TODOS los usuarios de la carrera, luego filtrar
         const snapshot = await db.collection('usuarios')
             .where('carreras', 'array-contains', usuarioActual.carreraId)
             .get();
@@ -2186,13 +2187,16 @@ async function cargarProfesores() {
  <div class="item-info">
  <h4>${profesor.nombre} ${rolDisplay}</h4>
  <p>${profesor.email}</p>
- <p>${profesor.activo ? '<span style="color: #4caf50;"></span> Activo' : '<span style="color: #f44336;"></span> Inactivo'}</p>
+ <p>${profesor.activo ? '<span style="color: #4caf50;">Activo</span>' : '<span style="color: #f44336;">Inactivo</span>'}</p>
  </div>
  <div class="item-acciones">
  ${profesor.rol === 'profesor' ? `
  <button onclick="editarProfesor('${item.id}')" class="btn-editar">Editar</button>
  <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="botAzu">
  ${profesor.activo ? 'Desactivar' : 'Activar'}
+ </button>
+ <button onclick="confirmarEliminarProfesor('${item.id}', '${profesor.nombre.replace(/'/g, "\\'")}', '${profesor.email}')" class="btn-eliminar" style="background: #f44336; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600;">
+ Borrar Acceso
  </button>
  ` : `
  <span style="color: #666; font-size: 0.9rem;">Coordinador (no editable)</span>
@@ -2206,6 +2210,175 @@ async function cargarProfesores() {
     } catch (error) {
         console.error('Error:', error);
         alert('Error al cargar profesores');
+    }
+}
+
+// =====================================================
+// FUNCIÓN PARA CONFIRMAR ELIMINACIÓN
+// =====================================================
+
+function confirmarEliminarProfesor(profesorId, nombreProfesor, emailProfesor) {
+    const mensaje = `ADVERTENCIA: Esta acción eliminará el acceso del profesor
+
+Profesor: ${nombreProfesor}
+Email: ${emailProfesor}
+
+Esto hará lo siguiente:
+- Eliminará todos sus datos de la base de datos
+- Eliminará todas sus asignaciones a materias
+- El profesor NO podrá acceder al sistema
+
+IMPORTANTE:
+- El email quedará en el sistema de autenticación
+- Si necesitas crear este profesor de nuevo, podrás hacerlo
+- Se reutilizará su cuenta automáticamente
+
+¿Confirmas eliminar el acceso de este profesor?`;
+
+    if (confirm(mensaje)) {
+        eliminarProfesorCompleto(profesorId, nombreProfesor, emailProfesor);
+    }
+}
+
+// =====================================================
+// FUNCIÓN PARA ELIMINAR PROFESOR
+// =====================================================
+
+async function eliminarProfesorCompleto(profesorId, nombreProfesor, emailProfesor) {
+    try {
+        // Mostrar indicador de carga
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'loadingEliminar';
+        loadingDiv.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        `;
+        loadingDiv.innerHTML = `
+            <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 400px;">
+                <h3 style="margin: 0 0 20px 0; color: #f44336;">Eliminando acceso del profesor...</h3>
+                <div style="width: 100%; height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden;">
+                    <div style="width: 0%; height: 100%; background: #f44336; animation: loading 2s infinite;"></div>
+                </div>
+                <p style="margin: 20px 0 0 0; color: #666; font-size: 0.9rem;">
+                    Eliminando datos y asignaciones...
+                </p>
+            </div>
+            <style>
+                @keyframes loading {
+                    0% { width: 0%; }
+                    50% { width: 70%; }
+                    100% { width: 100%; }
+                }
+            </style>
+        `;
+        document.body.appendChild(loadingDiv);
+
+        console.log('Iniciando eliminación de profesor:', profesorId);
+
+        // PASO 1: Verificar que el profesor existe
+        const profesorDoc = await db.collection('usuarios').doc(profesorId).get();
+        
+        if (!profesorDoc.exists) {
+            throw new Error('Profesor no encontrado en la base de datos');
+        }
+
+        const profesorData = profesorDoc.data();
+
+        // PASO 2: Verificar que sea un profesor
+        if (profesorData.rol !== 'profesor') {
+            throw new Error('Solo se pueden eliminar usuarios con rol de profesor');
+        }
+
+        // PASO 3: Eliminar asignaciones de materias
+        console.log('Eliminando asignaciones del profesor...');
+        const asignacionesSnap = await db.collection('asignaciones')
+            .where('profesorId', '==', profesorId)
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .get();
+
+        const batch1 = db.batch();
+        asignacionesSnap.forEach(doc => {
+            batch1.delete(doc.ref);
+        });
+        await batch1.commit();
+        console.log(`Eliminadas ${asignacionesSnap.size} asignaciones`);
+
+        // PASO 4: Marcar el usuario como eliminado (en lugar de borrar completamente)
+        // Esto permite rastrear que existió y reutilizar el UID si se vuelve a crear
+        console.log('Marcando usuario como eliminado...');
+        await db.collection('usuarios').doc(profesorId).update({
+            eliminado: true,
+            fechaEliminacion: firebase.firestore.FieldValue.serverTimestamp(),
+            eliminadoPor: usuarioActual.uid,
+            datosAntesDeEliminar: {
+                nombre: profesorData.nombre,
+                email: profesorData.email,
+                carreras: profesorData.carreras,
+                activo: profesorData.activo
+            }
+        });
+
+        // PASO 5: Eliminar de la carrera actual
+        const carrerasActuales = profesorData.carreras || [];
+        const nuevasCarreras = carrerasActuales.filter(c => c !== usuarioActual.carreraId);
+        
+        if (nuevasCarreras.length > 0) {
+            // Si tiene otras carreras, solo quitar de esta carrera
+            await db.collection('usuarios').doc(profesorId).update({
+                carreras: nuevasCarreras
+            });
+            console.log('Profesor removido de la carrera actual, pero mantiene acceso a otras carreras');
+        } else {
+            // Si no tiene más carreras, eliminar completamente el documento
+            await db.collection('usuarios').doc(profesorId).delete();
+            console.log('Profesor eliminado completamente (no tiene más carreras)');
+        }
+
+        // Remover indicador de carga
+        document.body.removeChild(loadingDiv);
+
+        // PASO 6: Mostrar confirmación
+        alert(`Acceso del profesor eliminado exitosamente
+
+Nombre: ${nombreProfesor}
+Email: ${emailProfesor}
+
+- Datos eliminados de la base de datos
+- Asignaciones eliminadas: ${asignacionesSnap.size}
+- El profesor ya no puede acceder al sistema
+
+IMPORTANTE:
+El email queda registrado en el sistema de autenticación.
+Si necesitas volver a crear este profesor, podrás hacerlo
+y se reutilizará su cuenta automáticamente.`);
+
+        // Recargar lista
+        cargarProfesores();
+
+    } catch (error) {
+        // Remover indicador de carga si existe
+        const loadingDiv = document.getElementById('loadingEliminar');
+        if (loadingDiv) {
+            document.body.removeChild(loadingDiv);
+        }
+
+        console.error('Error al eliminar profesor:', error);
+        
+        let mensajeError = 'Error al eliminar profesor: ' + error.message;
+        
+        if (error.code === 'permission-denied') {
+            mensajeError = 'No tienes permisos para eliminar este profesor.';
+        }
+        
+        alert(mensajeError);
     }
 }
 
@@ -2285,11 +2458,11 @@ async function guardarProfesor(event, profesorId) {
 
     try {
         if (profesorId) {
-            // Editar
+            // Editar profesor existente
             await db.collection('usuarios').doc(profesorId).update(userData);
-            alert(' Profesor actualizado');
+            alert('Profesor actualizado');
         } else {
-            // Crear nuevo
+            // Crear nuevo profesor
             const password = document.getElementById('passwordProfesor').value;
 
             if (password.length < 6) {
@@ -2297,64 +2470,151 @@ async function guardarProfesor(event, profesorId) {
                 return;
             }
 
-            // Usar instancia secundaria de Firebase para crear sin cerrar sesión
+            // PRIMERO: Buscar si existe un usuario eliminado con este email
+            const usuarioEliminadoSnap = await db.collection('usuarios')
+                .where('email', '==', email)
+                .where('eliminado', '==', true)
+                .limit(1)
+                .get();
+
+            if (!usuarioEliminadoSnap.empty) {
+                // Usuario eliminado encontrado - REUTILIZAR
+                const docEliminado = usuarioEliminadoSnap.docs[0];
+                const uidExistente = docEliminado.id;
+                
+                console.log('Reutilizando usuario eliminado:', uidExistente);
+
+                // Restaurar el usuario con los nuevos datos
+                await db.collection('usuarios').doc(uidExistente).set({
+                    nombre: nombre,
+                    email: email,
+                    rol: 'profesor',
+                    roles: ['profesor'],
+                    carreras: [usuarioActual.carreraId],
+                    activo: activo,
+                    fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+                    fechaRestauracion: firebase.firestore.FieldValue.serverTimestamp(),
+                    restauradoDe: docEliminado.data(),
+                    eliminado: false
+                });
+
+                alert(`Profesor restaurado exitosamente
+
+El email ${email} ya existía en el sistema y fue reutilizado.
+
+Nombre: ${nombre}
+Email: ${email}
+
+IMPORTANTE:
+La contraseña que ingresaste NO se aplicó.
+El profesor debe usar su contraseña anterior o solicitar
+un restablecimiento de contraseña.`);
+
+                cerrarModal();
+                cargarProfesores();
+                return;
+            }
+
+            // SEGUNDO: Crear con instancia secundaria
             const secondaryApp = firebase.initializeApp(firebaseConfig, 'SecondaryProfesor_' + Date.now());
             const secondaryAuth = secondaryApp.auth();
 
             try {
-                // Crear en Authentication con instancia secundaria
+                // Intentar crear en Authentication
                 const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
                 const newUid = userCredential.user.uid;
 
                 console.log('Profesor creado en Authentication:', newUid);
 
-                // Guardar en Firestore CON carreras
+                // Guardar en Firestore
                 userData.carreras = [usuarioActual.carreraId];
-                userData.roles = ['profesor']; // Agregar roles
+                userData.roles = ['profesor'];
                 userData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
 
-                console.log('Guardando profesor en Firestore...', newUid);
                 await db.collection('usuarios').doc(newUid).set(userData);
                 console.log('Profesor guardado en Firestore');
 
-                // Cerrar sesión de la instancia secundaria
+                // Cerrar sesión y eliminar app secundaria
                 await secondaryAuth.signOut();
-
-                // Eliminar la app secundaria
                 await secondaryApp.delete();
 
-                // Mostrar éxito SIN cerrar sesión del coordinador
-                alert(`Profesor creado \n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}`);
+                alert(`Profesor creado exitosamente
+
+Nombre: ${nombre}
+Email: ${email}
+Contraseña: ${password}
+
+El profesor debe cambiar su contraseña al iniciar sesión.`);
 
             } catch (authError) {
                 if (authError.code === 'auth/email-already-in-use') {
-                    // Email ya existe - buscar profesor y agregar carrera
+                    // TERCERO: Email ya existe en Authentication
+                    console.log('Email ya existe en Authentication, intentando reutilizar...');
+                    
+                    // Buscar si existe en Firestore (como profesor de otra carrera)
                     const existeSnap = await db.collection('usuarios')
                         .where('email', '==', email)
-                        .where('rol', '==', 'profesor')
                         .limit(1)
                         .get();
 
                     if (!existeSnap.empty) {
+                        // Existe como profesor de otra carrera
                         const profesorDoc = existeSnap.docs[0];
                         const profesorData = profesorDoc.data();
-                        const carrerasActuales = profesorData.carreras || [];
+                        
+                        if (profesorData.rol === 'profesor') {
+                            const carrerasActuales = profesorData.carreras || [];
 
-                        if (!carrerasActuales.includes(usuarioActual.carreraId)) {
-                            await db.collection('usuarios').doc(profesorDoc.id).update({
-                                carreras: [...carrerasActuales, usuarioActual.carreraId]
-                            });
-                            alert(` Profesor ya existía en otra carrera.\n\nSe agregó a tu carrera exitosamente.\n\n IMPORTANTE:\nEl profesor mantiene su contraseña original.\nLa contraseña que ingresaste NO se aplicó.\n\nNombre: ${profesorData.nombre}\nEmail: ${email}`);
+                            if (!carrerasActuales.includes(usuarioActual.carreraId)) {
+                                await db.collection('usuarios').doc(profesorDoc.id).update({
+                                    carreras: [...carrerasActuales, usuarioActual.carreraId]
+                                });
+                                alert(`Profesor ya existía en otra carrera
+
+Se agregó a tu carrera exitosamente.
+
+Nombre: ${profesorData.nombre}
+Email: ${email}
+
+IMPORTANTE:
+El profesor mantiene su contraseña original.
+La contraseña que ingresaste NO se aplicó.`);
+                            } else {
+                                alert(`Este profesor ya está en tu carrera.
+
+Nombre: ${profesorData.nombre}`);
+                            }
                         } else {
-                            alert(`ℹ Este profesor ya está en tu carrera.\n\nNombre: ${profesorData.nombre}`);
-                        }
+                            alert(`Este email ya está registrado con otro rol: ${profesorData.rol}
 
-                        cerrarModal();
-                        cargarProfesores();
-                        return;
+No se puede crear como profesor.`);
+                        }
+                    } else {
+                        // Email existe en Auth pero NO en Firestore
+                        // Esto pasa cuando se eliminó el documento pero quedó en Auth
+                        alert(`ATENCIÓN: Email huérfano detectado
+
+El email ${email} existe en Authentication pero no tiene datos en la base de datos.
+
+Esto ocurre cuando:
+1. Se eliminó un profesor anteriormente
+2. El email quedó registrado en Authentication
+
+SOLUCIÓN:
+Puedes intentar estas opciones:
+1. Usar otro email
+2. Solicitar que se elimine completamente de Authentication (requiere Cloud Function)
+3. El usuario puede hacer "Olvidé mi contraseña" para recuperar acceso
+
+Por seguridad, no se puede crear automáticamente en este caso.`);
                     }
+                    
+                    cerrarModal();
+                    cargarProfesores();
+                    return;
+                } else {
+                    throw authError;
                 }
-                throw authError;
             }
         }
 
@@ -2364,15 +2624,13 @@ async function guardarProfesor(event, profesorId) {
         console.error('Error:', error);
 
         let mensaje = 'Error al guardar profesor';
-        if (error.code === 'auth/email-already-in-use') {
-            mensaje = 'Este email ya está registrado (pero no como profesor)';
-        } else if (error.code === 'auth/invalid-email') {
+        if (error.code === 'auth/invalid-email') {
             mensaje = 'Email inválido';
         } else if (error.code === 'auth/weak-password') {
             mensaje = 'La contraseña debe tener al menos 6 caracteres';
         }
 
-        alert(' ' + mensaje);
+        alert(mensaje);
     }
 }
 

@@ -298,7 +298,6 @@ async function guardarProfesoresMasivos(event) {
   const confirmar = confirm(
     `Crear ${nombres.length} profesores?\n\n` +
     `Contraseña temporal: ilb123\n` +
-    `Tiempo estimado: ${tiempoEstimado} minuto${tiempoEstimado !== 1 ? 's' : ''}\n\n` +
     `Continuar?`
   );
   
