@@ -1,6 +1,7 @@
 // REGISTRO MASIVO DE PROFESORES
 
-console.log('=== CARGANDO REGISTRO MASIVO DE PROFESORES - ACTUALIZADO ===');
+
+console.log('=== REGISTRO DE PROFESORES===');
 
 async function mostrarModalProfesoresMasivos() {
   const html = `
@@ -181,29 +182,27 @@ function previsualizarProfesores() {
     
     html += `<tr style="background: ${bgColor};">`;
     html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${i + 1}</td>`;
-    html += `<td style="padding: 8px; border: 1px solid #ddd;"><strong>${nombre}</strong></td>`;
+    html += `<td style="padding: 8px; border: 1px solid #ddd;">${nombre}</td>`;
     html += `<td style="padding: 8px; border: 1px solid #ddd; font-family: monospace;">${email}</td>`;
     html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">`;
-    if (esValido) {
-      html += '<span style="color: #4caf50; font-weight: 600;">OK</span>';
-    } else {
-      html += '<span style="color: #f44336; font-weight: 600;">INVALIDO</span>';
-    }
-    html += '</td>';
+    html += esValido 
+      ? '<span style="color: #4caf50; font-weight: 600;">Válido</span>'
+      : '<span style="color: #f44336; font-weight: 600;">Inválido</span>';
+    html += `</td>`;
     html += '</tr>';
   });
   
   html += '</tbody>';
   html += '</table>';
   
-  html += `<div style="margin-top: 15px; padding: 12px; background: ${emailsInvalidos > 0 ? '#fff3cd' : '#d4edda'}; border-radius: 8px;">`;
-  html += `<strong>Total: ${nombres.length} profesores</strong><br>`;
-  html += `Emails validos: <span style="color: #4caf50; font-weight: 600;">${emailsValidos}</span><br>`;
-  html += `Emails invalidos: <span style="color: #f44336; font-weight: 600;">${emailsInvalidos}</span>`;
-  if (emailsInvalidos > 0) {
-    html += '<br><br><strong style="color: #856404;">Corrige los emails invalidos antes de continuar</strong>';
-  }
-  html += '</div>';
+  html += `
+    <div style="margin-top: 15px; padding: 15px; background: ${emailsInvalidos > 0 ? '#ffebee' : '#e8f5e9'}; border-radius: 8px;">
+      <strong>Resumen:</strong><br>
+      Total: ${nombres.length} profesores<br>
+      Emails válidos: <span style="color: #4caf50; font-weight: 600;">${emailsValidos}</span><br>
+      ${emailsInvalidos > 0 ? `<span style="color: #f44336;">Emails inválidos: ${emailsInvalidos} (corrige antes de continuar)</span>` : ''}
+    </div>
+  `;
   
   document.getElementById('contenidoVistaPreviaProfesores').innerHTML = html;
   document.getElementById('vistaPreviaProfesores').style.display = 'block';
@@ -215,38 +214,29 @@ async function guardarProfesoresMasivos(event) {
   const nombresText = document.getElementById('nombresProfesoresMasivo').value.trim();
   const emailsText = document.getElementById('emailsProfesoresMasivo').value.trim();
   
-  if (!nombresText || !emailsText) {
-    alert('Completa todos los campos requeridos');
-    return;
-  }
-  
   const nombres = nombresText.split('\n').map(l => l.trim()).filter(l => l);
   const emails = emailsText.split('\n').map(l => l.trim().toLowerCase()).filter(l => l);
   
   if (nombres.length !== emails.length) {
-    alert('Las cantidades de nombres y emails no coinciden');
+    alert('La cantidad de nombres y emails no coincide');
     return;
   }
   
-  const emailsInvalidos = emails.filter(e => !validarEmail(e));
-  if (emailsInvalidos.length > 0) {
-    alert(`Hay ${emailsInvalidos.length} emails invalidos. Corrigelos antes de continuar.`);
-    return;
+  // Validar emails
+  for (let i = 0; i < emails.length; i++) {
+    if (!validarEmail(emails[i])) {
+      alert(`Email inválido en línea ${i + 1}: ${emails[i]}`);
+      return;
+    }
   }
+  
+  const confirmar = confirm(`¿Crear ${nombres.length} profesores?\n\nContraseña temporal: ilb123\n\nEste proceso puede tardar varios minutos...`);
+  if (!confirmar) return;
   
   const passwordTemporal = 'ilb123';
   
-  const confirmar = confirm(
-    `Vas a registrar ${nombres.length} profesores\n\n` +
-    `Contraseña temporal: ${passwordTemporal}\n\n` +
-    `Este proceso puede tardar varios minutos.\n\n` +
-    `Continuar?`
-  );
-  
-  if (!confirmar) return;
-  
-  document.getElementById('barraProgresoProfesores').style.display = 'block';
   document.getElementById('formProfesoresMasivos').style.display = 'none';
+  document.getElementById('barraProgresoProfesores').style.display = 'block';
   
   const barra = document.getElementById('barraProgresoProfesoresFill');
   const texto = document.getElementById('textoProgresoProfesores');
@@ -255,10 +245,11 @@ async function guardarProfesoresMasivos(event) {
   let fallidos = 0;
   const erroresDetallados = [];
   
-  console.log('Iniciando registro masivo de profesores...');
-  console.log(`Total profesores: ${nombres.length}`);
+ // console.log('=== INICIANDO REGISTRO MASIVO DE PROFESORES ===');
+ // console.log(`Total profesores: ${nombres.length}`);
+  console.log(`Tiempo estimado: ${Math.ceil(nombres.length * 2.5 / 60)} minutos`);
   
-  // PROCESAR CADA PROFESOR - USANDO INSTANCIA SECUNDARIA COMO EN guardarProfesor()
+  // PROCESAR CADA PROFESOR CON REINTENTOS
   for (let i = 0; i < nombres.length; i++) {
     const nombre = nombres[i];
     const email = emails[i];
@@ -266,19 +257,42 @@ async function guardarProfesoresMasivos(event) {
     const porcentaje = Math.round(((i + 1) / nombres.length) * 100);
     barra.style.width = porcentaje + '%';
     barra.textContent = porcentaje + '%';
-    texto.textContent = `Creando ${i + 1}/${nombres.length}: ${nombre}`;
+    texto.innerHTML = `
+      Creando ${i + 1}/${nombres.length}: ${nombre}<br>
+      <small style="color: #999;">Exitosos: ${exitosos} | Fallidos: ${fallidos}</small>
+    `;
     
-    try {
-      // USAR INSTANCIA SECUNDARIA CON NOMBRE UNICO (igual que guardarProfesor)
-      const secondaryApp = firebase.initializeApp(firebaseConfig, 'SecondaryProfesor_' + Date.now() + '_' + i);
-      const secondaryAuth = secondaryApp.auth();
-      
+    // IMPLEMENTAR REINTENTOS
+    let intentos = 0;
+    const maxIntentos = 3;
+    let exitoCreacion = false;
+    let secondaryApp = null;
+    let secondaryAuth = null;
+    
+    while (intentos < maxIntentos && !exitoCreacion) {
       try {
+        intentos++;
+        
+        if (intentos > 1) {
+          console.log(`[${i + 1}] Reintentando ${email} (intento ${intentos}/${maxIntentos})...`);
+          texto.innerHTML = `
+            Reintentando ${i + 1}/${nombres.length}: ${nombre}<br>
+            <small style="color: #ff9800;">Intento ${intentos} de ${maxIntentos}...</small>
+          `;
+        }
+        
+        // USAR INSTANCIA SECUNDARIA CON NOMBRE ÚNICO
+        secondaryApp = firebase.initializeApp(
+          firebaseConfig, 
+          'SecondaryProfesor_' + Date.now() + '_' + i + '_' + intentos
+        );
+        secondaryAuth = secondaryApp.auth();
+        
         // Crear en Authentication con instancia secundaria
         const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, passwordTemporal);
         const newUid = userCredential.user.uid;
         
-        console.log(`[${i + 1}] Profesor creado en Authentication: ${email} (${newUid})`);
+        console.log(`[${i + 1}] ✓ Profesor creado en Authentication: ${email} (${newUid})`);
         
         // Guardar en Firestore
         const profesorData = {
@@ -298,112 +312,154 @@ async function guardarProfesoresMasivos(event) {
         await db.collection('usuarios').doc(newUid).set(profesorData);
         console.log(`[${i + 1}] Profesor guardado en Firestore: ${email}`);
         
-        // Cerrar sesion de la instancia secundaria
+        // Cerrar sesión de la instancia secundaria
         await secondaryAuth.signOut();
         
         // Eliminar la app secundaria
         await secondaryApp.delete();
         
         exitosos++;
+        exitoCreacion = true; // Marcar como exitoso
         
       } catch (authError) {
-        // Si falla, también intentar cerrar/eliminar la instancia secundaria
+        // Limpiar instancia secundaria en caso de error
         try {
-          await secondaryAuth.signOut();
-          await secondaryApp.delete();
-        } catch (e) {
-          console.warn('Error al limpiar instancia secundaria:', e);
+          if (secondaryAuth) await secondaryAuth.signOut();
+          if (secondaryApp) await secondaryApp.delete();
+        } catch (cleanupError) {
+          console.warn(`[${i + 1}] Error al limpiar instancia secundaria:`, cleanupError);
         }
         
-        // Manejar email duplicado
+        // Si es error de red y aún quedan intentos, esperar y reintentar
+        if (authError.code === 'auth/network-request-failed' && intentos < maxIntentos) {
+          const esperaMilisegundos = 3000 * intentos; // 3s, 6s, 9s
+          console.log(`[${i + 1}] Error de red, esperando ${esperaMilisegundos/1000}s antes de reintentar...`);
+          await new Promise(resolve => setTimeout(resolve, esperaMilisegundos));
+          continue; // Reintentar
+        }
+        
+        // Si es email duplicado, intentar agregar a carrera
         if (authError.code === 'auth/email-already-in-use') {
-          // Intentar agregar a carrera si ya existe como profesor
-          const existeSnap = await db.collection('usuarios')
-            .where('email', '==', email)
-            .where('rol', '==', 'profesor')
-            .limit(1)
-            .get();
-          
-          if (!existeSnap.empty) {
-            const profesorDoc = existeSnap.docs[0];
-            const profesorData = profesorDoc.data();
-            const carrerasActuales = profesorData.carreras || [];
+          try {
+            const existeSnap = await db.collection('usuarios')
+              .where('email', '==', email)
+              .where('rol', '==', 'profesor')
+              .limit(1)
+              .get();
             
-            if (!carrerasActuales.includes(usuarioActual.carreraId)) {
-              await db.collection('usuarios').doc(profesorDoc.id).update({
-                carreras: [...carrerasActuales, usuarioActual.carreraId]
-              });
-              console.log(`[${i + 1}] Profesor existente agregado a carrera: ${email}`);
-              exitosos++;
+            if (!existeSnap.empty) {
+              const profesorDoc = existeSnap.docs[0];
+              const profesorData = profesorDoc.data();
+              const carrerasActuales = profesorData.carreras || [];
+              
+              if (!carrerasActuales.includes(usuarioActual.carreraId)) {
+                await db.collection('usuarios').doc(profesorDoc.id).update({
+                  carreras: [...carrerasActuales, usuarioActual.carreraId]
+                });
+                console.log(`[${i + 1}] ✓ Profesor existente agregado a carrera: ${email}`);
+                exitosos++;
+                exitoCreacion = true;
+              } else {
+                erroresDetallados.push({
+                  numero: i + 1,
+                  nombre: nombre,
+                  email: email,
+                  error: 'Profesor ya existe en esta carrera',
+                  codigo: 'ya-existe'
+                });
+                fallidos++;
+                exitoCreacion = true; // No reintentar
+              }
             } else {
               erroresDetallados.push({
                 numero: i + 1,
                 nombre: nombre,
                 email: email,
-                error: 'Profesor ya existe en esta carrera',
-                codigo: 'ya-existe'
+                error: 'Email ya registrado (no como profesor)',
+                codigo: authError.code
               });
               fallidos++;
+              exitoCreacion = true; // No reintentar
             }
-          } else {
+          } catch (firestoreError) {
+            console.error(`[${i + 1}] Error al verificar profesor existente:`, firestoreError);
             erroresDetallados.push({
               numero: i + 1,
               nombre: nombre,
               email: email,
-              error: 'Email ya registrado (no como profesor)',
-              codigo: authError.code
+              error: firestoreError.message,
+              codigo: firestoreError.code
             });
             fallidos++;
+            exitoCreacion = true; // No reintentar
           }
-        } else {
-          throw authError;
+        } 
+        // Si agotamos los intentos o es otro tipo de error
+        else if (intentos >= maxIntentos || authError.code !== 'auth/network-request-failed') {
+          fallidos++;
+          erroresDetallados.push({
+            numero: i + 1,
+            nombre: nombre,
+            email: email,
+            error: authError.message,
+            codigo: authError.code,
+            intentos: intentos
+          });
+          console.error(`[${i + 1}] ✗ ERROR al crear ${email}:`, authError);
+          exitoCreacion = true; // Dejar de reintentar
         }
       }
-      
-    } catch (error) {
-      fallidos++;
-      erroresDetallados.push({
-        numero: i + 1,
-        nombre: nombre,
-        email: email,
-        error: error.message,
-        codigo: error.code
-      });
-      console.error(`[${i + 1}] ERROR al crear ${email}:`, error);
     }
     
-    // Pausa breve entre profesores
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // PAUSA ENTRE PROFESORES PARA EVITAR RATE LIMITING
+    // 2 segundos base + tiempo adicional si hubo reintentos
+    const pausa = intentos > 1 ? 3000 : 2000;
+    await new Promise(resolve => setTimeout(resolve, pausa));
   }
   
-  console.log('Proceso completado.');
+  console.log('=== PROCESO COMPLETADO ===');
+  console.log(`Exitosos: ${exitosos} | Fallidos: ${fallidos}`);
   
-  barra.style.background = 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)';
+  barra.style.background = fallidos === 0 
+    ? 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)'
+    : 'linear-gradient(90deg, #ff9800 0%, #f57c00 100%)';
+  
   texto.innerHTML = `
-    <strong style="color: #4caf50;">Proceso completado</strong><br>
-    Profesores creados: ${exitosos}<br>
-    ${fallidos > 0 ? `Errores: ${fallidos}` : ''}
+    <strong style="color: ${fallidos === 0 ? '#4caf50' : '#ff9800'};">✓ Proceso completado</strong><br>
+    Profesores creados: <strong>${exitosos}</strong><br>
+    ${fallidos > 0 ? `Errores: <strong style="color: #f44336;">${fallidos}</strong>` : ''}
   `;
   
-  let mensaje = `RESUMEN DE REGISTRO MASIVO DE PROFESORES\n\n`;
+  // CREAR MENSAJE DE RESUMEN
+  let mensaje = `╔════════════════════════════════════════╗\n`;
+  mensaje += `║  REGISTRO MASIVO DE PROFESORES       ║\n`;
+  mensaje += `╚════════════════════════════════════════╝\n\n`;
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
-  mensaje += `Total procesados: ${nombres.length}\n`;
+  mensaje += `Total procesados: ${nombres.length}\n\n`;
   mensaje += `Contraseña temporal: ${passwordTemporal}\n`;
-  mensaje += `\nLos profesores deben cambiar su contraseña en el primer login.\n`;
+  mensaje += `Los profesores deben cambiar su contraseña en el primer login.\n`;
   
   if (erroresDetallados.length > 0) {
-    mensaje += `\nERRORES DETALLADOS:\n\n`;
+    mensaje += `\n${'═'.repeat(50)}\n`;
+    mensaje += `ERRORES DETALLADOS:\n`;
+    mensaje += `${'═'.repeat(50)}\n\n`;
+    
     erroresDetallados.forEach(err => {
-      mensaje += `#${err.numero} - ${err.nombre} (${err.email})\n`;
+      mensaje += `#${err.numero} - ${err.nombre}\n`;
+      mensaje += `   ${err.email}\n`;
       
       if (err.codigo === 'auth/email-already-in-use') {
-        mensaje += `   El email ya esta registrado en Firebase\n\n`;
+        mensaje += `    El email ya está registrado en Firebase\n`;
       } else if (err.codigo === 'ya-existe') {
-        mensaje += `   ${err.error}\n\n`;
+        mensaje += `    ${err.error}\n`;
+      } else if (err.codigo === 'auth/network-request-failed') {
+        mensaje += `    Error de red después de ${err.intentos || 3} intentos\n`;
+        mensaje += `   Consejo: Verifica tu conexión a internet\n`;
       } else {
-        mensaje += `   Error: ${err.error}\n\n`;
+        mensaje += `   ${err.error}\n`;
       }
+      mensaje += `\n`;
     });
   }
   
@@ -411,6 +467,7 @@ async function guardarProfesoresMasivos(event) {
     alert(mensaje);
     cerrarModalProfesoresMasivos();
     
+    // Recargar lista de profesores si la función existe
     if (typeof cargarProfesores === 'function') {
       cargarProfesores();
     }
@@ -424,9 +481,12 @@ function cerrarModalProfesoresMasivos() {
   }
 }
 
+// Cerrar modal al hacer clic fuera
 document.addEventListener('click', function(event) {
   const modal = document.getElementById('modalProfesoresMasivos');
   if (modal && event.target === modal) {
     cerrarModalProfesoresMasivos();
   }
 });
+
+console.log('Registro masivo de profesores cargado (versión mejorada con reintentos)');
