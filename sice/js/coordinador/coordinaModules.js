@@ -2191,7 +2191,7 @@ async function cargarProfesores() {
  <div class="item-acciones">
  ${profesor.rol === 'profesor' ? `
  <button onclick="editarProfesor('${item.id}')" class="btn-editar">Editar</button>
- <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="${profesor.activo ? 'botRojo' : 'botVerde'}">
+ <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="${profesor.activo ? 'botAzu' : 'botVerde'}">
  ${profesor.activo ? 'Desactivar' : 'Activar'}
  </button>
  ` : `
@@ -2346,7 +2346,7 @@ async function guardarProfesor(event, profesorId) {
                             });
                             alert(` Profesor ya existía en otra carrera.\n\nSe agregó a tu carrera exitosamente.\n\n IMPORTANTE:\nEl profesor mantiene su contraseña original.\nLa contraseña que ingresaste NO se aplicó.\n\nNombre: ${profesorData.nombre}\nEmail: ${email}`);
                         } else {
-                            alert(`ℹ Este profesor ya está en tu carrera.\n\nNombre: ${profesorData.nombre}`);
+                            alert(`Este profesor ya está en tu carrera.\n\nNombre: ${profesorData.nombre}`);
                         }
 
                         cerrarModal();
