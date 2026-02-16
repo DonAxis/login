@@ -10,7 +10,7 @@ async function mostrarModalProfesoresMasivos() {
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
           <h2 style="margin: 0; color: #667eea; font-size: 1.8rem;">Registro de Profesores</h2>
-          <button onclick="cerrarModalProfesoresMasivos()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
+          <button id="btnCerrarModal" onclick="cerrarModalProfesoresMasivos()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
         </div>
 
         <form id="formProfesoresMasivos" onsubmit="guardarProfesoresMasivos(event)">
@@ -91,7 +91,7 @@ async function mostrarModalProfesoresMasivos() {
                     style="padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
               Crear Todos
             </button>
-            <button type="button" onclick="cerrarModalProfesoresMasivos()" 
+            <button type="button" id="btnCancelar" onclick="cerrarModalProfesoresMasivos()" 
                     style="padding: 12px 24px; background: #e0e0e0; color: #333; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
               Cancelar
             </button>
@@ -304,6 +304,28 @@ async function guardarProfesoresMasivos(event) {
   if (!confirmar) return;
   
   const passwordTemporal = 'ilb123';
+  
+  // BLOQUEAR CIERRE DEL MODAL DURANTE EL PROCESO
+  const btnCerrar = document.getElementById('btnCerrarModal');
+  const btnCancelar = document.getElementById('btnCancelar');
+  const modal = document.getElementById('modalProfesoresMasivos');
+  
+  if (btnCerrar) {
+    btnCerrar.disabled = true;
+    btnCerrar.style.cursor = 'not-allowed';
+    btnCerrar.style.opacity = '0.3';
+    btnCerrar.title = 'No se puede cerrar durante el registro';
+  }
+  
+  if (btnCancelar) {
+    btnCancelar.disabled = true;
+    btnCancelar.style.cursor = 'not-allowed';
+    btnCancelar.style.opacity = '0.3';
+  }
+  
+  // Prevenir cierre al hacer clic fuera del modal
+  modal.style.pointerEvents = 'none';
+  modal.querySelector('div[style*="background: white"]').style.pointerEvents = 'auto';
   
   document.getElementById('formProfesoresMasivos').style.display = 'none';
   document.getElementById('barraProgresoProfesores').style.display = 'block';
@@ -556,14 +578,12 @@ async function guardarProfesoresMasivos(event) {
   }
   
   // CREAR MENSAJE DE RESUMEN
-  let mensaje = `====================================\n`;
-  mensaje += `REGISTRO MASIVO DE PROFESORES\n`;
-  mensaje += `====================================\n\n`;
+  let   mensaje += `Registro realizado\n`;
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
   mensaje += `Total procesados: ${nombres.length}\n\n`;
   mensaje += `Contraseña temporal: ${passwordTemporal}\n`;
-  mensaje += `IMPORTANTE: Los profesores deben cambiar su contraseña en el primer login.\n`;
+  mensaje += `IMPORTANTE: Los profesores deben cambiar su contraseña.\n`;
   
   if (erroresDetallados.length > 0) {
     mensaje += `\n${'='.repeat(50)}\n`;
@@ -590,6 +610,29 @@ async function guardarProfesoresMasivos(event) {
   
   setTimeout(() => {
     alert(mensaje);
+    
+    // REACTIVAR BOTÓN DE CERRAR
+    const btnCerrar = document.getElementById('btnCerrarModal');
+    const btnCancelar = document.getElementById('btnCancelar');
+    const modal = document.getElementById('modalProfesoresMasivos');
+    
+    if (btnCerrar) {
+      btnCerrar.disabled = false;
+      btnCerrar.style.cursor = 'pointer';
+      btnCerrar.style.opacity = '1';
+      btnCerrar.title = '';
+    }
+    
+    if (btnCancelar) {
+      btnCancelar.disabled = false;
+      btnCancelar.style.cursor = 'pointer';
+      btnCancelar.style.opacity = '1';
+    }
+    
+    if (modal) {
+      modal.style.pointerEvents = 'auto';
+    }
+    
     cerrarModalProfesoresMasivos();
     
     // Recargar lista de profesores si la función existe
@@ -600,16 +643,32 @@ async function guardarProfesoresMasivos(event) {
 }
 
 function cerrarModalProfesoresMasivos() {
+  const btnCerrar = document.getElementById('btnCerrarModal');
+  
+  // Verificar si el botón está deshabilitado (proceso en curso)
+  if (btnCerrar && btnCerrar.disabled) {
+    alert('Por favor espera a que termine el registro de profesores antes de cerrar esta ventana.');
+    return;
+  }
+  
   const modal = document.getElementById('modalProfesoresMasivos');
   if (modal) {
     modal.remove();
   }
 }
 
-// Cerrar modal al hacer clic fuera
+// Cerrar modal al hacer clic fuera (solo si no hay proceso en curso)
 document.addEventListener('click', function(event) {
   const modal = document.getElementById('modalProfesoresMasivos');
   if (modal && event.target === modal) {
+    const btnCerrar = document.getElementById('btnCerrarModal');
+    
+    // Si el botón de cerrar está deshabilitado, no permitir cerrar
+    if (btnCerrar && btnCerrar.disabled) {
+      alert('Por favor espera a que termine el registro de profesores antes de cerrar esta ventana.');
+      return;
+    }
+    
     cerrarModalProfesoresMasivos();
   }
 });
