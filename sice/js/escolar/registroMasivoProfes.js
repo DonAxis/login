@@ -578,7 +578,7 @@ async function guardarProfesoresMasivos(event) {
   }
   
   // CREAR MENSAJE DE RESUMEN
-  let   mensaje += `Registro realizado\n`;
+  let mensaje = `Registro realizado\n`;
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
   mensaje += `Total procesados: ${nombres.length}\n\n`;
