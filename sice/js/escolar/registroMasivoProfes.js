@@ -328,7 +328,16 @@ async function guardarProfesoresMasivos(event) {
   modal.querySelector('div[style*="background: white"]').style.pointerEvents = 'auto';
   
   document.getElementById('formProfesoresMasivos').style.display = 'none';
-  document.getElementById('barraProgresoProfesores').style.display = 'block';
+
+  const contenedorModal = modal.querySelector('div[style*="background: white"]');
+  contenedorModal.style.minHeight = '420px';
+
+  const barraDiv = document.getElementById('barraProgresoProfesores');
+  barraDiv.style.display = 'block';
+  barraDiv.style.marginTop = '0';
+
+  // Forzar repaint para que el navegador muestre la barra antes de continuar
+  barraDiv.getBoundingClientRect();
   
   const barra = document.getElementById('barraProgresoProfesoresFill');
   const texto = document.getElementById('textoProgresoProfesores');
@@ -353,6 +362,9 @@ async function guardarProfesoresMasivos(event) {
     
     actualizarContadores(i + 1, exitosos, fallidos);
     actualizarEstado(`Creando profesor: <strong>${nombre}</strong>`, 'info');
+    
+    // Dar tiempo al navegador para redibujar la barra antes de continuar
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     // IMPLEMENTAR REINTENTOS
     let intentos = 0;
