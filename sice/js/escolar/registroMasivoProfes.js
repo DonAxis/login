@@ -99,59 +99,28 @@ async function mostrarModalProfesoresMasivos() {
 
         </form>
 
-        <!-- BARRA DE PROGRESO MEJORADA -->
-        <div id="barraProgresoProfesores" style="display: none; margin-top: 20px;">
-          
-          <!-- Barra principal -->
-          <div style="background: #e0e0e0; border-radius: 10px; height: 40px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
-            <div id="barraProgresoProfesoresFill" 
-                 style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.5s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1rem; box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);">
-              0%
-            </div>
+        <!-- MENSAJE DE CARGA -->
+        <div id="barraProgresoProfesores" style="display: none; padding: 40px 20px; text-align: center;">
+          <div id="textoProgresoProfesores" style="font-size: 1.2rem; font-weight: 700; color: #667eea; margin-bottom: 10px;">
+            Registrando profesores...
           </div>
-          
-          <!-- Texto de estado principal -->
-          <div id="textoProgresoProfesores" style="text-align: center; margin-top: 15px; color: #333; font-size: 1rem; font-weight: 600;">
-            Preparando registro...
+          <div id="contadorTexto" style="font-size: 1rem; color: #666; margin-bottom: 25px;">
+            Por favor espera, no cierres esta ventana.
           </div>
-          
-          <!-- Estadísticas en tiempo real -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-            
+          <div style="display: flex; justify-content: center; gap: 30px; background: #f8f9fa; border-radius: 8px; padding: 20px;">
             <div style="text-align: center;">
-              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
-                Procesados
-              </div>
-              <div id="contadorProcesados" style="font-size: 1.8rem; font-weight: 700; color: #667eea;">
-                0
-              </div>
+              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Procesados</div>
+              <div id="contadorProcesados" style="font-size: 2rem; font-weight: 700; color: #667eea;">0</div>
             </div>
-            
             <div style="text-align: center;">
-              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
-                Exitosos
-              </div>
-              <div id="contadorExitosos" style="font-size: 1.8rem; font-weight: 700; color: #4caf50;">
-                0
-              </div>
+              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Exitosos</div>
+              <div id="contadorExitosos" style="font-size: 2rem; font-weight: 700; color: #4caf50;">0</div>
             </div>
-            
             <div style="text-align: center;">
-              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
-                Fallidos
-              </div>
-              <div id="contadorFallidos" style="font-size: 1.8rem; font-weight: 700; color: #f44336;">
-                0
-              </div>
+              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Fallidos</div>
+              <div id="contadorFallidos" style="font-size: 2rem; font-weight: 700; color: #f44336;">0</div>
             </div>
-            
           </div>
-          
-          <!-- Estado actual detallado -->
-          <div id="estadoActual" style="margin-top: 15px; padding: 12px; background: white; border-left: 4px solid #667eea; border-radius: 4px; font-size: 0.9rem; color: #666; min-height: 40px;">
-            Iniciando proceso...
-          </div>
-          
         </div>
 
       </div>
@@ -261,13 +230,13 @@ function actualizarContadores(procesados, exitosos, fallidos) {
 // Función auxiliar para actualizar estado actual
 function actualizarEstado(mensaje, tipo = 'info') {
   const estadoDiv = document.getElementById('estadoActual');
+  if (!estadoDiv) return; // ya no existe, ignorar silenciosamente
   const colores = {
     'info': '#667eea',
     'success': '#4caf50',
     'warning': '#ff9800',
     'error': '#f44336'
   };
-  
   estadoDiv.style.borderLeftColor = colores[tipo] || colores.info;
   estadoDiv.innerHTML = mensaje;
 }
@@ -328,19 +297,10 @@ async function guardarProfesoresMasivos(event) {
   modal.querySelector('div[style*="background: white"]').style.pointerEvents = 'auto';
   
   document.getElementById('formProfesoresMasivos').style.display = 'none';
+  document.getElementById('barraProgresoProfesores').style.display = 'block';
 
-  const contenedorModal = modal.querySelector('div[style*="background: white"]');
-  contenedorModal.style.minHeight = '420px';
-
-  const barraDiv = document.getElementById('barraProgresoProfesores');
-  barraDiv.style.display = 'block';
-  barraDiv.style.marginTop = '0';
-
-  // Forzar repaint para que el navegador muestre la barra antes de continuar
-  barraDiv.getBoundingClientRect();
-  
-  const barra = document.getElementById('barraProgresoProfesoresFill');
   const texto = document.getElementById('textoProgresoProfesores');
+  const contadorTexto = document.getElementById('contadorTexto');
   
   let exitosos = 0;
   let fallidos = 0;
@@ -354,16 +314,13 @@ async function guardarProfesoresMasivos(event) {
   for (let i = 0; i < nombres.length; i++) {
     const nombre = nombres[i];
     const email = emails[i];
-    
-    const porcentaje = Math.round(((i + 1) / nombres.length) * 100);
-    barra.style.width = porcentaje + '%';
-    barra.textContent = porcentaje + '%';
-    texto.textContent = `Procesando: ${i + 1} de ${nombres.length}`;
+
+    texto.textContent = `Registrando profesor ${i + 1} de ${nombres.length}...`;
+    contadorTexto.textContent = `${nombre}`;
     
     actualizarContadores(i + 1, exitosos, fallidos);
-    actualizarEstado(`Creando profesor: <strong>${nombre}</strong>`, 'info');
-    
-    // Dar tiempo al navegador para redibujar la barra antes de continuar
+
+    // Dar tiempo al navegador para redibujar antes de continuar
     await new Promise(resolve => setTimeout(resolve, 50));
     
     // IMPLEMENTAR REINTENTOS
@@ -564,30 +521,13 @@ async function guardarProfesoresMasivos(event) {
   console.log(`Exitosos: ${exitosos} | Fallidos: ${fallidos}`);
   
   // ACTUALIZAR VISTA FINAL
-  barra.style.background = fallidos === 0 
-    ? 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)'
-    : 'linear-gradient(90deg, #ff9800 0%, #f57c00 100%)';
-  
-  barra.style.boxShadow = fallidos === 0
-    ? '0 0 10px rgba(76, 175, 80, 0.5)'
-    : '0 0 10px rgba(255, 152, 0, 0.5)';
-  
-  texto.innerHTML = `<strong>Proceso completado</strong>`;
+  texto.innerHTML = fallidos === 0
+    ? `✅ <strong>¡Proceso completado con éxito!</strong>`
+    : `⚠️ <strong>Proceso completado con algunos errores</strong>`;
+
+  contadorTexto.textContent = `Exitosos: ${exitosos} | Fallidos: ${fallidos} | Total: ${nombres.length}`;
   
   actualizarContadores(nombres.length, exitosos, fallidos);
-  
-  if (fallidos === 0) {
-    actualizarEstado(
-      `<strong>Todos los profesores fueron registrados exitosamente</strong>`,
-      'success'
-    );
-  } else {
-    actualizarEstado(
-      `<strong>Proceso completado con algunos errores</strong><br>` +
-      `<small>Revisa el resumen para ver los detalles</small>`,
-      'warning'
-    );
-  }
   
   // CREAR MENSAJE DE RESUMEN
   let mensaje = `Registro realizado\n`;
