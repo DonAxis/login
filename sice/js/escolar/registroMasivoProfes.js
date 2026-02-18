@@ -6,7 +6,7 @@ console.log('=== REGISTRO DE PROFESORES===');
 async function mostrarModalProfesoresMasivos() {
   const html = `
     <div id="modalProfesoresMasivos" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; overflow-y: auto;">
-      <div style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      <div id="contenedorModalProfesores" style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 95%; min-height: 400px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
           <h2 style="margin: 0; color: #667eea; font-size: 1.8rem;">Registro de Profesores</h2>
@@ -100,25 +100,22 @@ async function mostrarModalProfesoresMasivos() {
         </form>
 
         <!-- MENSAJE DE CARGA -->
-        <div id="barraProgresoProfesores" style="display: none; padding: 40px 20px; text-align: center;">
-          <div id="textoProgresoProfesores" style="font-size: 1.2rem; font-weight: 700; color: #667eea; margin-bottom: 10px;">
+        <div id="mensajeCarga" style="display: none; padding: 60px 20px; text-align: center;">
+          <div style="font-size: 4rem; margin-bottom: 20px;"></div>
+          <div id="textoProgreso" style="font-size: 1.5rem; font-weight: 700; color: #667eea; margin-bottom: 15px;">
             Registrando profesores...
           </div>
-          <div id="contadorTexto" style="font-size: 1rem; color: #666; margin-bottom: 25px;">
+          <div id="contadorInfo" style="font-size: 1.1rem; color: #666; margin-bottom: 40px;">
             Por favor espera, no cierres esta ventana.
           </div>
-          <div style="display: flex; justify-content: center; gap: 30px; background: #f8f9fa; border-radius: 8px; padding: 20px;">
+          <div style="display: flex; justify-content: space-around; max-width: 400px; margin: 0 auto; background: #f8f9fa; border-radius: 12px; padding: 30px;">
             <div style="text-align: center;">
-              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Procesados</div>
-              <div id="contadorProcesados" style="font-size: 2rem; font-weight: 700; color: #667eea;">0</div>
+              <div style="font-size: 0.9rem; color: #999; margin-bottom: 8px;">Exitosos</div>
+              <div id="contadorExitosos" style="font-size: 2.5rem; font-weight: 700; color: #4caf50;">0</div>
             </div>
             <div style="text-align: center;">
-              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Exitosos</div>
-              <div id="contadorExitosos" style="font-size: 2rem; font-weight: 700; color: #4caf50;">0</div>
-            </div>
-            <div style="text-align: center;">
-              <div style="font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Fallidos</div>
-              <div id="contadorFallidos" style="font-size: 2rem; font-weight: 700; color: #f44336;">0</div>
+              <div style="font-size: 0.9rem; color: #999; margin-bottom: 8px;">Fallidos</div>
+              <div id="contadorFallidos" style="font-size: 2.5rem; font-weight: 700; color: #f44336;">0</div>
             </div>
           </div>
         </div>
@@ -222,7 +219,6 @@ function previsualizarProfesores() {
 
 // Función auxiliar para actualizar contadores visuales
 function actualizarContadores(procesados, exitosos, fallidos) {
-  document.getElementById('contadorProcesados').textContent = procesados;
   document.getElementById('contadorExitosos').textContent = exitosos;
   document.getElementById('contadorFallidos').textContent = fallidos;
 }
@@ -294,13 +290,14 @@ async function guardarProfesoresMasivos(event) {
   
   // Prevenir cierre al hacer clic fuera del modal
   modal.style.pointerEvents = 'none';
-  modal.querySelector('div[style*="background: white"]').style.pointerEvents = 'auto';
+  modal.querySelector('#contenedorModalProfesores').style.pointerEvents = 'auto';
   
+  // Ocultar formulario y mostrar mensaje de carga
   document.getElementById('formProfesoresMasivos').style.display = 'none';
-  document.getElementById('barraProgresoProfesores').style.display = 'block';
+  document.getElementById('mensajeCarga').style.display = 'block';
 
-  const texto = document.getElementById('textoProgresoProfesores');
-  const contadorTexto = document.getElementById('contadorTexto');
+  const textoProgreso = document.getElementById('textoProgreso');
+  const contadorInfo = document.getElementById('contadorInfo');
   
   let exitosos = 0;
   let fallidos = 0;
@@ -315,8 +312,8 @@ async function guardarProfesoresMasivos(event) {
     const nombre = nombres[i];
     const email = emails[i];
 
-    texto.textContent = `Registrando profesor ${i + 1} de ${nombres.length}...`;
-    contadorTexto.textContent = `${nombre}`;
+    textoProgreso.textContent = `Registrando: ${nombre}`;
+    contadorInfo.textContent = `Profesor ${i + 1} de ${nombres.length}`;
     
     actualizarContadores(i + 1, exitosos, fallidos);
 
@@ -521,11 +518,11 @@ async function guardarProfesoresMasivos(event) {
   console.log(`Exitosos: ${exitosos} | Fallidos: ${fallidos}`);
   
   // ACTUALIZAR VISTA FINAL
-  texto.innerHTML = fallidos === 0
-    ? `✅ <strong>¡Proceso completado con éxito!</strong>`
-    : `⚠️ <strong>Proceso completado con algunos errores</strong>`;
+  textoProgreso.innerHTML = fallidos === 0
+    ? `¡Proceso completado con éxito!`
+    : `Proceso completado con algunos errores`;
 
-  contadorTexto.textContent = `Exitosos: ${exitosos} | Fallidos: ${fallidos} | Total: ${nombres.length}`;
+  contadorInfo.textContent = `Total: ${nombres.length} | Exitosos: ${exitosos} | Fallidos: ${fallidos}`;
   
   actualizarContadores(nombres.length, exitosos, fallidos);
   
