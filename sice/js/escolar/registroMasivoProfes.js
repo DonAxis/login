@@ -100,22 +100,21 @@ async function mostrarModalProfesoresMasivos() {
         </form>
 
         <!-- MENSAJE DE CARGA -->
-        <div id="mensajeCarga" style="display: none; padding: 60px 20px; text-align: center;">
-          <div style="font-size: 4rem; margin-bottom: 20px;"></div>
-          <div id="textoProgreso" style="font-size: 1.5rem; font-weight: 700; color: #667eea; margin-bottom: 15px;">
+        <div id="mensajeCarga" style="display: none; padding: 60px 20px; text-align: center; background: white;">
+          <div id="textoProgreso" style="font-size: 1.8rem; font-weight: 700; color: #667eea; margin-bottom: 20px;">
             Registrando profesores...
           </div>
-          <div id="contadorInfo" style="font-size: 1.1rem; color: #666; margin-bottom: 40px;">
+          <div id="contadorInfo" style="font-size: 1.3rem; color: #666; margin-bottom: 40px; font-weight: 500;">
             Por favor espera, no cierres esta ventana.
           </div>
           <div style="display: flex; justify-content: space-around; max-width: 400px; margin: 0 auto; background: #f8f9fa; border-radius: 12px; padding: 30px;">
             <div style="text-align: center;">
-              <div style="font-size: 0.9rem; color: #999; margin-bottom: 8px;">Exitosos</div>
-              <div id="contadorExitosos" style="font-size: 2.5rem; font-weight: 700; color: #4caf50;">0</div>
+              <div style="font-size: 0.9rem; color: #999; margin-bottom: 8px; text-transform: uppercase;">Exitosos</div>
+              <div id="contadorExitosos" style="font-size: 3rem; font-weight: 700; color: #4caf50;">0</div>
             </div>
             <div style="text-align: center;">
-              <div style="font-size: 0.9rem; color: #999; margin-bottom: 8px;">Fallidos</div>
-              <div id="contadorFallidos" style="font-size: 2.5rem; font-weight: 700; color: #f44336;">0</div>
+              <div style="font-size: 0.9rem; color: #999; margin-bottom: 8px; text-transform: uppercase;">Fallidos</div>
+              <div id="contadorFallidos" style="font-size: 3rem; font-weight: 700; color: #f44336;">0</div>
             </div>
           </div>
         </div>
@@ -293,8 +292,15 @@ async function guardarProfesoresMasivos(event) {
   modal.querySelector('#contenedorModalProfesores').style.pointerEvents = 'auto';
   
   // Ocultar formulario y mostrar mensaje de carga
-  document.getElementById('formProfesoresMasivos').style.display = 'none';
-  document.getElementById('mensajeCarga').style.display = 'block';
+  const form = document.getElementById('formProfesoresMasivos');
+  const mensajeCarga = document.getElementById('mensajeCarga');
+  
+  form.style.display = 'none';
+  mensajeCarga.style.display = 'block';
+  mensajeCarga.style.visibility = 'visible';
+  mensajeCarga.style.opacity = '1';
+  
+  console.log('Formulario oculto, mensaje de carga mostrado');
 
   const textoProgreso = document.getElementById('textoProgreso');
   const contadorInfo = document.getElementById('contadorInfo');
@@ -315,10 +321,12 @@ async function guardarProfesoresMasivos(event) {
     textoProgreso.textContent = `Registrando: ${nombre}`;
     contadorInfo.textContent = `Profesor ${i + 1} de ${nombres.length}`;
     
+    console.log(`Actualizando UI: ${i + 1}/${nombres.length} - ${nombre}`);
+    
     actualizarContadores(i + 1, exitosos, fallidos);
 
     // Dar tiempo al navegador para redibujar antes de continuar
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // IMPLEMENTAR REINTENTOS
     let intentos = 0;
