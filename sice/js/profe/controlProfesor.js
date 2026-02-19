@@ -429,11 +429,11 @@ function generarTablaCalificaciones() {
             <th rowspan="2" style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2); min-width: 150px;">Alumno</th>
             <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Matrícula</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 1</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Faltas</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 2</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Faltas</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 3</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Faltas</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
             <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Promedio</th>
           </tr>
         </thead>
@@ -487,7 +487,7 @@ function generarTablaCalificaciones() {
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial1, index, 'p1')}
         </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffd95a;">
           ${generarCeldaFalta(cal.falta1, index, 'f1')}
         </td>
         
@@ -495,7 +495,7 @@ function generarTablaCalificaciones() {
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial2, index, 'p2')}
         </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffd95a;">
           ${generarCeldaFalta(cal.falta2, index, 'f2')}
         </td>
         
@@ -503,7 +503,7 @@ function generarTablaCalificaciones() {
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial3, index, 'p3')}
         </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffd95a;">
           ${generarCeldaFalta(cal.falta3, index, 'f3')}
         </td>
         
@@ -562,23 +562,47 @@ function generarCeldaCalificacion(valor, index, parcial) {
 }
 
 function generarCeldaFalta(valor, index, falta) {
-  if (valor !== null && valor !== undefined && valor !== '') {
-    const color = valor > 0 ? '#dc3545' : '#4caf50';
-    return `<span style="font-weight: bold; color: ${color};">${valor}</span>`;
-  } else {
-    // Generar select con opciones 0-20
+    // Si ya tiene valor guardado → mostrar con color semáforo + ícono
+    if (valor !== null && valor !== undefined && valor !== '') {
+        const num = parseInt(valor);
+        let color, icono;
+
+        if (num === 0) {
+            color = '#4caf50'; icono = '✓';          // verde: sin faltas
+        } else if (num <= 2) {
+            color = '#ff9800'; icono = '⚠';          // naranja: pocas faltas
+        } else {
+            color = '#dc3545'; icono = '✕';          // rojo: muchas faltas
+        }
+
+        return `
+          <div style="display:inline-flex; align-items:center; gap:4px;">
+            <span style="font-weight:bold; color:${color}; font-size:1.05rem;">${valor}</span>
+            <span style="font-size:0.75rem; color:${color};">${icono}</span>
+          </div>`;
+    }
+
+    // Si no tiene valor → mostrar input con estilo claramente distinto al de calificaciones
     let opciones = '';
     for (let i = 0; i <= 20; i++) {
-      opciones += `<option value="${i}">${i}</option>`;
+        opciones += `<option value="${i}">${i}</option>`;
     }
-    
+
     return `
-      <select id="fal_${index}_${falta}" 
-              style="width: 70px; padding: 8px 4px; border: 2px solid #ff9800; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.9rem;">
+      <select id="fal_${index}_${falta}"
+              title="Número de faltas"
+              style="width: 65px;
+                     padding: 6px 4px;
+                     border: 2px solid #ff9800;
+                     border-radius: 6px;
+                     text-align: center;
+                     font-weight: bold;
+                     font-size: 0.9rem;
+                     background: #fff8e1;
+                     color: #e65100;
+                     cursor: pointer;">
         ${opciones}
-      </select>
-    `;
-  }
+      </select>`;
 }
 
 // ============================================================================
