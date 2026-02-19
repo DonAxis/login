@@ -565,7 +565,7 @@ function generarCeldaFalta(valor, index, falta) {
     // Si ya tiene valor guardado → mostrar con color semáforo + ícono
     if (valor !== null && valor !== undefined && valor !== '') {
         const num = parseInt(valor);
-        let color, icono;
+        let color;
 
         if (num === 0) {
             color = '#fff'; 
@@ -578,7 +578,7 @@ function generarCeldaFalta(valor, index, falta) {
         return `
           <div style="display:inline-flex; align-items:center; gap:4px;">
             <span style="font-weight:bold; color:${color}; font-size:1.05rem;">${valor}</span>
-            <span style="font-size:0.75rem; color:${color};">${icono}</span>
+            
           </div>`;
     }
 
