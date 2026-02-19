@@ -2842,6 +2842,7 @@ async function cargarMateriasCalificaciones() {
 
 
 // Cargar calificaciones de una materia
+
 async function cargarCalificacionesMateria() {
     try {
         const selectMat = document.getElementById('selectMateriaCalif');
@@ -2885,9 +2886,9 @@ async function cargarCalificacionesMateria() {
                     parcial1: null,
                     parcial2: null,
                     parcial3: null,
-                    falta1: null,
-                    falta2: null,
-                    falta3: null
+                    falta1: null,   // ← NUEVO
+                    falta2: null,   // ← NUEVO
+                    falta3: null    // ← NUEVO
                 }
             };
 
@@ -2899,7 +2900,7 @@ async function cargarCalificacionesMateria() {
                 alumno.calificaciones.parcial1 = data.parciales?.parcial1 ?? null;
                 alumno.calificaciones.parcial2 = data.parciales?.parcial2 ?? null;
                 alumno.calificaciones.parcial3 = data.parciales?.parcial3 ?? null;
-                // ── NUEVO: leer faltas ──
+                // ── NUEVO: leer faltas guardadas ──
                 alumno.calificaciones.falta1 = data.faltas?.falta1 ?? null;
                 alumno.calificaciones.falta2 = data.faltas?.falta2 ?? null;
                 alumno.calificaciones.falta3 = data.faltas?.falta3 ?? null;
@@ -2920,6 +2921,7 @@ async function cargarCalificacionesMateria() {
     }
 }
 
+
 // Generar tabla HTML con dropdowns
 function generarTablaCalificaciones() {
     const container = document.getElementById('tablaCalificacionesCoord');
@@ -2931,19 +2933,12 @@ function generarTablaCalificaciones() {
           <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <th style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Matrícula</th>
-
-            <!-- Parcial 1 -->
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 1</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.35);">Faltas 1</th>
-
-            <!-- Parcial 2 -->
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">⚠ Faltas 1</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 2</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.35);">Faltas 2</th>
-
-            <!-- Parcial 3 -->
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">⚠ Faltas 2</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 3</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.35);">Faltas 3</th>
-
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">⚠ Faltas 3</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Promedio</th>
           </tr>
         </thead>
@@ -2958,7 +2953,6 @@ function generarTablaCalificaciones() {
           <td style="padding: 12px; border: 1px solid #ddd;"><strong>${alumno.nombre}</strong></td>
           <td style="padding: 12px; text-align: center; border: 1px solid #ddd; color: #666;">${alumno.matricula}</td>
 
-          <!-- P1 -->
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
             ${generarDropdownCalif(index, 'parcial1', alumno.calificaciones.parcial1)}
           </td>
@@ -2966,7 +2960,6 @@ function generarTablaCalificaciones() {
             ${generarDropdownFalta(index, 'falta1', alumno.calificaciones.falta1)}
           </td>
 
-          <!-- P2 -->
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
             ${generarDropdownCalif(index, 'parcial2', alumno.calificaciones.parcial2)}
           </td>
@@ -2974,7 +2967,6 @@ function generarTablaCalificaciones() {
             ${generarDropdownFalta(index, 'falta2', alumno.calificaciones.falta2)}
           </td>
 
-          <!-- P3 -->
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
             ${generarDropdownCalif(index, 'parcial3', alumno.calificaciones.parcial3)}
           </td>
@@ -2982,7 +2974,6 @@ function generarTablaCalificaciones() {
             ${generarDropdownFalta(index, 'falta3', alumno.calificaciones.falta3)}
           </td>
 
-          <!-- Promedio -->
           <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2rem; color: #667eea;">
             ${promedio}
           </td>
@@ -3016,20 +3007,37 @@ function generarDropdownCalif(index, parcial, valor) {
     html += '</select>';
     return html;
 }
+
 function generarDropdownFalta(index, faltaKey, valor) {
+    // Normalizar: si es null/undefined tratarlo como 0 para el select,
+    // PERO si es exactamente null significa que el profesor aún no capturó → también 0 por default.
+    // El truco: comparar con Number() y además manejar null explícitamente.
+    const valorNum = (valor === null || valor === undefined) ? null : Number(valor);
+
     let html = `<select id="falt_${index}_${faltaKey}"
-                  style="width: 65px; padding: 6px 4px; border: 2px solid #ff9800;
-                         border-radius: 5px; text-align: center; font-size: 1rem;
-                         font-weight: bold; background: #fffbf0;">`;
+                  style="width: 70px;
+                         padding: 6px 4px;
+                         border: 2px solid #ff9800;
+                         border-radius: 6px;
+                         text-align: center;
+                         font-weight: bold;
+                         font-size: 1rem;
+                         background: #fffbf0;
+                         color: #bf360c;
+                         cursor: pointer;">`;
 
     for (let i = 0; i <= 20; i++) {
-        const selected = (valor === null && i === 0) || (Number(valor) === i) ? 'selected' : '';
-        html += `<option value="${i}" ${selected}>${i}</option>`;
+        // Pre-seleccionar cuando:
+        //   - valor es null/undefined y i === 0  (default visual en 0)
+        //   - valor no es null y coincide numéricamente
+        const isSelected = (valorNum === null && i === 0) || (valorNum !== null && valorNum === i);
+        html += `<option value="${i}"${isSelected ? ' selected' : ''}>${i}</option>`;
     }
 
     html += '</select>';
     return html;
 }
+
 
 // Calcular promedio
 function calcularPromedioAlumno(alumno) {
@@ -3071,25 +3079,26 @@ async function guardarTodasCalificacionesCoord() {
             const alumno = alumnosCalifMateria[i];
 
             // Parciales
-            const p1 = document.getElementById(`calif_${i}_parcial1`).value;
-            const p2 = document.getElementById(`calif_${i}_parcial2`).value;
-            const p3 = document.getElementById(`calif_${i}_parcial3`).value;
+            const p1 = document.getElementById(`calif_${i}_parcial1`)?.value;
+            const p2 = document.getElementById(`calif_${i}_parcial2`)?.value;
+            const p3 = document.getElementById(`calif_${i}_parcial3`)?.value;
 
-            const parcial1 = p1 === '' ? null : (p1 === 'NP' ? 'NP' : parseInt(p1));
-            const parcial2 = p2 === '' ? null : (p2 === 'NP' ? 'NP' : parseInt(p2));
-            const parcial3 = p3 === '' ? null : (p3 === 'NP' ? 'NP' : parseInt(p3));
+            const parcial1 = p1 === '' || p1 === undefined ? null : (p1 === 'NP' ? 'NP' : parseInt(p1));
+            const parcial2 = p2 === '' || p2 === undefined ? null : (p2 === 'NP' ? 'NP' : parseInt(p2));
+            const parcial3 = p3 === '' || p3 === undefined ? null : (p3 === 'NP' ? 'NP' : parseInt(p3));
 
-            // ── NUEVO: Faltas ──
+            // Faltas
             const f1 = document.getElementById(`falt_${i}_falta1`)?.value;
             const f2 = document.getElementById(`falt_${i}_falta2`)?.value;
             const f3 = document.getElementById(`falt_${i}_falta3`)?.value;
 
-            const falta1 = f1 !== undefined ? parseInt(f1) : null;
-            const falta2 = f2 !== undefined ? parseInt(f2) : null;
-            const falta3 = f3 !== undefined ? parseInt(f3) : null;
+            const falta1 = f1 !== undefined ? parseInt(f1) : 0;
+            const falta2 = f2 !== undefined ? parseInt(f2) : 0;
+            const falta3 = f3 !== undefined ? parseInt(f3) : 0;
 
             const docId = `${alumno.id}_${asignacionCalifActual.materiaId}`;
 
+            // merge: true para no borrar extraordinario, ets, etc.
             await db.collection('calificaciones').doc(docId).set({
                 alumnoId: alumno.id,
                 alumnoNombre: alumno.nombre,
@@ -3106,7 +3115,6 @@ async function guardarTodasCalificacionesCoord() {
                     parcial2,
                     parcial3
                 },
-                // ── NUEVO ──
                 faltas: {
                     falta1,
                     falta2,
@@ -3114,18 +3122,18 @@ async function guardarTodasCalificacionesCoord() {
                 },
                 actualizadoPor: usuarioActual.uid,
                 fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }); // merge:true para no borrar campos extra (extraordinario, ets, etc.)
+            }, { merge: true });
 
             guardadas++;
         }
 
-        alert(`✅ Calificaciones y faltas guardadas!\n\n${guardadas} alumnos actualizados.`);
+        alert(`Guardado correctamente!\n\n${guardadas} alumno(s) actualizado(s).`);
 
         cargarCalificacionesMateria();
 
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al guardar calificaciones: ' + error.message);
+        alert('Error al guardar: ' + error.message);
     }
 }
 
