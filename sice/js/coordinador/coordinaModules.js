@@ -2897,7 +2897,11 @@ async function cargarCalificacionesMateria() {
             const docId = `${doc.id}_${asignacionCalifActual.materiaId}`;
             console.log(`[DEBUG DOCID] alumno=${alumno.nombre} docId=${docId} | materiaId=${asignacionCalifActual.materiaId}`);
             
-            const calDoc = await db.collection('calificaciones').doc(docId).get();
+            // Forzar lectura desde el servidor, no del caché
+            const calDoc = await db.collection('calificaciones').doc(docId).get({ source: 'server' }).catch(() => {
+                // Si falla server (offline), intentar caché
+                return db.collection('calificaciones').doc(docId).get();
+            });
 
             console.log(`[DEBUG EXISTS] alumno=${alumno.nombre} calDoc.exists=${calDoc.exists}`);
 
@@ -3115,7 +3119,9 @@ async function guardarTodasCalificacionesCoord() {
             const docId = `${alumno.id}_${asignacionCalifActual.materiaId}`;
 
             // Leer el documento existente para preservar faltas del profesor
-            const existingDoc = await db.collection('calificaciones').doc(docId).get();
+            const existingDoc = await db.collection('calificaciones').doc(docId).get({ source: 'server' }).catch(() => {
+                return db.collection('calificaciones').doc(docId).get();
+            });
             const existingData = existingDoc.exists ? existingDoc.data() : {};
             const existingFaltas = existingData.faltas || {};
 
@@ -3161,6 +3167,8 @@ async function guardarTodasCalificacionesCoord() {
 
         alert(`Guardado correctamente!\n\n${guardadas} alumno(s) actualizado(s).`);
 
+        // Pequeña pausa para asegurar que Firestore sincronice antes de recargar
+        await new Promise(resolve => setTimeout(resolve, 800));
         cargarCalificacionesMateria();
 
     } catch (error) {
