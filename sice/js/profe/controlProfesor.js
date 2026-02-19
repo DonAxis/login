@@ -487,7 +487,7 @@ function generarTablaCalificaciones() {
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial1, index, 'p1')}
         </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffd95a;">
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
           ${generarCeldaFalta(cal.falta1, index, 'f1')}
         </td>
         
@@ -495,7 +495,7 @@ function generarTablaCalificaciones() {
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial2, index, 'p2')}
         </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffd95a;">
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
           ${generarCeldaFalta(cal.falta2, index, 'f2')}
         </td>
         
@@ -503,7 +503,7 @@ function generarTablaCalificaciones() {
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial3, index, 'p3')}
         </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffd95a;">
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
           ${generarCeldaFalta(cal.falta3, index, 'f3')}
         </td>
         
