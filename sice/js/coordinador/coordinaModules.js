@@ -2865,6 +2865,8 @@ async function cargarCalificacionesMateria() {
             grupoId: asigDoc.data().grupoId || null
         };
 
+        console.log('[DEBUG ASIGNACION]', JSON.stringify(asignacionCalifActual));
+
         document.getElementById('tituloMateriaCalif').textContent = asignacionCalifActual.materiaNombre;
         document.getElementById('infoMateriaCalif').textContent =
             `Grupo: ${asignacionCalifActual.grupoNombre} | Profesor: ${asignacionCalifActual.profesorNombre} | Periodo: ${asignacionCalifActual.periodo}`;
@@ -2893,10 +2895,15 @@ async function cargarCalificacionesMateria() {
             };
 
             const docId = `${doc.id}_${asignacionCalifActual.materiaId}`;
+            console.log(`[DEBUG DOCID] alumno=${alumno.nombre} docId=${docId} | materiaId=${asignacionCalifActual.materiaId}`);
+            
             const calDoc = await db.collection('calificaciones').doc(docId).get();
+
+            console.log(`[DEBUG EXISTS] alumno=${alumno.nombre} calDoc.exists=${calDoc.exists}`);
 
             if (calDoc.exists) {
                 const data = calDoc.data();
+                console.log(`[DEBUG DATA] alumno=${alumno.nombre} FULL DATA:`, JSON.stringify(data));
 
                 // Parciales
                 const parciales = data.parciales || {};
@@ -2910,8 +2917,9 @@ async function cargarCalificacionesMateria() {
                 alumno.calificaciones.falta2 = faltas.falta2 !== undefined ? faltas.falta2 : null;
                 alumno.calificaciones.falta3 = faltas.falta3 !== undefined ? faltas.falta3 : null;
 
-                // DEBUG — verificar faltas cargadas
-                console.log(`[CARGAR ${alumno.nombre}] docId=${docId} | faltas en DB:`, JSON.stringify(data.faltas), `→ falta1=${alumno.calificaciones.falta1} falta2=${alumno.calificaciones.falta2} falta3=${alumno.calificaciones.falta3}`);
+                console.log(`[CARGAR ${alumno.nombre}] faltas en DB:`, JSON.stringify(data.faltas), `→ falta1=${alumno.calificaciones.falta1} falta2=${alumno.calificaciones.falta2} falta3=${alumno.calificaciones.falta3}`);
+            } else {
+                console.warn(`[CARGAR ${alumno.nombre}] ⚠️ NO EXISTE documento de calificaciones con docId=${docId}`);
             }
 
             alumnosCalifMateria.push(alumno);
