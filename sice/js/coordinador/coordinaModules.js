@@ -2910,9 +2910,8 @@ async function cargarCalificacionesMateria() {
                 alumno.calificaciones.falta2 = faltas.falta2 !== undefined ? faltas.falta2 : null;
                 alumno.calificaciones.falta3 = faltas.falta3 !== undefined ? faltas.falta3 : null;
 
-                // DEBUG temporal — bórralo cuando confirmes que funciona
-                console.log(`[${alumno.nombre}] faltas raw:`, data.faltas);
-                console.log(`[${alumno.nombre}] falta1=${alumno.calificaciones.falta1} falta2=${alumno.calificaciones.falta2} falta3=${alumno.calificaciones.falta3}`);
+                // DEBUG — verificar faltas cargadas
+                console.log(`[CARGAR ${alumno.nombre}] docId=${docId} | faltas en DB:`, JSON.stringify(data.faltas), `→ falta1=${alumno.calificaciones.falta1} falta2=${alumno.calificaciones.falta2} falta3=${alumno.calificaciones.falta3}`);
             }
 
             alumnosCalifMateria.push(alumno);
@@ -3018,12 +3017,10 @@ function generarDropdownCalif(index, parcial, valor) {
 }
 
 function generarDropdownFalta(index, faltaKey, valor) {
-    // Normalizar: si es null/undefined tratarlo como 0 para el select,
-    // PERO si es exactamente null significa que el profesor aún no capturó → también 0 por default.
-    // El truco: comparar con Number() y además manejar null explícitamente.
     const valorNum = (valor === null || valor === undefined) ? null : Number(valor);
 
     let html = `<select id="falt_${index}_${faltaKey}"
+                  data-original="${valorNum !== null ? valorNum : ''}"
                   style="width: 70px;
                          padding: 6px 4px;
                          border: 2px solid #ff9800;
@@ -3036,9 +3033,6 @@ function generarDropdownFalta(index, faltaKey, valor) {
                          cursor: pointer;">`;
 
     for (let i = 0; i <= 20; i++) {
-        // Pre-seleccionar cuando:
-        //   - valor es null/undefined y i === 0  (default visual en 0)
-        //   - valor no es null y coincide numéricamente
         const isSelected = (valorNum === null && i === 0) || (valorNum !== null && valorNum === i);
         html += `<option value="${i}"${isSelected ? ' selected' : ''}>${i}</option>`;
     }
@@ -3096,16 +3090,37 @@ async function guardarTodasCalificacionesCoord() {
             const parcial2 = p2 === '' || p2 === undefined ? null : (p2 === 'NP' ? 'NP' : parseInt(p2));
             const parcial3 = p3 === '' || p3 === undefined ? null : (p3 === 'NP' ? 'NP' : parseInt(p3));
 
-            // Faltas
-            const f1 = document.getElementById(`falt_${i}_falta1`)?.value;
-            const f2 = document.getElementById(`falt_${i}_falta2`)?.value;
-            const f3 = document.getElementById(`falt_${i}_falta3`)?.value;
+            // Faltas — leer del dropdown
+            const selF1 = document.getElementById(`falt_${i}_falta1`);
+            const selF2 = document.getElementById(`falt_${i}_falta2`);
+            const selF3 = document.getElementById(`falt_${i}_falta3`);
 
-            const falta1 = f1 !== undefined ? parseInt(f1) : 0;
-            const falta2 = f2 !== undefined ? parseInt(f2) : 0;
-            const falta3 = f3 !== undefined ? parseInt(f3) : 0;
+            const f1 = selF1?.value;
+            const f2 = selF2?.value;
+            const f3 = selF3?.value;
+
+            // Leer valor original que tenía al cargar (guardado en data-original)
+            const origF1 = selF1?.dataset.original;
+            const origF2 = selF2?.dataset.original;
+            const origF3 = selF3?.dataset.original;
 
             const docId = `${alumno.id}_${asignacionCalifActual.materiaId}`;
+
+            // Leer el documento existente para preservar faltas del profesor
+            const existingDoc = await db.collection('calificaciones').doc(docId).get();
+            const existingData = existingDoc.exists ? existingDoc.data() : {};
+            const existingFaltas = existingData.faltas || {};
+
+            // Determinar faltas finales: si el coordinador cambió el valor del dropdown,
+            // usar el nuevo valor. Si no lo cambió (sigue igual al original cargado),
+            // preservar lo que hay en la base de datos.
+            const falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
+            const falta2 = (f2 !== origF2) ? parseInt(f2) : (existingFaltas.falta2 !== undefined ? existingFaltas.falta2 : parseInt(f2));
+            const falta3 = (f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3));
+
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f1=${f1} orig=${origF1} existDB=${existingFaltas.falta1} → final=${falta1}`);
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f2=${f2} orig=${origF2} existDB=${existingFaltas.falta2} → final=${falta2}`);
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f3=${f3} orig=${origF3} existDB=${existingFaltas.falta3} → final=${falta3}`);
 
             // merge: true para no borrar extraordinario, ets, etc.
             await db.collection('calificaciones').doc(docId).set({
