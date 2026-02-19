@@ -568,11 +568,11 @@ function generarCeldaFalta(valor, index, falta) {
         let color, icono;
 
         if (num === 0) {
-            color = '#4caf50'; icono = '✓';          // verde: sin faltas
+            color = '#fff'; 
         } else if (num <= 2) {
-            color = '#ff9800'; icono = '⚠';          // naranja: pocas faltas
+            color = '#fff'; 
         } else {
-            color = '#dc3545'; icono = '✕';          // rojo: muchas faltas
+            color = '#fff';
         }
 
         return `
