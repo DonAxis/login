@@ -2886,9 +2886,9 @@ async function cargarCalificacionesMateria() {
                     parcial1: null,
                     parcial2: null,
                     parcial3: null,
-                    falta1: null,   // ← NUEVO
-                    falta2: null,   // ← NUEVO
-                    falta3: null    // ← NUEVO
+                    falta1: null,
+                    falta2: null,
+                    falta3: null
                 }
             };
 
@@ -2897,13 +2897,22 @@ async function cargarCalificacionesMateria() {
 
             if (calDoc.exists) {
                 const data = calDoc.data();
-                alumno.calificaciones.parcial1 = data.parciales?.parcial1 ?? null;
-                alumno.calificaciones.parcial2 = data.parciales?.parcial2 ?? null;
-                alumno.calificaciones.parcial3 = data.parciales?.parcial3 ?? null;
-                // ── NUEVO: leer faltas guardadas ──
-                alumno.calificaciones.falta1 = data.faltas?.falta1 ?? null;
-                alumno.calificaciones.falta2 = data.faltas?.falta2 ?? null;
-                alumno.calificaciones.falta3 = data.faltas?.falta3 ?? null;
+
+                // Parciales
+                const parciales = data.parciales || {};
+                alumno.calificaciones.parcial1 = parciales.parcial1 !== undefined ? parciales.parcial1 : null;
+                alumno.calificaciones.parcial2 = parciales.parcial2 !== undefined ? parciales.parcial2 : null;
+                alumno.calificaciones.parcial3 = parciales.parcial3 !== undefined ? parciales.parcial3 : null;
+
+                // Faltas — extraer el map explícitamente
+                const faltas = data.faltas || {};
+                alumno.calificaciones.falta1 = faltas.falta1 !== undefined ? faltas.falta1 : null;
+                alumno.calificaciones.falta2 = faltas.falta2 !== undefined ? faltas.falta2 : null;
+                alumno.calificaciones.falta3 = faltas.falta3 !== undefined ? faltas.falta3 : null;
+
+                // DEBUG temporal — bórralo cuando confirmes que funciona
+                console.log(`[${alumno.nombre}] faltas raw:`, data.faltas);
+                console.log(`[${alumno.nombre}] falta1=${alumno.calificaciones.falta1} falta2=${alumno.calificaciones.falta2} falta3=${alumno.calificaciones.falta3}`);
             }
 
             alumnosCalifMateria.push(alumno);
@@ -2917,7 +2926,7 @@ async function cargarCalificacionesMateria() {
 
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al cargar calificaciones');
+        alert('Error al cargar calificaciones: ' + error.message);
     }
 }
 
@@ -2934,11 +2943,11 @@ function generarTablaCalificaciones() {
             <th style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Matrícula</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 1</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">⚠ Faltas 1</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">Faltas 1</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 2</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">⚠ Faltas 2</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">Faltas 2</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 3</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">⚠ Faltas 3</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">Faltas 3</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Promedio</th>
           </tr>
         </thead>
