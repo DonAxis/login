@@ -913,18 +913,26 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
           calificaciones: {
             parcial1: null,
             parcial2: null,
-            parcial3: null
+            parcial3: null,
+            falta1: null,
+            falta2: null,
+            falta3: null
           }
         };
         
         const docId = doc.id + '_' + asignacionCalifActual.materiaId;
-        const calDoc = await db.collection('calificaciones').doc(docId).get();
+        const calDoc = await db.collection('calificaciones').doc(docId).get({ source: 'server' }).catch(() => {
+          return db.collection('calificaciones').doc(docId).get();
+        });
         
         if (calDoc.exists) {
           const data = calDoc.data();
           alumno.calificaciones.parcial1 = data.parciales?.parcial1 ?? null;
           alumno.calificaciones.parcial2 = data.parciales?.parcial2 ?? null;
           alumno.calificaciones.parcial3 = data.parciales?.parcial3 ?? null;
+          alumno.calificaciones.falta1 = data.faltas?.falta1 ?? null;
+          alumno.calificaciones.falta2 = data.faltas?.falta2 ?? null;
+          alumno.calificaciones.falta3 = data.faltas?.falta3 ?? null;
         }
         
         alumnosCalifMateria.push(alumno);
@@ -959,18 +967,26 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
             calificaciones: {
               parcial1: null,
               parcial2: null,
-              parcial3: null
+              parcial3: null,
+              falta1: null,
+              falta2: null,
+              falta3: null
             }
           };
           
           const docId = inscripcion.alumnoId + '_' + asignacionCalifActual.materiaId;
-          const calDoc = await db.collection('calificaciones').doc(docId).get();
+          const calDoc = await db.collection('calificaciones').doc(docId).get({ source: 'server' }).catch(() => {
+            return db.collection('calificaciones').doc(docId).get();
+          });
           
           if (calDoc.exists) {
             const data = calDoc.data();
             alumno.calificaciones.parcial1 = data.parciales?.parcial1 ?? null;
             alumno.calificaciones.parcial2 = data.parciales?.parcial2 ?? null;
             alumno.calificaciones.parcial3 = data.parciales?.parcial3 ?? null;
+            alumno.calificaciones.falta1 = data.faltas?.falta1 ?? null;
+            alumno.calificaciones.falta2 = data.faltas?.falta2 ?? null;
+            alumno.calificaciones.falta3 = data.faltas?.falta3 ?? null;
           }
           
           alumnosCalifMateria.push(alumno);
