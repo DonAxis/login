@@ -2859,13 +2859,17 @@ async function cargarCalificacionesMateria() {
             return;
         }
 
+        const _asigData = asigDoc.data();
         asignacionCalifActual = {
             id: asignacionId,
-            ...asigDoc.data(),
-            grupoId: asigDoc.data().grupoId || null
+            ..._asigData,
+            grupoId: _asigData.grupoId || null,
+            // Normalizar materiaId: soportar variantes de nombre de campo
+            materiaId: _asigData.materiaId || _asigData.idMateria || _asigData.materia_id || null
         };
 
         console.log('[DEBUG ASIGNACION]', JSON.stringify(asignacionCalifActual));
+        console.log('[DEBUG materiaId resuelto]', asignacionCalifActual.materiaId);
 
         document.getElementById('tituloMateriaCalif').textContent = asignacionCalifActual.materiaNombre;
         document.getElementById('infoMateriaCalif').textContent =
@@ -3029,10 +3033,13 @@ function generarDropdownCalif(index, parcial, valor) {
 }
 
 function generarDropdownFalta(index, faltaKey, valor) {
+    // null / undefined significa "no habia dato al cargar"
+    // Se usa -1 como centinela para distinguir "no cargado" de "cargado con valor 0"
     const valorNum = (valor === null || valor === undefined) ? null : Number(valor);
+    const originalAttr = valorNum !== null ? String(valorNum) : '-1';
 
     let html = `<select id="falt_${index}_${faltaKey}"
-                  data-original="${valorNum !== null ? valorNum : ''}"
+                  data-original="${originalAttr}"
                   style="width: 70px;
                          padding: 6px 4px;
                          border: 2px solid #ff9800;
@@ -3111,7 +3118,8 @@ async function guardarTodasCalificacionesCoord() {
             const f2 = selF2?.value;
             const f3 = selF3?.value;
 
-            // Leer valor original que tenía al cargar (guardado en data-original)
+            // Leer valor original que tenia al cargar (guardado en data-original)
+            // -1 significa que no habia dato cargado desde la BD al renderizar
             const origF1 = selF1?.dataset.original;
             const origF2 = selF2?.dataset.original;
             const origF3 = selF3?.dataset.original;
@@ -3125,16 +3133,30 @@ async function guardarTodasCalificacionesCoord() {
             const existingData = existingDoc.exists ? existingDoc.data() : {};
             const existingFaltas = existingData.faltas || {};
 
-            // Determinar faltas finales: si el coordinador cambió el valor del dropdown,
-            // usar el nuevo valor. Si no lo cambió (sigue igual al original cargado),
-            // preservar lo que hay en la base de datos.
-            const falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
-            const falta2 = (f2 !== origF2) ? parseInt(f2) : (existingFaltas.falta2 !== undefined ? existingFaltas.falta2 : parseInt(f2));
-            const falta3 = (f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3));
+            // Logica de resolucion de faltas:
+            // Si la BD ya tiene un valor definido para esa falta:
+            //   - Si el usuario cambio el dropdown (valor actual != original cargado) -> usar el nuevo valor del dropdown
+            //   - Si el usuario NO cambio el dropdown -> preservar el valor de la BD sin tocarlo
+            // Si la BD no tiene valor definido para esa falta:
+            //   - Usar directamente lo que tenga el dropdown (puede ser 0 si el usuario lo dejo asi)
+            const resolverFalta = (fDropdown, origDropdown, dbValue) => {
+                if (dbValue !== undefined) {
+                    // Hay valor en la BD
+                    const usuarioCambio = fDropdown !== origDropdown;
+                    return usuarioCambio ? parseInt(fDropdown) : dbValue;
+                } else {
+                    // No habia valor en la BD, tomar lo del dropdown
+                    return parseInt(fDropdown ?? 0);
+                }
+            };
 
-            console.log(`[GUARDAR ${alumno.nombre}] dropdown f1=${f1} orig=${origF1} existDB=${existingFaltas.falta1} → final=${falta1}`);
-            console.log(`[GUARDAR ${alumno.nombre}] dropdown f2=${f2} orig=${origF2} existDB=${existingFaltas.falta2} → final=${falta2}`);
-            console.log(`[GUARDAR ${alumno.nombre}] dropdown f3=${f3} orig=${origF3} existDB=${existingFaltas.falta3} → final=${falta3}`);
+            const falta1 = resolverFalta(f1, origF1, existingFaltas.falta1);
+            const falta2 = resolverFalta(f2, origF2, existingFaltas.falta2);
+            const falta3 = resolverFalta(f3, origF3, existingFaltas.falta3);
+
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f1=${f1} orig=${origF1} existDB=${existingFaltas.falta1} -> final=${falta1}`);
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f2=${f2} orig=${origF2} existDB=${existingFaltas.falta2} -> final=${falta2}`);
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f3=${f3} orig=${origF3} existDB=${existingFaltas.falta3} -> final=${falta3}`);
 
             // merge: true para no borrar extraordinario, ets, etc.
             await db.collection('calificaciones').doc(docId).set({
