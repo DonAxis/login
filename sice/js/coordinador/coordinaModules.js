@@ -2488,11 +2488,11 @@ function aplicarFiltrosAlumnos() {
         // Badge estado
         let badgeEstado = '';
         if (alumno.graduado) {
-            badgeEstado = '<span style="background:#7b1fa2;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">🎓 Graduado</span>';
+            badgeEstado = '<span style="background:#7b1fa2;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">Graduado</span>';
         } else if (alumno.activo) {
-            badgeEstado = '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">✅ Activo</span>';
+            badgeEstado = '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">Activo</span>';
         } else {
-            badgeEstado = '<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">⛔ Inactivo</span>';
+            badgeEstado = '<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">Inactivo</span>';
         }
 
         // Badge tipo
