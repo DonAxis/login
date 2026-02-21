@@ -2871,10 +2871,9 @@ async function cargarCalificacionesMateria() {
         document.getElementById('infoMateriaCalif').textContent =
             `Grupo: ${asignacionCalifActual.grupoNombre} | Profesor: ${asignacionCalifActual.profesorNombre} | Periodo: ${asignacionCalifActual.periodo}`;
 
-        // Usar codigoGrupo igual que controlProfesor, porque grupoId puede ser null
         const alumnosSnap = await db.collection('usuarios')
             .where('rol', '==', 'alumno')
-            .where('codigoGrupo', '==', asignacionCalifActual.codigoGrupo)
+            .where('grupoId', '==', asignacionCalifActual.grupoId)
             .where('activo', '==', true)
             .get();
 
@@ -3030,34 +3029,28 @@ function generarDropdownCalif(index, parcial, valor) {
 }
 
 function generarDropdownFalta(index, faltaKey, valor) {
-    // Si ya hay un valor guardado en la BD, mostrarlo como texto (solo lectura)
-    // mismo patron que usa controlProfesor en generarCeldaFalta
-    if (valor !== null && valor !== undefined && valor !== '') {
-        const num = parseInt(valor);
-        const colorTexto = num === 0 ? '#4caf50' : num <= 2 ? '#ff9800' : '#dc3545';
-        return `<span style="font-weight: bold; color: ${colorTexto}; font-size: 1.05rem;">${valor}</span>`;
-    }
+    const valorNum = (valor === null || valor === undefined) ? null : Number(valor);
 
-    // Sin valor guardado: mostrar dropdown editable
-    let opciones = '';
+    let html = `<select id="falt_${index}_${faltaKey}"
+                  data-original="${valorNum !== null ? valorNum : ''}"
+                  style="width: 70px;
+                         padding: 6px 4px;
+                         border: 2px solid #ff9800;
+                         border-radius: 6px;
+                         text-align: center;
+                         font-weight: bold;
+                         font-size: 1rem;
+                         background: #fffbf0;
+                         color: #bf360c;
+                         cursor: pointer;">`;
+
     for (let i = 0; i <= 20; i++) {
-        opciones += `<option value="${i}">${i}</option>`;
+        const isSelected = (valorNum === null && i === 0) || (valorNum !== null && valorNum === i);
+        html += `<option value="${i}"${isSelected ? ' selected' : ''}>${i}</option>`;
     }
 
-    return `<select id="falt_${index}_${faltaKey}"
-                data-original="-1"
-                style="width: 70px;
-                       padding: 6px 4px;
-                       border: 2px solid #ff9800;
-                       border-radius: 6px;
-                       text-align: center;
-                       font-weight: bold;
-                       font-size: 1rem;
-                       background: #fffbf0;
-                       color: #bf360c;
-                       cursor: pointer;">
-        ${opciones}
-    </select>`;
+    html += '</select>';
+    return html;
 }
 
 
