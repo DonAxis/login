@@ -3109,22 +3109,39 @@ async function guardarTodasCalificacionesCoord() {
             const parcial2 = p2 === '' || p2 === undefined ? null : (p2 === 'NP' ? 'NP' : parseInt(p2));
             const parcial3 = p3 === '' || p3 === undefined ? null : (p3 === 'NP' ? 'NP' : parseInt(p3));
 
-            // Faltas:
-            // Si el dropdown existe en el DOM significa que NO habia valor guardado (el profesor aun no registro esa falta)
-            // y el coordinador puede escribir un valor nuevo.
-            // Si no existe el dropdown, la falta ya estaba guardada y se mostro como texto plano —
-            // en ese caso se lee el valor directamente del array alumnosCalifMateria que se cargo desde la BD.
+            // Faltas — leer del dropdown
             const selF1 = document.getElementById(`falt_${i}_falta1`);
             const selF2 = document.getElementById(`falt_${i}_falta2`);
             const selF3 = document.getElementById(`falt_${i}_falta3`);
 
-            const falta1 = selF1 ? parseInt(selF1.value) : (alumno.calificaciones.falta1 !== null ? alumno.calificaciones.falta1 : 0);
-            const falta2 = selF2 ? parseInt(selF2.value) : (alumno.calificaciones.falta2 !== null ? alumno.calificaciones.falta2 : 0);
-            const falta3 = selF3 ? parseInt(selF3.value) : (alumno.calificaciones.falta3 !== null ? alumno.calificaciones.falta3 : 0);
+            const f1 = selF1?.value;
+            const f2 = selF2?.value;
+            const f3 = selF3?.value;
 
-            console.log(`[GUARDAR ${alumno.nombre}] falta1=${falta1} falta2=${falta2} falta3=${falta3} (dropdown presente: f1=${!!selF1} f2=${!!selF2} f3=${!!selF3})`);
+            // Leer valor original que tenía al cargar (guardado en data-original)
+            const origF1 = selF1?.dataset.original;
+            const origF2 = selF2?.dataset.original;
+            const origF3 = selF3?.dataset.original;
 
             const docId = `${alumno.id}_${asignacionCalifActual.materiaId}`;
+
+            // Leer el documento existente para preservar faltas del profesor
+            const existingDoc = await db.collection('calificaciones').doc(docId).get({ source: 'server' }).catch(() => {
+                return db.collection('calificaciones').doc(docId).get();
+            });
+            const existingData = existingDoc.exists ? existingDoc.data() : {};
+            const existingFaltas = existingData.faltas || {};
+
+            // Determinar faltas finales: si el coordinador cambió el valor del dropdown,
+            // usar el nuevo valor. Si no lo cambió (sigue igual al original cargado),
+            // preservar lo que hay en la base de datos.
+            const falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
+            const falta2 = (f2 !== origF2) ? parseInt(f2) : (existingFaltas.falta2 !== undefined ? existingFaltas.falta2 : parseInt(f2));
+            const falta3 = (f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3));
+
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f1=${f1} orig=${origF1} existDB=${existingFaltas.falta1} → final=${falta1}`);
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f2=${f2} orig=${origF2} existDB=${existingFaltas.falta2} → final=${falta2}`);
+            console.log(`[GUARDAR ${alumno.nombre}] dropdown f3=${f3} orig=${origF3} existDB=${existingFaltas.falta3} → final=${falta3}`);
 
             // merge: true para no borrar extraordinario, ets, etc.
             await db.collection('calificaciones').doc(docId).set({
