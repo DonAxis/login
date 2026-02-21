@@ -622,56 +622,54 @@
  </div>
  
  <!-- FILTROS DE ALUMNOS -->
- <div id="panelFiltrosAlumnos" style="background: white; padding: 16px 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+ <div id="panelFiltrosAlumnos" style="background: white; padding: 14px 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
 
-   <!-- Fila 1: Búsqueda + Tipo -->
-   <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px;">
-     <div style="flex: 1; min-width: 200px;">
-       <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Buscar por nombre o matrícula</label>
+   <!-- Fila 1: Búsqueda (60%) + Estado -->
+   <div style="display: flex; gap: 20px; align-items: flex-end; margin-bottom: 10px; flex-wrap: wrap;">
+     <div style="flex: 0 0 58%;">
+       <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">🔍 Buscar por nombre o matrícula</label>
        <input type="text" id="filtroBusquedaAlumnos" oninput="aplicarFiltrosAlumnos()"
          placeholder="Escribir nombre o matrícula..."
-         style="width: 100%; padding: 8px 12px; border: 2px solid #ddd; border-radius: 7px; font-size: 0.9rem; box-sizing: border-box; transition: border-color 0.2s;"
+         style="width: 100%; padding: 7px 12px; border: 2px solid #ddd; border-radius: 7px; font-size: 0.9rem; box-sizing: border-box; transition: border-color 0.2s;"
          onfocus="this.style.borderColor='#43a047'" onblur="this.style.borderColor='#ddd'">
      </div>
-     <br>
-     <div>
-
-       <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Tipo de alumno</label>
-       <div style="display: flex; gap: 6px;">
-         <button id="btnTipoTodos" onclick="setFiltroTipo('todos')" class="filtro-btn filtro-btn-activo">Todos</button>
-         <button id="btnTipoRegular" onclick="setFiltroTipo('regular')" class="filtro-btn">Regular</button>
-         <button id="btnTipoEspecial" onclick="setFiltroTipo('especial')" class="filtro-btn">Especial</button>
-       </div>
-     </div>
-   </div>
-
-   <!-- Fila 2: Estado + Grupo -->
-   <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start;">
      <div>
        <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Estado</label>
        <div style="display: flex; gap: 6px;">
-         <button id="btnEstadoTodos" onclick="setFiltroEstado('todos')" class="filtro-btn filtro-btn-activo">Todos</button>
-         <button id="btnEstadoActivo" onclick="setFiltroEstado('activo')" class="filtro-btn">Activo</button>
+         <button id="btnEstadoTodos"    onclick="setFiltroEstado('todos')"    class="filtro-btn filtro-btn-activo">Todos</button>
+         <button id="btnEstadoActivo"   onclick="setFiltroEstado('activo')"   class="filtro-btn">Activo</button>
          <button id="btnEstadoInactivo" onclick="setFiltroEstado('inactivo')" class="filtro-btn">Inactivo</button>
          <button id="btnEstadoGraduado" onclick="setFiltroEstado('graduado')" class="filtro-btn">Graduado</button>
        </div>
      </div>
-     <div style="flex: 1; min-width: 180px;">
-       <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Grupo </label>
-       <div id="botonesGrupoAlumnos" style="display: flex; gap: 5px; flex-wrap: wrap;">
-         <button id="btnGrupoTodos" onclick="setFiltroGrupo('todos')" class="filtro-btn filtro-btn-activo">Todos</button>
-         <!-- se generan dinámicamente -->
-       </div>
+   </div>
+
+   <!-- Fila 2: Tipo de alumno -->
+   <div style="margin-bottom: 10px;">
+     <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Tipo de alumno</label>
+     <div style="display: flex; gap: 6px;">
+       <button id="btnTipoTodos"    onclick="setFiltroTipo('todos')"    class="filtro-btn filtro-btn-activo">Todos</button>
+       <button id="btnTipoRegular"  onclick="setFiltroTipo('regular')"  class="filtro-btn">Regular</button>
+       <button id="btnTipoEspecial" onclick="setFiltroTipo('especial')" class="filtro-btn">Especial</button>
      </div>
    </div>
 
-   <!-- Contador de resultados -->
-   <div style="margin-top: 10px; font-size: 0.82rem; color: #888;" id="contadorFiltroAlumnos"></div>
+   <!-- Fila 3: Grupo (línea completa) -->
+   <div style="margin-bottom: 4px;">
+     <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Grupo</label>
+     <div id="botonesGrupoAlumnos" style="display: flex; gap: 5px; flex-wrap: wrap;">
+       <button id="btnGrupoTodos" onclick="setFiltroGrupo('todos')" class="filtro-btn filtro-btn-activo">Todos</button>
+       <!-- se generan dinámicamente -->
+     </div>
+   </div>
+
+   <!-- Contador -->
+   <div style="margin-top: 8px; font-size: 0.82rem; color: #888;" id="contadorFiltroAlumnos"></div>
  </div>
 
  <style>
    .filtro-btn {
-     padding: 6px 13px;
+     padding: 5px 13px;
      border: 2px solid #ccc;
      border-radius: 20px;
      background: white;
