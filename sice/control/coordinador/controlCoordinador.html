@@ -627,13 +627,15 @@
    <!-- Fila 1: Búsqueda + Tipo -->
    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px;">
      <div style="flex: 1; min-width: 200px;">
-       <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">🔍 Buscar por nombre o matrícula</label>
+       <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Buscar por nombre o matrícula</label>
        <input type="text" id="filtroBusquedaAlumnos" oninput="aplicarFiltrosAlumnos()"
          placeholder="Escribir nombre o matrícula..."
          style="width: 100%; padding: 8px 12px; border: 2px solid #ddd; border-radius: 7px; font-size: 0.9rem; box-sizing: border-box; transition: border-color 0.2s;"
          onfocus="this.style.borderColor='#43a047'" onblur="this.style.borderColor='#ddd'">
      </div>
+     <br>
      <div>
+
        <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Tipo de alumno</label>
        <div style="display: flex; gap: 6px;">
          <button id="btnTipoTodos" onclick="setFiltroTipo('todos')" class="filtro-btn filtro-btn-activo">Todos</button>
