@@ -2381,73 +2381,214 @@ function editarProfesor(profesorId) {
 }
 
 // ===== GESTIÓN DE ALUMNOS (CREAR/EDITAR) =====
+// ===== SISTEMA DE FILTROS DE ALUMNOS =====
+// Variables globales para filtros y cache
+let _alumnosCache = [];          // todos los alumnos cargados
+let _gruposDataCache = null;     // matriz de grupos
+let _filtroEstado = 'todos';
+let _filtroGrupo  = 'todos';
+let _filtroTipo   = 'todos';
+
+function setFiltroEstado(val) {
+    _filtroEstado = val;
+    document.querySelectorAll('#btnEstadoTodos,#btnEstadoActivo,#btnEstadoInactivo,#btnEstadoGraduado')
+        .forEach(b => b.classList.remove('filtro-btn-activo'));
+    const map = { todos: 'btnEstadoTodos', activo: 'btnEstadoActivo', inactivo: 'btnEstadoInactivo', graduado: 'btnEstadoGraduado' };
+    const el = document.getElementById(map[val]);
+    if (el) el.classList.add('filtro-btn-activo');
+    aplicarFiltrosAlumnos();
+}
+
+function setFiltroGrupo(val) {
+    _filtroGrupo = val;
+    document.querySelectorAll('#botonesGrupoAlumnos .filtro-btn')
+        .forEach(b => b.classList.remove('filtro-btn-activo'));
+    const btnId = val === 'todos' ? 'btnGrupoTodos' : `btnGrupo_${val}`;
+    const el = document.getElementById(btnId);
+    if (el) el.classList.add('filtro-btn-activo');
+    aplicarFiltrosAlumnos();
+}
+
+function setFiltroTipo(val) {
+    _filtroTipo = val;
+    document.querySelectorAll('#btnTipoTodos,#btnTipoRegular,#btnTipoEspecial')
+        .forEach(b => b.classList.remove('filtro-btn-activo'));
+    const map = { todos: 'btnTipoTodos', regular: 'btnTipoRegular', especial: 'btnTipoEspecial' };
+    const el = document.getElementById(map[val]);
+    if (el) el.classList.add('filtro-btn-activo');
+    aplicarFiltrosAlumnos();
+}
+
+function aplicarFiltrosAlumnos() {
+    const busqueda = (document.getElementById('filtroBusquedaAlumnos')?.value || '').toLowerCase().trim();
+    const container = document.getElementById('listaAlumnos');
+
+    let lista = _alumnosCache.filter(item => {
+        const a = item.data;
+
+        // Filtro estado
+        if (_filtroEstado === 'activo'    && (!a.activo || a.graduado))  return false;
+        if (_filtroEstado === 'inactivo'  && (a.activo  || a.graduado))  return false;
+        if (_filtroEstado === 'graduado'  && !a.graduado)                 return false;
+
+        // Filtro grupo (últimos 4 dígitos del codigoGrupo)
+        if (_filtroGrupo !== 'todos') {
+            const sufijo = a.codigoGrupo ? a.codigoGrupo.slice(-4) : '';
+            if (sufijo !== _filtroGrupo) return false;
+        }
+
+        // Filtro tipo
+        if (_filtroTipo === 'especial' && a.tipoAlumno !== 'especial') return false;
+        if (_filtroTipo === 'regular'  && a.tipoAlumno === 'especial') return false;
+
+        // Búsqueda por nombre o matrícula
+        if (busqueda) {
+            const nombre = (a.nombre || '').toLowerCase();
+            const mat    = (a.matricula || '').toLowerCase();
+            if (!nombre.includes(busqueda) && !mat.includes(busqueda)) return false;
+        }
+
+        return true;
+    });
+
+    const total = _alumnosCache.length;
+    const mostrando = lista.length;
+    const contadorEl = document.getElementById('contadorFiltroAlumnos');
+    if (contadorEl) {
+        contadorEl.textContent = mostrando === total
+            ? `Mostrando ${total} alumno${total !== 1 ? 's' : ''}`
+            : `Mostrando ${mostrando} de ${total} alumnos`;
+    }
+
+    if (lista.length === 0) {
+        container.innerHTML = '<div class="sin-datos">No hay alumnos con los filtros seleccionados</div>';
+        return;
+    }
+
+    let html = '';
+    lista.forEach(item => {
+        const alumno = item.data;
+        const id = item.id;
+
+        // Nombre del grupo
+        let grupoNombre = 'Sin grupo';
+        if (alumno.codigoGrupo) {
+            grupoNombre = alumno.codigoGrupo;
+            if (_gruposDataCache && _gruposDataCache.grupos) {
+                const codigoSimple = alumno.codigoGrupo.split('-')[1];
+                if (codigoSimple && _gruposDataCache.grupos[codigoSimple]) {
+                    const gi = _gruposDataCache.grupos[codigoSimple];
+                    grupoNombre = `${alumno.codigoGrupo} (${gi.nombreTurno}, P${gi.periodo})`;
+                }
+            }
+        } else if (alumno.grupoId) {
+            grupoNombre = alumno.grupoId;
+        }
+
+        // Badge estado
+        let badgeEstado = '';
+        if (alumno.graduado) {
+            badgeEstado = '<span style="background:#7b1fa2;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">🎓 Graduado</span>';
+        } else if (alumno.activo) {
+            badgeEstado = '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">✅ Activo</span>';
+        } else {
+            badgeEstado = '<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">⛔ Inactivo</span>';
+        }
+
+        // Badge tipo
+        const badgeTipo = alumno.tipoAlumno === 'especial'
+            ? '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;margin-left:6px;">Especial</span>'
+            : '';
+
+        html += `
+            <div class="item">
+                <div class="item-info">
+                    <h4>${alumno.nombre} ${badgeTipo}</h4>
+                    <p>Matrícula: <strong>${alumno.matricula || 'N/A'}</strong> &nbsp;|&nbsp; ${badgeEstado}</p>
+                    <p>Grupo: ${grupoNombre}</p>
+                    <p style="color:#888;">${alumno.email}</p>
+                </div>
+                <div class="item-acciones">
+                    <button onclick="editarAlumno('${id}')" class="btn-editar">Editar</button>
+                    <button onclick="toggleActivoUsuario('${id}', 'alumno', ${!alumno.activo})" class="botAzu">
+                        ${alumno.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
 async function cargarAlumnos() {
+    const container = document.getElementById('listaAlumnos');
+    container.innerHTML = '<div class="sin-datos" style="color:#888;">Cargando alumnos...</div>';
+
     try {
         const snapshot = await db.collection('usuarios')
             .where('rol', '==', 'alumno')
             .where('carreraId', '==', usuarioActual.carreraId)
             .get();
 
-        const container = document.getElementById('listaAlumnos');
-
         if (snapshot.empty) {
+            _alumnosCache = [];
             container.innerHTML = '<div class="sin-datos">No hay alumnos registrados</div>';
+            _reconstruirBotonesGrupo();
             return;
         }
 
-        // Cargar matriz de grupos de la carrera
+        // Cargar matriz de grupos
         const gruposDoc = await db.collection('grupos').doc(usuarioActual.carreraId).get();
-        const gruposData = gruposDoc.exists ? gruposDoc.data() : null;
+        _gruposDataCache = gruposDoc.exists ? gruposDoc.data() : null;
 
-        let html = '';
+        // Guardar en cache
+        _alumnosCache = [];
         snapshot.forEach(doc => {
-            const alumno = doc.data();
-
-            // Determinar el nombre del grupo
-            let grupoNombre = 'Sin grupo';
-
-            if (alumno.codigoGrupo) {
-                // El alumno tiene codigoGrupo (ej: "HIS-1500")
-                grupoNombre = alumno.codigoGrupo;
-
-                // Intentar obtener info adicional del grupo si existe en la matriz
-                if (gruposData && gruposData.grupos) {
-                    // Extraer codigo simple del codigoCompleto (ej: "1500" de "HIS-1500")
-                    const codigoSimple = alumno.codigoGrupo.split('-')[1];
-
-                    if (codigoSimple && gruposData.grupos[codigoSimple]) {
-                        const grupoInfo = gruposData.grupos[codigoSimple];
-                        grupoNombre = `${alumno.codigoGrupo} (${grupoInfo.nombreTurno}, P${grupoInfo.periodo})`;
-                    }
-                }
-            } else if (alumno.grupoId) {
-                // Compatibilidad con sistema antiguo
-                grupoNombre = alumno.grupoId;
-            }
-
-            html += `
-                <div class="item">
-                    <div class="item-info">
-                        <h4>${alumno.nombre}</h4>
-                        <p>Matricula: ${alumno.matricula || 'N/A'}</p>
-                        <p>Grupo: ${grupoNombre}</p>
-                        <p>${alumno.email}</p>
-                        <p>${alumno.activo ? '<span style="color: #4caf50;">Activo</span>' : '<span style="color: #f44336;">Inactivo</span>'}</p>
-                    </div>
-                    <div class="item-acciones">
-                        <button onclick="editarAlumno('${doc.id}')" class="btn-editar">Editar</button>
-                        <button onclick="toggleActivoUsuario('${doc.id}', 'alumno', ${!alumno.activo})" class="botAzu">
-                            ${alumno.activo ? 'Desactivar' : 'Activar'}
-                        </button>
-                    </div>
-                </div>
-            `;
+            _alumnosCache.push({ id: doc.id, data: doc.data() });
         });
 
-        container.innerHTML = html;
+        // Construir botones de grupo dinámicos
+        _reconstruirBotonesGrupo();
+
+        // Aplicar filtros (respeta filtros ya seleccionados)
+        aplicarFiltrosAlumnos();
+
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al cargar alumnos');
+        container.innerHTML = '<div class="sin-datos" style="color:#f44336;">Error al cargar alumnos</div>';
+    }
+}
+
+function _reconstruirBotonesGrupo() {
+    const contenedor = document.getElementById('botonesGrupoAlumnos');
+    if (!contenedor) return;
+
+    // Recolectar grupos únicos (últimos 4 dígitos)
+    const gruposSet = new Set();
+    _alumnosCache.forEach(item => {
+        if (item.data.codigoGrupo) {
+            const sufijo = item.data.codigoGrupo.slice(-4);
+            if (sufijo) gruposSet.add(sufijo);
+        }
+    });
+
+    const grupos = Array.from(gruposSet).sort();
+
+    // Reconstruir botones
+    contenedor.innerHTML = `<button id="btnGrupoTodos" onclick="setFiltroGrupo('todos')" class="filtro-btn filtro-btn-activo">Todos</button>`;
+    grupos.forEach(g => {
+        const btn = document.createElement('button');
+        btn.id = `btnGrupo_${g}`;
+        btn.textContent = g;
+        btn.className = 'filtro-btn';
+        btn.onclick = () => setFiltroGrupo(g);
+        contenedor.appendChild(btn);
+    });
+
+    // Restablecer filtro de grupo si el grupo ya no existe
+    if (_filtroGrupo !== 'todos' && !grupos.includes(_filtroGrupo)) {
+        _filtroGrupo = 'todos';
     }
 }
 

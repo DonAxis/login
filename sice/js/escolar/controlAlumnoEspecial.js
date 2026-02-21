@@ -36,7 +36,7 @@ async function mostrarFormCrearAlumnoEspecial() {
         <label>Matricula: *</label>
         <input type="text" id="matriculaAlumnoEsp" required 
                placeholder="Ej: 2020AB001">
-        <small style="color: #666;">Formato: AÑO + 2 letras + 3 numeros</small>
+        <small style="color: #666;">Para darle acceso al alumno</small>
       </div>
       
       <div class="form-grupo">
