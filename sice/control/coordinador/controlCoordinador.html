@@ -647,24 +647,25 @@
      </div>
    </div>
 
-   <!-- Fila 2: Tipo de alumno -->
-   <div style="margin-bottom: 10px;">
-     <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Tipo de alumno</label>
-     <div style="display: flex; gap: 6px;">
-       <button id="btnTipoTodos"    onclick="setFiltroTipo('todos')"    class="filtro-btn filtro-btn-activo">Todos</button>
-       <button id="btnTipoRegular"  onclick="setFiltroTipo('regular')"  class="filtro-btn">Regular</button>
-       <button id="btnTipoEspecial" onclick="setFiltroTipo('especial')" class="filtro-btn">Especial</button>
-     </div>
-   </div>
+  <!-- Fila 2: Tipo de alumno + Grupo -->
+<div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 4px; flex-wrap: wrap;">
+  <div>
+    <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Tipo de alumno</label>
+    <div style="display: flex; gap: 6px;">
+      <button id="btnTipoTodos"    onclick="setFiltroTipo('todos')"    class="filtro-btn filtro-btn-activo">Todos</button>
+      <button id="btnTipoRegular"  onclick="setFiltroTipo('regular')"  class="filtro-btn">Regular</button>
+      <button id="btnTipoEspecial" onclick="setFiltroTipo('especial')" class="filtro-btn">Especial</button>
+    </div>
+  </div>
+  <div style="flex: 1;">
+     <!-- Fila 3: Grupo (línea completa) -->
+    <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Grupo</label>
+    <div id="botonesGrupoAlumnos" style="display: flex; gap: 5px; flex-wrap: wrap;">
+      <button id="btnGrupoTodos" onclick="setFiltroGrupo('todos')" class="filtro-btn filtro-btn-activo">Todos</button>
+    </div>
+  </div>
+</div>
 
-   <!-- Fila 3: Grupo (línea completa) -->
-   <div style="margin-bottom: 4px;">
-     <label style="font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 5px;">Grupo</label>
-     <div id="botonesGrupoAlumnos" style="display: flex; gap: 5px; flex-wrap: wrap;">
-       <button id="btnGrupoTodos" onclick="setFiltroGrupo('todos')" class="filtro-btn filtro-btn-activo">Todos</button>
-       <!-- se generan dinámicamente -->
-     </div>
-   </div>
 
    <!-- Contador -->
    <div style="margin-top: 8px; font-size: 0.82rem; color: #888;" id="contadorFiltroAlumnos"></div>
