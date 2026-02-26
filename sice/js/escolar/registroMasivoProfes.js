@@ -9,7 +9,7 @@ async function mostrarModalProfesoresMasivos() {
       <div id="contenedorModalProfesores" style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 95%; min-height: 400px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
-          <h2 style="margin: 0; color: #667eea; font-size: 1.8rem;">Registro de Profesores</h2>
+          <h2 style="margin: 0; color: #667eea; font-size: 1.8rem;">Registro de Profesores.</h2>
           <button id="btnCerrarModal" onclick="cerrarModalProfesoresMasivos()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
         </div>
 
