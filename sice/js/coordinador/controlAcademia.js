@@ -692,12 +692,280 @@ function volverCoordinador() {
   window.location.href = './controlCoordinador.html';
 }
 
+// ===== SECCIÓN PROFESORES =====
+let profesoresAcademia = [];
+
+function mostrarProfesores() {
+  ocultarTodasSecciones();
+  document.getElementById('seccionProfesores').style.display = 'block';
+  document.getElementById('btnVolverMenu').style.display = 'inline-block';
+  cargarProfesores();
+}
+
+async function cargarProfesores() {
+  const container = document.getElementById('listaProfesores');
+  container.innerHTML = '<p style="text-align:center;color:#999;">Cargando profesores...</p>';
+
+  try {
+    // Obtener academiaId(s) del coordinador
+    let academiaIds = [];
+    if (usuarioActual.academias && usuarioActual.academias.length > 0) {
+      academiaIds = usuarioActual.academias.map(a => a.academiaId);
+    } else if (usuarioActual.academiaId) {
+      academiaIds = [usuarioActual.academiaId];
+    }
+
+    // Buscar profesores cuya carreraId coincida con academiaIds
+    // (los profesores registrados por academia usan academiaId como carreraId)
+    const snapshots = await Promise.all(
+      academiaIds.map(aid =>
+        db.collection('usuarios')
+          .where('rol', '==', 'profesor')
+          .where('carreraId', '==', aid)
+          .get()
+      )
+    );
+
+    profesoresAcademia = [];
+    snapshots.forEach(snap => {
+      snap.forEach(doc => {
+        if (!profesoresAcademia.find(p => p.uid === doc.id)) {
+          profesoresAcademia.push({ uid: doc.id, ...doc.data() });
+        }
+      });
+    });
+
+    if (profesoresAcademia.length === 0) {
+      container.innerHTML = `
+        <div class="sin-datos">
+          <p>No hay profesores registrados en tu academia</p>
+          <p style="margin-top:10px;">
+            <button onclick="mostrarModalRegistrarProfesor()" class="btn-asignar">Registrar Primer Profesor</button>
+          </p>
+        </div>`;
+      return;
+    }
+
+    let html = '';
+    profesoresAcademia.forEach(prof => {
+      html += `
+        <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.08); 
+                    display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; 
+                    border-left:4px solid #5e35b1;">
+          <div>
+            <h3 style="margin:0 0 4px 0; color:#333;">${prof.nombre}</h3>
+            <p style="margin:2px 0; color:#666; font-size:0.88rem;">${prof.email}</p>
+            <p style="margin:2px 0; font-size:0.82rem;">
+              <span style="color:${prof.activo ? '#43a047' : '#e53935'};">●</span>
+              ${prof.activo ? 'Activo' : 'Inactivo'}
+            </p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button onclick="verMateriasProfesor('${prof.uid}', '${prof.nombre.replace(/'/g,"\\\'")}')"
+                    style="padding:8px 14px; background:#5e35b1; color:white; border:none; border-radius:8px; 
+                           font-weight:600; cursor:pointer; font-size:0.85rem;">
+              Ver Materias
+            </button>
+            <button onclick="toggleActivoProfesor('${prof.uid}', ${!prof.activo})"
+                    style="padding:8px 14px; background:${prof.activo ? '#ef5350' : '#43a047'}; color:white; 
+                           border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.85rem;">
+              ${prof.activo ? 'Desactivar' : 'Activar'}
+            </button>
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+
+  } catch (error) {
+    console.error('Error cargando profesores:', error);
+    container.innerHTML = '<p style="color:red;text-align:center;">Error al cargar profesores</p>';
+  }
+}
+
+async function toggleActivoProfesor(uid, nuevoEstado) {
+  try {
+    await db.collection('usuarios').doc(uid).update({ activo: nuevoEstado });
+    cargarProfesores();
+  } catch (e) {
+    alert('Error al actualizar estado: ' + e.message);
+  }
+}
+
+// ===== VER MATERIAS DE UN PROFESOR =====
+async function verMateriasProfesor(profesorId, profesorNombre) {
+  ocultarTodasSecciones();
+  document.getElementById('seccionMateriasProfesor').style.display = 'block';
+  document.getElementById('btnVolverMenu').style.display = 'inline-block';
+  document.getElementById('tituloMateriasProfesor').textContent = `Materias de ${profesorNombre}`;
+  document.getElementById('infoProfesorSeleccionado').textContent = 'Materias asignadas en el sistema';
+
+  const container = document.getElementById('listaMateriasProfesor');
+  container.innerHTML = '<p style="text-align:center;color:#999;">Cargando materias...</p>';
+
+  try {
+    const snap = await db.collection('profesorMaterias')
+      .where('profesorId', '==', profesorId)
+      .get();
+
+    if (snap.empty) {
+      container.innerHTML = `
+        <div class="sin-datos">
+          <p>Este profesor no tiene materias asignadas aún</p>
+        </div>`;
+      return;
+    }
+
+    const materias = [];
+    snap.forEach(doc => materias.push({ id: doc.id, ...doc.data() }));
+    materias.sort((a, b) => (a.materiaNombre || '').localeCompare(b.materiaNombre || ''));
+
+    // Agrupar por materia
+    const porMateria = {};
+    materias.forEach(m => {
+      const key = m.materiaId || m.materiaNombre;
+      if (!porMateria[key]) porMateria[key] = { nombre: m.materiaNombre, carreraId: m.carreraId, grupos: [] };
+      porMateria[key].grupos.push(m);
+    });
+
+    let html = `<div style="display:grid; gap:14px;">`;
+
+    Object.values(porMateria).forEach(mat => {
+      const carrera = carrerasData.find(c => c.id === mat.carreraId);
+      const color = carrera?.color || '#5e35b1';
+
+      let gruposHtml = mat.grupos.map(g => `
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+          <span style="background:${color}18; color:${color}; padding:3px 10px; border-radius:20px; font-size:0.82rem; font-weight:600;">
+            ${g.codigoGrupo || '-'}
+          </span>
+          <span style="color:#666; font-size:0.85rem;">${g.turnoNombre || 'Turno ' + g.turno} · Periodo ${g.periodo || '-'}</span>
+          <span style="color:#888; font-size:0.82rem;">${g.periodoAcademico || ''}</span>
+          <span style="color:${g.activa ? '#43a047' : '#bbb'}; font-size:0.82rem;">● ${g.activa ? 'Activa' : 'Inactiva'}</span>
+        </div>`).join('');
+
+      html += `
+        <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.08); 
+                    border-left:4px solid ${color};">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; color:#333; font-size:1rem;">${mat.nombre}</h3>
+            <span style="background:${color}18; color:${color}; padding:4px 12px; border-radius:20px; 
+                         font-size:0.82rem; font-weight:600;">${mat.carreraId || ''}</span>
+          </div>
+          ${gruposHtml}
+        </div>`;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+
+  } catch (error) {
+    console.error('Error:', error);
+    container.innerHTML = '<p style="color:red;text-align:center;">Error al cargar materias</p>';
+  }
+}
+
+// ===== MODAL REGISTRAR PROFESOR =====
+function mostrarModalRegistrarProfesor() {
+  document.getElementById('profNombre').value = '';
+  document.getElementById('profEmail').value = '';
+  document.getElementById('profPassword').value = 'Prof123!';
+  document.getElementById('mensajeRegistroProfesor').style.display = 'none';
+  document.getElementById('modalRegistrarProfesor').style.display = 'block';
+}
+
+function cerrarModalRegistrarProfesor() {
+  document.getElementById('modalRegistrarProfesor').style.display = 'none';
+}
+
+async function registrarProfesor() {
+  const nombre = document.getElementById('profNombre').value.trim();
+  const email = document.getElementById('profEmail').value.trim();
+  const password = document.getElementById('profPassword').value;
+  const msgBox = document.getElementById('mensajeRegistroProfesor');
+
+  if (!nombre || !email || !password) {
+    mostrarMensajeProfesor('Todos los campos son obligatorios', 'error');
+    return;
+  }
+  if (password.length < 6) {
+    mostrarMensajeProfesor('La contraseña debe tener al menos 6 caracteres', 'error');
+    return;
+  }
+
+  // Determinar academiaId principal
+  let academiaId = '';
+  if (usuarioActual.academias && usuarioActual.academias.length > 0) {
+    academiaId = usuarioActual.academias[0].academiaId;
+  } else if (usuarioActual.academiaId) {
+    academiaId = usuarioActual.academiaId;
+  }
+
+  try {
+    mostrarMensajeProfesor('Creando cuenta...', 'info');
+
+    const adminUser = auth.currentUser;
+    const adminEmail = adminUser.email;
+
+    // Crear en Authentication
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    const newUid = cred.user.uid;
+
+    // Guardar en Firestore
+    await db.collection('usuarios').doc(newUid).set({
+      nombre,
+      email,
+      rol: 'profesor',
+      roles: ['profesor'],
+      carreraId: academiaId,
+      carreras: [academiaId],
+      activo: true,
+      passwordTemporal: true,
+      registradoPorAcademia: true,
+      academiaId: academiaId,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Restaurar sesión del coordinador
+    await auth.signOut();
+    const adminPass = prompt('Por seguridad, ingresa tu contraseña para continuar:');
+    await auth.signInWithEmailAndPassword(adminEmail, adminPass);
+
+    mostrarMensajeProfesor(`Profesor registrado exitosamente\nEmail: ${email}`, 'exito');
+    
+    setTimeout(() => {
+      cerrarModalRegistrarProfesor();
+      cargarProfesores();
+    }, 1800);
+
+  } catch (error) {
+    console.error('Error:', error);
+    let msg = error.message;
+    if (error.code === 'auth/email-already-in-use') msg = 'Este correo ya está registrado';
+    if (error.code === 'auth/invalid-email') msg = 'Correo inválido';
+    mostrarMensajeProfesor(msg, 'error');
+  }
+}
+
+function mostrarMensajeProfesor(texto, tipo) {
+  const box = document.getElementById('mensajeRegistroProfesor');
+  box.textContent = texto;
+  box.style.display = 'block';
+  box.style.background = tipo === 'error' ? '#ffebee' : tipo === 'exito' ? '#e8f5e9' : '#e3f2fd';
+  box.style.color = tipo === 'error' ? '#c62828' : tipo === 'exito' ? '#2e7d32' : '#1565c0';
+  box.style.border = `1px solid ${tipo === 'error' ? '#ef9a9a' : tipo === 'exito' ? '#a5d6a7' : '#90caf9'}`;
+}
+
 // Click fuera del modal para cerrar
 window.onclick = function(event) {
   const modalAsignar = document.getElementById('modalAsignarMateria');
+  const modalProfesor = document.getElementById('modalRegistrarProfesor');
   
   if (event.target === modalAsignar) {
     cerrarModalAsignarMateria();
+  }
+  if (event.target === modalProfesor) {
+    cerrarModalRegistrarProfesor();
   }
 }
 
