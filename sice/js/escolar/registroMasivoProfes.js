@@ -99,14 +99,20 @@ async function mostrarModalProfesoresMasivos() {
 
         </form>
 
-        <!-- MENSAJE DE CARGA -->
+        <!-- MENSAJE DE CARGA - FUERA DEL FORM -->
         <div id="mensajeCarga" style="display: none; padding: 60px 20px; text-align: center; background: white;">
           <div id="textoProgreso" style="font-size: 1.8rem; font-weight: 700; color: #667eea; margin-bottom: 20px;">
             Registrando profesores...
           </div>
-          <div id="contadorInfo" style="font-size: 1.3rem; color: #666; margin-bottom: 40px; font-weight: 500;">
+          <div id="contadorInfo" style="font-size: 1.3rem; color: #666; margin-bottom: 25px; font-weight: 500;">
             Por favor espera, no cierres esta ventana.
           </div>
+
+          <!-- ESTADO ACTUAL - elemento que faltaba -->
+          <div id="estadoActual" style="margin: 0 auto 25px auto; max-width: 500px; padding: 12px 16px; background: #e3f2fd; border-left: 4px solid #667eea; border-radius: 8px; font-size: 0.95rem; color: #333; text-align: left; min-height: 44px;">
+            Iniciando proceso...
+          </div>
+
           <div style="display: flex; justify-content: space-around; max-width: 400px; margin: 0 auto; background: #f8f9fa; border-radius: 12px; padding: 30px;">
             <div style="text-align: center;">
               <div style="font-size: 0.9rem; color: #999; margin-bottom: 8px; text-transform: uppercase;">Exitosos</div>

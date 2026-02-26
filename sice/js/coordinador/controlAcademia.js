@@ -16,6 +16,8 @@ function ocultarTodasSecciones() {
   document.getElementById('seccionMateriasAcademia').style.display = 'none';
   document.getElementById('seccionVerCarreras').style.display = 'none';
   document.getElementById('seccionCalificaciones').style.display = 'none';
+  document.getElementById('seccionProfesores').style.display = 'none';
+  document.getElementById('seccionMateriasProfesor').style.display = 'none';
 }
 
 function mostrarMenu() {
