@@ -5,17 +5,17 @@ console.log('=== REGISTRO DE PROFESORES===');
 
 async function mostrarModalProfesoresMasivos() {
   const html = `
-    <div id="modalProfesoresMasivos" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; overflow-y: auto;">
-      <div id="contenedorModalProfesores" style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 95%; min-height: 400px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+    <div id="modalProfesoresMasivos" style="display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; overflow-y: auto; padding: 30px 10px;">
+      <div id="contenedorModalProfesores" style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 95%; margin: 0 auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); font-family: Segoe UI, sans-serif;">
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
-          <h2 style="margin: 0; color: #667eea; font-size: 1.8rem;">Registro de Profesores.</h2>
+          <h2 style="margin: 0; color: #667eea; font-size: 1.8rem;">Registro de Profesores</h2>
           <button id="btnCerrarModal" onclick="cerrarModalProfesoresMasivos()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
         </div>
 
-        <form id="formProfesoresMasivos" onsubmit="guardarProfesoresMasivos(event)">
+        <form id="formProfesoresMasivos" onsubmit="guardarProfesoresMasivos(event)" style="display:block !important; flex-direction:unset !important;">
 
-          <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: block; width: 100%;">
         <h3 style="margin: 0 0 10px 0; color: #1565c0; font-size: 1rem;">Instrucciones:</h3>
           <p style="margin: 0; color: #1565c0; line-height: 1.8; font-size: 0.9rem;">
             Pega los datos, un renglón por profesor:<br>
@@ -52,7 +52,7 @@ async function mostrarModalProfesoresMasivos() {
           </div>
 
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div style="display: grid !important; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%;">
             
             <div>
               <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #333;">
