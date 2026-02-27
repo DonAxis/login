@@ -49,7 +49,7 @@
     }
 
     .logo h1 {
-      font-size: 1.3rem; /* tamaño grande para escritorio */
+      font-size: 1.3rem;
       color: #6F1D46;
       text-transform: uppercase;
       letter-spacing: 1px;
@@ -62,10 +62,10 @@
       display: block;
       font-size: 2.5rem;
       font-weight: 900;
-      color: rgba(111, 29, 70, 0.85); /* Color principal */
+      color: rgba(111, 29, 70, 0.85);
       line-height: 1;
-      margin-bottom: 5px; /* Espacio antes de la raya */
-       margin-top: -20px;
+      margin-bottom: 5px;
+      margin-top: -20px;
     }
 
     .logo p {
@@ -73,15 +73,16 @@
       font-size: 1rem;
       font-weight: 500;
     }
-.logo::after {
-  content: '';
-  display: block;
-  width: 50px;
-  height: 3px;
-   background: linear-gradient(to right, #6F1D46, #9A3B61);
-  margin: 0 auto 10px; /* Reducido de 20px a 10px para que la línea esté más abajo */
-  border-radius: 10px;
-}
+
+    .logo::after {
+      content: '';
+      display: block;
+      width: 50px;
+      height: 3px;
+      background: linear-gradient(to right, #6F1D46, #9A3B61);
+      margin: 0 auto 10px;
+      border-radius: 10px;
+    }
 
     .form-group {
       margin-bottom: 20px;
@@ -139,7 +140,7 @@
     .btn-login {
       width: 100%;
       padding: 14px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #6F1D46 0%, #9A3B61 100%);
       color: white;
       border: none;
       border-radius: 10px;
@@ -152,7 +153,7 @@
 
     .btn-login:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 10px 20px rgba(111, 29, 70, 0.3);
     }
 
     .btn-login:active {
@@ -227,7 +228,7 @@
 
     .spinner {
       border: 3px solid #f3f3f3;
-      border-top: 3px solid #667eea;
+      border-top: 3px solid #6F1D46;
       border-radius: 50%;
       width: 30px;
       height: 30px;
@@ -275,7 +276,7 @@
       <h1>Sistema de Control Escolar</h1>
     </div>
 
-    <p class="welcome-text">Bienvenido, por favor inicia sesión</p>
+    <p class="welcome-text">Bienvenido, por favor inicia sesion</p>
 
     <div id="mensaje"></div>
 
@@ -292,7 +293,7 @@
       </div>
 
       <div class="form-group">
-        <label for="password">Contraseña:</label>
+        <label for="password">Contrasena:</label>
         <div class="password-wrapper">
           <input 
             type="password" 
@@ -301,14 +302,14 @@
             placeholder="••••••••"
             autocomplete="current-password"
           >
-          <button type="button" class="toggle-password" onclick="toggleLoginPassword()" title="Mostrar contraseña">
-            👁‍🗨
+          <button type="button" class="toggle-password" onclick="toggleLoginPassword()" title="Mostrar contrasena">
+            &#128065;
           </button>
         </div>
       </div>
 
       <button type="submit" class="btn-login" id="btnLogin">
-        Iniciar Sesión
+        Iniciar Sesion
       </button>
 
       <div class="forgot-password">
@@ -317,7 +318,7 @@
 
       <div class="loading" id="loading">
         <div class="spinner"></div>
-        <p style="margin-top: 10px; color: #666;">Iniciando sesión...</p>
+        <p style="margin-top: 10px; color: #666;">Iniciando sesion...</p>
       </div>
     </form>
   </div>
