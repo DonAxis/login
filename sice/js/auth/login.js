@@ -228,7 +228,8 @@ function toggleLoginPassword() {
     toggleButton.title = 'Ocultar contraseña';
   } else {
     passwordInput.type = 'password';
-    toggleButton.innerHTML = '👁‍🗨';
+   // toggleButton.innerHTML = '👁‍🗨';&#128065;
+    toggleButton.innerHTML = '&#128065;';
     toggleButton.title = 'Mostrar contraseña';
   }
 }
