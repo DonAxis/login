@@ -62,10 +62,10 @@
       display: block;
       font-size: 2.5rem;
       font-weight: 900;
-      color: rgba(111, 29, 70, 0.85);
+      color: rgba(111, 29, 70, 0.85); /* Color principal */
       line-height: 1;
-      margin-bottom: 5px;
-      margin-top: -20px;
+      margin-bottom: 5px; /* Espacio antes de la raya */
+       margin-top: -20px;
     }
 
     .logo p {
@@ -73,16 +73,15 @@
       font-size: 1rem;
       font-weight: 500;
     }
-
-    .logo::after {
-      content: '';
-      display: block;
-      width: 50px;
-      height: 3px;
-      background: linear-gradient(to right, #6F1D46, #9A3B61);
-      margin: 0 auto 10px;
-      border-radius: 10px;
-    }
+.logo::after {
+  content: '';
+  display: block;
+  width: 50px;
+  height: 3px;
+   background: linear-gradient(to right, #6F1D46, #9A3B61);
+  margin: 0 auto 10px; /* Reducido de 20px a 10px para que la línea esté más abajo */
+  border-radius: 10px;
+}
 
     .form-group {
       margin-bottom: 20px;
@@ -153,7 +152,7 @@
 
     .btn-login:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(111, 29, 70, 0.3);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
     }
 
     .btn-login:active {
@@ -303,7 +302,7 @@
             autocomplete="current-password"
           >
           <button type="button" class="toggle-password" onclick="toggleLoginPassword()" title="Mostrar contraseña">
-            &#128065;
+            👁‍🗨
           </button>
         </div>
       </div>
