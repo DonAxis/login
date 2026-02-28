@@ -20,8 +20,12 @@
       <p><strong id="userName" style="color: white;">Cargando...</strong></p>
       <p id="userRol"></p>
       <div style="margin-top: 10px;">
-        <button id="btnVolverMenu" onclick="volverMenu()" class="btn-volver" style="display: none;">← Volver</button>
-        <button onclick="volverCoordinador()" class="btn-volver">← Mi Carrera</button>
+        <button id="btnVolverMenu" onclick="volverMenu()" style="display: none; background: #ff9800; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-right: 8px;">
+          ← Volver
+        </button>
+        <button onclick="volverCoordinador()" style="background: #2196f3; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; min-width: 140px;">
+          ← Mi Carrera
+        </button>
       </div>
     </div>
   </div>
@@ -33,6 +37,9 @@
       <p>Materias: <span id="totalMaterias">0</span></p>
       <p>Carreras: <span id="totalCarreras">0</span></p>
       <p>Profesores: <span id="totalProfesores">0</span></p>
+      <small style="color: #888; font-size: 0.8rem; margin-top: 10px; display: block;">
+        *Periodo = Semestre, Cuatrimestre o Trimestre
+      </small>
     </div>
 
     <div class="card-academia" onclick="mostrarProfesores()">
@@ -45,7 +52,7 @@
   <div id="seccionMateriasAcademia" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Materias de Academia</h2>
-      <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">Asignar Materia</button>
+      <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">+ Asignar Materia</button>
     </div>
     <div id="listaMaterias" class="lista-materias" style="margin-top: 20px;"></div>
   </div>
@@ -79,7 +86,7 @@
   <div id="seccionProfesores" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Profesores de Academia</h2>
-      <button onclick="mostrarModalRegistrarProfesor()" class="btn-asignar">Registrar Profesor</button>
+      <button onclick="mostrarModalRegistrarProfesor()" class="btn-asignar">+ Registrar Profesor</button>
     </div>
     <div id="listaProfesores" style="margin-top: 20px;"></div>
   </div>
