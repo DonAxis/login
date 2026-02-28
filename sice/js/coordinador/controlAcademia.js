@@ -859,9 +859,11 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
       return;
     }
     
-    // Buscar calificaciones para estos alumnos en esta asignación
+    // Buscar calificaciones para estos alumnos usando profesorId y codigoGrupo
+    // ya que vemos que no siempre existe asignacionId en calificaciones
     const calificacionesSnap = await db.collection('calificaciones')
-      .where('asignacionId', '==', asignacionId)
+      .where('profesorId', '==', asignacion.profesorId)
+      .where('codigoGrupo', '==', asignacion.codigoGrupo)
       .get();
     
     console.log('Calificaciones encontradas:', calificacionesSnap.size);
@@ -874,15 +876,16 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
       const parciales = cal.parciales || {};
       const faltas = cal.faltas || {};
       
-      const u1 = parciales.parcial1 !== undefined ? parciales.parcial1 : null;
-      const u2 = parciales.parcial2 !== undefined ? parciales.parcial2 : null;
-      const u3 = parciales.parcial3 !== undefined ? parciales.parcial3 : null;
+      const u1 = parciales.parcial1 !== undefined && parciales.parcial1 !== null ? parciales.parcial1 : null;
+      const u2 = parciales.parcial2 !== undefined && parciales.parcial2 !== null ? parciales.parcial2 : null;
+      const u3 = parciales.parcial3 !== undefined && parciales.parcial3 !== null ? parciales.parcial3 : null;
       
       // Calcular promedio de parciales si hay datos
       let promedioParciales = null;
       const parcialesValidos = [u1, u2, u3].filter(p => p !== null && p !== undefined);
       if (parcialesValidos.length > 0) {
-        promedioParciales = Math.round(parcialesValidos.reduce((sum, p) => sum + p, 0) / parcialesValidos.length);
+        const suma = parcialesValidos.reduce((sum, p) => sum + p, 0);
+        promedioParciales = Math.round(suma / parcialesValidos.length);
       }
       
       // Contar faltas
@@ -897,8 +900,8 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
         u2: u2,
         u3: u3,
         promedioParciales: promedioParciales,
-        ets: cal.ets,
-        calificacionFinal: cal.calificacionFinal,
+        ets: cal.ets !== undefined && cal.ets !== null ? cal.ets : null,
+        calificacionFinal: cal.calificacionFinal !== undefined && cal.calificacionFinal !== null ? cal.calificacionFinal : null,
         faltas: totalFaltas
       });
     });
@@ -941,8 +944,8 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
     `;
     
     alumnos.forEach(alumno => {
-      const promParciales = alumno.promedioParciales !== undefined ? alumno.promedioParciales : '-';
-      const finalCalc = alumno.calificacionFinal !== undefined ? alumno.calificacionFinal : '-';
+      const promParciales = alumno.promedioParciales !== undefined && alumno.promedioParciales !== null ? alumno.promedioParciales : '-';
+      const finalCalc = alumno.calificacionFinal !== undefined && alumno.calificacionFinal !== null ? alumno.calificacionFinal : '-';
       const colorFinal = finalCalc !== '-' && finalCalc >= 70 ? '#2e7d32' : '#c62828';
       
       html += `
