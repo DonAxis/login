@@ -471,12 +471,13 @@ async function cargarProfesoresAcademia() {
     for (const doc of snapshot.docs) {
       const profesor = doc.data();
       
-      if (profesor.carreras && Array.isArray(profesor.carreras)) {
-        const tieneAcademia = profesor.carreras.some(c => academiaIds.includes(c));
+      if (profesor.academias && Array.isArray(profesor.academias)) {
+        const tieneAcademia = profesor.academias.some(a => academiaIds.includes(a));
         
         if (tieneAcademia) {
           const materiasSnapshot = await db.collection('profesorMaterias')
             .where('profesorId', '==', doc.id)
+            .where('activa', '==', true)
             .get();
           
           profesoresAcademia.push({
@@ -521,9 +522,9 @@ function mostrarListaProfesores() {
   let html = '<div style="display: grid; gap: 15px;">';
   
   profesoresAcademia.forEach(profesor => {
-    const carrerasTexto = profesor.carreras && profesor.carreras.length > 0 
-      ? profesor.carreras.join(', ') 
-      : 'Sin carreras';
+    const academiasTexto = profesor.academias && profesor.academias.length > 0 
+      ? profesor.academias.join(', ') 
+      : 'Sin academias';
     
     html += `
       <div class="materia-card">
@@ -534,7 +535,7 @@ function mostrarListaProfesores() {
           </span>
         </div>
         <p class="materia-info"><strong>Email:</strong> ${profesor.email}</p>
-        <p class="materia-info"><strong>Carreras:</strong> ${carrerasTexto}</p>
+        <p class="materia-info"><strong>Academias:</strong> ${academiasTexto}</p>
         <p class="materia-info"><strong>Materias asignadas:</strong> ${profesor.totalMaterias || 0}</p>
         
         <div class="materia-acciones">
@@ -600,11 +601,11 @@ async function registrarProfesor() {
       profesorId = docExistente.id;
       const datosExistentes = docExistente.data();
       
-      const carrerasActuales = datosExistentes.carreras || [];
+      const academiasActuales = datosExistentes.academias || [];
       
-      if (!carrerasActuales.includes(academiaId)) {
+      if (!academiasActuales.includes(academiaId)) {
         await db.collection('usuarios').doc(profesorId).update({
-          carreras: firebase.firestore.FieldValue.arrayUnion(academiaId)
+          academias: firebase.firestore.FieldValue.arrayUnion(academiaId)
         });
       }
       
@@ -621,7 +622,7 @@ async function registrarProfesor() {
         nombre: nombre,
         email: email,
         rol: 'profesor',
-        carreras: [academiaId],
+        academias: [academiaId],
         activo: true,
         fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -657,18 +658,20 @@ async function verMateriasProfesor(profesorId, profesorNombre) {
     
     const profesor = profesoresAcademia.find(p => p.id === profesorId);
     if (profesor) {
-      const carrerasTexto = profesor.carreras && profesor.carreras.length > 0 
-        ? profesor.carreras.join(', ') 
-        : 'Sin carreras';
+      const academiasTexto = profesor.academias && profesor.academias.length > 0 
+        ? profesor.academias.join(', ') 
+        : 'Sin academias';
       document.getElementById('infoProfesorSeleccionado').textContent = 
-        `Email: ${profesor.email} | Carreras: ${carrerasTexto}`;
+        `Email: ${profesor.email} | Academias: ${academiasTexto}`;
     }
     
     const container = document.getElementById('listaMateriasProfesor');
     container.innerHTML = '<p style="text-align: center; color: #999;">Cargando materias...</p>';
     
+    // Buscar asignaciones activas en profesorMaterias
     const snapshot = await db.collection('profesorMaterias')
       .where('profesorId', '==', profesorId)
+      .where('activa', '==', true)
       .get();
     
     if (snapshot.empty) {
@@ -680,78 +683,187 @@ async function verMateriasProfesor(profesorId, profesorNombre) {
       return;
     }
     
-    const materias = [];
-    for (const doc of snapshot.docs) {
-      const asignacion = doc.data();
+    const asignaciones = [];
+    snapshot.forEach(doc => {
+      asignaciones.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    // Ordenar por periodo y turno
+    asignaciones.sort((a, b) => {
+      const periodoA = a.periodo || 1;
+      const periodoB = b.periodo || 1;
+      if (periodoA !== periodoB) return periodoB - periodoA;
       
-      if (asignacion.materiaId) {
-        const materiaDoc = await db.collection('materias').doc(asignacion.materiaId).get();
-        if (materiaDoc.exists) {
-          const materiaData = materiaDoc.data();
-          
-          let carreraNombre = 'Sin carrera';
-          let carreraColor = '#e0e0e0';
-          
-          if (materiaData.carreraId) {
-            const carrera = carrerasData.find(c => c.id === materiaData.carreraId);
-            if (carrera) {
-              carreraNombre = carrera.nombre;
-              carreraColor = carrera.color || '#43a047';
-            }
-          }
-          
-          materias.push({
-            id: materiaDoc.id,
-            ...materiaData,
-            asignacionId: doc.id,
-            carreraNombre,
-            carreraColor
-          });
-        }
+      const turnoA = a.turno || 1;
+      const turnoB = b.turno || 1;
+      return turnoA - turnoB;
+    });
+    
+    // Agrupar por periodo
+    const materiasPorPeriodo = {};
+    asignaciones.forEach(asignacion => {
+      const periodo = asignacion.periodo || 1;
+      if (!materiasPorPeriodo[periodo]) {
+        materiasPorPeriodo[periodo] = [];
       }
-    }
+      materiasPorPeriodo[periodo].push(asignacion);
+    });
     
-    if (materias.length === 0) {
-      container.innerHTML = `
-        <div class="sin-datos">
-          <p>No se pudieron cargar los detalles de las materias</p>
-        </div>
-      `;
-      return;
-    }
+    // Generar HTML
+    let html = '';
+    const periodos = Object.keys(materiasPorPeriodo).sort((a, b) => b - a);
     
-    let html = '<div style="display: grid; gap: 15px;">';
-    
-    materias.forEach(materia => {
-      let gruposInfo = '';
-      if (materia.grupos && materia.grupos.length > 0) {
-        const gruposTexto = materia.grupos.map(g => 
-          `${g.nombreTurno || 'Turno ' + g.turno} (${g.codigoCompleto || g.codigo})`
-        ).join(', ');
-        gruposInfo = `<p class="materia-info"><strong>Grupos:</strong> ${gruposTexto}</p>`;
-      }
+    periodos.forEach(periodo => {
+      const materias = materiasPorPeriodo[periodo];
       
       html += `
-        <div class="materia-card">
-          <div class="materia-header">
-            <h3>${materia.nombre}</h3>
-            <span class="carrera-badge" style="background: ${materia.carreraColor}22; color: ${materia.carreraColor};">
-              ${materia.carreraNombre}
-            </span>
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #5e35b1; margin-bottom: 15px;">Periodo ${periodo}</h3>
+          <div style="display: grid; gap: 15px;">
+      `;
+      
+      materias.forEach(asignacion => {
+        const turnosNombres = {1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino'};
+        const turnoNombre = asignacion.turnoNombre || turnosNombres[asignacion.turno] || 'Sin turno';
+        
+        html += `
+          <div class="materia-card" style="cursor: pointer;" onclick="verCalificacionesProfesor('${asignacion.id}', '${asignacion.materiaNombre}', '${asignacion.codigoGrupo || ''}')">
+            <div class="materia-header">
+              <h3>${asignacion.materiaNombre}</h3>
+              <span class="carrera-badge" style="background: #5e35b122; color: #5e35b1;">
+                ${turnoNombre}
+              </span>
+            </div>
+            <p class="materia-info"><strong>Código Grupo:</strong> ${asignacion.codigoGrupo || 'N/A'}</p>
+            <p class="materia-info"><strong>Periodo:</strong> ${asignacion.periodo}</p>
+            <div class="materia-acciones">
+              <button onclick="event.stopPropagation(); verCalificacionesProfesor('${asignacion.id}', '${asignacion.materiaNombre}', '${asignacion.codigoGrupo || ''}')" class="btn-ver">
+                Ver Calificaciones
+              </button>
+            </div>
           </div>
-          <p class="materia-info"><strong>Periodo:</strong> ${materia.periodo || '-'}</p>
-          ${gruposInfo}
+        `;
+      });
+      
+      html += `
+          </div>
         </div>
       `;
     });
     
-    html += '</div>';
     container.innerHTML = html;
     
   } catch (error) {
     console.error('Error al cargar materias del profesor:', error);
     document.getElementById('listaMateriasProfesor').innerHTML = 
       '<p style="color: red; text-align: center;">Error al cargar materias</p>';
+  }
+}
+
+// ===== VER CALIFICACIONES DE UN GRUPO ESPECÍFICO DEL PROFESOR =====
+async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrupo) {
+  try {
+    ocultarTodasSecciones();
+    document.getElementById('seccionCalificaciones').style.display = 'block';
+    document.getElementById('btnVolverMenu').style.display = 'inline-block';
+    
+    let tituloMateria = materiaNombre;
+    if (codigoGrupo) {
+      tituloMateria += ` - Grupo ${codigoGrupo}`;
+    }
+    document.getElementById('infoMateriaCalif').textContent = tituloMateria;
+    
+    const container = document.getElementById('contenidoCalificaciones');
+    container.innerHTML = '<p style="text-align: center; color: #999;">Cargando calificaciones...</p>';
+    
+    // Obtener datos de la asignación
+    const asignacionDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+    if (!asignacionDoc.exists) {
+      container.innerHTML = '<p style="color: red; text-align: center;">Asignación no encontrada</p>';
+      return;
+    }
+    
+    const asignacion = asignacionDoc.data();
+    
+    // Buscar calificaciones para esta asignación específica
+    const calificacionesSnap = await db.collection('calificaciones')
+      .where('asignacionId', '==', asignacionId)
+      .get();
+    
+    if (calificacionesSnap.empty) {
+      container.innerHTML = `
+        <div class="sin-datos">
+          <p>No hay alumnos registrados en este grupo</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const calificaciones = [];
+    calificacionesSnap.forEach(doc => {
+      calificaciones.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    // Ordenar por nombre de alumno
+    calificaciones.sort((a, b) => (a.nombreAlumno || '').localeCompare(b.nombreAlumno || ''));
+    
+    let html = `
+      <div style="overflow-x: auto;">
+        <table class="tabla-calificaciones">
+          <thead>
+            <tr>
+              <th>Alumno</th>
+              <th>Matrícula</th>
+              <th>U1</th>
+              <th>U2</th>
+              <th>U3</th>
+              <th>Prom</th>
+              <th>ETS</th>
+              <th>Final</th>
+              <th>Faltas</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    calificaciones.forEach(cal => {
+      const promParciales = cal.promedioParciales || '-';
+      const finalCalc = cal.calificacionFinal || '-';
+      const faltas = cal.faltas !== undefined ? cal.faltas : '-';
+      
+      html += `
+        <tr>
+          <td>${cal.nombreAlumno || 'Sin nombre'}</td>
+          <td>${cal.matricula || '-'}</td>
+          <td>${cal.u1 !== undefined && cal.u1 !== null ? cal.u1 : '-'}</td>
+          <td>${cal.u2 !== undefined && cal.u2 !== null ? cal.u2 : '-'}</td>
+          <td>${cal.u3 !== undefined && cal.u3 !== null ? cal.u3 : '-'}</td>
+          <td><strong>${promParciales}</strong></td>
+          <td>${cal.ets !== undefined && cal.ets !== null ? cal.ets : '-'}</td>
+          <td><strong style="color: ${finalCalc >= 70 ? '#2e7d32' : '#c62828'};">${finalCalc}</strong></td>
+          <td>${faltas}</td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error al cargar calificaciones:', error);
+    document.getElementById('contenidoCalificaciones').innerHTML = 
+      '<p style="color: red; text-align: center;">Error al cargar calificaciones</p>';
   }
 }
 
