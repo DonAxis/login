@@ -401,9 +401,9 @@ async function verCalificacionesMateriaCarrera(materiaId, materiaNombre, codigoG
           <tr>
             <th>Alumno</th>
             <th>Matrícula</th>
-            <th>U1</th>
-            <th>U2</th>
-            <th>U3</th>
+            <th>Parcial 1</th>
+            <th>Parcial 2</th>
+            <th>Parcial 3</th>
             <th>Prom</th>
             <th>ETS</th>
             <th>Final</th>
