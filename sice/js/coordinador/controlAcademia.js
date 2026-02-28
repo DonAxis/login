@@ -554,7 +554,6 @@ function mostrarModalRegistrarProfesor() {
   document.getElementById('modalRegistrarProfesor').style.display = 'block';
   document.getElementById('profNombre').value = '';
   document.getElementById('profEmail').value = '';
-  document.getElementById('profPassword').value = 'Prof123!';
   document.getElementById('mensajeRegistroProfesor').style.display = 'none';
 }
 
@@ -565,19 +564,11 @@ function cerrarModalRegistrarProfesor() {
 async function registrarProfesor() {
   const nombre = document.getElementById('profNombre').value.trim();
   const email = document.getElementById('profEmail').value.trim();
-  const password = document.getElementById('profPassword').value;
+  const password = 'ilb123'; // Contraseña fija para nuevos usuarios
   const mensajeDiv = document.getElementById('mensajeRegistroProfesor');
   
-  if (!nombre || !email || !password) {
+  if (!nombre || !email) {
     mensajeDiv.textContent = 'Por favor completa todos los campos';
-    mensajeDiv.style.display = 'block';
-    mensajeDiv.style.background = '#fee';
-    mensajeDiv.style.color = '#c33';
-    return;
-  }
-  
-  if (password.length < 6) {
-    mensajeDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
     mensajeDiv.style.display = 'block';
     mensajeDiv.style.background = '#fee';
     mensajeDiv.style.color = '#c33';
@@ -604,6 +595,7 @@ async function registrarProfesor() {
     let profesorId;
     
     if (!usuariosSnapshot.empty) {
+      // Usuario ya existe - SOLO enlazar, NO cambiar contraseña
       const docExistente = usuariosSnapshot.docs[0];
       profesorId = docExistente.id;
       const datosExistentes = docExistente.data();
@@ -616,11 +608,12 @@ async function registrarProfesor() {
         });
       }
       
-      mensajeDiv.textContent = `Profesor enlazado exitosamente. El usuario ya existía.`;
+      mensajeDiv.textContent = `Profesor enlazado exitosamente. El usuario ya existía (contraseña no modificada).`;
       mensajeDiv.style.background = '#e8f5e9';
       mensajeDiv.style.color = '#2e7d32';
       
     } else {
+      // Crear NUEVO usuario con contraseña fija "ilb123"
       const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
       profesorId = userCredential.user.uid;
       
@@ -635,7 +628,7 @@ async function registrarProfesor() {
       
       await firebase.auth().signOut();
       
-      mensajeDiv.textContent = 'Profesor registrado exitosamente';
+      mensajeDiv.textContent = 'Profesor registrado exitosamente con contraseña: ilb123';
       mensajeDiv.style.background = '#e8f5e9';
       mensajeDiv.style.color = '#2e7d32';
     }
