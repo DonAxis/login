@@ -11,6 +11,8 @@ let materiasOriginales = [];
 let todasLasMaterias = [];
 let profesoresAcademia = [];
 let profesorSeleccionado = null;
+let profesorActualId = null; // Para poder volver a las materias del profesor
+let profesorActualNombre = null;
 
 // ===== NAVEGACIÓN ENTRE SECCIONES =====
 function ocultarTodasSecciones() {
@@ -509,11 +511,6 @@ function mostrarListaProfesores() {
     container.innerHTML = `
       <div class="sin-datos">
         <p>No hay profesores registrados en esta academia</p>
-        <p style="margin-top: 10px;">
-          <button onclick="mostrarModalRegistrarProfesor()" class="btn-asignar">
-            Registrar Primer Profesor
-          </button>
-        </p>
       </div>
     `;
     return;
@@ -650,9 +647,17 @@ async function registrarProfesor() {
 
 async function verMateriasProfesor(profesorId, profesorNombre) {
   try {
+    // Guardar el profesor actual para poder volver
+    profesorActualId = profesorId;
+    profesorActualNombre = profesorNombre;
+    
     ocultarTodasSecciones();
     document.getElementById('seccionMateriasProfesor').style.display = 'block';
     document.getElementById('btnVolverMenu').style.display = 'inline-block';
+    
+    // Ocultar botón "Ver Otra Materia" cuando estamos en la lista de materias
+    const btnVerOtra = document.getElementById('btnVerOtraMateria');
+    if (btnVerOtra) btnVerOtra.style.display = 'none';
     
     document.getElementById('tituloMateriasProfesor').textContent = `Materias de ${profesorNombre}`;
     
@@ -770,6 +775,10 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
     document.getElementById('seccionCalificaciones').style.display = 'block';
     document.getElementById('btnVolverMenu').style.display = 'inline-block';
     
+    // Mostrar botón "Ver Otra Materia" cuando estamos viendo calificaciones
+    const btnVerOtra = document.getElementById('btnVerOtraMateria');
+    if (btnVerOtra) btnVerOtra.style.display = 'inline-block';
+    
     let tituloMateria = materiaNombre;
     if (codigoGrupo) {
       tituloMateria += ` - Grupo ${codigoGrupo}`;
@@ -867,6 +876,17 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
   }
 }
 
+// ===== VOLVER A MATERIAS DEL PROFESOR =====
+function volverAMateriasProfesor() {
+  if (profesorActualId && profesorActualNombre) {
+    verMateriasProfesor(profesorActualId, profesorActualNombre);
+  } else {
+    // Si no hay profesor guardado, volver al menú de profesores
+    mostrarProfesores();
+  }
+}
+
+// ===== VOLVER A COORDINADOR =====
 function volverCoordinador() {
   window.location.href = './controlCoordinador.html';
 }

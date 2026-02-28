@@ -39,18 +39,13 @@
       <h3>Profesores</h3>
       <p>Registrar profesores y ver sus materias asignadas.</p>
     </div>
-
-    <div class="card-academia" onclick="mostrarVerCarreras()">
-      <h3>Mapa de Carreras</h3>
-      <p>Visualización jerárquica de contenidos por programa educativo.</p>
-    </div>
   </div>
 
   <!-- SECCIÓN: MATERIAS DE ACADEMIA -->
   <div id="seccionMateriasAcademia" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Materias de Academia</h2>
-      <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">+ Asignar Materia</button>
+      <button onclick="mostrarModalAsignarMateria()" class="btn-asignar">Asignar Materia</button>
     </div>
     <div id="listaMaterias" class="lista-materias" style="margin-top: 20px;"></div>
   </div>
@@ -70,6 +65,9 @@
   <div id="seccionCalificaciones" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Calificaciones - Solo Lectura</h2>
+      <button id="btnVerOtraMateria" onclick="volverAMateriasProfesor()" class="btn-asignar" style="display: none;">
+        ← Ver Otra Materia
+      </button>
     </div>
     <p style="margin: 5px 0 20px 0; color: #666;" id="infoMateriaCalif">-</p>
     <div id="contenidoCalificaciones">
@@ -81,7 +79,7 @@
   <div id="seccionProfesores" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Profesores de Academia</h2>
-      <button onclick="mostrarModalRegistrarProfesor()" class="btn-asignar">+ Registrar Profesor</button>
+      <button onclick="mostrarModalRegistrarProfesor()" class="btn-asignar">Registrar Profesor</button>
     </div>
     <div id="listaProfesores" style="margin-top: 20px;"></div>
   </div>
