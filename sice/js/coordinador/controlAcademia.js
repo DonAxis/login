@@ -869,9 +869,37 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
     const calificacionesMap = new Map();
     calificacionesSnap.forEach(doc => {
       const cal = doc.data();
+      
+      // Extraer calificaciones de los maps
+      const parciales = cal.parciales || {};
+      const faltas = cal.faltas || {};
+      
+      const u1 = parciales.parcial1 !== undefined ? parciales.parcial1 : null;
+      const u2 = parciales.parcial2 !== undefined ? parciales.parcial2 : null;
+      const u3 = parciales.parcial3 !== undefined ? parciales.parcial3 : null;
+      
+      // Calcular promedio de parciales si hay datos
+      let promedioParciales = null;
+      const parcialesValidos = [u1, u2, u3].filter(p => p !== null && p !== undefined);
+      if (parcialesValidos.length > 0) {
+        promedioParciales = Math.round(parcialesValidos.reduce((sum, p) => sum + p, 0) / parcialesValidos.length);
+      }
+      
+      // Contar faltas
+      const falta1 = faltas.falta1 || 0;
+      const falta2 = faltas.falta2 || 0;
+      const falta3 = faltas.falta3 || 0;
+      const totalFaltas = falta1 + falta2 + falta3;
+      
       calificacionesMap.set(cal.alumnoId, {
         id: doc.id,
-        ...cal
+        u1: u1,
+        u2: u2,
+        u3: u3,
+        promedioParciales: promedioParciales,
+        ets: cal.ets,
+        calificacionFinal: cal.calificacionFinal,
+        faltas: totalFaltas
       });
     });
     
