@@ -550,7 +550,6 @@ function mostrarListaProfesores() {
 
 function mostrarModalRegistrarProfesor() {
   document.getElementById('modalRegistrarProfesor').style.display = 'block';
-  document.getElementById('profNombre').value = '';
   document.getElementById('profEmail').value = '';
   document.getElementById('mensajeRegistroProfesor').style.display = 'none';
 }
@@ -560,13 +559,12 @@ function cerrarModalRegistrarProfesor() {
 }
 
 async function registrarProfesor() {
-  const nombre = document.getElementById('profNombre').value.trim();
   const email = document.getElementById('profEmail').value.trim();
   const password = 'ilb123'; // Contraseña fija para nuevos usuarios
   const mensajeDiv = document.getElementById('mensajeRegistroProfesor');
   
-  if (!nombre || !email) {
-    mensajeDiv.textContent = 'Por favor completa todos los campos';
+  if (!email) {
+    mensajeDiv.textContent = 'Por favor ingresa el correo electrónico';
     mensajeDiv.style.display = 'block';
     mensajeDiv.style.background = '#fee';
     mensajeDiv.style.color = '#c33';
@@ -593,7 +591,7 @@ async function registrarProfesor() {
     let profesorId;
     
     if (!usuariosSnapshot.empty) {
-      // Usuario ya existe - SOLO enlazar, NO cambiar contraseña
+      // Usuario ya existe - SOLO enlazar, NO cambiar datos
       const docExistente = usuariosSnapshot.docs[0];
       profesorId = docExistente.id;
       const datosExistentes = docExistente.data();
@@ -606,17 +604,17 @@ async function registrarProfesor() {
         });
       }
       
-      mensajeDiv.textContent = `Profesor enlazado exitosamente. El usuario ya existía (contraseña no modificada).`;
+      mensajeDiv.textContent = `Profesor enlazado exitosamente. Usuario existente (datos no modificados).`;
       mensajeDiv.style.background = '#e8f5e9';
       mensajeDiv.style.color = '#2e7d32';
       
     } else {
-      // Crear NUEVO usuario con contraseña fija "ilb123"
+      // Crear NUEVO usuario con nombre temporal
       const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
       profesorId = userCredential.user.uid;
       
       await db.collection('usuarios').doc(profesorId).set({
-        nombre: nombre,
+        nombre: 'profesor sin clases',
         email: email,
         rol: 'profesor',
         academias: [academiaId],
@@ -626,7 +624,7 @@ async function registrarProfesor() {
       
       await firebase.auth().signOut();
       
-      mensajeDiv.textContent = 'Profesor registrado exitosamente con contraseña: ilb123';
+      mensajeDiv.textContent = 'Profesor creado con nombre temporal. Se actualizará al asignar materias.';
       mensajeDiv.style.background = '#e8f5e9';
       mensajeDiv.style.color = '#2e7d32';
     }
