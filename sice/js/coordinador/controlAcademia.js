@@ -796,31 +796,102 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
     }
     
     const asignacion = asignacionDoc.data();
+    console.log('Asignación:', asignacion);
+    console.log('Buscando alumnos del grupo:', asignacion.codigoGrupo);
     
-    // Buscar calificaciones para esta asignación específica
-    const calificacionesSnap = await db.collection('calificaciones')
+    // Buscar alumnos del grupo (igual que en controlProfesor.js)
+    const alumnosSnap = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('codigoGrupo', '==', asignacion.codigoGrupo)
+      .where('activo', '==', true)
+      .get();
+    
+    console.log('Alumnos encontrados:', alumnosSnap.size);
+    
+    // Buscar inscripciones especiales
+    const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
       .where('asignacionId', '==', asignacionId)
       .get();
     
-    if (calificacionesSnap.empty) {
+    console.log('Inscripciones especiales:', inscripcionesSnap.size);
+    
+    const alumnosMap = new Map();
+    
+    // Procesar alumnos normales
+    alumnosSnap.forEach(doc => {
+      const alumno = doc.data();
+      alumnosMap.set(doc.id, {
+        id: doc.id,
+        nombre: alumno.nombre || 'Sin nombre',
+        matricula: alumno.matricula || '-',
+        email: alumno.email || '-',
+        esEspecial: false
+      });
+    });
+    
+    // Procesar inscripciones especiales
+    for (const inscDoc of inscripcionesSnap.docs) {
+      const insc = inscDoc.data();
+      if (insc.alumnoId && !alumnosMap.has(insc.alumnoId)) {
+        const alumnoDoc = await db.collection('usuarios').doc(insc.alumnoId).get();
+        if (alumnoDoc.exists) {
+          const alumno = alumnoDoc.data();
+          alumnosMap.set(insc.alumnoId, {
+            id: insc.alumnoId,
+            nombre: alumno.nombre || 'Sin nombre',
+            matricula: alumno.matricula || '-',
+            email: alumno.email || '-',
+            esEspecial: true
+          });
+        }
+      }
+    }
+    
+    if (alumnosMap.size === 0) {
       container.innerHTML = `
         <div class="sin-datos">
           <p>No hay alumnos registrados en este grupo</p>
+          <p style="margin-top: 10px; color: #666; font-size: 0.9rem;">
+            Grupo: ${asignacion.codigoGrupo}
+          </p>
         </div>
       `;
       return;
     }
     
-    const calificaciones = [];
+    // Buscar calificaciones para estos alumnos en esta asignación
+    const calificacionesSnap = await db.collection('calificaciones')
+      .where('asignacionId', '==', asignacionId)
+      .get();
+    
+    console.log('Calificaciones encontradas:', calificacionesSnap.size);
+    
+    const calificacionesMap = new Map();
     calificacionesSnap.forEach(doc => {
-      calificaciones.push({
+      const cal = doc.data();
+      calificacionesMap.set(cal.alumnoId, {
         id: doc.id,
-        ...doc.data()
+        ...cal
       });
     });
     
-    // Ordenar por nombre de alumno
-    calificaciones.sort((a, b) => (a.nombreAlumno || '').localeCompare(b.nombreAlumno || ''));
+    // Combinar alumnos con calificaciones
+    const alumnos = Array.from(alumnosMap.values()).map(alumno => {
+      const calif = calificacionesMap.get(alumno.id) || {};
+      return {
+        ...alumno,
+        u1: calif.u1,
+        u2: calif.u2,
+        u3: calif.u3,
+        promedioParciales: calif.promedioParciales,
+        ets: calif.ets,
+        calificacionFinal: calif.calificacionFinal,
+        faltas: calif.faltas || 0
+      };
+    });
+    
+    // Ordenar por nombre
+    alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre));
     
     let html = `
       <div style="overflow-x: auto;">
@@ -841,22 +912,22 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
           <tbody>
     `;
     
-    calificaciones.forEach(cal => {
-      const promParciales = cal.promedioParciales || '-';
-      const finalCalc = cal.calificacionFinal || '-';
-      const faltas = cal.faltas !== undefined ? cal.faltas : '-';
+    alumnos.forEach(alumno => {
+      const promParciales = alumno.promedioParciales !== undefined ? alumno.promedioParciales : '-';
+      const finalCalc = alumno.calificacionFinal !== undefined ? alumno.calificacionFinal : '-';
+      const colorFinal = finalCalc !== '-' && finalCalc >= 70 ? '#2e7d32' : '#c62828';
       
       html += `
         <tr>
-          <td>${cal.nombreAlumno || 'Sin nombre'}</td>
-          <td>${cal.matricula || '-'}</td>
-          <td>${cal.u1 !== undefined && cal.u1 !== null ? cal.u1 : '-'}</td>
-          <td>${cal.u2 !== undefined && cal.u2 !== null ? cal.u2 : '-'}</td>
-          <td>${cal.u3 !== undefined && cal.u3 !== null ? cal.u3 : '-'}</td>
+          <td>${alumno.nombre}${alumno.esEspecial ? ' <span style="color: #ff6f00; font-size: 0.8em;">★</span>' : ''}</td>
+          <td>${alumno.matricula}</td>
+          <td>${alumno.u1 !== undefined && alumno.u1 !== null ? alumno.u1 : '-'}</td>
+          <td>${alumno.u2 !== undefined && alumno.u2 !== null ? alumno.u2 : '-'}</td>
+          <td>${alumno.u3 !== undefined && alumno.u3 !== null ? alumno.u3 : '-'}</td>
           <td><strong>${promParciales}</strong></td>
-          <td>${cal.ets !== undefined && cal.ets !== null ? cal.ets : '-'}</td>
-          <td><strong style="color: ${finalCalc >= 70 ? '#2e7d32' : '#c62828'};">${finalCalc}</strong></td>
-          <td>${faltas}</td>
+          <td>${alumno.ets !== undefined && alumno.ets !== null ? alumno.ets : '-'}</td>
+          <td><strong style="color: ${colorFinal};">${finalCalc}</strong></td>
+          <td>${alumno.faltas}</td>
         </tr>
       `;
     });
@@ -865,6 +936,11 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
           </tbody>
         </table>
       </div>
+      <p style="margin-top: 10px; color: #666; font-size: 0.85rem;">
+        Total de alumnos: ${alumnos.length} | 
+        Grupo: ${asignacion.codigoGrupo}
+        ${inscripcionesSnap.size > 0 ? ' | ★ = Inscripción especial' : ''}
+      </p>
     `;
     
     container.innerHTML = html;
@@ -872,7 +948,7 @@ async function verCalificacionesProfesor(asignacionId, materiaNombre, codigoGrup
   } catch (error) {
     console.error('Error al cargar calificaciones:', error);
     document.getElementById('contenidoCalificaciones').innerHTML = 
-      '<p style="color: red; text-align: center;">Error al cargar calificaciones</p>';
+      '<p style="color: red; text-align: center;">Error al cargar calificaciones: ' + error.message + '</p>';
   }
 }
 
