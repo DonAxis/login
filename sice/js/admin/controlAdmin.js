@@ -484,6 +484,32 @@ function mostrarModalCarrera() {
              style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
       <small style="color: #666;">Número total de semestres/periodos que dura la carrera</small>
     </div>
+
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 10px; font-weight: 700; color: #333; font-size: 1rem;">Sistema de Créditos:</label>
+      <div id="creditosSelector" style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button type="button" onclick="seleccionarCreditos('TEPIC', this)" class="btn-creditos"
+          style="flex: 1; min-width: 100px; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; color: #333;"
+          onmouseover="if(!this.classList.contains('creditos-activo')) this.style.borderColor='#00796b';"
+          onmouseout="if(!this.classList.contains('creditos-activo')) this.style.borderColor='#ddd';">
+          TEPIC
+        </button>
+        <button type="button" onclick="seleccionarCreditos('SACTA', this)" class="btn-creditos"
+          style="flex: 1; min-width: 100px; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; color: #333;"
+          onmouseover="if(!this.classList.contains('creditos-activo')) this.style.borderColor='#00796b';"
+          onmouseout="if(!this.classList.contains('creditos-activo')) this.style.borderColor='#ddd';">
+          SACTA
+        </button>
+        <button type="button" onclick="seleccionarCreditos('otra', this)" class="btn-creditos"
+          style="flex: 1; min-width: 100px; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; color: #333;"
+          onmouseover="if(!this.classList.contains('creditos-activo')) this.style.borderColor='#00796b';"
+          onmouseout="if(!this.classList.contains('creditos-activo')) this.style.borderColor='#ddd';">
+          Otra
+        </button>
+      </div>
+      <input type="hidden" id="creditosCarreraSeleccion" value="">
+      <small style="color: #666;">Selecciona el sistema de créditos que aplica a esta carrera</small>
+    </div>
   `;
   
   // Insertar después del campo descripción
@@ -545,6 +571,8 @@ async function crearCarrera(event) {
     }
     
     // Crear documento de carrera con ID = codigo
+    const creditosSeleccionado = document.getElementById('creditosCarreraSeleccion').value;
+    
     const carreraData = {
       codigo: codigo,
       nombre: nombre,
@@ -552,6 +580,7 @@ async function crearCarrera(event) {
       numeroPeriodos: numeroPeriodos,
       tipoPeriodo: tipoPeriodo.valor,
       periodosAnio: tipoPeriodo.periodosAnio,
+      creditos: creditosSeleccionado || "",
       activo: true,
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -1590,3 +1619,199 @@ async function eliminarAcademia(academiaId, academiaNombre) {
 }
 
 console.log('Sistema de Gestión de Academias cargado');
+
+// ===== SELECTOR DE CRÉDITOS EN CREAR CARRERA =====
+let creditosSeleccion = '';
+
+function seleccionarCreditos(valor, btn) {
+  creditosSeleccion = valor;
+  document.getElementById('creditosCarreraSeleccion').value = valor;
+  
+  // Reset all buttons
+  const botones = document.querySelectorAll('#creditosSelector .btn-creditos');
+  botones.forEach(b => {
+    b.style.background = 'white';
+    b.style.borderColor = '#ddd';
+    b.style.color = '#333';
+    b.classList.remove('creditos-activo');
+  });
+  
+  // Activate selected
+  btn.style.background = 'linear-gradient(135deg, #00796b 0%, #009688 100%)';
+  btn.style.borderColor = '#00796b';
+  btn.style.color = 'white';
+  btn.classList.add('creditos-activo');
+}
+
+// ===== CAMBIOS PROGRAMADOS =====
+let carrerasCreditosData = [];
+
+function mostrarCambiosProgramados() {
+  document.getElementById('modalCambiosProgramados').style.display = 'block';
+}
+
+function cerrarCambiosProgramados() {
+  document.getElementById('modalCambiosProgramados').style.display = 'none';
+  const msg = document.getElementById('mensajeCambios');
+  if (msg) msg.style.display = 'none';
+}
+
+async function cargarCarrerasParaCreditos() {
+  const container = document.getElementById('listaCarrerasCreditos');
+  container.innerHTML = '<div style="text-align: center; padding: 30px; color: #999;">Cargando carreras...</div>';
+  
+  try {
+    const snap = await db.collection('carreras').get();
+    carrerasCreditosData = [];
+    
+    snap.forEach(doc => {
+      carrerasCreditosData.push({ id: doc.id, ...doc.data() });
+    });
+    
+    if (carrerasCreditosData.length === 0) {
+      container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No hay carreras registradas.</div>';
+      return;
+    }
+    
+    let html = '';
+    
+    carrerasCreditosData.forEach(carrera => {
+      const creditoActual = carrera.creditos || '';
+      const tieneCred = !!creditoActual;
+      
+      html += `
+        <div style="background: white; padding: 18px; border-radius: 10px; margin-bottom: 12px; border: 2px solid ${tieneCred ? '#00796b' : '#ddd'}; transition: all 0.3s;"
+             onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';"
+             onmouseout="this.style.boxShadow='none';">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            
+            <div style="flex: 1; min-width: 180px;">
+              <div style="font-weight: 700; font-size: 1.05rem; color: #333;">${carrera.nombre}</div>
+              <div style="color: #888; font-size: 0.85rem; font-family: monospace;">Código: ${carrera.codigo} | ${carrera.tipoPeriodo || '-'} | ${carrera.numeroPeriodos || '-'} periodos</div>
+              ${tieneCred ? `<div style="margin-top: 4px;"><span style="background: #e0f2f1; color: #00796b; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Actual: ${creditoActual}</span></div>` : '<div style="margin-top: 4px;"><span style="background: #fff3cd; color: #856404; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Sin asignar</span></div>'}
+            </div>
+            
+            <div style="display: flex; gap: 8px;" id="creditosBtns_${carrera.id}">
+              <button type="button" onclick="seleccionarCreditoCarrera('${carrera.id}', 'TEPIC', this)"
+                style="padding: 10px 18px; border: 2px solid ${creditoActual === 'TEPIC' ? '#00796b' : '#ddd'}; border-radius: 8px; background: ${creditoActual === 'TEPIC' ? 'linear-gradient(135deg, #00796b 0%, #009688 100%)' : 'white'}; color: ${creditoActual === 'TEPIC' ? 'white' : '#333'}; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s;">
+                TEPIC
+              </button>
+              <button type="button" onclick="seleccionarCreditoCarrera('${carrera.id}', 'SACTA', this)"
+                style="padding: 10px 18px; border: 2px solid ${creditoActual === 'SACTA' ? '#00796b' : '#ddd'}; border-radius: 8px; background: ${creditoActual === 'SACTA' ? 'linear-gradient(135deg, #00796b 0%, #009688 100%)' : 'white'}; color: ${creditoActual === 'SACTA' ? 'white' : '#333'}; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s;">
+                SACTA
+              </button>
+              <button type="button" onclick="seleccionarCreditoCarrera('${carrera.id}', 'otra', this)"
+                style="padding: 10px 18px; border: 2px solid ${creditoActual === 'otra' ? '#00796b' : '#ddd'}; border-radius: 8px; background: ${creditoActual === 'otra' ? 'linear-gradient(135deg, #00796b 0%, #009688 100%)' : 'white'}; color: ${creditoActual === 'otra' ? 'white' : '#333'}; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s;">
+                Otra
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    
+    container.innerHTML = html;
+    document.getElementById('botonesGuardarCreditos').style.display = 'block';
+    
+  } catch (error) {
+    console.error('Error al cargar carreras para créditos:', error);
+    container.innerHTML = '<div style="text-align: center; padding: 30px; color: #d32f2f;">Error al cargar carreras: ' + error.message + '</div>';
+  }
+}
+
+function seleccionarCreditoCarrera(carreraId, valor, btn) {
+  // Guardar selección en el array
+  const carrera = carrerasCreditosData.find(c => c.id === carreraId);
+  if (carrera) {
+    carrera._creditoNuevo = valor;
+  }
+  
+  // Reset botones de esta carrera
+  const container = document.getElementById('creditosBtns_' + carreraId);
+  if (container) {
+    const botones = container.querySelectorAll('button');
+    botones.forEach(b => {
+      b.style.background = 'white';
+      b.style.borderColor = '#ddd';
+      b.style.color = '#333';
+    });
+  }
+  
+  // Activar botón seleccionado
+  btn.style.background = 'linear-gradient(135deg, #00796b 0%, #009688 100%)';
+  btn.style.borderColor = '#00796b';
+  btn.style.color = 'white';
+}
+
+async function guardarCreditosCarreras() {
+  const cambios = carrerasCreditosData.filter(c => c._creditoNuevo);
+  
+  if (cambios.length === 0) {
+    mostrarMensajeCambios('No has seleccionado ningún crédito para actualizar.\nSelecciona TEPIC, SACTA u Otra en al menos una carrera.', 'error');
+    return;
+  }
+  
+  const confirmacion = confirm(
+    `¿Guardar créditos en ${cambios.length} carrera(s)?\n\n` +
+    cambios.map(c => `• ${c.nombre} → ${c._creditoNuevo}`).join('\n') +
+    '\n\nEsto actualizará el campo "creditos" en cada documento de la colección "carreras".'
+  );
+  
+  if (!confirmacion) return;
+  
+  try {
+    mostrarMensajeCambios('Aplicando cambios...', 'info');
+    
+    const batch = db.batch();
+    
+    cambios.forEach(carrera => {
+      const ref = db.collection('carreras').doc(carrera.id);
+      batch.update(ref, { 
+        creditos: carrera._creditoNuevo,
+        fechaActualizacionCreditos: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    
+    await batch.commit();
+    
+    mostrarMensajeCambios(
+      `Créditos actualizados exitosamente en ${cambios.length} carrera(s)\n\n` +
+      cambios.map(c => `✓ ${c.nombre} (${c.codigo}) → ${c._creditoNuevo}`).join('\n'),
+      'success'
+    );
+    
+    // Recargar para reflejar cambios
+    setTimeout(() => {
+      cargarCarrerasParaCreditos();
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Error al guardar créditos:', error);
+    mostrarMensajeCambios('Error al guardar: ' + error.message, 'error');
+  }
+}
+
+function mostrarMensajeCambios(texto, tipo) {
+  const mensaje = document.getElementById('mensajeCambios');
+  if (!mensaje) return;
+  
+  mensaje.textContent = texto;
+  mensaje.style.display = 'block';
+  mensaje.style.whiteSpace = 'pre-line';
+  
+  if (tipo === 'success') {
+    mensaje.style.background = '#d4edda';
+    mensaje.style.color = '#155724';
+    mensaje.style.border = '2px solid #c3e6cb';
+  } else if (tipo === 'error') {
+    mensaje.style.background = '#f8d7da';
+    mensaje.style.color = '#721c24';
+    mensaje.style.border = '2px solid #f5c6cb';
+  } else {
+    mensaje.style.background = '#d1ecf1';
+    mensaje.style.color = '#0c5460';
+    mensaje.style.border = '2px solid #bee5eb';
+  }
+}
+
+console.log('Sistema de Cambios Programados cargado');
