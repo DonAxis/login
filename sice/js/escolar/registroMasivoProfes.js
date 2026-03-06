@@ -426,6 +426,7 @@ async function guardarProfesoresMasivos(event) {
         // Si es email duplicado, intentar agregar a carrera
         if (authError.code === 'auth/email-already-in-use') {
           try {
+            // 1. Buscar si ya es profesor
             const existeSnap = await db.collection('usuarios')
               .where('email', '==', email)
               .where('rol', '==', 'profesor')
@@ -466,20 +467,73 @@ async function guardarProfesoresMasivos(event) {
                 );
               }
             } else {
-              erroresDetallados.push({
-                numero: i + 1,
-                nombre: nombre,
-                email: email,
-                error: 'Email ya registrado (no como profesor)',
-                codigo: authError.code
-              });
-              fallidos++;
-              exitoCreacion = true;
-              
-              actualizarEstado(
-                `Email ya registrado (no como profesor): <strong>${email}</strong>`,
-                'error'
-              );
+              // 2. Buscar si es coordinador u otro rol — agregarlo también como profesor
+              const existeOtroRol = await db.collection('usuarios')
+                .where('email', '==', email)
+                .limit(1)
+                .get();
+
+              if (!existeOtroRol.empty) {
+                const otroDoc = existeOtroRol.docs[0];
+                const otroData = otroDoc.data();
+                const rolesActuales = otroData.roles || [otroData.rol];
+                const carrerasActuales = otroData.carreras || [];
+
+                const updates = {};
+
+                // Agregar rol profesor si no lo tiene
+                if (!rolesActuales.includes('profesor')) {
+                  updates.roles = [...rolesActuales, 'profesor'];
+                }
+
+                // Agregar carrera si no la tiene
+                if (!carrerasActuales.includes(usuarioActual.carreraId)) {
+                  updates.carreras = [...carrerasActuales, usuarioActual.carreraId];
+                }
+
+                if (Object.keys(updates).length > 0) {
+                  await db.collection('usuarios').doc(otroDoc.id).update(updates);
+                  console.log(`[${i + 1}] Usuario (${otroData.rol}) agregado como profesor: ${email}`);
+                  exitosos++;
+                  exitoCreacion = true;
+
+                  actualizarEstado(
+                    `${otroData.rol === 'coordinador' ? 'Coordinador' : 'Usuario'} agregado como profesor: <strong>${nombre}</strong>`,
+                    'success'
+                  );
+                } else {
+                  erroresDetallados.push({
+                    numero: i + 1,
+                    nombre: nombre,
+                    email: email,
+                    error: 'Usuario ya tiene rol profesor y ya está en esta carrera',
+                    codigo: 'ya-existe'
+                  });
+                  fallidos++;
+                  exitoCreacion = true;
+
+                  actualizarEstado(
+                    `Ya existe como profesor en esta carrera: <strong>${nombre}</strong>`,
+                    'error'
+                  );
+                }
+              } else {
+                // Email existe en Auth pero no en Firestore (caso raro)
+                erroresDetallados.push({
+                  numero: i + 1,
+                  nombre: nombre,
+                  email: email,
+                  error: 'Email registrado en Auth pero no encontrado en base de datos',
+                  codigo: authError.code
+                });
+                fallidos++;
+                exitoCreacion = true;
+                
+                actualizarEstado(
+                  `Email ya registrado pero no encontrado en BD: <strong>${email}</strong>`,
+                  'error'
+                );
+              }
             }
           } catch (firestoreError) {
             console.error(`[${i + 1}] Error al verificar profesor existente:`, firestoreError);
