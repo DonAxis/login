@@ -2163,8 +2163,8 @@ async function cargarProfesores() {
         const profesoresValidos = [];
         snapshot.forEach(doc => {
             const data = doc.data();
-            // Incluir si es profesor O si es coordinador con esProfesor: true
-            if (data.rol === 'profesor' || (data.rol === 'coordinador' && data.esProfesor === true)) {
+            // Incluir si es profesor, si tiene 'profesor' en roles, o si es coordinador con esProfesor: true
+            if (data.rol === 'profesor' || (data.roles && data.roles.includes('profesor')) || (data.rol === 'coordinador' && data.esProfesor === true)) {
                 profesoresValidos.push({
                     id: doc.id,
                     ...data
@@ -2180,7 +2180,7 @@ async function cargarProfesores() {
         let html = '';
         profesoresValidos.forEach(item => {
             const profesor = item;
-            const rolDisplay = profesor.rol === 'coordinador' ? '(Coordinador-Profesor)' : '';
+            const rolDisplay = (profesor.rol === 'coordinador' || (profesor.rol !== 'profesor' && profesor.roles && profesor.roles.includes('profesor'))) ? '(Coordinador-Profesor)' : '';
             html += `
  <div class="item">
  <div class="item-info">
@@ -2189,13 +2189,13 @@ async function cargarProfesores() {
  <p>${profesor.activo ? '<span style="color: #4caf50;"></span> Activo' : '<span style="color: #f44336;"></span> Inactivo'}</p>
  </div>
  <div class="item-acciones">
- ${profesor.rol === 'profesor' ? `
+ ${profesor.rol === 'profesor' && !(profesor.roles && profesor.roles.includes('coordinador')) ? `
  <button onclick="editarProfesor('${item.id}')" class="btn-editar">Editar</button>
  <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="${profesor.activo ? 'botAzu' : 'botVerde'}">
  ${profesor.activo ? 'Desactivar' : 'Activar'}
  </button>
  ` : `
- <span style="color: #666; font-size: 0.9rem;">Coordinador (no editable)</span>
+ <span style="color: #666; font-size: 0.9rem;">Coordinador (no editable desde aquí)</span>
  `}
  </div>
  </div>
@@ -2328,7 +2328,7 @@ async function guardarProfesor(event, profesorId) {
 
             } catch (authError) {
                 if (authError.code === 'auth/email-already-in-use') {
-                    // Email ya existe - buscar profesor y agregar carrera
+                    // Email ya existe - buscar si es profesor
                     const existeSnap = await db.collection('usuarios')
                         .where('email', '==', email)
                         .where('rol', '==', 'profesor')
@@ -2353,6 +2353,67 @@ async function guardarProfesor(event, profesorId) {
                         cargarProfesores();
                         return;
                     }
+
+                    // Buscar si es coordinador (u otro rol) - permitir agregarlo también como profesor
+                    const existeOtroRol = await db.collection('usuarios')
+                        .where('email', '==', email)
+                        .limit(1)
+                        .get();
+
+                    if (!existeOtroRol.empty) {
+                        const otroDoc = existeOtroRol.docs[0];
+                        const otroData = otroDoc.data();
+                        const rolActual = otroData.rol || 'desconocido';
+
+                        // Confirmar que quiere agregarlo como profesor
+                        const confirmar = confirm(
+                            `Este email pertenece a un usuario con rol "${rolActual}":\n\n` +
+                            `Nombre: ${otroData.nombre}\n` +
+                            `Email: ${email}\n\n` +
+                            `¿Deseas agregarlo también como profesor en tu carrera?\n` +
+                            `(Se le añadirá el rol "profesor" sin afectar su rol actual)`
+                        );
+
+                        if (confirmar) {
+                            const rolesActuales = otroData.roles || [rolActual];
+                            const carrerasActuales = otroData.carreras || [];
+
+                            const updates = {};
+
+                            // Agregar rol profesor si no lo tiene
+                            if (!rolesActuales.includes('profesor')) {
+                                updates.roles = [...rolesActuales, 'profesor'];
+                            }
+
+                            // Agregar carrera si no la tiene
+                            if (!carrerasActuales.includes(usuarioActual.carreraId)) {
+                                updates.carreras = [...carrerasActuales, usuarioActual.carreraId];
+                            }
+
+                            if (Object.keys(updates).length > 0) {
+                                await db.collection('usuarios').doc(otroDoc.id).update(updates);
+                                alert(
+                                    `Usuario agregado como profesor exitosamente\n\n` +
+                                    `Nombre: ${otroData.nombre}\n` +
+                                    `Rol original: ${rolActual}\n` +
+                                    `Roles ahora: ${(updates.roles || rolesActuales).join(', ')}\n\n` +
+                                    `IMPORTANTE:\nEl usuario mantiene su contraseña original.\n` +
+                                    `Ahora aparecerá en tu lista de profesores.`
+                                );
+                            } else {
+                                alert(`Este usuario ya tiene rol profesor y ya está en tu carrera.\n\nNombre: ${otroData.nombre}`);
+                            }
+
+                            cerrarModal();
+                            cargarProfesores();
+                            return;
+                        } else {
+                            // El coordinador canceló
+                            try { await secondaryAuth.signOut(); } catch(e) {}
+                            try { await secondaryApp.delete(); } catch(e) {}
+                            return;
+                        }
+                    }
                 }
                 throw authError;
             }
@@ -2365,7 +2426,7 @@ async function guardarProfesor(event, profesorId) {
 
         let mensaje = 'Error al guardar profesor';
         if (error.code === 'auth/email-already-in-use') {
-            mensaje = 'Este email ya está registrado (pero no como profesor)';
+            mensaje = 'Este email ya está registrado en el sistema. No se pudo agregar como profesor.';
         } else if (error.code === 'auth/invalid-email') {
             mensaje = 'Email inválido';
         } else if (error.code === 'auth/weak-password') {
