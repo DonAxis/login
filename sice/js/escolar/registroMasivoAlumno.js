@@ -309,11 +309,6 @@ async function mostrarFormRegistroMasivo() {
   document.getElementById('vistaPrevia').style.display = 'none';
   document.getElementById('barraProgreso').style.display = 'none';
   
-  // Evitar word-wrap en nombres largos
-  const txtNombres = document.getElementById('nombresMasivo');
-  txtNombres.style.whiteSpace = 'nowrap';
-  txtNombres.style.overflowX = 'auto';
-  
   document.getElementById('modalRegistroMasivo').style.display = 'block';
 }
 
