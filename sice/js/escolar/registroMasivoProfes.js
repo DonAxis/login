@@ -60,7 +60,7 @@ async function mostrarModalProfesoresMasivos() {
               </label>
               <textarea id="nombresProfesoresMasivo" required rows="12" 
                         placeholder="Juan Perez Garcia&#10;Maria Lopez Hernandez&#10;..."
-                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical; white-space: nowrap; overflow-x: auto;"></textarea>
               <small style="color: #666; font-size: 0.8rem;">Un nombre por linea</small>
             </div>
 
