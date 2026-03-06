@@ -2,6 +2,16 @@
 
 console.log('=== CARGANDO REGISTRO MASIVO DE MATERIAS - CON CREDITOS LOCAL/EXTERNO ===');
 
+// Funcion para contar y mostrar lineas en textareas
+function actualizarContadorLineas(textareaId, contadorId) {
+  const textarea = document.getElementById(textareaId);
+  const contador = document.getElementById(contadorId);
+  if (!textarea || !contador) return;
+  const texto = textarea.value.trim();
+  const lineas = texto ? texto.split('\n').filter(l => l.trim()).length : 0;
+  contador.textContent = lineas > 0 ? `${lineas} registro${lineas !== 1 ? 's' : ''} detectado${lineas !== 1 ? 's' : ''}` : '';
+}
+
 async function mostrarModalMateriasMasivas() {
   
   let periodosHTML = '<option value="">Seleccionar periodo...</option>';
@@ -91,8 +101,10 @@ async function mostrarModalMateriasMasivas() {
               </label>
               <textarea id="nombresMateriasMasivo" required rows="15" 
                         placeholder="Calculo Diferencial&#10;Algebra Lineal&#10;Programacion Estructurada&#10;..."
-                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+                        oninput="actualizarContadorLineas('nombresMateriasMasivo', 'contadorLineasMaterias')"
+                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical; white-space: nowrap; overflow-x: auto;"></textarea>
               <small style="color: #666; font-size: 0.8rem;">Una materia por renglon</small>
+              <div id="contadorLineasMaterias" style="font-size: 0.8rem; color: #43a047; font-weight: 600; margin-top: 4px;"></div>
             </div>
 
             <!-- CREDITOS SATCA -->

@@ -1,4 +1,3 @@
-
 async function cargarPeriodosParaMasivo() {
   try {
     const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
@@ -309,6 +308,27 @@ async function mostrarFormRegistroMasivo() {
   document.getElementById('ordenMasivo').value = '01';
   document.getElementById('vistaPrevia').style.display = 'none';
   document.getElementById('barraProgreso').style.display = 'none';
+  
+  // Aplicar nowrap a textareas de nombres para evitar confusion con nombres largos
+  const nombresTa = document.getElementById('nombresMasivo');
+  if (nombresTa) {
+    nombresTa.style.whiteSpace = 'nowrap';
+    nombresTa.style.overflowX = 'auto';
+    
+    // Agregar contador de lineas si no existe
+    if (!document.getElementById('contadorLineasAlumnos')) {
+      const contador = document.createElement('div');
+      contador.id = 'contadorLineasAlumnos';
+      contador.style.cssText = 'font-size: 0.8rem; color: #667eea; font-weight: 600; margin-top: 4px;';
+      nombresTa.parentNode.insertBefore(contador, nombresTa.nextSibling.nextSibling || null);
+      
+      nombresTa.addEventListener('input', function() {
+        const texto = this.value.trim();
+        const lineas = texto ? texto.split('\n').filter(l => l.trim()).length : 0;
+        contador.textContent = lineas > 0 ? `${lineas} alumno${lineas !== 1 ? 's' : ''} detectado${lineas !== 1 ? 's' : ''}` : '';
+      });
+    }
+  }
   
   document.getElementById('modalRegistroMasivo').style.display = 'block';
 }
