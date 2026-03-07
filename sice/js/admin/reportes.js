@@ -1,5 +1,10 @@
 // reportes.js
-// Primer reporte: Conteo de Materias por Carrera y Usuarios por Rol
+// Reporte: Conteo de Materias por Carrera y Usuarios por Rol
+// Con generación de PDF
+
+// ===== DATOS GLOBALES =====
+let reporteMaterias = null;
+let reporteUsuarios = null;
 
 // ===== ABRIR / CERRAR MODAL =====
 function mostrarReportes() {
@@ -16,8 +21,8 @@ async function cargarReporte() {
   const contMaterias = document.getElementById('reporteMateriasContenido');
   const contUsuarios = document.getElementById('reporteUsuariosContenido');
 
-  contMaterias.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">Cargando materias...</div>';
-  contUsuarios.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">Cargando usuarios...</div>';
+  contMaterias.innerHTML = '<div style="text-align:center;padding:15px;color:#999;font-size:0.9rem;">Cargando materias...</div>';
+  contUsuarios.innerHTML = '<div style="text-align:center;padding:15px;color:#999;font-size:0.9rem;">Cargando usuarios...</div>';
 
   // --- MATERIAS POR CARRERA ---
   try {
@@ -31,27 +36,25 @@ async function cargarReporte() {
       porCarrera[cId] = (porCarrera[cId] || 0) + 1;
     });
 
-    // Ordenar alfabéticamente
     const carrerasOrdenadas = Object.keys(porCarrera).sort();
+    reporteMaterias = { total: totalMaterias, porCarrera, carrerasOrdenadas };
 
     let html = `
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-        <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:12px 20px;border-radius:10px;font-size:1.8rem;font-weight:700;">${totalMaterias}</div>
-        <div style="font-size:1rem;color:#555;">Materias en total</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:8px 14px;border-radius:8px;font-size:1.4rem;font-weight:700;">${totalMaterias}</div>
+        <div style="font-size:0.9rem;color:#555;">Materias en total</div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;">
     `;
 
     carrerasOrdenadas.forEach(cId => {
       const cantidad = porCarrera[cId];
       const porcentaje = ((cantidad / totalMaterias) * 100).toFixed(1);
       html += `
-        <div style="background:#f8f9fa;padding:14px;border-radius:10px;border-left:4px solid #667eea;transition:all 0.3s;"
-             onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
-             onmouseout="this.style.boxShadow='none'">
-          <div style="font-weight:700;color:#333;font-size:1.1rem;">${cId}</div>
-          <div style="font-size:1.4rem;font-weight:700;color:#667eea;">${cantidad}</div>
-          <div style="font-size:0.8rem;color:#999;">${porcentaje}%</div>
+        <div style="background:#f8f9fa;padding:10px;border-radius:8px;border-left:3px solid #667eea;">
+          <div style="font-weight:700;color:#333;font-size:0.85rem;">${cId}</div>
+          <div style="font-size:1.1rem;font-weight:700;color:#667eea;">${cantidad}</div>
+          <div style="font-size:0.75rem;color:#999;">${porcentaje}%</div>
         </div>
       `;
     });
@@ -61,7 +64,7 @@ async function cargarReporte() {
 
   } catch (error) {
     console.error('Error al cargar materias:', error);
-    contMaterias.innerHTML = `<div style="color:#d32f2f;padding:20px;">Error al cargar materias: ${error.message}</div>`;
+    contMaterias.innerHTML = `<div style="color:#d32f2f;padding:15px;font-size:0.9rem;">Error: ${error.message}</div>`;
   }
 
   // --- USUARIOS POR ROL ---
@@ -76,6 +79,8 @@ async function cargarReporte() {
       porRol[rol] = (porRol[rol] || 0) + 1;
     });
 
+    reporteUsuarios = { total: totalUsuarios, porRol };
+
     const coloresRol = {
       'admin':               { bg: '#ffebee', color: '#c62828', icon: '🔑' },
       'coordinador':         { bg: '#e8f5e9', color: '#2e7d32', icon: '📋' },
@@ -87,16 +92,15 @@ async function cargarReporte() {
     };
 
     const nombresRol = {
-      'admin': 'Administradores',
+      'admin': 'Admins',
       'coordinador': 'Coordinadores',
       'profesor': 'Profesores',
       'alumno': 'Alumnos',
-      'controlEscolar': 'Control Escolar',
-      'controlCaja': 'Control Caja',
+      'controlEscolar': 'Ctrl. Escolar',
+      'controlCaja': 'Ctrl. Caja',
       'coordinadorAcademia': 'Coord. Academia'
     };
 
-    // Ordenar: primero los roles conocidos, luego los demás
     const ordenRoles = ['admin', 'coordinador', 'profesor', 'alumno', 'controlEscolar', 'controlCaja', 'coordinadorAcademia'];
     const rolesPresentes = Object.keys(porRol).sort((a, b) => {
       const iA = ordenRoles.indexOf(a);
@@ -108,11 +112,11 @@ async function cargarReporte() {
     });
 
     let html = `
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-        <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:12px 20px;border-radius:10px;font-size:1.8rem;font-weight:700;">${totalUsuarios}</div>
-        <div style="font-size:1rem;color:#555;">Usuarios en total</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:8px 14px;border-radius:8px;font-size:1.4rem;font-weight:700;">${totalUsuarios}</div>
+        <div style="font-size:0.9rem;color:#555;">Usuarios en total</div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;">
     `;
 
     rolesPresentes.forEach(rol => {
@@ -122,13 +126,11 @@ async function cargarReporte() {
       const nombre = nombresRol[rol] || rol;
 
       html += `
-        <div style="background:${estilo.bg};padding:16px;border-radius:12px;border-left:4px solid ${estilo.color};transition:all 0.3s;"
-             onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'"
-             onmouseout="this.style.boxShadow='none'">
-          <div style="font-size:1.3rem;margin-bottom:4px;">${estilo.icon}</div>
-          <div style="font-weight:700;color:${estilo.color};font-size:0.95rem;">${nombre}</div>
-          <div style="font-size:1.6rem;font-weight:700;color:#333;margin:4px 0;">${cantidad}</div>
-          <div style="font-size:0.8rem;color:#999;">${porcentaje}%</div>
+        <div style="background:${estilo.bg};padding:10px;border-radius:8px;border-left:3px solid ${estilo.color};">
+          <div style="font-size:1rem;margin-bottom:2px;">${estilo.icon}</div>
+          <div style="font-weight:700;color:${estilo.color};font-size:0.8rem;">${nombre}</div>
+          <div style="font-size:1.2rem;font-weight:700;color:#333;">${cantidad}</div>
+          <div style="font-size:0.75rem;color:#999;">${porcentaje}%</div>
         </div>
       `;
     });
@@ -138,8 +140,162 @@ async function cargarReporte() {
 
   } catch (error) {
     console.error('Error al cargar usuarios:', error);
-    contUsuarios.innerHTML = `<div style="color:#d32f2f;padding:20px;">Error al cargar usuarios: ${error.message}</div>`;
+    contUsuarios.innerHTML = `<div style="color:#d32f2f;padding:15px;font-size:0.9rem;">Error: ${error.message}</div>`;
   }
 }
 
-console.log('reportes.js cargado');
+// ===== DESCARGAR PDF =====
+async function descargarReportePDF() {
+  if (!reporteMaterias || !reporteUsuarios) {
+    alert('Primero carga los datos del reporte.');
+    return;
+  }
+
+  if (typeof window.jspdf === 'undefined') {
+    alert('Error: jsPDF no está cargado. Recarga la página.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  const fecha = new Date().toLocaleDateString('es-MX', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  // --- LOGOS ---
+  if (typeof logosEscuela !== 'undefined') {
+    try {
+      if (logosEscuela.logoIzquierdo) {
+        const cfg = logosEscuela.config.izq;
+        doc.addImage(logosEscuela.logoIzquierdo, 'PNG', cfg.x, cfg.y, cfg.ancho, cfg.alto);
+      }
+    } catch (e) { console.log('Error logo izq:', e); }
+    try {
+      if (logosEscuela.logoDerecho) {
+        const cfg = logosEscuela.config.der;
+        doc.addImage(logosEscuela.logoDerecho, 'PNG', cfg.x, cfg.y, cfg.ancho, cfg.alto);
+      }
+    } catch (e) { console.log('Error logo der:', e); }
+  }
+
+  // --- ENCABEZADO ---
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text('REPORTE DEL SISTEMA', pageWidth / 2, 25, { align: 'center' });
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text('Fecha: ' + fecha, pageWidth / 2, 32, { align: 'center' });
+
+  doc.setLineWidth(0.5);
+  doc.line(20, 38, pageWidth - 20, 38);
+
+  let y = 48;
+
+  // --- SECCIÓN MATERIAS ---
+  doc.setFontSize(13);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(102, 126, 234);
+  doc.text('Materias por Carrera', 20, y);
+  y += 8;
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Total de Materias: ' + reporteMaterias.total, 20, y);
+  y += 10;
+
+  const tablaMaterias = reporteMaterias.carrerasOrdenadas.map((cId, i) => {
+    const cant = reporteMaterias.porCarrera[cId];
+    const pct = ((cant / reporteMaterias.total) * 100).toFixed(1);
+    return [(i + 1).toString(), cId, cant.toString(), pct + '%'];
+  });
+
+  doc.autoTable({
+    startY: y,
+    head: [['#', 'Carrera ID', 'Materias', '%']],
+    body: tablaMaterias,
+    theme: 'grid',
+    headStyles: { fillColor: [102, 126, 234], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 9 },
+    styles: { fontSize: 8, cellPadding: 3 },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 12 },
+      1: { halign: 'left', cellWidth: 50 },
+      2: { halign: 'center', cellWidth: 25 },
+      3: { halign: 'center', cellWidth: 20 }
+    }
+  });
+
+  y = doc.lastAutoTable.finalY + 15;
+
+  // --- SECCIÓN USUARIOS ---
+  doc.setFontSize(13);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(118, 75, 162);
+  doc.text('Usuarios por Rol', 20, y);
+  y += 8;
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Total de Usuarios: ' + reporteUsuarios.total, 20, y);
+  y += 10;
+
+  const nombresRolPDF = {
+    'admin': 'Administradores', 'coordinador': 'Coordinadores', 'profesor': 'Profesores',
+    'alumno': 'Alumnos', 'controlEscolar': 'Control Escolar', 'controlCaja': 'Control Caja',
+    'coordinadorAcademia': 'Coord. Academia'
+  };
+
+  const ordenRoles = ['admin', 'coordinador', 'profesor', 'alumno', 'controlEscolar', 'controlCaja', 'coordinadorAcademia'];
+  const rolesOrdenados = Object.keys(reporteUsuarios.porRol).sort((a, b) => {
+    const iA = ordenRoles.indexOf(a);
+    const iB = ordenRoles.indexOf(b);
+    if (iA === -1 && iB === -1) return a.localeCompare(b);
+    if (iA === -1) return 1;
+    if (iB === -1) return -1;
+    return iA - iB;
+  });
+
+  const tablaUsuarios = rolesOrdenados.map((rol, i) => {
+    const cant = reporteUsuarios.porRol[rol];
+    const pct = ((cant / reporteUsuarios.total) * 100).toFixed(1);
+    return [(i + 1).toString(), nombresRolPDF[rol] || rol, cant.toString(), pct + '%'];
+  });
+
+  doc.autoTable({
+    startY: y,
+    head: [['#', 'Rol', 'Usuarios', '%']],
+    body: tablaUsuarios,
+    theme: 'grid',
+    headStyles: { fillColor: [118, 75, 162], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 9 },
+    styles: { fontSize: 8, cellPadding: 3 },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 12 },
+      1: { halign: 'left', cellWidth: 50 },
+      2: { halign: 'center', cellWidth: 25 },
+      3: { halign: 'center', cellWidth: 20 }
+    }
+  });
+
+  // --- NO VALIDEZ ---
+  const yFinal = pageHeight - 25;
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(200, 0, 0);
+  doc.text('ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL', pageWidth / 2, yFinal, { align: 'center' });
+
+  // --- PIE ---
+  doc.setFontSize(8);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(128);
+  doc.text('Generado el ' + fecha, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+  const nombreArchivo = 'Reporte_Sistema_' + fecha.replace(/\s+/g, '_') + '.pdf';
+  doc.save(nombreArchivo);
+}
+
+console.log('reportes.js cargado - con PDF');
