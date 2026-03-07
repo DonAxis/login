@@ -193,7 +193,7 @@
       <p>Cambiar periodo sin restricciones - SOLO PRUEBAS</p>
     </div>
 
-    <div class="opcion" onclick="alert('Próximamente')" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: 3px solid transparent;">
+    <div class="opcion" onclick="mostrarReportes()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: 3px solid transparent;">
       <h3 style="color: white;">Ver Reportes</h3>
       <p style="color: rgba(255,255,255,0.95);">Reportes y estadísticas</p>
     </div>
@@ -201,6 +201,11 @@
     <div class="opcion" onclick="mostrarCambiosProgramados()" style="background: linear-gradient(135deg, #00796b 0%, #009688 100%); border-color: transparent;">
       <h3 style="color: white;">Cambios Programados</h3>
       <p style="color: rgba(255,255,255,0.88);">Cambios masivos sobre la base de datos</p>
+    </div>
+
+    <div class="opcion" onclick="accionVigia()" style="background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%); border-color: transparent;">
+      <h3 style="color: white;">Acción Vigía</h3>
+      <p style="color: rgba(255,255,255,0.88);">Función temporal</p>
     </div>
   </div>
 
@@ -618,6 +623,54 @@
     </div>
   </div>
 
+  <!-- MODAL REPORTES -->
+  <div id="modalReportes" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; overflow-y: auto; backdrop-filter: blur(3px);">
+    <div class="modal-content-animated" style="background: white; padding: 40px; border-radius: 20px; max-width: 1000px; width: 90%; margin: 40px auto; box-shadow: 0 25px 80px rgba(0,0,0,0.4);">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #667eea;">
+        <div>
+          <h2 style="margin: 0; color: #667eea; font-size: 2rem;">Reportes del Sistema</h2>
+          <p style="margin: 8px 0 0 0; color: #666; font-size: 0.95rem;">
+            Estadísticas en tiempo real desde Firestore
+          </p>
+        </div>
+        <button onclick="cerrarReportes()" 
+          style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1; padding: 0; width: 40px; height: 40px; border-radius: 50%; transition: all 0.3s;"
+          onmouseover="this.style.background='#f5f5f5'; this.style.color='#333';"
+          onmouseout="this.style.background='none'; this.style.color='#999';">
+          &times;
+        </button>
+      </div>
+
+      <!-- Sección: Materias por Carrera -->
+      <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; border-left: 5px solid #667eea; margin-bottom: 25px;">
+        <h3 style="margin: 0 0 15px 0; color: #667eea; font-size: 1.3rem;">Materias por Carrera</h3>
+        <div id="reporteMateriasContenido">
+          <div style="text-align: center; padding: 30px; color: #999;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- Sección: Usuarios por Rol -->
+      <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; border-left: 5px solid #764ba2; margin-bottom: 25px;">
+        <h3 style="margin: 0 0 15px 0; color: #764ba2; font-size: 1.3rem;">Usuarios por Rol</h3>
+        <div id="reporteUsuariosContenido">
+          <div style="text-align: center; padding: 30px; color: #999;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- Botón recargar -->
+      <div style="text-align: center;">
+        <button onclick="cargarReporte()" 
+          style="padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 12px rgba(102,126,234,0.3); transition: all 0.3s;"
+          onmouseover="this.style.transform='translateY(-2px)'"
+          onmouseout="this.style.transform='translateY(0)'">
+         Recargar Datos
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -625,7 +678,7 @@
   
   <script src="../../js/utils/firebase.js"></script>
   <script src="../../js/admin/controlAdmin.js"></script>
-  <script src="../../js/admin/vigia.js"></script>
   <script src="../../js/admin/reportes.js"></script>
+  <script src="../../js/admin/vigia.js"></script>
 </body>
 </html>
