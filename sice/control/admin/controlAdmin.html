@@ -625,14 +625,12 @@
 
   <!-- MODAL REPORTES -->
   <div id="modalReportes" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; overflow-y: auto; backdrop-filter: blur(3px);">
-    <div class="modal-content-animated" style="background: white; padding: 40px; border-radius: 20px; max-width: 1000px; width: 90%; margin: 40px auto; box-shadow: 0 25px 80px rgba(0,0,0,0.4);">
+    <div class="modal-content-animated" style="background: white; padding: 30px; border-radius: 20px; max-width: 900px; width: 90%; margin: 30px auto; box-shadow: 0 25px 80px rgba(0,0,0,0.4);">
       
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #667eea;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
         <div>
-          <h2 style="margin: 0; color: #667eea; font-size: 2rem;">Reportes del Sistema</h2>
-          <p style="margin: 8px 0 0 0; color: #666; font-size: 0.95rem;">
-            Estadísticas en tiempo real desde Firestore
-          </p>
+          <h2 style="margin: 0; color: #667eea; font-size: 1.6rem;">Reportes del Sistema</h2>
+          <p style="margin: 5px 0 0 0; color: #666; font-size: 0.85rem;">Estadísticas en tiempo real desde Firestore</p>
         </div>
         <button onclick="cerrarReportes()" 
           style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1; padding: 0; width: 40px; height: 40px; border-radius: 50%; transition: all 0.3s;"
@@ -642,32 +640,48 @@
         </button>
       </div>
 
-      <!-- Sección: Materias por Carrera -->
-      <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; border-left: 5px solid #667eea; margin-bottom: 25px;">
-        <h3 style="margin: 0 0 15px 0; color: #667eea; font-size: 1.3rem;">Materias por Carrera</h3>
-        <div id="reporteMateriasContenido">
-          <div style="text-align: center; padding: 30px; color: #999;">Cargando...</div>
+      <!-- Resumen de Roles -->
+      <div style="background: #f8f9fa; padding: 15px 18px; border-radius: 10px; border-left: 4px solid #667eea; margin-bottom: 15px;">
+        <h3 style="margin: 0 0 8px 0; color: #667eea; font-size: 1rem;">Usuarios por Rol</h3>
+        <div id="reporteResumenContenido">
+          <div style="text-align: center; padding: 12px; color: #999; font-size: 0.85rem;">Cargando...</div>
         </div>
       </div>
 
-      <!-- Sección: Usuarios por Rol -->
-      <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; border-left: 5px solid #764ba2; margin-bottom: 25px;">
-        <h3 style="margin: 0 0 15px 0; color: #764ba2; font-size: 1.3rem;">Usuarios por Rol</h3>
-        <div id="reporteUsuariosContenido">
-          <div style="text-align: center; padding: 30px; color: #999;">Cargando...</div>
+      <!-- Materias por Carrera -->
+      <div style="background: #f8f9fa; padding: 15px 18px; border-radius: 10px; border-left: 4px solid #667eea; margin-bottom: 15px;">
+        <h3 style="margin: 0 0 8px 0; color: #667eea; font-size: 1rem;">Materias por Carrera</h3>
+        <div id="reporteMateriasContenido">
+          <div style="text-align: center; padding: 12px; color: #999; font-size: 0.85rem;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- Alumnos por Carrera / Periodo -->
+      <div style="background: #f8f9fa; padding: 15px 18px; border-radius: 10px; border-left: 4px solid #7b1fa2; margin-bottom: 15px;">
+        <h3 style="margin: 0 0 8px 0; color: #7b1fa2; font-size: 1rem;">Alumnos por Carrera / Periodo</h3>
+        <div id="reporteAlumnosContenido">
+          <div style="text-align: center; padding: 12px; color: #999; font-size: 0.85rem;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- Profesores por Carrera -->
+      <div style="background: #f8f9fa; padding: 15px 18px; border-radius: 10px; border-left: 4px solid #1565c0; margin-bottom: 15px;">
+        <h3 style="margin: 0 0 8px 0; color: #1565c0; font-size: 1rem;">Profesores por Carrera</h3>
+        <div id="reporteProfesoresContenido">
+          <div style="text-align: center; padding: 12px; color: #999; font-size: 0.85rem;">Cargando...</div>
         </div>
       </div>
 
       <!-- Botones -->
       <div style="text-align: center; display: flex; gap: 12px; justify-content: center;">
         <button onclick="cargarReporte()" 
-          style="padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 12px rgba(102,126,234,0.3); transition: all 0.3s;"
+          style="padding: 10px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(102,126,234,0.3); transition: all 0.3s;"
           onmouseover="this.style.transform='translateY(-2px)'"
           onmouseout="this.style.transform='translateY(0)'">
-          Recargar Datos
+          Recargar
         </button>
         <button onclick="descargarReportePDF()" 
-          style="padding: 12px 30px; background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 12px rgba(46,125,50,0.3); transition: all 0.3s;"
+          style="padding: 10px 24px; background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(46,125,50,0.3); transition: all 0.3s;"
           onmouseover="this.style.transform='translateY(-2px)'"
           onmouseout="this.style.transform='translateY(0)'">
           Descargar PDF

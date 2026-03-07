@@ -1,17 +1,15 @@
 // reportes.js
-// Reporte: Conteo de Materias por Carrera y Usuarios por Rol
+// Reporte: Materias, Alumnos por carrera/periodo, Profesores por carrera
 // Con generación de PDF
 
-// ===== DATOS GLOBALES =====
 let reporteMaterias = null;
 let reporteUsuarios = null;
 
-// ===== ABRIR / CERRAR MODAL =====
+// ===== ABRIR / CERRAR =====
 function mostrarReportes() {
   document.getElementById('modalReportes').style.display = 'block';
   cargarReporte();
 }
-
 function cerrarReportes() {
   document.getElementById('modalReportes').style.display = 'none';
 }
@@ -19,283 +17,204 @@ function cerrarReportes() {
 // ===== CARGAR REPORTE =====
 async function cargarReporte() {
   const contMaterias = document.getElementById('reporteMateriasContenido');
-  const contUsuarios = document.getElementById('reporteUsuariosContenido');
+  const contAlumnos = document.getElementById('reporteAlumnosContenido');
+  const contProfesores = document.getElementById('reporteProfesoresContenido');
+  const contResumen = document.getElementById('reporteResumenContenido');
 
-  contMaterias.innerHTML = '<div style="text-align:center;padding:15px;color:#999;font-size:0.9rem;">Cargando materias...</div>';
-  contUsuarios.innerHTML = '<div style="text-align:center;padding:15px;color:#999;font-size:0.9rem;">Cargando usuarios...</div>';
+  contMaterias.innerHTML = loading();
+  contAlumnos.innerHTML = loading();
+  contProfesores.innerHTML = loading();
+  contResumen.innerHTML = loading();
 
-  // --- MATERIAS POR CARRERA ---
+  // Cargar carreras para nombres
+  let carrerasMap = {};
   try {
-    const snapMaterias = await db.collection('materias').get();
-    const porCarrera = {};
-    let totalMaterias = 0;
+    const snapCarreras = await db.collection('carreras').get();
+    snapCarreras.forEach(doc => {
+      carrerasMap[doc.id] = doc.data().nombre || doc.id;
+    });
+  } catch (e) { console.error('Error carreras:', e); }
 
-    snapMaterias.forEach(doc => {
-      totalMaterias++;
+  // ===== MATERIAS =====
+  try {
+    const snap = await db.collection('materias').get();
+    const porCarrera = {};
+    let total = 0;
+    snap.forEach(doc => {
+      total++;
       const cId = doc.data().carreraId || 'Sin carrera';
       porCarrera[cId] = (porCarrera[cId] || 0) + 1;
     });
-
     const carrerasOrdenadas = Object.keys(porCarrera).sort();
-    reporteMaterias = { total: totalMaterias, porCarrera, carrerasOrdenadas };
+    reporteMaterias = { total, porCarrera, carrerasOrdenadas };
 
-    let html = `
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-        <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:8px 14px;border-radius:8px;font-size:1.4rem;font-weight:700;">${totalMaterias}</div>
-        <div style="font-size:0.9rem;color:#555;">Materias en total</div>
+    // Lista horizontal compacta
+    let items = carrerasOrdenadas.map(cId => {
+      return `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0f0f8;padding:4px 10px;border-radius:16px;font-size:0.8rem;white-space:nowrap;">
+        <strong style="color:#667eea;">${cId}</strong><span style="color:#555;">${porCarrera[cId]}</span>
+      </span>`;
+    }).join(' ');
+
+    contMaterias.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:4px 12px;border-radius:8px;font-size:1.1rem;font-weight:700;">${total}</span>
+        <span style="font-size:0.85rem;color:#555;">materias en total</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${items}</div>
     `;
-
-    carrerasOrdenadas.forEach(cId => {
-      const cantidad = porCarrera[cId];
-      const porcentaje = ((cantidad / totalMaterias) * 100).toFixed(1);
-      html += `
-        <div style="background:#f8f9fa;padding:10px;border-radius:8px;border-left:3px solid #667eea;">
-          <div style="font-weight:700;color:#333;font-size:0.85rem;">${cId}</div>
-          <div style="font-size:1.1rem;font-weight:700;color:#667eea;">${cantidad}</div>
-          <div style="font-size:0.75rem;color:#999;">${porcentaje}%</div>
-        </div>
-      `;
-    });
-
-    html += '</div>';
-    contMaterias.innerHTML = html;
-
-  } catch (error) {
-    console.error('Error al cargar materias:', error);
-    contMaterias.innerHTML = `<div style="color:#d32f2f;padding:15px;font-size:0.9rem;">Error: ${error.message}</div>`;
+  } catch (e) {
+    contMaterias.innerHTML = err(e);
   }
 
-  // --- USUARIOS POR ROL ---
+  // ===== USUARIOS =====
   try {
-    const snapUsuarios = await db.collection('usuarios').get();
+    const snap = await db.collection('usuarios').get();
     const porRol = {};
+    const alumnosPorCarreraPeriodo = {}; // { carreraId: { periodo: count } }
+    const profesoresPorCarrera = {};     // { carreraId: count }
     let totalUsuarios = 0;
+    let totalAlumnos = 0;
+    let totalProfesores = 0;
 
-    snapUsuarios.forEach(doc => {
+    snap.forEach(doc => {
       totalUsuarios++;
-      const rol = doc.data().rol || 'sin rol';
+      const data = doc.data();
+      const rol = data.rol || 'sin rol';
       porRol[rol] = (porRol[rol] || 0) + 1;
+
+      // Alumnos: agrupar por carreraId → periodo
+      if (rol === 'alumno') {
+        totalAlumnos++;
+        const cId = data.carreraId || 'Sin carrera';
+        const periodo = data.periodo || 'Sin periodo';
+        if (!alumnosPorCarreraPeriodo[cId]) alumnosPorCarreraPeriodo[cId] = {};
+        alumnosPorCarreraPeriodo[cId][periodo] = (alumnosPorCarreraPeriodo[cId][periodo] || 0) + 1;
+      }
+
+      // Profesores: agrupar por cada carreraId en el arreglo carreras
+      if (rol === 'profesor' || (rol === 'coordinador' && data.roles && data.roles.includes('profesor'))) {
+        totalProfesores++;
+        if (data.carreras && Array.isArray(data.carreras)) {
+          data.carreras.forEach(c => {
+            const cId = c.carreraId || 'Sin carrera';
+            profesoresPorCarrera[cId] = (profesoresPorCarrera[cId] || 0) + 1;
+          });
+        } else if (data.carreraId) {
+          profesoresPorCarrera[data.carreraId] = (profesoresPorCarrera[data.carreraId] || 0) + 1;
+        } else {
+          profesoresPorCarrera['Sin carrera'] = (profesoresPorCarrera['Sin carrera'] || 0) + 1;
+        }
+      }
     });
 
-    reporteUsuarios = { total: totalUsuarios, porRol };
+    reporteUsuarios = { total: totalUsuarios, porRol, alumnosPorCarreraPeriodo, profesoresPorCarrera, totalAlumnos, totalProfesores };
 
-    const coloresRol = {
-      'admin':               { bg: '#ffebee', color: '#c62828', icon: '🔑' },
-      'coordinador':         { bg: '#e8f5e9', color: '#2e7d32', icon: '📋' },
-      'profesor':            { bg: '#e3f2fd', color: '#1565c0', icon: '👨‍🏫' },
-      'alumno':              { bg: '#f3e5f5', color: '#7b1fa2', icon: '🎓' },
-      'controlEscolar':      { bg: '#fff3e0', color: '#ef6c00', icon: '📄' },
-      'controlCaja':         { bg: '#e8f5e9', color: '#2e7d32', icon: '💰' },
-      'coordinadorAcademia': { bg: '#ede7f6', color: '#5e35b1', icon: '📚' }
+    // ===== RESUMEN ROLES =====
+    const rolesConfig = {
+      'admin':               { label: 'Admins', color: '#c62828' },
+      'coordinador':         { label: 'Coords', color: '#2e7d32' },
+      'profesor':            { label: 'Profes', color: '#1565c0' },
+      'alumno':              { label: 'Alumnos', color: '#7b1fa2' },
+      'controlEscolar':      { label: 'Ctrl.Esc', color: '#ef6c00' },
+      'controlCaja':         { label: 'Ctrl.Caja', color: '#2e7d32' },
+      'coordinadorAcademia': { label: 'Coord.Acad', color: '#5e35b1' }
     };
-
-    const nombresRol = {
-      'admin': 'Admins',
-      'coordinador': 'Coordinadores',
-      'profesor': 'Profesores',
-      'alumno': 'Alumnos',
-      'controlEscolar': 'Ctrl. Escolar',
-      'controlCaja': 'Ctrl. Caja',
-      'coordinadorAcademia': 'Coord. Academia'
-    };
-
     const ordenRoles = ['admin', 'coordinador', 'profesor', 'alumno', 'controlEscolar', 'controlCaja', 'coordinadorAcademia'];
-    const rolesPresentes = Object.keys(porRol).sort((a, b) => {
-      const iA = ordenRoles.indexOf(a);
-      const iB = ordenRoles.indexOf(b);
+    const rolesSorted = Object.keys(porRol).sort((a, b) => {
+      const iA = ordenRoles.indexOf(a); const iB = ordenRoles.indexOf(b);
       if (iA === -1 && iB === -1) return a.localeCompare(b);
-      if (iA === -1) return 1;
-      if (iB === -1) return -1;
+      if (iA === -1) return 1; if (iB === -1) return -1;
       return iA - iB;
     });
 
-    let html = `
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-        <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:8px 14px;border-radius:8px;font-size:1.4rem;font-weight:700;">${totalUsuarios}</div>
-        <div style="font-size:0.9rem;color:#555;">Usuarios en total</div>
+    let resumenItems = rolesSorted.map(rol => {
+      const cfg = rolesConfig[rol] || { label: rol, color: '#333' };
+      return `<span style="display:inline-flex;align-items:center;gap:4px;background:#f5f5f5;padding:4px 10px;border-radius:16px;font-size:0.8rem;white-space:nowrap;">
+        <strong style="color:${cfg.color};">${cfg.label}</strong><span style="color:#555;">${porRol[rol]}</span>
+      </span>`;
+    }).join(' ');
+
+    contResumen.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:4px 12px;border-radius:8px;font-size:1.1rem;font-weight:700;">${totalUsuarios}</span>
+        <span style="font-size:0.85rem;color:#555;">usuarios en total</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${resumenItems}</div>
     `;
 
-    rolesPresentes.forEach(rol => {
-      const cantidad = porRol[rol];
-      const porcentaje = ((cantidad / totalUsuarios) * 100).toFixed(1);
-      const estilo = coloresRol[rol] || { bg: '#f5f5f5', color: '#333', icon: '👤' };
-      const nombre = nombresRol[rol] || rol;
+    // ===== ALUMNOS POR CARRERA / PERIODO =====
+    const carrerasAlumno = Object.keys(alumnosPorCarreraPeriodo).sort();
+    let htmlAlumnos = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="background:linear-gradient(135deg,#7b1fa2,#9c27b0);color:white;padding:4px 12px;border-radius:8px;font-size:1.1rem;font-weight:700;">${totalAlumnos}</span>
+        <span style="font-size:0.85rem;color:#555;">alumnos en total</span>
+      </div>
+    `;
 
-      html += `
-        <div style="background:${estilo.bg};padding:10px;border-radius:8px;border-left:3px solid ${estilo.color};">
-          <div style="font-size:1rem;margin-bottom:2px;">${estilo.icon}</div>
-          <div style="font-weight:700;color:${estilo.color};font-size:0.8rem;">${nombre}</div>
-          <div style="font-size:1.2rem;font-weight:700;color:#333;">${cantidad}</div>
-          <div style="font-size:0.75rem;color:#999;">${porcentaje}%</div>
+    carrerasAlumno.forEach(cId => {
+      const periodos = alumnosPorCarreraPeriodo[cId];
+      const periodosOrdenados = Object.keys(periodos).sort((a, b) => {
+        const na = parseInt(a) || 0; const nb = parseInt(b) || 0;
+        return na - nb;
+      });
+      const totalCarrera = Object.values(periodos).reduce((s, v) => s + v, 0);
+      const nombreCarrera = carrerasMap[cId] || cId;
+
+      let periodoChips = periodosOrdenados.map(p => {
+        return `<span style="display:inline-flex;align-items:center;gap:3px;background:#f3e5f5;padding:3px 8px;border-radius:12px;font-size:0.75rem;">
+          <strong style="color:#7b1fa2;">P${p}</strong><span style="color:#555;">${periodos[p]}</span>
+        </span>`;
+      }).join(' ');
+
+      htmlAlumnos += `
+        <div style="margin-bottom:8px;padding:8px 10px;background:#fafafa;border-radius:8px;border-left:3px solid #7b1fa2;">
+          <div style="font-weight:700;color:#333;font-size:0.85rem;margin-bottom:4px;">
+            ${nombreCarrera} <span style="color:#7b1fa2;font-size:0.8rem;">(${cId})</span>
+            <span style="float:right;color:#7b1fa2;font-weight:700;">${totalCarrera}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">${periodoChips}</div>
         </div>
       `;
     });
 
-    html += '</div>';
-    contUsuarios.innerHTML = html;
+    contAlumnos.innerHTML = htmlAlumnos;
 
-  } catch (error) {
-    console.error('Error al cargar usuarios:', error);
-    contUsuarios.innerHTML = `<div style="color:#d32f2f;padding:15px;font-size:0.9rem;">Error: ${error.message}</div>`;
+    // ===== PROFESORES POR CARRERA =====
+    const carrerasProf = Object.keys(profesoresPorCarrera).sort();
+    let htmlProfes = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="background:linear-gradient(135deg,#1565c0,#1976d2);color:white;padding:4px 12px;border-radius:8px;font-size:1.1rem;font-weight:700;">${totalProfesores}</span>
+        <span style="font-size:0.85rem;color:#555;">profesores en total</span>
+        <span style="font-size:0.75rem;color:#999;">(puede repetir por multi-carrera)</span>
+      </div>
+    `;
+
+    carrerasProf.forEach(cId => {
+      const cant = profesoresPorCarrera[cId];
+      const nombreCarrera = carrerasMap[cId] || cId;
+      htmlProfes += `
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#e3f2fd;padding:6px 12px;border-radius:8px;border-left:3px solid #1565c0;margin:0 6px 6px 0;font-size:0.85rem;">
+          <strong style="color:#1565c0;">${cId}</strong>
+          <span style="color:#555;">${cant}</span>
+        </div>
+      `;
+    });
+
+    contProfesores.innerHTML = htmlProfes;
+
+  } catch (e) {
+    contAlumnos.innerHTML = err(e);
+    contProfesores.innerHTML = err(e);
+    contResumen.innerHTML = err(e);
   }
 }
 
-// ===== DESCARGAR PDF =====
+function loading() { return '<div style="text-align:center;padding:12px;color:#999;font-size:0.85rem;">Cargando...</div>'; }
+function err(e) { return `<div style="color:#d32f2f;padding:12px;font-size:0.85rem;">Error: ${e.message}</div>`; }
+
+// ===== PDF (sin cambios por ahora, se ajustará después) =====
 async function descargarReportePDF() {
-  if (!reporteMaterias || !reporteUsuarios) {
-    alert('Primero carga los datos del reporte.');
-    return;
-  }
-
-  if (typeof window.jspdf === 'undefined') {
-    alert('Error: jsPDF no está cargado. Recarga la página.');
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-
-  const fecha = new Date().toLocaleDateString('es-MX', {
-    year: 'numeric', month: 'long', day: 'numeric'
-  });
-
-  // --- LOGOS ---
-  if (typeof logosEscuela !== 'undefined') {
-    try {
-      if (logosEscuela.logoIzquierdo) {
-        const cfg = logosEscuela.config.izq;
-        doc.addImage(logosEscuela.logoIzquierdo, 'PNG', cfg.x, cfg.y, cfg.ancho, cfg.alto);
-      }
-    } catch (e) { console.log('Error logo izq:', e); }
-    try {
-      if (logosEscuela.logoDerecho) {
-        const cfg = logosEscuela.config.der;
-        doc.addImage(logosEscuela.logoDerecho, 'PNG', cfg.x, cfg.y, cfg.ancho, cfg.alto);
-      }
-    } catch (e) { console.log('Error logo der:', e); }
-  }
-
-  // --- ENCABEZADO ---
-  doc.setFontSize(16);
-  doc.setFont(undefined, 'bold');
-  doc.text('REPORTE DEL SISTEMA', pageWidth / 2, 25, { align: 'center' });
-
-  doc.setFontSize(10);
-  doc.setFont(undefined, 'normal');
-  doc.text('Fecha: ' + fecha, pageWidth / 2, 32, { align: 'center' });
-
-  doc.setLineWidth(0.5);
-  doc.line(20, 38, pageWidth - 20, 38);
-
-  let y = 48;
-
-  // --- SECCIÓN MATERIAS ---
-  doc.setFontSize(13);
-  doc.setFont(undefined, 'bold');
-  doc.setTextColor(102, 126, 234);
-  doc.text('Materias por Carrera', 20, y);
-  y += 8;
-
-  doc.setFontSize(10);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text('Total de Materias: ' + reporteMaterias.total, 20, y);
-  y += 10;
-
-  const tablaMaterias = reporteMaterias.carrerasOrdenadas.map((cId, i) => {
-    const cant = reporteMaterias.porCarrera[cId];
-    const pct = ((cant / reporteMaterias.total) * 100).toFixed(1);
-    return [(i + 1).toString(), cId, cant.toString(), pct + '%'];
-  });
-
-  doc.autoTable({
-    startY: y,
-    head: [['#', 'Carrera ID', 'Materias', '%']],
-    body: tablaMaterias,
-    theme: 'grid',
-    headStyles: { fillColor: [102, 126, 234], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 9 },
-    styles: { fontSize: 8, cellPadding: 3 },
-    columnStyles: {
-      0: { halign: 'center', cellWidth: 12 },
-      1: { halign: 'left', cellWidth: 50 },
-      2: { halign: 'center', cellWidth: 25 },
-      3: { halign: 'center', cellWidth: 20 }
-    }
-  });
-
-  y = doc.lastAutoTable.finalY + 15;
-
-  // --- SECCIÓN USUARIOS ---
-  doc.setFontSize(13);
-  doc.setFont(undefined, 'bold');
-  doc.setTextColor(118, 75, 162);
-  doc.text('Usuarios por Rol', 20, y);
-  y += 8;
-
-  doc.setFontSize(10);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text('Total de Usuarios: ' + reporteUsuarios.total, 20, y);
-  y += 10;
-
-  const nombresRolPDF = {
-    'admin': 'Administradores', 'coordinador': 'Coordinadores', 'profesor': 'Profesores',
-    'alumno': 'Alumnos', 'controlEscolar': 'Control Escolar', 'controlCaja': 'Control Caja',
-    'coordinadorAcademia': 'Coord. Academia'
-  };
-
-  const ordenRoles = ['admin', 'coordinador', 'profesor', 'alumno', 'controlEscolar', 'controlCaja', 'coordinadorAcademia'];
-  const rolesOrdenados = Object.keys(reporteUsuarios.porRol).sort((a, b) => {
-    const iA = ordenRoles.indexOf(a);
-    const iB = ordenRoles.indexOf(b);
-    if (iA === -1 && iB === -1) return a.localeCompare(b);
-    if (iA === -1) return 1;
-    if (iB === -1) return -1;
-    return iA - iB;
-  });
-
-  const tablaUsuarios = rolesOrdenados.map((rol, i) => {
-    const cant = reporteUsuarios.porRol[rol];
-    const pct = ((cant / reporteUsuarios.total) * 100).toFixed(1);
-    return [(i + 1).toString(), nombresRolPDF[rol] || rol, cant.toString(), pct + '%'];
-  });
-
-  doc.autoTable({
-    startY: y,
-    head: [['#', 'Rol', 'Usuarios', '%']],
-    body: tablaUsuarios,
-    theme: 'grid',
-    headStyles: { fillColor: [118, 75, 162], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 9 },
-    styles: { fontSize: 8, cellPadding: 3 },
-    columnStyles: {
-      0: { halign: 'center', cellWidth: 12 },
-      1: { halign: 'left', cellWidth: 50 },
-      2: { halign: 'center', cellWidth: 25 },
-      3: { halign: 'center', cellWidth: 20 }
-    }
-  });
-
-  // --- NO VALIDEZ ---
-  const yFinal = pageHeight - 25;
-  doc.setFontSize(10);
-  doc.setFont(undefined, 'bold');
-  doc.setTextColor(200, 0, 0);
-  doc.text('ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL', pageWidth / 2, yFinal, { align: 'center' });
-
-  // --- PIE ---
-  doc.setFontSize(8);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(128);
-  doc.text('Generado el ' + fecha, pageWidth / 2, pageHeight - 10, { align: 'center' });
-
-  const nombreArchivo = 'Reporte_Sistema_' + fecha.replace(/\s+/g, '_') + '.pdf';
-  doc.save(nombreArchivo);
+  alert('PDF pendiente de ajuste. Por ahora revisa los datos en pantalla.');
 }
 
-console.log('reportes.js cargado - con PDF');
+console.log('reportes.js cargado v3');
