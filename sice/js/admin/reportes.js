@@ -94,16 +94,28 @@ async function cargarReporte() {
       // Profesores: agrupar por cada carreraId en el arreglo carreras
       if (rol === 'profesor' || (rol === 'coordinador' && data.roles && data.roles.includes('profesor'))) {
         totalProfesores++;
-        if (data.carreras && Array.isArray(data.carreras)) {
+        let carrerasExtraidas = [];
+
+        if (data.carreras && Array.isArray(data.carreras) && data.carreras.length > 0) {
           data.carreras.forEach(c => {
-            const cId = c.carreraId || 'Sin carrera';
-            profesoresPorCarrera[cId] = (profesoresPorCarrera[cId] || 0) + 1;
+            // El arreglo puede contener strings directos ("LN") o objetos ({carreraId: "LN"})
+            if (typeof c === 'string') {
+              carrerasExtraidas.push(c);
+            } else if (c && c.carreraId) {
+              carrerasExtraidas.push(c.carreraId);
+            }
           });
-        } else if (data.carreraId) {
-          profesoresPorCarrera[data.carreraId] = (profesoresPorCarrera[data.carreraId] || 0) + 1;
-        } else {
-          profesoresPorCarrera['Sin carrera'] = (profesoresPorCarrera['Sin carrera'] || 0) + 1;
         }
+
+        // Fallback: si no se extrajo nada del arreglo, usar carreraId directo
+        if (carrerasExtraidas.length === 0 && data.carreraId) {
+          carrerasExtraidas.push(data.carreraId);
+        }
+
+        // Si aún no hay nada, no contar en ninguna carrera (evitar "Sin carrera" falso)
+        carrerasExtraidas.forEach(cId => {
+          profesoresPorCarrera[cId] = (profesoresPorCarrera[cId] || 0) + 1;
+        });
       }
     });
 
@@ -212,9 +224,9 @@ async function cargarReporte() {
 function loading() { return '<div style="text-align:center;padding:12px;color:#999;font-size:0.85rem;">Cargando...</div>'; }
 function err(e) { return `<div style="color:#d32f2f;padding:12px;font-size:0.85rem;">Error: ${e.message}</div>`; }
 
-// ===== PDF (sin cambios por ahora, se ajustará después) =====
+// ===== PDF (pendiente de ajuste) =====
 async function descargarReportePDF() {
   alert('PDF pendiente de ajuste. Por ahora revisa los datos en pantalla.');
 }
 
-console.log('reportes.js cargado v3');
+console.log('reportes.js cargado v4');
