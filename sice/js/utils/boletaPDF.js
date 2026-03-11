@@ -1,5 +1,12 @@
-// boletaPDF.js - Función para generar PDF de la boleta actual
-// SOPORTA alumnos especiales SIN cambiar el formato visual
+// =============================================================================
+// boletaPDF.js
+// Genera la BOLETA DE CALIFICACIONES del periodo actual de un alumno.
+// Muestra sus materias con las calificaciones de los 3 parciales y el promedio.
+// Soporta tanto alumnos normales (carga desde profesorMaterias por grupoId)
+// como alumnos especiales (carga desde inscripcionesEspeciales).
+// El PDF se descarga directamente en el navegador.
+// Requiere: jsPDF, jsPDF-AutoTable, Firebase Firestore (db), alumnoActual
+// =============================================================================
 
 async function generarPDFBoletaActual() {
   if (!alumnoActual || !alumnoActual.id) {
@@ -302,7 +309,7 @@ async function generarPDFBoletaActual() {
     doc.setFont(undefined, 'bold');
     doc.setTextColor(200, 0, 0); // Rojo
     doc.text(
-      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL Y NO CONTIENE LAS FIRMAS Y SELLOS NECESARIOS',
+      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL Y NO CONTIENE FIRMAS NI SELLOS',
       pageWidth / 2,
       y,
       { align: 'center' }

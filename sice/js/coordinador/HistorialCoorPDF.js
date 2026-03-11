@@ -1,4 +1,13 @@
-// ===== GENERADOR DE PDF HISTORIAL DE materia =====
+// =============================================================================
+// HistorialCoorPDF.js
+// Genera el HISTORIAL ACADÉMICO de un alumno, para uso del coordinador.
+// Recupera todas las calificaciones del alumno desde Firestore, las agrupa
+// por periodo y genera una tabla por cada uno con sus 3 parciales y promedio.
+// Incluye datos del alumno (matrícula, carrera, grupo) y numeración de páginas.
+// El PDF se descarga directamente en el navegador.
+// Requiere: jsPDF, jsPDF-AutoTable, Firebase Firestore (db)
+// Parámetros: alumnoId (string), nombreAlumno (string)
+// =============================================================================
 
 async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
   try {
@@ -276,6 +285,21 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       y += 15;
     }
     
+    // Mensaje de no validez (ultima pagina)
+    doc.setPage(numPages);
+    const lastPageHeight = doc.internal.pageSize.getHeight();
+    const lastPageWidth = doc.internal.pageSize.getWidth();
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(200, 0, 0);
+    doc.text(
+      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL Y NO CONTIENE FIRMAS NI SELLOS',
+      lastPageWidth / 2,
+      lastPageHeight - 20,
+      { align: 'center' }
+    );
+    doc.setTextColor(0, 0, 0);
+
     // Pie de pagina
     const numPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= numPages; i++) {
@@ -307,4 +331,3 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
 }
 
 console.log('Funcion descargarHistorialAlumnoPDF cargada desde HistorialCoorPDF.js');
-

@@ -49,7 +49,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     // Actualizar UI
     document.getElementById('userName').textContent = usuarioActual.nombre;
     document.getElementById('userEmail').textContent = user.email;
-    document.getElementById('profesorInfo').textContent = `Bienvenido, ${usuarioActual.nombre}`;
+    document.getElementById('profesorInfo').textContent = `Bienvenido(a), ${usuarioActual.nombre}`;
     
     // Cargar carreras
     await cargarInfoCarreras();
