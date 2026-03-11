@@ -62,7 +62,7 @@ async function ejecutarVigia() {
 
     if (duplicados.length > 0) {
       htmlProfes += '<div style="background:#fff3e0;border-left:4px solid #ff9800;padding:10px 12px;border-radius:8px;margin-bottom:8px;">' +
-        '<strong style="color:#e65100;">⚠️ ' + duplicados.length + ' nombre(s) duplicado(s) encontrado(s):</strong>' +
+        '<strong style="color:#e65100;">' + duplicados.length + ' nombre(s) duplicado(s) encontrado(s):</strong>' +
       '</div>';
 
       duplicados.forEach(function(dup) {
@@ -92,7 +92,7 @@ async function ejecutarVigia() {
       });
     } else {
       htmlProfes += '<div style="background:#e8f5e9;border-left:4px solid #4caf50;padding:10px 12px;border-radius:8px;">' +
-        '<strong style="color:#2e7d32;">✅ Sin nombres duplicados</strong>' +
+        '<strong style="color:#2e7d32;">Sin nombres duplicados</strong>' +
       '</div>';
     }
 
@@ -116,7 +116,7 @@ async function ejecutarVigia() {
     listaHTML += '</div>';
 
     htmlProfes += '<details style="margin-top:8px;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;">' +
-      '<summary style="cursor:pointer;font-size:0.8rem;color:#666;font-weight:600;">📋 Lista completa de profesores (' + profesores.length + ')</summary>' +
+      '<summary style="cursor:pointer;font-size:0.8rem;color:#666;font-weight:600;">Lista completa de profesores (' + profesores.length + ')</summary>' +
       listaHTML +
     '</details>';
 
@@ -168,7 +168,7 @@ async function ejecutarVigia() {
 
     if (hayDiscrepancia) {
       htmlPM += '<div style="background:#fff3e0;border-left:4px solid #ff9800;padding:10px 12px;border-radius:8px;margin-bottom:8px;">' +
-        '<strong style="color:#e65100;">⚠️ Discrepancia: IDs (' + uniqueIds + ') ≠ Nombres (' + uniqueNombres + ')</strong>' +
+        '<strong style="color:#e65100;">Discrepancia: IDs (' + uniqueIds + ') ≠ Nombres (' + uniqueNombres + ')</strong>' +
         '<div style="font-size:0.8rem;color:#795548;margin-top:4px;">Esto indica que un mismo profesor puede tener distintos IDs, o distintos profesores comparten nombre.</div>' +
       '</div>';
 
@@ -231,7 +231,7 @@ async function ejecutarVigia() {
 
     } else {
       htmlPM += '<div style="background:#e8f5e9;border-left:4px solid #4caf50;padding:10px 12px;border-radius:8px;">' +
-        '<strong style="color:#2e7d32;">✅ Sin discrepancia entre IDs y Nombres</strong>' +
+        '<strong style="color:#2e7d32;">Sin discrepancia entre IDs y Nombres</strong>' +
       '</div>';
     }
 
@@ -261,7 +261,7 @@ async function ejecutarVigia() {
 
     if (enUsuariosNoEnPM.length > 0) {
       htmlCruce += '<div style="background:#fff3e0;border-left:4px solid #ff9800;padding:10px 12px;border-radius:8px;margin-bottom:8px;">' +
-        '<strong style="color:#e65100;">⚠️ ' + enUsuariosNoEnPM.length + ' profesor(es) en usuarios SIN registro en profesorMaterias:</strong>';
+        '<strong style="color:#e65100;">' + enUsuariosNoEnPM.length + ' profesor(es) en usuarios SIN registro en profesorMaterias:</strong>';
       enUsuariosNoEnPM.forEach(function(p) {
         htmlCruce += '<div style="font-size:0.8rem;padding:3px 0;border-bottom:1px dotted #ddd;">' +
           '<strong>' + p.nombre + '</strong> ' +
@@ -272,13 +272,13 @@ async function ejecutarVigia() {
       htmlCruce += '</div>';
     } else {
       htmlCruce += '<div style="background:#e8f5e9;border-left:4px solid #4caf50;padding:10px 12px;border-radius:8px;margin-bottom:8px;">' +
-        '<strong style="color:#2e7d32;">✅ Todos los profesores de usuarios tienen registros en profesorMaterias</strong>' +
+        '<strong style="color:#2e7d32;">Todos los profesores de usuarios tienen registros en profesorMaterias</strong>' +
       '</div>';
     }
 
     if (enPMNoEnUsuarios.length > 0) {
       htmlCruce += '<div style="background:#fff3e0;border-left:4px solid #ff9800;padding:10px 12px;border-radius:8px;margin-bottom:8px;">' +
-        '<strong style="color:#e65100;">⚠️ ' + enPMNoEnUsuarios.length + ' profesorId(s) en profesorMaterias que NO son profesor en usuarios:</strong>' +
+        '<strong style="color:#e65100;">' + enPMNoEnUsuarios.length + ' profesorId(s) en profesorMaterias que NO son profesor en usuarios:</strong>' +
         '<div style="font-size:0.75rem;color:#795548;margin:4px 0;">Pueden ser coordinadores con rol profesor, o registros huérfanos.</div>';
       enPMNoEnUsuarios.forEach(function(item) {
         htmlCruce += '<div style="font-size:0.8rem;padding:3px 0;border-bottom:1px dotted #ddd;">' +
@@ -289,7 +289,7 @@ async function ejecutarVigia() {
       htmlCruce += '</div>';
     } else {
       htmlCruce += '<div style="background:#e8f5e9;border-left:4px solid #4caf50;padding:10px 12px;border-radius:8px;">' +
-        '<strong style="color:#2e7d32;">✅ Todos los profesorId de profesorMaterias existen en usuarios</strong>' +
+        '<strong style="color:#2e7d32;">Todos los profesorId de profesorMaterias existen en usuarios</strong>' +
       '</div>';
     }
 
