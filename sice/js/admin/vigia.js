@@ -4,19 +4,25 @@
 async function accionVigia() {
   if (!confirm(
     'ACCIÓN VIGÍA: Corrección masiva TAE → TT\n\n' +
-    '=== Colección "materias" (donde carreraId === "TAE") ===\n' +
-    '1. carreraId → "TT"\n' +
-    '2. codigoCarrera → "TT"\n' +
-    '3. codigos[] → "TAE-XXXX" → "TT-XXXX"\n' +
-    '4. grupos[].codigoCompleto → "TAE-XXXX" → "TT-XXXX"\n\n' +
-    '=== Colección "profesorMaterias" (donde carreraId === "TAE") ===\n' +
-    '5. carreraId → "TT"\n' +
-    '6. codigoGrupo → "TAE-XXXX" → "TT-XXXX"\n\n' +
+    '=== Colección "materias" (carreraId === "TAE") ===\n' +
+    '• carreraId → "TT"\n' +
+    '• codigoCarrera → "TT"\n' +
+    '• codigos[] → "TAE-XXXX" → "TT-XXXX"\n' +
+    '• grupos[].codigoCompleto → "TAE-XXXX" → "TT-XXXX"\n\n' +
+    '=== Colección "profesorMaterias" (carreraId === "TAE") ===\n' +
+    '• carreraId → "TT"\n' +
+    '• codigoGrupo → "TAE-XXXX" → "TT-XXXX"\n\n' +
+    '=== Colección "usuarios" ===\n' +
+    '• Alumnos con carreraId "TAE": carreraId → "TT", codigoGrupo → "TT-XXXX"\n' +
+    '• Profesores con carreraId "TAE": carreraId → "TT"\n' +
+    '• Profesores: en carreras[] reemplazar "TAE" → "TT"\n\n' +
     '¿Ejecutar?'
   )) return;
 
   var totalMaterias = 0;
   var totalPM = 0;
+  var totalAlumnos = 0;
+  var totalProfesores = 0;
 
   try {
     // ===== PARTE 1: Colección "materias" =====
@@ -83,21 +89,104 @@ async function accionVigia() {
       await batchPM.commit();
     }
 
+    // ===== PARTE 3: Colección "usuarios" — alumnos con carreraId "TAE" =====
+    var snapAlumnos = await db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('carreraId', '==', 'TAE')
+      .get();
+
+    if (!snapAlumnos.empty) {
+      var batchAlumnos = db.batch();
+
+      snapAlumnos.forEach(function(doc) {
+        var data = doc.data();
+        var ref = db.collection('usuarios').doc(doc.id);
+        var updates = {};
+
+        updates.carreraId = 'TT';
+
+        if (typeof data.codigoGrupo === 'string') {
+          updates.codigoGrupo = data.codigoGrupo.replace(/^TAE-/, 'TT-');
+        }
+
+        batchAlumnos.update(ref, updates);
+        totalAlumnos++;
+      });
+
+      await batchAlumnos.commit();
+    }
+
+    // ===== PARTE 4: Colección "usuarios" — profesores =====
+    var snapProfesores = await db.collection('usuarios')
+      .where('rol', '==', 'profesor')
+      .get();
+
+    if (!snapProfesores.empty) {
+      var batchProfesores = db.batch();
+      var hayProfesoresQueActualizar = false;
+
+      snapProfesores.forEach(function(doc) {
+        var data = doc.data();
+        var ref = db.collection('usuarios').doc(doc.id);
+        var updates = {};
+        var necesitaUpdate = false;
+
+        // Si carreraId es "TAE", cambiar a "TT"
+        if (data.carreraId === 'TAE') {
+          updates.carreraId = 'TT';
+          necesitaUpdate = true;
+        }
+
+        // Recorrer carreras[] y reemplazar "TAE" por "TT"
+        if (data.carreras && Array.isArray(data.carreras)) {
+          var tieneAE = false;
+          var nuevasCarreras = data.carreras.map(function(c) {
+            if (typeof c === 'string' && c === 'TAE') {
+              tieneAE = true;
+              return 'TT';
+            }
+            return c;
+          });
+
+          if (tieneAE) {
+            updates.carreras = nuevasCarreras;
+            necesitaUpdate = true;
+          }
+        }
+
+        if (necesitaUpdate) {
+          batchProfesores.update(ref, updates);
+          totalProfesores++;
+          hayProfesoresQueActualizar = true;
+        }
+      });
+
+      if (hayProfesoresQueActualizar) {
+        await batchProfesores.commit();
+      }
+    }
+
     alert(
       '✅ Vigía completado.\n\n' +
-      '• materias: ' + totalMaterias + ' documento(s) actualizado(s)\n' +
+      '• materias: ' + totalMaterias + ' doc(s)\n' +
       '  → carreraId, codigoCarrera, codigos[], grupos[].codigoCompleto\n\n' +
-      '• profesorMaterias: ' + totalPM + ' documento(s) actualizado(s)\n' +
-      '  → carreraId, codigoGrupo'
+      '• profesorMaterias: ' + totalPM + ' doc(s)\n' +
+      '  → carreraId, codigoGrupo\n\n' +
+      '• usuarios (alumnos): ' + totalAlumnos + ' doc(s)\n' +
+      '  → carreraId, codigoGrupo\n\n' +
+      '• usuarios (profesores): ' + totalProfesores + ' doc(s)\n' +
+      '  → carreraId, carreras[]'
     );
 
   } catch (error) {
     console.error('Error vigía:', error);
     alert(
-      '❌ Error al ejecutar vigía: ' + error.message + '\n\n' +
+      '❌ Error: ' + error.message + '\n\n' +
       'Progreso antes del error:\n' +
       '• materias: ' + totalMaterias + '\n' +
-      '• profesorMaterias: ' + totalPM
+      '• profesorMaterias: ' + totalPM + '\n' +
+      '• usuarios (alumnos): ' + totalAlumnos + '\n' +
+      '• usuarios (profesores): ' + totalProfesores
     );
   }
 }
