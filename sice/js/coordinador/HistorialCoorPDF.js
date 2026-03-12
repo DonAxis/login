@@ -288,9 +288,9 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
     const lastPageWidth = doc.internal.pageSize.getWidth();
     doc.setFontSize(10);
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(200, 0, 0);
+    doc.setTextColor(0, 0, 200); //RGB
     doc.text(
-      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL Y NO CONTIENE FIRMAS NI SELLOS',
+      'Este documento no tiene validez oficial, no contiene sellos originales, firmas autógrafas o firmas electrónicas, se emite para fines informativos',
       lastPageWidth / 2,
       lastPageHeight - 20,
       { align: 'center' }
