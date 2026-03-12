@@ -3,68 +3,102 @@
 
 async function accionVigia() {
   if (!confirm(
-    'ACCIÓN VIGÍA: Corrección masiva en colección "materias"\n\n' +
-    'En todas las materias donde carreraId === "TAE":\n' +
+    'ACCIÓN VIGÍA: Corrección masiva TAE → TT\n\n' +
+    '=== Colección "materias" (donde carreraId === "TAE") ===\n' +
     '1. carreraId → "TT"\n' +
     '2. codigoCarrera → "TT"\n' +
-    '3. codigos[] → reemplazar "TAE-" por "TT-"\n' +
-    '4. grupos[] → en cada grupo, codigoCompleto reemplazar "TAE-" por "TT-"\n\n' +
+    '3. codigos[] → "TAE-XXXX" → "TT-XXXX"\n' +
+    '4. grupos[].codigoCompleto → "TAE-XXXX" → "TT-XXXX"\n\n' +
+    '=== Colección "profesorMaterias" (donde carreraId === "TAE") ===\n' +
+    '5. carreraId → "TT"\n' +
+    '6. codigoGrupo → "TAE-XXXX" → "TT-XXXX"\n\n' +
     '¿Ejecutar?'
   )) return;
 
-  try {
-    const snap = await db.collection('materias').where('carreraId', '==', 'TAE').get();
+  var totalMaterias = 0;
+  var totalPM = 0;
 
-    if (snap.empty) {
-      alert('No se encontraron materias con carreraId "TAE".');
-      return;
+  try {
+    // ===== PARTE 1: Colección "materias" =====
+    var snapMaterias = await db.collection('materias').where('carreraId', '==', 'TAE').get();
+
+    if (!snapMaterias.empty) {
+      var batchMaterias = db.batch();
+
+      snapMaterias.forEach(function(doc) {
+        var data = doc.data();
+        var ref = db.collection('materias').doc(doc.id);
+        var updates = {};
+
+        updates.carreraId = 'TT';
+        updates.codigoCarrera = 'TT';
+
+        if (data.codigos && Array.isArray(data.codigos)) {
+          updates.codigos = data.codigos.map(function(codigo) {
+            if (typeof codigo === 'string') {
+              return codigo.replace(/^TAE-/, 'TT-');
+            }
+            return codigo;
+          });
+        }
+
+        if (data.grupos && Array.isArray(data.grupos)) {
+          updates.grupos = data.grupos.map(function(grupo) {
+            var nuevoGrupo = Object.assign({}, grupo);
+            if (typeof nuevoGrupo.codigoCompleto === 'string') {
+              nuevoGrupo.codigoCompleto = nuevoGrupo.codigoCompleto.replace(/^TAE-/, 'TT-');
+            }
+            return nuevoGrupo;
+          });
+        }
+
+        batchMaterias.update(ref, updates);
+        totalMaterias++;
+      });
+
+      await batchMaterias.commit();
     }
 
-    const batch = db.batch();
-    let count = 0;
+    // ===== PARTE 2: Colección "profesorMaterias" =====
+    var snapPM = await db.collection('profesorMaterias').where('carreraId', '==', 'TAE').get();
 
-    snap.forEach(function(doc) {
-      const data = doc.data();
-      const ref = db.collection('materias').doc(doc.id);
-      const updates = {};
+    if (!snapPM.empty) {
+      var batchPM = db.batch();
 
-      // 1. carreraId
-      updates.carreraId = 'TT';
+      snapPM.forEach(function(doc) {
+        var data = doc.data();
+        var ref = db.collection('profesorMaterias').doc(doc.id);
+        var updates = {};
 
-      // 2. codigoCarrera
-      updates.codigoCarrera = 'TT';
+        updates.carreraId = 'TT';
 
-      // 3. codigos (array de strings)
-      if (data.codigos && Array.isArray(data.codigos)) {
-        updates.codigos = data.codigos.map(function(codigo) {
-          if (typeof codigo === 'string') {
-            return codigo.replace(/^TAE-/, 'TT-');
-          }
-          return codigo;
-        });
-      }
+        if (typeof data.codigoGrupo === 'string') {
+          updates.codigoGrupo = data.codigoGrupo.replace(/^TAE-/, 'TT-');
+        }
 
-      // 4. grupos (array de maps con codigoCompleto)
-      if (data.grupos && Array.isArray(data.grupos)) {
-        updates.grupos = data.grupos.map(function(grupo) {
-          const nuevoGrupo = Object.assign({}, grupo);
-          if (typeof nuevoGrupo.codigoCompleto === 'string') {
-            nuevoGrupo.codigoCompleto = nuevoGrupo.codigoCompleto.replace(/^TAE-/, 'TT-');
-          }
-          return nuevoGrupo;
-        });
-      }
+        batchPM.update(ref, updates);
+        totalPM++;
+      });
 
-      batch.update(ref, updates);
-      count++;
-    });
+      await batchPM.commit();
+    }
 
-    await batch.commit();
-    alert('✅ Vigía completado.\n\n' + count + ' materia(s) actualizada(s) de TAE → TT.\n\nCampos modificados:\n• carreraId\n• codigoCarrera\n• codigos[]\n• grupos[].codigoCompleto');
+    alert(
+      '✅ Vigía completado.\n\n' +
+      '• materias: ' + totalMaterias + ' documento(s) actualizado(s)\n' +
+      '  → carreraId, codigoCarrera, codigos[], grupos[].codigoCompleto\n\n' +
+      '• profesorMaterias: ' + totalPM + ' documento(s) actualizado(s)\n' +
+      '  → carreraId, codigoGrupo'
+    );
 
   } catch (error) {
     console.error('Error vigía:', error);
-    alert('❌ Error al ejecutar vigía: ' + error.message);
+    alert(
+      '❌ Error al ejecutar vigía: ' + error.message + '\n\n' +
+      'Progreso antes del error:\n' +
+      '• materias: ' + totalMaterias + '\n' +
+      '• profesorMaterias: ' + totalPM
+    );
   }
 }
 
