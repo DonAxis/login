@@ -88,10 +88,13 @@ async function generarPDFBoletaActual() {
       
     } else {
       // ===== ALUMNO NORMAL: Cargar desde profesorMaterias =====
-      console.log('Cargando materias del grupo:', alumnoActual.grupoId);
+      // 2713 CORREGIDO: codigoGrupo es el campo real (index.html usa codigoGrupo, no grupoId)
+      const grupoRef = alumnoActual.codigoGrupo || alumnoActual.grupoId;
+      if (!grupoRef) { alert('No se encontr00f3 el grupo del alumno.'); return; }
+      console.log('Cargando materias del grupo:', grupoRef);
       
       const materiasSnap = await db.collection('profesorMaterias')
-        .where('grupoId', '==', alumnoActual.grupoId)
+        .where('codigoGrupo', '==', grupoRef)
         .where('activa', '==', true)
         .get();
       
@@ -193,6 +196,7 @@ async function generarPDFBoletaActual() {
     }
     
     // Cargar grupo
+    // CORREGIDO: soporta grupoId (doc ID en Firestore) o codigoGrupo (campo texto)
     if (alumnoActual.grupoId) {
       try {
         const grupoDoc = await db.collection('grupos').doc(alumnoActual.grupoId).get();
@@ -203,6 +207,9 @@ async function generarPDFBoletaActual() {
       } catch (error) {
         console.error('Error al cargar grupo:', error);
       }
+    } else if (alumnoActual.codigoGrupo) {
+      doc.text(`Grupo: ${alumnoActual.codigoGrupo}`, 20, y);
+      y += 7;
     }
     
     // Cargar carrera
@@ -309,7 +316,7 @@ async function generarPDFBoletaActual() {
     doc.setFont(undefined, 'bold');
     doc.setTextColor(200, 0, 0); // Rojo
     doc.text(
-      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL Y NO CONTIENE FIRMAS NI SELLOS',
+      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL Y NO CONTIENE LAS FIRMAS Y SELLOS NECESARIOS',
       pageWidth / 2,
       y,
       { align: 'center' }
