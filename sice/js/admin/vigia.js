@@ -1,5 +1,6 @@
 // vigia.js - Auditoría temporal de profesores
 // SOLO LECTURA - no modifica la base de datos
+//este es el archivo que genera un reporte de profesores, materias y alumnos
 
 let vigiaData = null;
 
