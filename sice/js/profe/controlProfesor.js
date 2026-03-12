@@ -8,6 +8,7 @@ let usuarioActual = null;
 let asignacionActual = null;
 let alumnosMateria = [];
 let carrerasData = [];
+let cargandoAlumnos = false; // Control para evitar duplicados y lecturas extra
 
 // ============================================================================
 // SECCIÓN 1: INICIALIZACIÓN Y AUTENTICACIÓN
@@ -218,6 +219,9 @@ async function mostrarMisMaterias() {
 }
 
 async function verCalificacionesMateria(asignacionId) {
+  // Evitar ejecuciones si ya hay un proceso de carga activo
+  if (cargandoAlumnos) return;
+
   try {
     console.log('=== Abriendo materia ===');
     console.log('Asignación ID:', asignacionId);
@@ -281,7 +285,13 @@ async function verCalificacionesMateria(asignacionId) {
 // ============================================================================
 
 async function cargarAlumnosYCalificaciones() {
+  // Bloqueo de seguridad para evitar duplicados y exceso de lecturas
+  if (cargandoAlumnos) return;
+
   try {
+    cargandoAlumnos = true;
+    alumnosMateria = []; // Limpiar array antes de cargar
+
     const container = document.getElementById('tablaCalificaciones');
     container.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">Cargando alumnos...</p>';
     
@@ -305,8 +315,6 @@ async function cargarAlumnosYCalificaciones() {
       .get();
     
     console.log('Inscripciones especiales encontradas:', especialesSnap.size);
-    
-    alumnosMateria = [];
     
     // Cargar alumnos normales
     for (const doc of alumnosSnap.docs) {
@@ -395,6 +403,7 @@ async function cargarAlumnosYCalificaciones() {
           <p style="font-size: 0.9rem; margin-top: 10px;">Grupo: ${asignacionActual.codigoGrupo}</p>
         </div>
       `;
+      cargandoAlumnos = false; // Liberar bloqueo
       return;
     }
     
@@ -410,6 +419,9 @@ async function cargarAlumnosYCalificaciones() {
         <p style="font-size: 0.9rem;">${error.message}</p>
       </div>
     `;
+  } finally {
+    // Siempre liberar el bloqueo al terminar (éxito o error)
+    cargandoAlumnos = false;
   }
 }
 
@@ -483,7 +495,6 @@ function generarTablaCalificaciones() {
         </td>
         <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
         
-        <!-- PARCIAL 1 + FALTA 1 -->
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial1, index, 'p1')}
         </td>
@@ -491,7 +502,6 @@ function generarTablaCalificaciones() {
           ${generarCeldaFalta(cal.falta1, index, 'f1')}
         </td>
         
-        <!-- PARCIAL 2 + FALTA 2 -->
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial2, index, 'p2')}
         </td>
@@ -499,7 +509,6 @@ function generarTablaCalificaciones() {
           ${generarCeldaFalta(cal.falta2, index, 'f2')}
         </td>
         
-        <!-- PARCIAL 3 + FALTA 3 -->
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial3, index, 'p3')}
         </td>
@@ -507,7 +516,6 @@ function generarTablaCalificaciones() {
           ${generarCeldaFalta(cal.falta3, index, 'f3')}
         </td>
         
-        <!-- PROMEDIO -->
         <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 1.1rem; background: #f0f7ff; color: ${colorPromedio};">
           ${promedioTexto}
         </td>
@@ -798,8 +806,12 @@ async function guardarCalificacionesProfe() {
 // ============================================================================
 
 async function verExtraordinarios() {
+  // Evitar sobrecarga de lecturas
+  if (cargandoAlumnos) return;
+
   try {
     console.log('=== Abriendo extraordinarios ===');
+    cargandoAlumnos = true;
     
     // Ocultar menú, mostrar sección de calificaciones
     document.getElementById('menuMaterias').style.display = 'none';
@@ -837,6 +849,7 @@ async function verExtraordinarios() {
           <p>No tienes materias asignadas</p>
         </div>
       `;
+      cargandoAlumnos = false;
       return;
     }
     
@@ -966,6 +979,8 @@ async function verExtraordinarios() {
   } catch (error) {
     console.error('Error:', error);
     alert('Error al cargar extraordinarios: ' + error.message);
+  } finally {
+    cargandoAlumnos = false;
   }
 }
 
@@ -1027,7 +1042,6 @@ function generarSeccionExtraordinarios(asignacion, alumnos) {
         <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
         <td style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #dc3545; font-weight: bold;">${alumno.promedio.toFixed(1)}</td>
         
-        <!-- EXTRAORDINARIO -->
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
           ${alumno.extraordinario !== null && alumno.extraordinario !== undefined
             ? `<span style="font-weight: bold; color: #4caf50;">${alumno.extraordinario}</span>`
@@ -1038,7 +1052,6 @@ function generarSeccionExtraordinarios(asignacion, alumnos) {
           }
         </td>
         
-        <!-- ETS -->
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fce4ec;">
           ${alumno.ets !== null && alumno.ets !== undefined
             ? `<span style="font-weight: bold; color: #4caf50;">${alumno.ets}</span>`

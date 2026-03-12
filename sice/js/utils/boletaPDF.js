@@ -314,9 +314,9 @@ async function generarPDFBoletaActual() {
     y = pageHeight - 25;
     doc.setFontSize(10);
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(200, 0, 0); // Rojo
+    doc.setTextColor(0, 0, 200); // azul
     doc.text(
-      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL Y NO CONTIENE LAS FIRMAS Y SELLOS NECESARIOS',
+      'Este documento no tiene validez oficial, no contiene sellos originales, firmas autógrafas o firmas electrónicas, se emite para fines informativos',
       pageWidth / 2,
       y,
       { align: 'center' }

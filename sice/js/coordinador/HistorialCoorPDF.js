@@ -1,10 +1,7 @@
 // =============================================================================
-// HistorialCoorPDF.js
+// Historial académico de un alumno (para coordinador)
 // Genera el HISTORIAL ACADÉMICO de un alumno, para uso del coordinador.
-// Recupera todas las calificaciones del alumno desde Firestore, las agrupa
-// por periodo y genera una tabla por cada uno con sus 3 parciales y promedio.
-// Incluye datos del alumno (matrícula, carrera, grupo) y numeración de páginas.
-// El PDF se descarga directamente en el navegador.
+
 // Requiere: jsPDF, jsPDF-AutoTable, Firebase Firestore (db)
 // Parámetros: alumnoId (string), nombreAlumno (string)
 // =============================================================================
