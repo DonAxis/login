@@ -2852,6 +2852,21 @@ async function guardarAlumno(event, alumnoId) {
         if (alumnoId) {
             // Editar
             await db.collection('usuarios').doc(alumnoId).update(userData);
+
+            // Propagar cambio de nombre a calificaciones si el nombre cambió
+            const calificacionesSnap = await db.collection('calificaciones')
+                .where('alumnoId', '==', alumnoId)
+                .get();
+
+            if (!calificacionesSnap.empty) {
+                const batch = db.batch();
+                calificacionesSnap.forEach(calDoc => {
+                    batch.update(calDoc.ref, { alumnoNombre: nombre });
+                });
+                await batch.commit();
+                console.log(`[guardarAlumno] alumnoNombre actualizado en ${calificacionesSnap.size} documento(s) de calificaciones`);
+            }
+
             alert('Alumno actualizado');
         } else {
             // Crear nuevo
