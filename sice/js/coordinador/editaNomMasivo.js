@@ -62,7 +62,7 @@ async function abrirEditorNombresMasivo() {
         <!-- Cabecera -->
         <div style="padding:18px 22px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">
           <div>
-            <h3 style="margin:0;font-size:1.1rem;">✏️ Edición masiva de nombres</h3>
+            <h3 style="margin:0;font-size:1.1rem;">Edición masiva de nombres</h3>
             <p style="margin:4px 0 0;font-size:0.8rem;color:#888;">
               Modifica los nombres que necesites — solo se guardarán los que cambien.
               Los campos amarillos tienen cambios pendientes.
@@ -99,7 +99,7 @@ async function abrirEditorNombresMasivo() {
                   style="padding:8px 22px;border:none;border-radius:8px;
                          background:linear-gradient(135deg,#43a047,#2e7d32);
                          color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600;">
-            💾 Guardar cambios
+            Guardar cambios
           </button>
         </div>
 
@@ -180,10 +180,10 @@ async function guardarNombresMasivo() {
     }
 
     if (errores > 0) {
-        statusEl.textContent = `⚠️ ${errores} error(es). El resto se guardó correctamente.`;
+        statusEl.textContent = `${errores} error(es). El resto se guardó correctamente.`;
         if (btnGuardar) btnGuardar.disabled = false;
     } else {
-        statusEl.textContent = `✅ ${cambios.length} nombre(s) actualizados`;
+        statusEl.textContent = `${cambios.length} nombre(s) actualizados`;
         // Actualizar lista en pantalla y cerrar modal tras breve pausa
         aplicarFiltrosAlumnos();
         setTimeout(cerrarEditorNombresMasivo, 900);
