@@ -7,10 +7,23 @@
 
 // ---------- Abrir modal ----------
 async function abrirEditorNombresMasivo() {
-    // Usar los alumnos ya cargados en caché (_alumnosCache de coordinaModules)
+    // Si el caché está vacío, cargar directo de Firestore
     if (!window._alumnosCache || _alumnosCache.length === 0) {
-        alert('Primero carga la sección de alumnos o no hay alumnos registrados.');
-        return;
+        try {
+            const snap = await db.collection('usuarios')
+                .where('rol', '==', 'alumno')
+                .where('carreraId', '==', usuarioActual.carreraId)
+                .get();
+            _alumnosCache = [];
+            snap.forEach(doc => _alumnosCache.push({ id: doc.id, data: doc.data() }));
+        } catch (err) {
+            alert('Error al cargar alumnos: ' + err.message);
+            return;
+        }
+        if (_alumnosCache.length === 0) {
+            alert('No hay alumnos registrados en esta carrera.');
+            return;
+        }
     }
 
     // Ordenar por nombre actual para que sea más fácil identificarlos
