@@ -2512,6 +2512,9 @@ function aplicarFiltrosAlumnos() {
         return true;
     });
 
+    // Ordenar alfabéticamente por nombre (sin costo extra: opera sobre datos ya en memoria)
+    lista.sort((a, b) => (a.data.nombre || '').localeCompare(b.data.nombre || '', 'es'));
+
     const total = _alumnosCache.length;
     const mostrando = lista.length;
     const contadorEl = document.getElementById('contadorFiltroAlumnos');
