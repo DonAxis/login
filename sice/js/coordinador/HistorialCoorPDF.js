@@ -282,23 +282,32 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       y += 15;
     }
     
-    // Mensaje de no validez (ultima pagina)
-    doc.setPage(numPages);
+    // --- SECCION DE PIE DE PAGINA Y LEYENDA ---
+    
+    const numPages = doc.internal.getNumberOfPages();
     const lastPageHeight = doc.internal.pageSize.getHeight();
     const lastPageWidth = doc.internal.pageSize.getWidth();
-    doc.setFontSize(10);
+
+    // Mensaje de no validez (solo en la ultima pagina)
+    doc.setPage(numPages);
+    doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(0, 0, 200); //RGB
+    doc.setTextColor(0, 0, 200); 
+    
+    // Usamos un array para forzar el salto de linea centrado
     doc.text(
-      'Este documento no tiene validez oficial, no contiene sellos originales, firmas autógrafas o firmas electrónicas, se emite para fines informativos',
+      [
+        'Este documento no tiene validez oficial, no contiene sellos originales, firmas autógrafas o firmas electrónicas,',
+        'se emite para fines informativos.'
+      ],
       lastPageWidth / 2,
-      lastPageHeight - 20,
+      lastPageHeight - 25,
       { align: 'center' }
     );
+    
     doc.setTextColor(0, 0, 0);
 
-    // Pie de pagina
-    const numPages = doc.internal.getNumberOfPages();
+    // Numeracion de paginas (en todas las paginas)
     for (let i = 1; i <= numPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
