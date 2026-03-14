@@ -1151,6 +1151,10 @@ async function guardarExtraordinarios() {
 // SECCIÓN 7: NAVEGACIÓN
 // ============================================================================
 
+function verReporte() {
+  alert('Próximamente: Reporte de alumnos Bachilleres');
+}
+
 function volverMenuProfe() {
   // Ocultar todas las secciones
   document.getElementById('seccionCalificaciones').style.display = 'none';
