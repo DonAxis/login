@@ -663,9 +663,15 @@ async function guardarCalificacionesProfe() {
       const parcial2 = p2 === '' ? null : (p2 === 'NP' ? 'NP' : parseFloat(p2));
       const parcial3 = p3 === '' ? null : (p3 === 'NP' ? 'NP' : parseFloat(p3));
       
-      const falta1 = parseInt(f1) || 0;
-      const falta2 = parseInt(f2) || 0;
-      const falta3 = parseInt(f3) || 0;
+      // La falta solo es válida si hay un parcial correspondiente capturado
+      // (ya guardado en Firestore o recién capturado en el input)
+      const tieneParcial1 = parcial1 !== null || alumno.calificaciones.parcial1 !== null;
+      const tieneParcial2 = parcial2 !== null || alumno.calificaciones.parcial2 !== null;
+      const tieneParcial3 = parcial3 !== null || alumno.calificaciones.parcial3 !== null;
+
+      const falta1 = tieneParcial1 ? (inputF1 ? parseInt(f1) : null) : null;
+      const falta2 = tieneParcial2 ? (inputF2 ? parseInt(f2) : null) : null;
+      const falta3 = tieneParcial3 ? (inputF3 ? parseInt(f3) : null) : null;
       
       console.log('  Valores convertidos:');
       console.log('    Parciales:', parcial1, parcial2, parcial3);
@@ -712,9 +718,9 @@ async function guardarCalificacionesProfe() {
       };
       
       const nuevasFaltas = {
-        falta1: datosActuales.faltas.falta1 ?? falta1,
-        falta2: datosActuales.faltas.falta2 ?? falta2,
-        falta3: datosActuales.faltas.falta3 ?? falta3
+        falta1: falta1 !== null ? (datosActuales.faltas.falta1 ?? falta1) : null,
+        falta2: falta2 !== null ? (datosActuales.faltas.falta2 ?? falta2) : null,
+        falta3: falta3 !== null ? (datosActuales.faltas.falta3 ?? falta3) : null
       };
       
       console.log('  -> Nuevos datos a guardar:');
