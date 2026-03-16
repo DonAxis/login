@@ -207,6 +207,11 @@
       <h3 style="color: white;">Acción Vigía</h3>
       <p style="color: rgba(255,255,255,0.88);">Función temporal</p>
     </div>
+
+    <div class="opcion" onclick="mostrarModalRespaldo()" style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%); border-color: transparent;">
+      <h3 style="color: white;">Respaldo Firebase</h3>
+      <p id="respaldoCounterBtn" style="color: rgba(255,255,255,0.88);">Cargando...</p>
+    </div>
   </div>
 
   <!-- MODAL CREAR COORDINADOR -->
@@ -691,6 +696,41 @@
     </div>
   </div>
 
+  <!-- MODAL RESPALDO -->
+  <div id="modalRespaldo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px);">
+    <div class="modal-content-animated" style="background: white; padding: 40px; border-radius: 20px; max-width: 480px; width: 90%; box-shadow: 0 25px 80px rgba(0,0,0,0.4);">
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #1a237e;">
+        <div>
+          <h2 style="margin: 0; color: #1a237e;">Respaldo Firebase</h2>
+          <p id="respaldoUltimoFecha" style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">Calculando...</p>
+        </div>
+        <button onclick="cerrarModalRespaldo()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
+      </div>
+
+      <!-- Contador de días -->
+      <div style="text-align: center; padding: 25px; background: #e8eaf6; border-radius: 12px; margin-bottom: 25px;">
+        <div id="respaldoDias" style="font-size: 3.5rem; font-weight: 700; color: #1a237e; line-height: 1;">-</div>
+        <div style="color: #666; font-size: 0.95rem; margin-top: 5px;">días sin respaldar</div>
+      </div>
+
+      <!-- Botones -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <button onclick="ejecutarRespaldo(true)" id="btnRespaldoGitHub"
+          style="padding: 14px; background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s;"
+          onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+          Respaldar a GitHub
+        </button>
+        <button onclick="ejecutarRespaldo(false)"
+          style="padding: 14px; background: white; border: 2px solid #1a237e; color: #1a237e; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer;">
+          Solo descargar JSON
+        </button>
+      </div>
+
+      <div id="mensajeRespaldo" style="margin-top: 20px; display: none;"></div>
+    </div>
+  </div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -703,5 +743,6 @@
   <script src="../../js/utils/logoPdf.js"></script>
   <script src="../../js/admin/reportes.js"></script>
   <script src="../../js/admin/vigia.js"></script>
+  <script src="../../js/admin/respaldo.js"></script>
 </body>
 </html>
