@@ -7,6 +7,9 @@ let alumnosCache    = [];
 let alumnoSeleccionado = null;
 let profesoresSeleccionados = [];
 
+// Filtro invisible — solo estas carreras son visibles para el prefecto
+const CARRERAS_PERMITIDAS = ['TA', 'TAE', 'TC', 'TI', 'TIAC', 'TT'];
+
 // ============================================================================
 // AUTENTICACIÓN
 // ============================================================================
@@ -92,18 +95,45 @@ async function cargarAlumnos() {
   try {
     const snap = await db.collection('usuarios').where('rol', '==', 'alumno').get();
     alumnosCache = [];
-    snap.forEach(doc => alumnosCache.push({ id: doc.id, ...doc.data() }));
+    snap.forEach(doc => {
+      const data = { id: doc.id, ...doc.data() };
+      // Filtro invisible: solo carreras permitidas
+      if (CARRERAS_PERMITIDAS.includes(data.carreraId)) alumnosCache.push(data);
+    });
     alumnosCache.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    poblarFiltros();
     renderAlumnos(alumnosCache);
   } catch (e) {
     contenedor.innerHTML = `<div class="msg-error">Error al cargar alumnos: ${e.message}</div>`;
   }
 }
 
-function filtrarAlumnos(texto) {
-  const filtrado = texto.trim()
-    ? alumnosCache.filter(a => (a.nombre || '').toLowerCase().includes(texto.toLowerCase()))
-    : alumnosCache;
+function poblarFiltros() {
+  const especialidades = [...new Set(alumnosCache.map(a => a.carreraId).filter(Boolean))].sort();
+  const periodos       = [...new Set(alumnosCache.map(a => a.periodo).filter(Boolean))].sort().reverse();
+
+  const selEsp = document.getElementById('filtroEspecialidad');
+  const selPer = document.getElementById('filtroPeriodo');
+
+  selEsp.innerHTML = '<option value="">Todas las especialidades</option>' +
+    especialidades.map(e => `<option value="${e}">${e}</option>`).join('');
+
+  selPer.innerHTML = '<option value="">Todos los periodos</option>' +
+    periodos.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+function aplicarFiltros() {
+  const texto = (document.getElementById('buscadorAlumno').value || '').toLowerCase().trim();
+  const esp   = document.getElementById('filtroEspecialidad').value;
+  const per   = document.getElementById('filtroPeriodo').value;
+
+  const filtrado = alumnosCache.filter(a => {
+    const coincideNombre = !texto || (a.nombre || '').toLowerCase().includes(texto);
+    const coincideEsp    = !esp   || a.carreraId === esp;
+    const coincidePer    = !per   || a.periodo   === per;
+    return coincideNombre && coincideEsp && coincidePer;
+  });
+
   renderAlumnos(filtrado);
 }
 

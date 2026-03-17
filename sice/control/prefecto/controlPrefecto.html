@@ -240,9 +240,19 @@
     <div class="seccion-header">
       <h2>Solicitar Reporte</h2>
     </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+      <select id="filtroEspecialidad" onchange="aplicarFiltros()"
+              style="padding: 11px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: white;">
+        <option value="">Todas las especialidades</option>
+      </select>
+      <select id="filtroPeriodo" onchange="aplicarFiltros()"
+              style="padding: 11px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: white;">
+        <option value="">Todos los periodos</option>
+      </select>
+    </div>
     <input type="text" id="buscadorAlumno" class="buscador"
            placeholder="Buscar alumno por nombre..."
-           oninput="filtrarAlumnos(this.value)">
+           oninput="aplicarFiltros()">
     <div id="listaAlumnos">
       <div class="msg-info">Cargando alumnos...</div>
     </div>
