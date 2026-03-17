@@ -1815,3 +1815,83 @@ function mostrarMensajeCambios(texto, tipo) {
 }
 
 console.log('Sistema de Cambios Programados cargado');
+
+// ===== CREAR PREFECTO =====
+
+function mostrarModalPrefecto() {
+  document.getElementById('modalPrefecto').style.display = 'flex';
+}
+
+function cerrarModalPrefecto() {
+  document.getElementById('modalPrefecto').style.display = 'none';
+  document.getElementById('formPrefecto').reset();
+  const msg = document.getElementById('mensajePrefecto');
+  if (msg) msg.style.display = 'none';
+}
+
+async function crearPrefecto(event) {
+  event.preventDefault();
+
+  const nombre   = document.getElementById('nombrePrefecto').value.trim();
+  const email    = document.getElementById('emailPrefecto').value.trim().toLowerCase();
+  const password = document.getElementById('passPrefecto').value;
+
+  if (!nombre || !email) {
+    mostrarMensajePrefecto('Todos los campos son obligatorios', 'error');
+    return;
+  }
+  if (password.length < 6) {
+    mostrarMensajePrefecto('La contraseña debe tener al menos 6 caracteres', 'error');
+    return;
+  }
+
+  try {
+    mostrarMensajePrefecto('Creando prefecto...', 'info');
+
+    const secondaryApp  = firebase.initializeApp(firebaseConfig, 'SecondaryPrefecto');
+    const secondaryAuth = secondaryApp.auth();
+
+    const credential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+    const newUid     = credential.user.uid;
+
+    await db.collection('usuarios').doc(newUid).set({
+      nombre:         nombre,
+      email:          email,
+      rol:            'prefecto',
+      activo:         true,
+      fechaCreacion:  firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    await secondaryAuth.signOut();
+    await secondaryApp.delete();
+
+    mostrarMensajePrefecto(
+      `Prefecto creado exitosamente\n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}\n\nYa puede iniciar sesión`,
+      'success'
+    );
+
+    document.getElementById('formPrefecto').reset();
+    setTimeout(() => cerrarModalPrefecto(), 3000);
+
+  } catch (error) {
+    let msg = 'Error: ';
+    if (error.code === 'auth/email-already-in-use') msg += 'Este email ya está registrado';
+    else if (error.code === 'auth/invalid-email')   msg += 'Email inválido';
+    else msg += error.message;
+    mostrarMensajePrefecto(msg, 'error');
+  }
+}
+
+function mostrarMensajePrefecto(texto, tipo) {
+  const el = document.getElementById('mensajePrefecto');
+  if (!el) return;
+  el.textContent = texto;
+  el.style.display = 'block';
+  if (tipo === 'success') {
+    el.style.background = '#d4edda'; el.style.color = '#155724'; el.style.border = '2px solid #c3e6cb';
+  } else if (tipo === 'error') {
+    el.style.background = '#f8d7da'; el.style.color = '#721c24'; el.style.border = '2px solid #f5c6cb';
+  } else {
+    el.style.background = '#d1ecf1'; el.style.color = '#0c5460'; el.style.border = '2px solid #bee5eb';
+  }
+}
