@@ -240,16 +240,22 @@
     <div class="seccion-header">
       <h2>Solicitar Reporte</h2>
     </div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-      <select id="filtroEspecialidad" onchange="aplicarFiltros()"
-              style="padding: 11px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: white;">
-        <option value="">Todas las especialidades</option>
-      </select>
-      <select id="filtroPeriodo" onchange="aplicarFiltros()"
-              style="padding: 11px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: white;">
-        <option value="">Todos los periodos</option>
-      </select>
+    <!-- Filtros de especialidad (fijos) -->
+    <p style="margin: 0 0 6px 0; font-size: 0.85rem; color: #666; font-weight: 600;">ESPECIALIDAD</p>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+      <button onclick="toggleFiltroEsp('TA')"    id="btnEsp_TA"    style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">TA</button>
+      <button onclick="toggleFiltroEsp('TAE')"   id="btnEsp_TAE"   style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">TAE</button>
+      <button onclick="toggleFiltroEsp('TC')"    id="btnEsp_TC"    style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">TC</button>
+      <button onclick="toggleFiltroEsp('TI')"    id="btnEsp_TI"    style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">TI</button>
+      <button onclick="toggleFiltroEsp('TIAC')"  id="btnEsp_TIAC"  style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">TIAC</button>
+      <button onclick="toggleFiltroEsp('TT')"    id="btnEsp_TT"    style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">TT</button>
+      <button onclick="toggleFiltroEsp('PRUEBA')" id="btnEsp_PRUEBA" style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">PRUEBA</button>
     </div>
+
+    <!-- Filtros de periodo (dinámicos desde datos) -->
+    <p style="margin: 0 0 6px 0; font-size: 0.85rem; color: #666; font-weight: 600;">PERIODO</p>
+    <div id="botonesPeriodo" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;"></div>
+
     <input type="text" id="buscadorAlumno" class="buscador"
            placeholder="Buscar alumno por nombre..."
            oninput="aplicarFiltros()">
