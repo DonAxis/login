@@ -137,6 +137,9 @@ async function redirigirSegunRol(rol) {
     case 'coordinadorAcademia':
       window.location.href = 'https://ilbcontrol.mx/sice/control/coordinador/controlAcademia.html';
       break;
+    case 'prefecto':
+      window.location.href = 'https://ilbcontrol.mx/sice/control/prefecto/controlPrefecto.html';
+      break;
     case 'alumno':
       // Bloquear login de alumnos - solo consulta pública
       await auth.signOut();
