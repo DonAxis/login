@@ -1231,10 +1231,12 @@ async function cambiarPassword(event) {
     
   } catch (error) {
     console.error('Error:', error);
-    if (error.code === 'auth/wrong-password') {
-      alert('La contraseña actual es incorrecta');
+    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
+      alert('La contraseña actual no es correcta, intenta de nuevo');
+    } else if (error.code === 'auth/requires-recent-login') {
+      alert('Cierra sesión e inicia de nuevo para poder cambiar tu contraseña');
     } else {
-      alert('Error al cambiar contraseña: ' + error.message);
+      alert('No se pudo cambiar la contraseña, intenta más tarde');
     }
   }
 }

@@ -10,7 +10,7 @@ let filtroEsp = null;
 let filtroPer = null;
 
 // Filtro invisible — solo estas carreras son visibles para el prefecto
-const CARRERAS_PERMITIDAS = ['TA', 'TAE', 'TC', 'TI', 'TIAC', 'TT', 'PRUEBA'];
+const CARRERAS_PERMITIDAS = ['TA', 'TAE', 'TC', 'TI', 'TIAC', 'TT', 'DE', 'PRUEBA'];
 
 // ============================================================================
 // AUTENTICACIÓN
