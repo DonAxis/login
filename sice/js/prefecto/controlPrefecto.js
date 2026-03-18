@@ -8,6 +8,7 @@ let alumnoSeleccionado = null;
 let profesoresSeleccionados = [];
 let filtroEsp = null;
 let filtroPer = null;
+let reporteDetalleActual = null; // Para PDF
 
 // Filtro invisible — solo estas carreras son visibles para el prefecto
 const CARRERAS_PERMITIDAS = ['TA', 'TAE', 'TC', 'TI', 'TIAC', 'TT', 'DE', 'PRUEBA'];
@@ -281,7 +282,7 @@ async function mostrarInformes() {
 
   try {
     const snap = await db.collection('reportesPrefecto')
-      .where('prefectoId', '==', prefectoActual.uid)
+      // .where('prefectoId', '==', prefectoActual.uid) // Descomenta para filtrar por prefecto
       .get();
 
     if (snap.empty) {
@@ -332,6 +333,7 @@ async function verDetalleReporte(reporteId) {
     if (!doc.exists) return;
 
     const r = doc.data();
+    reporteDetalleActual = { id: doc.id, ...r };
     const fecha = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
       day: '2-digit', month: 'long', year: 'numeric'
     });
@@ -370,6 +372,122 @@ async function verDetalleReporte(reporteId) {
     document.getElementById('listaProfesRespuestas').innerHTML =
       `<div class="msg-error">Error: ${e.message}</div>`;
   }
+}
+
+// ============================================================================
+// SECCIÓN: PDF REPORTE DE FALLA
+// ============================================================================
+
+function generarPDFReporte() {
+  if (!reporteDetalleActual) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const r      = reporteDetalleActual;
+  const fecha  = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+  const hoy    = new Date().toLocaleDateString('es-MX', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+
+  const margen = 20;
+  const ancho  = 210 - margen * 2;
+  let y = 20;
+
+  // ----- ENCABEZADO -----
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text('Instituto ILB', margen, y);
+  doc.text(hoy, 210 - margen, y, { align: 'right' });
+  y += 8;
+
+  doc.setFontSize(16);
+  doc.setTextColor(30);
+  doc.setFont(undefined, 'bold');
+  doc.text('Reporte de Falla', 105, y, { align: 'center' });
+  y += 3;
+
+  doc.setDrawColor(0, 96, 100);
+  doc.setLineWidth(0.8);
+  doc.line(margen, y, 210 - margen, y);
+  y += 8;
+
+  // ----- DATOS DEL ALUMNO -----
+  doc.setFontSize(12);
+  doc.setTextColor(30);
+  doc.setFont(undefined, 'bold');
+  doc.text('Alumno:', margen, y);
+  doc.setFont(undefined, 'normal');
+  doc.text(r.alumnoNombre || '-', margen + 22, y);
+  y += 7;
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Grupo:', margen, y);
+  doc.setFont(undefined, 'normal');
+  doc.text(r.codigoGrupo || '-', margen + 22, y);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Fecha de solicitud:', 120, y);
+  doc.setFont(undefined, 'normal');
+  doc.text(fecha, 120 + 40, y);
+  y += 12;
+
+  // ----- TABLA DE REPORTES -----
+  const profesores = r.profesores || {};
+  const filas = Object.entries(profesores).map(([, p]) => [
+    p.nombre || '-',
+    p.respuesta || '[vacío]',
+    p.fecha ? new Date(p.fecha).toLocaleDateString('es-MX') : '-'
+  ]);
+
+  doc.autoTable({
+    startY: y,
+    head: [['Profesor', 'Observación', 'Fecha']],
+    body: filas,
+    margin: { left: margen, right: margen },
+    headStyles: {
+      fillColor: [0, 96, 100],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 10
+    },
+    bodyStyles: { fontSize: 9, textColor: 30 },
+    columnStyles: {
+      0: { cellWidth: 45 },
+      1: { cellWidth: ancho - 45 - 25 },
+      2: { cellWidth: 25 }
+    },
+    alternateRowStyles: { fillColor: [240, 248, 248] },
+    didParseCell: (data) => {
+      if (data.column.index === 1 && data.cell.raw === '[vacío]') {
+        data.cell.styles.textColor = [180, 180, 180];
+        data.cell.styles.fontStyle = 'italic';
+      }
+    }
+  });
+
+  y = doc.lastAutoTable.finalY + 20;
+
+  // ----- FIRMA -----
+  if (y > 240) { doc.addPage(); y = 30; }
+
+  doc.setFontSize(10);
+  doc.setTextColor(60);
+  doc.text('Firma del Padre / Tutor:', margen, y);
+  y += 12;
+  doc.setDrawColor(100);
+  doc.setLineWidth(0.4);
+  doc.line(margen, y, margen + 80, y);
+  y += 5;
+  doc.setFontSize(8);
+  doc.setTextColor(130);
+  doc.text('Nombre y Firma', margen, y);
+
+  // ----- GUARDAR -----
+  const nombreArchivo = `reporte_falla_${(r.alumnoNombre || 'alumno').replace(/\s+/g, '_')}_${r.fechaSolicitud?.slice(0, 10)}.pdf`;
+  doc.save(nombreArchivo);
 }
 
 console.log('Panel Prefecto cargado');

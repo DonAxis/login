@@ -284,8 +284,13 @@
 
   <!-- SECCIÓN: DETALLE REPORTE -->
   <div id="seccionDetalle" class="seccion">
-    <div class="seccion-header">
+    <div class="seccion-header" style="display:flex; justify-content:space-between; align-items:center;">
       <h2 id="detalleNombreAlumno">Detalle del Reporte</h2>
+      <button onclick="generarPDFReporte()"
+        style="padding:10px 20px; background:linear-gradient(135deg,#006064 0%,#00838f 100%);
+               color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+        Descargar PDF
+      </button>
     </div>
     <div id="detalleMetadata" style="color:#666; font-size:0.9rem; margin-bottom:20px;"></div>
     <div id="listaProfesRespuestas"></div>
@@ -315,6 +320,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script src="../../js/utils/firebase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script src="../../js/prefecto/controlPrefecto.js"></script>
 
 </body>
