@@ -406,7 +406,7 @@ function generarPDFReporte() {
   doc.setFontSize(16);
   doc.setTextColor(30);
   doc.setFont(undefined, 'bold');
-  doc.text('Reporte de Falla', 105, y, { align: 'center' });
+  doc.text('Reporte escolar', 105, y, { align: 'center' });
   y += 3;
 
   doc.setDrawColor(0, 96, 100);
