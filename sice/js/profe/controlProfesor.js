@@ -62,6 +62,11 @@ firebase.auth().onAuthStateChanged(async (user) => {
     
     // Mostrar menú principal al iniciar
     document.getElementById('menuMaterias').style.display = 'grid';
+
+    // Inicializar módulo de reportes prefecto
+    if (typeof inicializarReportesProfesor === 'function') {
+      await inicializarReportesProfesor(usuarioActual.uid);
+    }
     
   } catch (error) {
     console.error('Error al cargar usuario:', error);
@@ -1152,7 +1157,9 @@ async function guardarExtraordinarios() {
 // ============================================================================
 
 function verReporte() {
-  alert('Próximamente: Reporte de alumnos Bachilleres');
+  if (typeof verReportesProfesor === 'function') {
+    verReportesProfesor();
+  }
 }
 
 function volverMenuProfe() {
@@ -1160,6 +1167,8 @@ function volverMenuProfe() {
   document.getElementById('seccionCalificaciones').style.display = 'none';
   document.getElementById('seccionMaterias').style.display = 'none';
   document.getElementById('seccionConfiguracion').style.display = 'none';
+  const secReportes = document.getElementById('seccionReportes');
+  if (secReportes) secReportes.style.display = 'none';
   
   // Mostrar menú principal
   document.getElementById('menuMaterias').style.display = 'grid';

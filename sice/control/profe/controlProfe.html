@@ -40,9 +40,15 @@
       <p>Ajustes de perfil y contraseña</p>
     </div>
 
-    <div class="card-profesor" onclick="verReporte()">
-      <h3>Reportes</h3>
-      <p>Próximamente</p>
+    <div class="card-profesor" id="cardReportes" onclick="verReporte()" style="position:relative;">
+      <h3>Reportes
+        <span id="badgeReportes"
+          style="display:none;background:white;color:#b71c1c;border-radius:50%;
+                 width:22px;height:22px;font-size:0.75rem;font-weight:700;
+                 text-align:center;line-height:22px;margin-left:8px;
+                 vertical-align:middle;">0</span>
+      </h3>
+      <p id="descReportes">Cargando...</p>
     </div>
   </div>
 
@@ -58,6 +64,14 @@
   <div id="seccionCalificaciones" class="seccion-contenido" style="display: none;">
     <div id="contenedorMateriaCalif"></div>
     <div id="tablaCalificaciones"></div>
+  </div>
+
+  <!-- SECCIÓN: REPORTES PREFECTO -->
+  <div id="seccionReportes" class="seccion-contenido" style="display: none;">
+    <div class="seccion-header">
+      <h2>Reportes Pendientes</h2>
+    </div>
+    <div id="listaReportesProfesor"></div>
   </div>
 
   <!-- SECCIÓN: CONFIGURACIÓN -->
@@ -137,6 +151,7 @@
   
   <!-- JavaScript del Profesor -->
   <script src="../../js/profe/controlProfesor.js"></script>
+  <script src="../../js/profe/reportesProfesor.js"></script>
   <!--<script src="controlAlumnoEspecial.js"></script>-->
 
 </body>
