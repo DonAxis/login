@@ -486,7 +486,7 @@ function generarPDFReporte() {
   doc.text('Nombre y Firma', margen, y);
 
   // ----- GUARDAR -----
-  const nombreArchivo = `reporte_falla_${(r.alumnoNombre || 'alumno').replace(/\s+/g, '_')}_${r.fechaSolicitud?.slice(0, 10)}.pdf`;
+  const nombreArchivo = `reporte_${(r.alumnoNombre || 'alumno').replace(/\s+/g, '_')}_${r.fechaSolicitud?.slice(0, 10)}.pdf`;
   doc.save(nombreArchivo);
 }
 
