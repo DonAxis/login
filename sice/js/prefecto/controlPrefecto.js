@@ -104,23 +104,10 @@ async function cargarAlumnos() {
       if (CARRERAS_PERMITIDAS.includes(data.carreraId)) alumnosCache.push(data);
     });
     alumnosCache.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
-    renderBotonesPeriodo();
     aplicarFiltros();
   } catch (e) {
     contenedor.innerHTML = `<div class="msg-error">Error al cargar alumnos: ${e.message}</div>`;
   }
-}
-
-function renderBotonesPeriodo() {
-  const periodos = [...new Set(alumnosCache.map(a => String(a.periodo)).filter(Boolean))].sort().reverse();
-  const cont = document.getElementById('botonesPeriodo');
-  cont.innerHTML = periodos.map(p => `
-    <button onclick="toggleFiltroPeriodo('${p}')" id="btnPer_${p.replace(/[^a-z0-9]/gi,'_')}"
-      style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white;
-             color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">
-      ${p}
-    </button>
-  `).join('');
 }
 
 function toggleFiltroEsp(esp) {
@@ -136,11 +123,12 @@ function toggleFiltroEsp(esp) {
 
 function toggleFiltroPeriodo(per) {
   filtroPer = filtroPer === per ? null : per;
-  document.querySelectorAll('#botonesPeriodo button').forEach(btn => {
-    const esteActivo = btn.textContent.trim() === per && filtroPer === per;
-    btn.style.background = esteActivo ? '#006064' : 'white';
-    btn.style.color      = esteActivo ? 'white'   : '#006064';
-  });
+  for (let i = 1; i <= 6; i++) {
+    const btn = document.getElementById(`btnPer_${i}`);
+    if (!btn) continue;
+    btn.style.background = filtroPer === i ? '#006064' : 'white';
+    btn.style.color      = filtroPer === i ? 'white'   : '#006064';
+  }
   aplicarFiltros();
 }
 
@@ -149,8 +137,8 @@ function aplicarFiltros() {
 
   const filtrado = alumnosCache.filter(a => {
     const coincideNombre = !texto     || (a.nombre || '').toLowerCase().includes(texto);
-    const coincideEsp    = !filtroEsp || a.carreraId === filtroEsp;
-    const coincidePer    = !filtroPer || String(a.periodo) === filtroPer;
+    const coincideEsp    = !filtroEsp || (a.carreraId || '').trim() === filtroEsp;
+    const coincidePer    = !filtroPer || Number(a.periodo) === filtroPer;
     return coincideNombre && coincideEsp && coincidePer;
   });
 

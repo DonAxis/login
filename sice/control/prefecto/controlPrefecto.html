@@ -252,9 +252,16 @@
       <button onclick="toggleFiltroEsp('PRUEBA')" id="btnEsp_PRUEBA" style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">PRUEBA</button>
     </div>
 
-    <!-- Filtros de periodo (dinámicos desde datos) -->
+    <!-- Filtros de periodo (fijos 1-6) -->
     <p style="margin: 0 0 6px 0; font-size: 0.85rem; color: #666; font-weight: 600;">PERIODO</p>
-    <div id="botonesPeriodo" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;"></div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+      <button onclick="toggleFiltroPeriodo(1)" id="btnPer_1" style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">1</button>
+      <button onclick="toggleFiltroPeriodo(2)" id="btnPer_2" style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">2</button>
+      <button onclick="toggleFiltroPeriodo(3)" id="btnPer_3" style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">3</button>
+      <button onclick="toggleFiltroPeriodo(4)" id="btnPer_4" style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">4</button>
+      <button onclick="toggleFiltroPeriodo(5)" id="btnPer_5" style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">5</button>
+      <button onclick="toggleFiltroPeriodo(6)" id="btnPer_6" style="padding:6px 14px; border-radius:20px; border:2px solid #006064; background:white; color:#006064; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">6</button>
+    </div>
 
     <input type="text" id="buscadorAlumno" class="buscador"
            placeholder="Buscar alumno por nombre..."
