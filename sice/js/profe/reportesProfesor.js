@@ -107,8 +107,7 @@ async function cargarReportesProfesor() {
             placeholder="Escribe tu observación sobre el alumno..."
             rows="4"
             style="width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;
-                   font-size:0.95rem;resize:vertical;box-sizing:border-box;">
-          </textarea>
+                   font-size:0.95rem;resize:vertical;box-sizing:border-box;"></textarea>
           <div style="margin-top:12px;text-align:right;">
             <button onclick="enviarRespuestaReporte('${reporte.id}')"
               style="padding:10px 24px;background:linear-gradient(135deg,#b71c1c 0%,#c62828 100%);
