@@ -53,18 +53,16 @@ async function cerrarSesion() {
 // ===== INICIALIZACIÓN =====
 async function inicializar() {
   console.log('Inicializando Control Escolar...');
-  
+
   try {
     await cargarPeriodoActual();
     await Promise.all([
       cargarCarreras(),
-      cargarAlumnos(),
-      cargarMaterias()
+      cargarEstadisticas()
     ]);
-    
-    actualizarEstadisticas();
+
     mostrarCarreras();
-    
+
   } catch (error) {
     console.error('Error al inicializar:', error);
   }
@@ -81,6 +79,22 @@ async function cargarPeriodoActual() {
     document.getElementById('periodoActual').textContent = periodoActual;
   } catch (error) {
     console.error('Error al cargar periodo:', error);
+  }
+}
+
+async function cargarEstadisticas() {
+  try {
+    const [carrerasSnap, alumnosSnap, materiasSnap] = await Promise.all([
+      db.collection('carreras').where('activo', '==', true).count().get(),
+      db.collection('usuarios').where('rol', '==', 'alumno').where('activo', '==', true).count().get(),
+      db.collection('materias').count().get()
+    ]);
+
+    document.getElementById('totalCarreras').textContent = carrerasSnap.data().count;
+    document.getElementById('totalAlumnos').textContent = alumnosSnap.data().count;
+    document.getElementById('totalMaterias').textContent = materiasSnap.data().count;
+  } catch (error) {
+    console.error('Error al cargar estadísticas:', error);
   }
 }
 
@@ -143,10 +157,14 @@ async function cargarMaterias() {
   }
 }
 
-function actualizarEstadisticas() {
-  document.getElementById('totalCarreras').textContent = carrerasData.length;
-  document.getElementById('totalAlumnos').textContent = alumnosData.length;
-  document.getElementById('totalMaterias').textContent = materiasData.length;
+async function cargarAlumnosSiNecesario() {
+  if (alumnosData.length > 0) return;
+  await cargarAlumnos();
+}
+
+async function cargarMateriasSiNecesario() {
+  if (materiasData.length > 0) return;
+  await cargarMaterias();
 }
 
 // ===== MOSTRAR CARRERAS =====
@@ -228,9 +246,10 @@ function mostrarOpcionesCarrera() {
 // ===== VER MATERIAS DE LA CARRERA =====
 async function verMateriasCarrera() {
   if (!carreraSeleccionada) return;
-  
+
   console.log('Cargando materias de la carrera:', carreraSeleccionada.nombre);
-  
+  await cargarMateriasSiNecesario();
+
   // Filtrar materias de esta carrera
   const materiasCarrera = materiasData.filter(m => m.carreraId === carreraSeleccionada.id);
   
@@ -313,7 +332,9 @@ async function verMateriasCarrera() {
 // ===== VER ALUMNOS EN UNA MATERIA ESPECÍFICA =====
 async function verAlumnosEnMateria(materiaId, nombreMateria) {
   console.log('Cargando alumnos de materia:', nombreMateria);
-  
+
+  await cargarAlumnosSiNecesario();
+
   try {
     // Buscar calificaciones de esta materia
     const calificacionesSnap = await db.collection('calificaciones')
@@ -444,9 +465,10 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
 // ===== VER ALUMNOS DE LA CARRERA =====
 async function verAlumnosCarrera() {
   if (!carreraSeleccionada) return;
-  
+
   console.log('Cargando alumnos de la carrera:', carreraSeleccionada.nombre);
-  
+  await cargarAlumnosSiNecesario();
+
   // Filtrar alumnos de esta carrera (excluyendo especiales)
   const alumnosCarrera = alumnosData.filter(a => 
     a.carreraId === carreraSeleccionada.id && 
@@ -513,7 +535,8 @@ async function verAlumnosCarrera() {
 // ===== VER HISTORIAL COMPLETO DE UN ALUMNO =====
 async function verHistorialCompleto(alumnoId, nombreAlumno) {
   console.log('Cargando historial completo de:', nombreAlumno);
-  
+  await cargarMateriasSiNecesario();
+
   try {
     // Obtener todas las calificaciones del alumno
     const calificacionesSnap = await db.collection('calificaciones')
