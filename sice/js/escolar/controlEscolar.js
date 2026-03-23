@@ -245,7 +245,7 @@ function mostrarGruposCarrera() {
   if (tieneEspeciales) {
     html += `
       <div class="grupo-card" onclick="verAlumnosEspeciales()" style="background:#fff3cd; border-left:4px solid #ff9800;">
-        <h4>⭐ Especiales</h4>
+        <h4>Especiales</h4>
         <p>Alumnos sin grupo fijo</p>
       </div>`;
   }
@@ -271,7 +271,6 @@ function seleccionarGrupo(codigoGrupo) {
         <p>${totalAlumnos} alumnos en este grupo</p>
         <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center;">
           <button onclick="verAlumnosGrupo()" class="btn-accion">Ver Alumnos</button>
-          <button onclick="historialActualAlumnos()" class="btn-accion" style="background:#6A2135; color:white;">Historial Actual</button>
         </div>
       </div>
 
@@ -280,7 +279,6 @@ function seleccionarGrupo(codigoGrupo) {
         <p>Materias del grupo ${codigoGrupo}</p>
         <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center;">
           <button onclick="verMateriasGrupo()" class="btn-accion">Ver Materias</button>
-          <button onclick="historialActualMaterias()" class="btn-accion" style="background:#6A2135; color:white;">Historial Actual</button>
         </div>
       </div>
 
@@ -423,14 +421,13 @@ async function verMateriasGrupo() {
       <p style="margin-bottom:20px; color:#666;">Total: ${asigSnap.size} materias</p>
       <table>
         <thead><tr>
-          <th>Código</th><th>Materia</th><th>Profesor</th><th>Acciones</th>
+          <th>Materia</th><th>Profesor</th><th>Acciones</th>
         </tr></thead>
         <tbody>`;
 
     asigSnap.forEach(doc => {
       const d = doc.data();
       html += `<tr>
-        <td><strong>${d.materiaCodigo || 'N/A'}</strong></td>
         <td>${d.materiaNombre}</td>
         <td>${d.profesorNombre || 'Sin asignar'}</td>
         <td><button onclick="verAlumnosEnMateria('${d.materiaId}', '${(d.materiaNombre || '').replace(/'/g, "\\'")}')">Ver Alumnos</button></td>
@@ -624,7 +621,7 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
     if (calificacionesSnap.empty) {
       mostrarLista(`
         <h2 class="titulo-seccion">Alumnos en ${nombreMateria}</h2>
-        <div class="sin-datos">No hay alumnos inscritos en esta materia</div>
+        <div class="sin-datos">El profesor aún no ha subido calificaciones</div>
       `);
       return;
     }
@@ -650,13 +647,18 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
     // Ordenar por nombre
     alumnosEnMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
     
+    // Guardar datos para el PDF en variable global (evita romper el atributo onclick con JSON)
+    window._actaAlumnosData = alumnosEnMateria;
+    window._actaMateriaId   = materiaId;
+    window._actaMateriaNombre = nombreMateria;
+
     // Generar HTML
     let html = `
       <h2 class="titulo-seccion">Alumnos en ${nombreMateria}</h2>
       <p style="margin-bottom: 20px; color: #666;">Total: ${alumnosEnMateria.length} alumnos</p>
-      
+
       <div style="margin-bottom: 20px;">
-        <button onclick="descargarActaMateria('${materiaId}', '${nombreMateria.replace(/'/g, "\\'")}', ${JSON.stringify(alumnosEnMateria).replace(/'/g, "\\'")})" 
+        <button onclick="descargarActaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
                 class="opcion-btn" style="background: #dc3545;">
           Descargar Acta de Calificaciones (PDF)
         </button>
