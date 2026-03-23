@@ -210,71 +210,59 @@ async function seleccionarCarrera(carreraId) {
 
   document.getElementById('menuCarreras').style.display = 'none';
   grupoSeleccionado = null;
-  await mostrarGruposCarrera();
+  mostrarGruposCarrera();
 }
 
-async function mostrarGruposCarrera() {
-  document.getElementById('gruposGrid').innerHTML = '<div class="sin-datos">Cargando grupos...</div>';
+function mostrarGruposCarrera() {
   document.getElementById('gruposContainer').classList.add('active');
 
-  try {
-    const gruposSnap = await db.collection('grupos')
-      .where('carreraId', '==', carreraSeleccionada.id)
-      .get();
+  // Derivar grupos únicos del campo codigoGrupo de alumnosData
+  const alumnosCarrera = alumnosData.filter(a =>
+    a.carreraId === carreraSeleccionada.id && a.tipoAlumno !== 'especial' && a.codigoGrupo
+  );
 
-    const todosGrupos = [];
-    gruposSnap.forEach(doc => todosGrupos.push({ id: doc.id, ...doc.data() }));
+  const gruposUnicos = [...new Set(alumnosCarrera.map(a => a.codigoGrupo))].sort();
 
-    const gruposConAlumnos = todosGrupos
-      .filter(g => alumnosData.some(a => a.grupoId === g.id && a.tipoAlumno !== 'especial'))
-      .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+  let html = `<div style="grid-column:1/-1; margin-bottom:10px;">
+    <h2 class="titulo-seccion">${carreraSeleccionada.nombre}</h2>
+    <p style="color:#666;">Selecciona un grupo</p>
+  </div>`;
 
-    let html = `<div style="grid-column:1/-1; margin-bottom:10px;">
-      <h2 class="titulo-seccion">${carreraSeleccionada.nombre}</h2>
-      <p style="color:#666;">Selecciona un grupo</p>
-    </div>`;
-
-    gruposConAlumnos.forEach(grupo => {
-      const total = alumnosData.filter(a => a.grupoId === grupo.id && a.tipoAlumno !== 'especial').length;
+  if (gruposUnicos.length === 0) {
+    html += '<div style="grid-column:1/-1;" class="sin-datos">No hay grupos con alumnos en esta carrera</div>';
+  } else {
+    gruposUnicos.forEach(codigo => {
+      const total = alumnosCarrera.filter(a => a.codigoGrupo === codigo).length;
       html += `
-        <div class="grupo-card" onclick="seleccionarGrupo('${grupo.id}', '${(grupo.nombre || '').replace(/'/g, "\\'")}', ${grupo.semestre || 0}, '${(grupo.turno || '').replace(/'/g, "\\'")}')">
-          <h4>${grupo.nombre}</h4>
-          <p>Semestre ${grupo.semestre || '-'} | ${grupo.turno || ''}</p>
+        <div class="grupo-card" onclick="seleccionarGrupo('${codigo.replace(/'/g, "\\'")}')">
+          <h4>${codigo}</h4>
           <p style="font-weight:bold; color:#6A2135;">${total} alumno${total !== 1 ? 's' : ''}</p>
         </div>`;
     });
-
-    if (gruposConAlumnos.length === 0) {
-      html += '<div style="grid-column:1/-1;" class="sin-datos">No hay grupos con alumnos en esta carrera</div>';
-    }
-
-    const tieneEspeciales = alumnosData.some(a => a.carreraId === carreraSeleccionada.id && a.tipoAlumno === 'especial');
-    if (tieneEspeciales) {
-      html += `
-        <div class="grupo-card" onclick="verAlumnosEspeciales()" style="background:#fff3cd; border-left:4px solid #ff9800;">
-          <h4>⭐ Especiales</h4>
-          <p>Alumnos sin grupo fijo</p>
-        </div>`;
-    }
-
-    document.getElementById('gruposGrid').innerHTML = html;
-  } catch (error) {
-    console.error('Error al cargar grupos:', error);
-    document.getElementById('gruposGrid').innerHTML = '<div class="sin-datos">Error al cargar grupos</div>';
   }
+
+  const tieneEspeciales = alumnosData.some(a => a.carreraId === carreraSeleccionada.id && a.tipoAlumno === 'especial');
+  if (tieneEspeciales) {
+    html += `
+      <div class="grupo-card" onclick="verAlumnosEspeciales()" style="background:#fff3cd; border-left:4px solid #ff9800;">
+        <h4>⭐ Especiales</h4>
+        <p>Alumnos sin grupo fijo</p>
+      </div>`;
+  }
+
+  document.getElementById('gruposGrid').innerHTML = html;
 }
 
 // ===== SELECCIONAR GRUPO → muestra opciones =====
-function seleccionarGrupo(grupoId, nombre, semestre, turno) {
-  grupoSeleccionado = { id: grupoId, nombre, semestre, turno };
+function seleccionarGrupo(codigoGrupo) {
+  grupoSeleccionado = { codigoGrupo };
 
-  const totalAlumnos = alumnosData.filter(a => a.grupoId === grupoId && a.tipoAlumno !== 'especial').length;
+  const totalAlumnos = alumnosData.filter(a => a.codigoGrupo === codigoGrupo && a.tipoAlumno !== 'especial').length;
 
   const html = `
     <div style="grid-column:1/-1; margin-bottom:10px;">
       <button onclick="mostrarGruposCarrera()" class="btn-volver" style="margin-bottom:10px;">← Grupos</button>
-      <h2 class="titulo-seccion">${nombre}</h2>
-      <p style="color:#666;">Semestre ${semestre} | ${turno}</p>
+      <h2 class="titulo-seccion">${codigoGrupo}</h2>
     </div>
     <div style="grid-column:1/-1; display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px;">
 
@@ -289,7 +277,7 @@ function seleccionarGrupo(grupoId, nombre, semestre, turno) {
 
       <div class="opcion-card">
         <h3>Por Materia</h3>
-        <p>Materias del grupo ${nombre}</p>
+        <p>Materias del grupo ${codigoGrupo}</p>
         <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center;">
           <button onclick="verMateriasGrupo()" class="btn-accion">Ver Materias</button>
           <button onclick="historialActualMaterias()" class="btn-accion" style="background:#6A2135; color:white;">Historial Actual</button>
@@ -304,17 +292,17 @@ function seleccionarGrupo(grupoId, nombre, semestre, turno) {
 // ===== VER ALUMNOS DEL GRUPO =====
 function verAlumnosGrupo() {
   const alumnos = alumnosData
-    .filter(a => a.grupoId === grupoSeleccionado.id && a.tipoAlumno !== 'especial')
+    .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial')
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) {
-    mostrarLista(`<h2 class="titulo-seccion">Alumnos — ${grupoSeleccionado.nombre}</h2>
+    mostrarLista(`<h2 class="titulo-seccion">Alumnos — ${grupoSeleccionado.codigoGrupo}</h2>
       <div class="sin-datos">No hay alumnos en este grupo</div>`);
     return;
   }
 
   let html = `
-    <h2 class="titulo-seccion">Alumnos — ${grupoSeleccionado.nombre}</h2>
+    <h2 class="titulo-seccion">Alumnos — ${grupoSeleccionado.codigoGrupo}</h2>
     <p style="margin-bottom:20px; color:#666;">Total: ${alumnos.length} alumnos</p>
     <table>
       <thead><tr>
@@ -338,18 +326,18 @@ function verAlumnosGrupo() {
 // ===== HISTORIAL ACTUAL POR ALUMNO =====
 async function historialActualAlumnos() {
   const alumnos = alumnosData
-    .filter(a => a.grupoId === grupoSeleccionado.id && a.tipoAlumno !== 'especial')
+    .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial')
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) {
-    mostrarLista(`<h2 class="titulo-seccion">Historial Actual — ${grupoSeleccionado.nombre}</h2>
+    mostrarLista(`<h2 class="titulo-seccion">Historial Actual — ${grupoSeleccionado.codigoGrupo}</h2>
       <div class="sin-datos">No hay alumnos en este grupo</div>`);
     return;
   }
 
   try {
     const asigSnap = await db.collection('profesorMaterias')
-      .where('grupoId', '==', grupoSeleccionado.id)
+      .where('codigoGrupo', '==', grupoSeleccionado.codigoGrupo)
       .where('activa', '==', true)
       .get();
 
@@ -371,7 +359,7 @@ async function historialActualAlumnos() {
     }
 
     let html = `
-      <h2 class="titulo-seccion">Historial ${periodoActual} — ${grupoSeleccionado.nombre}</h2>
+      <h2 class="titulo-seccion">Historial ${periodoActual} — ${grupoSeleccionado.codigoGrupo}</h2>
       <div style="overflow-x:auto;">
       <table>
         <thead><tr>
@@ -420,18 +408,18 @@ async function historialActualAlumnos() {
 async function verMateriasGrupo() {
   try {
     const asigSnap = await db.collection('profesorMaterias')
-      .where('grupoId', '==', grupoSeleccionado.id)
+      .where('codigoGrupo', '==', grupoSeleccionado.codigoGrupo)
       .where('activa', '==', true)
       .get();
 
     if (asigSnap.empty) {
-      mostrarLista(`<h2 class="titulo-seccion">Materias — ${grupoSeleccionado.nombre}</h2>
+      mostrarLista(`<h2 class="titulo-seccion">Materias — ${grupoSeleccionado.codigoGrupo}</h2>
         <div class="sin-datos">No hay materias asignadas a este grupo</div>`);
       return;
     }
 
     let html = `
-      <h2 class="titulo-seccion">Materias — ${grupoSeleccionado.nombre}</h2>
+      <h2 class="titulo-seccion">Materias — ${grupoSeleccionado.codigoGrupo}</h2>
       <p style="margin-bottom:20px; color:#666;">Total: ${asigSnap.size} materias</p>
       <table>
         <thead><tr>
@@ -461,12 +449,12 @@ async function verMateriasGrupo() {
 async function historialActualMaterias() {
   try {
     const asigSnap = await db.collection('profesorMaterias')
-      .where('grupoId', '==', grupoSeleccionado.id)
+      .where('codigoGrupo', '==', grupoSeleccionado.codigoGrupo)
       .where('activa', '==', true)
       .get();
 
     if (asigSnap.empty) {
-      mostrarLista(`<h2 class="titulo-seccion">Historial por Materia — ${grupoSeleccionado.nombre}</h2>
+      mostrarLista(`<h2 class="titulo-seccion">Historial por Materia — ${grupoSeleccionado.codigoGrupo}</h2>
         <div class="sin-datos">No hay materias asignadas a este grupo</div>`);
       return;
     }
@@ -478,10 +466,10 @@ async function historialActualMaterias() {
     });
 
     const alumnos = alumnosData
-      .filter(a => a.grupoId === grupoSeleccionado.id && a.tipoAlumno !== 'especial')
+      .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial')
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    let html = `<h2 class="titulo-seccion">Historial ${periodoActual} — ${grupoSeleccionado.nombre}</h2>`;
+    let html = `<h2 class="titulo-seccion">Historial ${periodoActual} — ${grupoSeleccionado.codigoGrupo}</h2>`;
 
     for (const materia of materias) {
       const calSnap = await db.collection('calificaciones')
