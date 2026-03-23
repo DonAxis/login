@@ -58,9 +58,11 @@ async function inicializar() {
     await cargarPeriodoActual();
     await Promise.all([
       cargarCarreras(),
-      cargarEstadisticas()
+      cargarAlumnos(),
+      cargarMaterias()
     ]);
 
+    actualizarEstadisticas();
     mostrarCarreras();
 
   } catch (error) {
@@ -82,21 +84,6 @@ async function cargarPeriodoActual() {
   }
 }
 
-async function cargarEstadisticas() {
-  try {
-    const [carrerasSnap, alumnosSnap, materiasSnap] = await Promise.all([
-      db.collection('carreras').where('activo', '==', true).count().get(),
-      db.collection('usuarios').where('rol', '==', 'alumno').where('activo', '==', true).count().get(),
-      db.collection('materias').count().get()
-    ]);
-
-    document.getElementById('totalCarreras').textContent = carrerasSnap.data().count;
-    document.getElementById('totalAlumnos').textContent = alumnosSnap.data().count;
-    document.getElementById('totalMaterias').textContent = materiasSnap.data().count;
-  } catch (error) {
-    console.error('Error al cargar estadísticas:', error);
-  }
-}
 
 async function cargarCarreras() {
   try {
@@ -157,6 +144,12 @@ async function cargarMaterias() {
   }
 }
 
+function actualizarEstadisticas() {
+  document.getElementById('totalCarreras').textContent = carrerasData.length;
+  document.getElementById('totalAlumnos').textContent = alumnosData.length;
+  document.getElementById('totalMaterias').textContent = materiasData.length;
+}
+
 async function cargarAlumnosSiNecesario() {
   if (alumnosData.length > 0) return;
   await cargarAlumnos();
@@ -170,22 +163,42 @@ async function cargarMateriasSiNecesario() {
 // ===== MOSTRAR CARRERAS =====
 function mostrarCarreras() {
   const container = document.getElementById('menuCarreras');
-  
+
   if (carrerasData.length === 0) {
     container.innerHTML = '<div class="sin-datos">No hay carreras registradas</div>';
     return;
   }
-  
-  let html = '';
+
+  const secciones = [
+    { label: 'Técnico Superior Universitario', prefijos: ['T'], carreras: [] },
+    { label: 'Licenciatura',                   prefijos: ['L', 'U'], carreras: [] },
+    { label: 'Maestría',                       prefijos: ['M'], carreras: [] },
+  ];
+  const otras = [];
+
   carrerasData.forEach(carrera => {
-    html += `
-      <div class="carrera-card" onclick="seleccionarCarrera('${carrera.id}')">
-        <h3>${carrera.nombre}</h3>
-        <p>Código: ${carrera.codigo}</p>
-      </div>
-    `;
+    const prefijo = (carrera.codigo || '').charAt(0).toUpperCase();
+    const seccion = secciones.find(s => s.prefijos.includes(prefijo));
+    if (seccion) seccion.carreras.push(carrera);
+    else otras.push(carrera);
   });
-  
+
+  if (otras.length > 0) secciones.push({ label: 'Otras', prefijos: [], carreras: otras });
+
+  let html = '';
+  secciones.forEach(seccion => {
+    if (seccion.carreras.length === 0) return;
+    html += `<div style="grid-column:1/-1; margin: 20px 0 8px; font-size:1.1rem; font-weight:bold; color:#6A2135; border-bottom:2px solid #6A2135; padding-bottom:6px;">${seccion.label}</div>`;
+    seccion.carreras.forEach(carrera => {
+      html += `
+        <div class="carrera-card" onclick="seleccionarCarrera('${carrera.id}')">
+          <h3>${carrera.nombre}</h3>
+          <p>Código: ${carrera.codigo}</p>
+        </div>
+      `;
+    });
+  });
+
   container.innerHTML = html;
 }
 
@@ -197,10 +210,8 @@ async function seleccionarCarrera(carreraId) {
   
   console.log('Carrera seleccionada:', carreraSeleccionada.nombre);
   
-  // Ocultar menu de carreras
+  // Ocultar menu de carreras y mostrar opciones
   document.getElementById('menuCarreras').style.display = 'none';
-  
-  // Mostrar opciones de la carrera
   mostrarOpcionesCarrera();
 }
 
@@ -239,7 +250,8 @@ function mostrarOpcionesCarrera() {
   `;
   
   document.getElementById('gruposGrid').innerHTML = html;
-  document.getElementById('gruposContainer').style.display = 'block';
+  document.getElementById('gruposContainer').removeAttribute('style');
+  document.getElementById('gruposContainer').classList.add('active');
   document.getElementById('opcionesContainer').style.display = 'none';
 }
 
@@ -734,22 +746,21 @@ async function verHistorialCompleto(alumnoId, nombreAlumno) {
 // ===== FUNCIONES DE NAVEGACIÓN =====
 function mostrarLista(html) {
   document.getElementById('listaContenido').innerHTML = html;
-  document.getElementById('gruposContainer').style.display = 'none';
+  document.getElementById('gruposContainer').classList.remove('active');
   document.getElementById('listaContainer').classList.add('active');
 }
 
 function volverCarreras() {
   document.getElementById('gruposContainer').classList.remove('active');
-  document.getElementById('gruposContainer').style.display = 'none';
-  document.getElementById('menuCarreras').style.display = 'grid';
-  document.getElementById('opcionesContainer').classList.remove('active');
   document.getElementById('listaContainer').classList.remove('active');
+  document.getElementById('menuCarreras').removeAttribute('style');
+  document.getElementById('opcionesContainer').classList.remove('active');
   carreraSeleccionada = null;
 }
 
 function volverGrupos() {
   document.getElementById('listaContainer').classList.remove('active');
-  document.getElementById('gruposContainer').style.display = 'block';
+  document.getElementById('gruposContainer').classList.add('active');
 }
 
 // ===== VER ALUMNOS ESPECIALES =====
