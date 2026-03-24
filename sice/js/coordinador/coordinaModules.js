@@ -3843,7 +3843,7 @@ function descargarActaPDF() {
         });
 
         // Generar nombre del archivo
-        const nombreArchivo = `Acta_${asignacionCalifActual.materiaCodigo}_${asignacionCalifActual.grupoNombre}_${asignacionCalifActual.periodo}.pdf`;
+        const nombreArchivo = `Acta_${asignacionCalifActual.codigoGrupo}_${asignacionCalifActual.materiaNombre}.pdf`;
 
         // Descargar
         doc.save(nombreArchivo);
