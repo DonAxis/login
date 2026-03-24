@@ -2337,37 +2337,40 @@ async function guardarProfesor(event, profesorId) {
                         usuarioActual.carreraId
                     ])];
 
-                    // 2. Migrar profesorMaterias del doc incorrecto → doc original
-                    const pmSnap = await db.collection('profesorMaterias')
-                        .where('profesorId', '==', profesorId)
-                        .get();
+                    // 2. Recolectar todas las operaciones de migración
+                    const [pmSnap, calSnap] = await Promise.all([
+                        db.collection('profesorMaterias').where('profesorId', '==', profesorId).get(),
+                        db.collection('calificaciones').where('profesorId', '==', profesorId).get()
+                    ]);
 
-                    const batch = db.batch();
-                    pmSnap.forEach(pmDoc => {
-                        batch.update(pmDoc.ref, {
-                            profesorId: duplicadoDoc.id,
-                            profesorNombre: nombre
+                    const ops = [];
+                    // Actualizar doc original
+                    ops.push({ type: 'update', ref: duplicadoDoc.ref, data: { nombre, activo, carreras: carrerasUnidas } });
+                    // Eliminar doc con email incorrecto
+                    ops.push({ type: 'delete', ref: db.collection('usuarios').doc(profesorId) });
+                    // Migrar profesorMaterias
+                    pmSnap.forEach(pmDoc => ops.push({ type: 'update', ref: pmDoc.ref, data: { profesorId: duplicadoDoc.id, profesorNombre: nombre } }));
+                    // Migrar calificaciones
+                    calSnap.forEach(calDoc => ops.push({ type: 'update', ref: calDoc.ref, data: { profesorId: duplicadoDoc.id, profesorNombre: nombre } }));
+
+                    // Commit en chunks de 499 (límite Firestore = 500)
+                    const CHUNK = 499;
+                    for (let i = 0; i < ops.length; i += CHUNK) {
+                        const batch = db.batch();
+                        ops.slice(i, i + CHUNK).forEach(op => {
+                            if (op.type === 'update') batch.update(op.ref, op.data);
+                            else batch.delete(op.ref);
                         });
-                    });
-
-                    // 3. Actualizar el doc original: carreras fusionadas + datos del form
-                    batch.update(duplicadoDoc.ref, {
-                        nombre: nombre,
-                        activo: activo,
-                        carreras: carrerasUnidas
-                    });
-
-                    // 4. Eliminar el doc con email incorrecto
-                    batch.delete(db.collection('usuarios').doc(profesorId));
-
-                    await batch.commit();
+                        await batch.commit();
+                    }
 
                     alert(
                         `Registros unificados correctamente.\n\n` +
                         `Nombre: ${nombre}\n` +
                         `Email: ${email}\n` +
                         `Carreras fusionadas: ${carrerasUnidas.length}\n` +
-                        `Asignaciones migradas: ${pmSnap.size}`
+                        `Asignaciones migradas: ${pmSnap.size}\n` +
+                        `Calificaciones migradas: ${calSnap.size}`
                     );
                     cerrarModal();
                     cargarProfesores();
@@ -2375,8 +2378,29 @@ async function guardarProfesor(event, profesorId) {
                 }
             }
 
-            // Sin duplicado: actualizar normalmente
+            // Sin duplicado: actualizar en usuarios
             await db.collection('usuarios').doc(profesorId).update(userData);
+
+            // Si el nombre cambió, propagar a profesorMaterias y calificaciones
+            const nombreAnterior = datosActuales.nombre || '';
+            if (nombre !== nombreAnterior) {
+                const [pmSnap, calSnap] = await Promise.all([
+                    db.collection('profesorMaterias').where('profesorId', '==', profesorId).get(),
+                    db.collection('calificaciones').where('profesorId', '==', profesorId).get()
+                ]);
+
+                const ops = [];
+                pmSnap.forEach(doc => ops.push({ ref: doc.ref, data: { profesorNombre: nombre } }));
+                calSnap.forEach(doc => ops.push({ ref: doc.ref, data: { profesorNombre: nombre } }));
+
+                const CHUNK = 499;
+                for (let i = 0; i < ops.length; i += CHUNK) {
+                    const batch = db.batch();
+                    ops.slice(i, i + CHUNK).forEach(op => batch.update(op.ref, op.data));
+                    await batch.commit();
+                }
+            }
+
             alert(' Profesor actualizado');
         } else {
             // Crear nuevo
