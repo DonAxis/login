@@ -3759,7 +3759,7 @@ function descargarActaPDF() {
 
         doc.text(`Materia: ${asignacionCalifActual.materiaNombre}`, 20, y);
         y += 5;
-        doc.text(`Grupo: ${asignacionCalifActual.grupoNombre}`, 20, y);
+        doc.text(`Grupo: ${asignacionCalifActual.codigoGrupo}`, 20, y);
         y += 5;
         doc.text(`Profesor: ${asignacionCalifActual.profesorNombre}`, 20, y);
         y += 5;
@@ -3769,16 +3769,9 @@ function descargarActaPDF() {
 
         // Preparar datos para la tabla
         const tableData = [];
-        let sumaPromedios = 0;
-        let countPromedios = 0;
 
         alumnosCalifMateria.forEach((alumno, index) => {
             const promedio = calcularPromedioAlumno(alumno);
-
-            if (promedio !== '-') {
-                sumaPromedios += parseFloat(promedio);
-                countPromedios++;
-            }
 
             tableData.push([
                 (index + 1).toString(),
@@ -3788,16 +3781,11 @@ function descargarActaPDF() {
             ]);
         });
 
-        // Calcular promedio grupal
-        const promedioGrupal = countPromedios > 0 ?
-            (sumaPromedios / countPromedios).toFixed(1) :
-            '-';
-
         // Generar tabla
         doc.autoTable({
             startY: y,
             head: [
-                ['No.', 'Matrícula', 'Nombre del Alumno', 'Promedio Final']
+                ['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación']
             ],
             body: tableData,
             theme: 'grid',
@@ -3838,7 +3826,6 @@ function descargarActaPDF() {
         doc.setFontSize(10);
         doc.setFont(undefined, 'bold');
         doc.text(`Total de alumnos: ${alumnosCalifMateria.length}`, 20, finalY);
-        doc.text(`Promedio del grupo: ${promedioGrupal}`, 20, finalY + 7);
 
         // Línea de firmas
         const firmasY = finalY + 30;
