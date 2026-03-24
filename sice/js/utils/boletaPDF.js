@@ -36,9 +36,11 @@ async function generarPDFBoletaActual() {
     console.log('Es alumno especial:', esAlumnoEspecial);
     
     let materias = [];
-    
-    // Obtener materias según tipo de alumno
-    if (esAlumnoEspecial) {
+
+    // Si los datos ya están en memoria desde la vista actual, no releer Firestore
+    if (typeof materiasCache !== 'undefined' && materiasCache && materiasCache.length > 0) {
+      materias = materiasCache;
+    } else if (esAlumnoEspecial) {
       // ===== ALUMNO ESPECIAL: Cargar desde inscripcionesEspeciales =====
       console.log('Cargando materias de inscripciones especiales...');
       
@@ -215,9 +217,11 @@ async function generarPDFBoletaActual() {
     // Cargar carrera
     if (alumnoActual.carreraId) {
       try {
-        const carreraDoc = await db.collection('carreras').doc(alumnoActual.carreraId).get();
-        if (carreraDoc.exists) {
-          doc.text(`Carrera: ${carreraDoc.data().nombre}`, 20, y);
+        const nombreCarrera = (typeof carreraNombreCache !== 'undefined' && carreraNombreCache)
+          ? carreraNombreCache
+          : (await db.collection('carreras').doc(alumnoActual.carreraId).get()).data()?.nombre;
+        if (nombreCarrera) {
+          doc.text(`Carrera: ${nombreCarrera}`, 20, y);
           y += 7;
         }
       } catch (error) {

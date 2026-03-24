@@ -90,6 +90,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script>
     let alumnoActual = null;
+    let materiasCache = null;
+    let carreraNombreCache = null;
 
 // Detectar si hay sesión activa
 firebase.auth().onAuthStateChanged((user) => {
@@ -121,8 +123,29 @@ async function consultarAlumno(event) {
   btnConsultar.textContent = 'Consultando...';
   
   try {
+    // Verificar caché de sesión (evita releer Firestore)
+    const cacheKey = `consulta_${matricula}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const { alumno, materias, carreraNombre, timestamp } = JSON.parse(cached);
+        const TTL = 30 * 60 * 1000; // 30 minutos
+        if (Date.now() - timestamp < TTL && alumno.email === email) {
+          alumnoActual = alumno;
+          materiasCache = materias;
+          carreraNombreCache = carreraNombre;
+          await mostrarInformacionAlumno();
+          btnConsultar.disabled = false;
+          btnConsultar.textContent = 'Consultar';
+          return;
+        }
+      } catch(e) {
+        sessionStorage.removeItem(cacheKey);
+      }
+    }
+
     console.log('Buscando alumno:', matricula, email);
-    
+
     // Buscar alumno por matrícula y email
     const snapshot = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
@@ -177,9 +200,14 @@ async function mostrarInformacionAlumno() {
   // Cargar carrera
   if (alumnoActual.carreraId) {
     try {
-      const carreraDoc = await db.collection('carreras').doc(alumnoActual.carreraId).get();
-      if (carreraDoc.exists) {
-        document.getElementById('infoCarrera').textContent = carreraDoc.data().nombre;
+      if (carreraNombreCache) {
+        document.getElementById('infoCarrera').textContent = carreraNombreCache;
+      } else {
+        const carreraDoc = await db.collection('carreras').doc(alumnoActual.carreraId).get();
+        if (carreraDoc.exists) {
+          carreraNombreCache = carreraDoc.data().nombre;
+          document.getElementById('infoCarrera').textContent = carreraNombreCache;
+        }
       }
     } catch (error) {
       console.error('Error al cargar carrera:', error);
@@ -188,7 +216,18 @@ async function mostrarInformacionAlumno() {
   
   // Cargar materias y calificaciones
   await cargarMateriasYCalificaciones();
-  
+
+  // Guardar en sessionStorage para consultas repetidas (0 lecturas Firebase)
+  if (alumnoActual && materiasCache) {
+    const cacheKey = `consulta_${alumnoActual.matricula}`;
+    sessionStorage.setItem(cacheKey, JSON.stringify({
+      alumno: alumnoActual,
+      materias: materiasCache,
+      carreraNombre: carreraNombreCache,
+      timestamp: Date.now()
+    }));
+  }
+
   // Mostrar resultado, ocultar formulario
   document.getElementById('loginCard').style.display = 'none';
   document.getElementById('resultado').style.display = 'block';
@@ -196,144 +235,139 @@ async function mostrarInformacionAlumno() {
 
 async function cargarMateriasYCalificaciones() {
   const container = document.getElementById('listaMaterias');
-  
+
+  // Si ya tenemos datos en memoria, renderizar sin ir a Firestore
+  if (materiasCache !== null) {
+    renderizarMaterias(materiasCache);
+    return;
+  }
+
   // ✓ CORREGIDO: Verificar codigoGrupo en lugar de grupoId
   if (!alumnoActual.codigoGrupo) {
     container.innerHTML = '<div class="sin-datos">No estás asignado a ningún grupo.</div>';
     console.log('Alumno sin código de grupo');
     return;
   }
-  
+
   try {
     console.log('Buscando materias para grupo:', alumnoActual.codigoGrupo);
-    
+
     // ✓ CORREGIDO: Buscar por codigoGrupo en lugar de grupoId
     const materiasSnap = await db.collection('profesorMaterias')
       .where('codigoGrupo', '==', alumnoActual.codigoGrupo)
       .where('activa', '==', true)
       .get();
-    
+
     console.log('Materias encontradas:', materiasSnap.size);
-    
+
     if (materiasSnap.empty) {
       container.innerHTML = '<div class="sin-datos">Tu grupo aún no tiene materias asignadas.</div>';
       return;
     }
-    
-    // Construir estructura de datos para boleta
-    const materias = [];
-    
-    for (const doc of materiasSnap.docs) {
-      const materia = doc.data();
-      
-      console.log('Procesando materia:', materia.materiaNombre);
-      
-      // Buscar calificaciones de esta materia (NUEVA ESTRUCTURA)
-      const docId = `${alumnoActual.id}_${materia.materiaId}`;
-      const calDoc = await db.collection('calificaciones').doc(docId).get();
-      
-      let parcial1 = '-';
-      let parcial2 = '-';
-      let parcial3 = '-';
-      
+
+    // Leer todas las calificaciones en paralelo (antes era una por una)
+    const materiasData = materiasSnap.docs.map(doc => doc.data());
+    const calRefs = materiasData.map(m =>
+      db.collection('calificaciones').doc(`${alumnoActual.id}_${m.materiaId}`)
+    );
+    const calDocs = await Promise.all(calRefs.map(ref => ref.get()));
+
+    const materias = materiasData.map((materia, i) => {
+      const calDoc = calDocs[i];
+      let parcial1 = '-', parcial2 = '-', parcial3 = '-';
       if (calDoc.exists) {
         const data = calDoc.data();
         parcial1 = data.parciales?.parcial1 ?? '-';
         parcial2 = data.parciales?.parcial2 ?? '-';
         parcial3 = data.parciales?.parcial3 ?? '-';
-        console.log('  Calificaciones:', parcial1, parcial2, parcial3);
-      } else {
-        console.log('  Sin calificaciones');
       }
-      
-      materias.push({
+      return {
         nombre: materia.materiaNombre,
-        codigo: materia.codigoGrupo,  // ✓ Usar codigoGrupo
+        codigo: materia.codigoGrupo,
         profesor: materia.profesorNombre,
-        parcial1: parcial1,
-        parcial2: parcial2,
-        parcial3: parcial3
-      });
-    }
-    
-    console.log('Total materias procesadas:', materias.length);
-    
-    // Generar tabla tipo boleta
-    let html = `
-      <div style="background: white; padding: 20px; border-radius: 10px;">
-        <h3 style="color: #6A2135; margin: 0 0 20px 0; text-align: center;">Boleta de Calificaciones</h3>
-        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-          <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
-          <thead>
-            <tr style="background: #6A2135; color: white;">
-              <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
-              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 1</th>
-              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 2</th>
-              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 3</th>
-              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Promedio</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-    
-    materias.forEach(materia => {
-      // REGLA DE NEGOCIO: Si hay NP en cualquier parcial, promedio = 5.0
-      const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
-      
-      let promedio = '-';
-      
-      if (tieneNP) {
-        promedio = 'NP';
-      } else {
-        // Calcular promedio normal si no hay NP
-        const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
-          .filter(c => c !== '-' && c !== null && c !== undefined)
-          .map(c => parseFloat(c))
-          .filter(c => !isNaN(c));
-        
-        if (cals.length > 0) {
-          promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
-        }
-      }
-      
-      html += `
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 12px; border: 1px solid #ddd;">
-            <strong>${materia.nombre}</strong>
-            <br><small style="color: #666;">Profesor: ${materia.profesor}</small>
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial1 === 'NP' ? '#a60d24' : (materia.parcial1 !== '-' ? '#000000' : '#000000')};">
-            ${materia.parcial1}
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial2 === 'NP' ? '#a60d24' : (materia.parcial2 !== '-' ? '#000000' : '#000000')};">
-            ${materia.parcial2}
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial3 === 'NP' ? '#a60d24' : (materia.parcial3 !== '-' ? '#000000' : '#000000')};">
-            ${materia.parcial3}
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.3rem; font-weight: bold; background: #f0f7ff; color: #6A2135;">
-            ${promedio}
-          </td>
-        </tr>
-      `;
+        periodo: materia.periodo || materia.periodoAcademico || '',
+        parcial1, parcial2, parcial3
+      };
     });
-    
-    html += `
-          </tbody>
-          </table>
-        </div>
-        <p style="text-align: center; color: #999; font-size: 0.85rem; margin-top: 10px;">
-          Desliza para ver todo el contenido si estás en un dispositivo móvil.
-        </p>
-      </div>
-    `;
-    
-    container.innerHTML = html;
-    
+
+    console.log('Total materias procesadas:', materias.length);
+    materiasCache = materias;
+    renderizarMaterias(materias);
+
   } catch (error) {
     console.error('Error:', error);
     container.innerHTML = '<div class="sin-datos" style="color: red;">Error al cargar información</div>';
   }
+}
+
+function renderizarMaterias(materias) {
+  const container = document.getElementById('listaMaterias');
+
+  let html = `
+    <div style="background: white; padding: 20px; border-radius: 10px;">
+      <h3 style="color: #6A2135; margin: 0 0 20px 0; text-align: center;">Boleta de Calificaciones</h3>
+      <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
+        <thead>
+          <tr style="background: #6A2135; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 1</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 2</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 3</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Promedio</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  materias.forEach(materia => {
+    const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
+    let promedio = '-';
+    if (tieneNP) {
+      promedio = 'NP';
+    } else {
+      const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
+        .filter(c => c !== '-' && c !== null && c !== undefined)
+        .map(c => parseFloat(c))
+        .filter(c => !isNaN(c));
+      if (cals.length > 0) {
+        promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
+      }
+    }
+
+    html += `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px; border: 1px solid #ddd;">
+          <strong>${materia.nombre}</strong>
+          <br><small style="color: #666;">Profesor: ${materia.profesor}</small>
+        </td>
+        <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial1 === 'NP' ? '#a60d24' : '#000000'};">
+          ${materia.parcial1}
+        </td>
+        <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial2 === 'NP' ? '#a60d24' : '#000000'};">
+          ${materia.parcial2}
+        </td>
+        <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold; color: ${materia.parcial3 === 'NP' ? '#a60d24' : '#000000'};">
+          ${materia.parcial3}
+        </td>
+        <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.3rem; font-weight: bold; background: #f0f7ff; color: #6A2135;">
+          ${promedio}
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+        </table>
+      </div>
+      <p style="text-align: center; color: #999; font-size: 0.85rem; margin-top: 10px;">
+        Desliza para ver todo el contenido si estás en un dispositivo móvil.
+      </p>
+    </div>
+  `;
+
+  container.innerHTML = html;
 }
 
 function nuevaConsulta() {
@@ -343,6 +377,8 @@ function nuevaConsulta() {
   document.getElementById('btnConsultar').disabled = false;
   document.getElementById('btnConsultar').textContent = 'Consultar';
   alumnoActual = null;
+  materiasCache = null;
+  carreraNombreCache = null;
 }
   </script>
   
