@@ -4,7 +4,8 @@
       "Bash(for f:*)",
       "Bash(do echo:*)",
       "Read(//d/escritorio/Proyectos Trabajo/pagina principal/loginILB/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(grep -r \"ESTE DOCUMENTO NO TIENE VALIDEZ\\\\|no tiene validez oficial\" 'd:\\\\escritorio\\\\Proyectos Trabajo\\\\pagina principal\\\\loginILB\\\\sice' --include=*.js)"
     ]
   }
 }

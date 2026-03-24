@@ -1939,6 +1939,20 @@ async function confirmarReasignacion(asignacionId) {
 }
 
 
+async function eliminarAsignacion(asignacionId) {
+    if (!confirm('¿Eliminar esta asignación?\n\nSe desactivará y no aparecerá en la lista.')) return;
+    try {
+        await db.collection('profesorMaterias').doc(asignacionId).update({
+            activa: false,
+            fechaFin: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await cargarAsignaciones();
+    } catch (error) {
+        console.error('Error al eliminar asignación:', error);
+        alert('Error al eliminar: ' + error.message);
+    }
+}
+
 async function cargarInscripciones() {
     try {
         // Cargar inscripciones activas
@@ -2285,7 +2299,83 @@ async function guardarProfesor(event, profesorId) {
 
     try {
         if (profesorId) {
-            // Editar
+            // Editar - verificar si el email cambió y hay duplicado
+            const docActual = await db.collection('usuarios').doc(profesorId).get();
+            const datosActuales = docActual.data() || {};
+            const emailAnterior = datosActuales.email || '';
+
+            if (email !== emailAnterior) {
+                // Email cambió: buscar si ya existe otro doc con ese email
+                const duplicadoSnap = await db.collection('usuarios')
+                    .where('email', '==', email)
+                    .limit(1)
+                    .get();
+
+                if (!duplicadoSnap.empty && duplicadoSnap.docs[0].id !== profesorId) {
+                    const duplicadoDoc = duplicadoSnap.docs[0];
+                    const duplicadoData = duplicadoDoc.data();
+
+                    const confirmarUnificar = confirm(
+                        `El email "${email}" ya pertenece a otro registro:\n\n` +
+                        `Nombre: ${duplicadoData.nombre}\n` +
+                        `Email: ${duplicadoData.email}\n\n` +
+                        `Se unificarán ambos registros:\n` +
+                        `- Las carreras de ambos se fusionarán en el registro original.\n` +
+                        `- Las asignaciones de materias se migrarán al registro original.\n` +
+                        `- El registro con email incorrecto se eliminará.\n\n` +
+                        `¿Continuar?`
+                    );
+
+                    if (!confirmarUnificar) return;
+
+                    // 1. Merge carreras (incluir siempre la carrera del coordinador actual)
+                    const carrerasActuales = datosActuales.carreras || [];
+                    const carrerasDuplicado = duplicadoData.carreras || [];
+                    const carrerasUnidas = [...new Set([
+                        ...carrerasDuplicado,
+                        ...carrerasActuales,
+                        usuarioActual.carreraId
+                    ])];
+
+                    // 2. Migrar profesorMaterias del doc incorrecto → doc original
+                    const pmSnap = await db.collection('profesorMaterias')
+                        .where('profesorId', '==', profesorId)
+                        .get();
+
+                    const batch = db.batch();
+                    pmSnap.forEach(pmDoc => {
+                        batch.update(pmDoc.ref, {
+                            profesorId: duplicadoDoc.id,
+                            profesorNombre: nombre
+                        });
+                    });
+
+                    // 3. Actualizar el doc original: carreras fusionadas + datos del form
+                    batch.update(duplicadoDoc.ref, {
+                        nombre: nombre,
+                        activo: activo,
+                        carreras: carrerasUnidas
+                    });
+
+                    // 4. Eliminar el doc con email incorrecto
+                    batch.delete(db.collection('usuarios').doc(profesorId));
+
+                    await batch.commit();
+
+                    alert(
+                        `Registros unificados correctamente.\n\n` +
+                        `Nombre: ${nombre}\n` +
+                        `Email: ${email}\n` +
+                        `Carreras fusionadas: ${carrerasUnidas.length}\n` +
+                        `Asignaciones migradas: ${pmSnap.size}`
+                    );
+                    cerrarModal();
+                    cargarProfesores();
+                    return;
+                }
+            }
+
+            // Sin duplicado: actualizar normalmente
             await db.collection('usuarios').doc(profesorId).update(userData);
             alert(' Profesor actualizado');
         } else {

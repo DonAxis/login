@@ -229,18 +229,6 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     doc.line(120, y, 180, y);
     doc.text('Coordinación', 150, y + 5, { align: 'center' });
     
-    // Mensaje de no validez
-    y = pageHeight - 25;
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(200, 0, 0);
-    doc.text(
-      'ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL',
-      pageWidth / 2,
-      y,
-      { align: 'center' }
-    );
-    
     // Pie de página
     doc.setFontSize(8);
     doc.setFont(undefined, 'normal');
