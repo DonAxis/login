@@ -346,6 +346,17 @@ async function establecerCarreraActual(carreraId, color) {
         usuarioActual.carreraId = carreraId; // Para compatibilidad con código existente
         usuarioActual.carreraActual = carreraId;
 
+        // Sincronizar sessionStorage para que el caché no devuelva carrera vieja
+        try {
+            const cached = sessionStorage.getItem('usuarioActual');
+            if (cached) {
+                const cachedData = JSON.parse(cached);
+                cachedData.carreraId = carreraId;
+                cachedData.carreraActual = carreraId;
+                sessionStorage.setItem('usuarioActual', JSON.stringify(cachedData));
+            }
+        } catch(e) {}
+
         // Actualizar color del header
         const header = document.getElementById('headerCoordinador');
         if (header) {
