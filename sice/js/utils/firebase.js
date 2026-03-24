@@ -18,3 +18,20 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 console.log('Firebase conectado correctamente');
+
+// Obtiene datos del usuario: primero del caché de sesión, si no de Firestore.
+// Guarda en sessionStorage para evitar releer en cada cambio de página.
+async function obtenerUsuarioConCache(uid) {
+  try {
+    const cached = sessionStorage.getItem('usuarioActual');
+    if (cached) {
+      const data = JSON.parse(cached);
+      if (data.uid === uid) return data;
+    }
+  } catch(e) {}
+  const doc = await db.collection('usuarios').doc(uid).get();
+  if (!doc.exists) return null;
+  const data = { uid, ...doc.data() };
+  sessionStorage.setItem('usuarioActual', JSON.stringify(data));
+  return data;
+}

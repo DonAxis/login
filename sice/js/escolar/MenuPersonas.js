@@ -16,17 +16,14 @@ auth.onAuthStateChanged(async (user) => {
   }
 
   try {
-    const userDoc = await db.collection('usuarios').doc(user.uid).get();
-    
-    if (!userDoc.exists) {
+    usuarioActual = await obtenerUsuarioConCache(user.uid);
+
+    if (!usuarioActual) {
       console.log('Usuario no encontrado en Firestore');
       await auth.signOut();
       window.location.href = 'https://ilbcontrol.mx/sice/';
       return;
     }
-
-    usuarioActual = userDoc.data();
-    usuarioActual.uid = user.uid;
 
     // Verificar que tenga permiso (profesor o admin)
     if (usuarioActual.rol !== 'profesor' && usuarioActual.rol !== 'admin') {

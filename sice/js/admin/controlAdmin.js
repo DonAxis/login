@@ -53,16 +53,14 @@ auth.onAuthStateChanged(async (user) => {
     return;
   }
 
-  const userDoc = await db.collection('usuarios').doc(user.uid).get();
-  
-  if (!userDoc.exists) {
+  const userData = await obtenerUsuarioConCache(user.uid);
+
+  if (!userData) {
     console.log('Usuario no encontrado en Firestore');
     await auth.signOut();
     window.location.href = 'https://ilbcontrol.mx/sice/';
     return;
   }
-
-  const userData = userDoc.data();
 
   if (userData.rol !== 'admin') {
     console.log('No tienes permisos de administrador');

@@ -24,16 +24,14 @@ firebase.auth().onAuthStateChanged(async (user) => {
   }
 
   try {
-    const doc = await db.collection('usuarios').doc(user.uid).get();
+    const data = await obtenerUsuarioConCache(user.uid);
 
-    if (!doc.exists) {
+    if (!data) {
       alert('Usuario no encontrado');
       await firebase.auth().signOut();
       window.location.href = 'https://ilbcontrol.mx/sice';
       return;
     }
-
-    const data = doc.data();
 
     if (data.rol !== 'prefecto') {
       alert('Acceso denegado. Solo prefectos.');
@@ -42,7 +40,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
       return;
     }
 
-    prefectoActual = { uid: user.uid, ...data };
+    prefectoActual = data;
 
     document.getElementById('userName').textContent    = prefectoActual.nombre;
     document.getElementById('userEmail').textContent   = user.email;

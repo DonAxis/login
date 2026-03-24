@@ -47,7 +47,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     sessionStorage.setItem('userEmail', user.email);
     sessionStorage.setItem('userName', userData.nombre);
     sessionStorage.setItem('userRol', userData.rol);
-    
+    sessionStorage.setItem('usuarioActual', JSON.stringify({ uid: user.uid, ...userData }));
+
     if (userData.carreraId) {
       sessionStorage.setItem('userCarreraId', userData.carreraId);
     }
@@ -184,6 +185,7 @@ auth.onAuthStateChanged(async (user) => {
         sessionStorage.setItem('userEmail', user.email);
         sessionStorage.setItem('userName', userData.nombre);
         sessionStorage.setItem('userRol', userData.rol);
+        sessionStorage.setItem('usuarioActual', JSON.stringify({ uid: user.uid, ...userData }));
         
         console.log('Redirigiendo usuario ya autenticado...');
         redirigirSegunRol(userData.rol);

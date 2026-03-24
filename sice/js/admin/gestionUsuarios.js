@@ -15,9 +15,9 @@ auth.onAuthStateChanged(async (user) => {
   }
 
   try {
-    const userDoc = await db.collection('usuarios').doc(user.uid).get();
-    
-    if (!userDoc.exists || userDoc.data().rol !== 'admin') {
+    const userDoc = await obtenerUsuarioConCache(user.uid);
+
+    if (!userDoc || userDoc.rol !== 'admin') {
       alert('Solo administradores pueden acceder');
       window.location.href = 'https://ilbcontrol.mx/sice';
       return;

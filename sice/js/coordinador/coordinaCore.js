@@ -526,17 +526,14 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     try {
-        const userDoc = await db.collection('usuarios').doc(user.uid).get();
+        usuarioActual = await obtenerUsuarioConCache(user.uid);
 
-        if (!userDoc.exists) {
+        if (!usuarioActual) {
             console.log('Usuario no encontrado');
             await auth.signOut();
             window.location.href = 'https://ilbcontrol.mx/sice';
             return;
         }
-
-        usuarioActual = userDoc.data();
-        usuarioActual.uid = user.uid;
 
         // Verificar rol (coordinador o admin)
         if (usuarioActual.rol !== 'coordinador' && usuarioActual.rol !== 'admin') {

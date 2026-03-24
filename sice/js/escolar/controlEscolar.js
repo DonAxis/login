@@ -17,16 +17,15 @@ auth.onAuthStateChanged(async (user) => {
   }
 
   try {
-    const userDoc = await db.collection('usuarios').doc(user.uid).get();
-    
-    if (!userDoc.exists || userDoc.data().rol !== 'controlEscolar') {
+    const userData = await obtenerUsuarioConCache(user.uid);
+
+    if (!userData || userData.rol !== 'controlEscolar') {
       alert('Solo personal de Control Escolar puede acceder');
       window.location.href = 'https://ilbcontrol.mx/sice/';
       return;
     }
 
-    usuarioActual = userDoc.data();
-    usuarioActual.uid = user.uid;
+    usuarioActual = userData;
     
     document.getElementById('nombreUsuario').textContent = usuarioActual.nombre;
     

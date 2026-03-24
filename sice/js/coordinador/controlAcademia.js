@@ -59,18 +59,15 @@ auth.onAuthStateChanged(async (user) => {
   }
 
   try {
-    const userDoc = await db.collection('usuarios').doc(user.uid).get();
-    
-    if (!userDoc.exists || userDoc.data().rol !== 'coordinador') {
+    const userDocData = await obtenerUsuarioConCache(user.uid);
+
+    if (!userDocData || userDocData.rol !== 'coordinador') {
       alert('Solo coordinadores pueden acceder');
       window.location.href = '../../index.html';
       return;
     }
 
-    usuarioActual = {
-      uid: user.uid,
-      ...userDoc.data()
-    };
+    usuarioActual = userDocData;
 
     const tieneAcademiaUnica = usuarioActual.tieneAcademia && usuarioActual.academiaId;
     const tieneAcademias = usuarioActual.academias && usuarioActual.academias.length > 0;

@@ -22,28 +22,23 @@ firebase.auth().onAuthStateChanged(async (user) => {
   }
   
   try {
-    const userDoc = await db.collection('usuarios').doc(user.uid).get();
-    
-    if (!userDoc.exists) {
+    const userData = await obtenerUsuarioConCache(user.uid);
+
+    if (!userData) {
       alert('Usuario no encontrado');
       await firebase.auth().signOut();
       window.location.href = 'https://ilbcontrol.mx/sice';
       return;
     }
-    
-    const userData = userDoc.data();
-    
+
     if (userData.rol !== 'profesor' && userData.rol !== 'coordinador') {
       alert('Acceso denegado. Solo profesores y coordinadores.');
       await firebase.auth().signOut();
       window.location.href = 'https://ilbcontrol.mx/sice';
       return;
     }
-    
-    usuarioActual = {
-      uid: user.uid,
-      ...userData
-    };
+
+    usuarioActual = userData;
     
     console.log('Usuario autenticado:', usuarioActual.nombre);
     

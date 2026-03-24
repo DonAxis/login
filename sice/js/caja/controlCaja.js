@@ -15,15 +15,14 @@ auth.onAuthStateChanged(async (user) => {
   }
 
   try {
-    const userDoc = await db.collection('usuarios').doc(user.uid).get();
-    
-    if (!userDoc.exists || userDoc.data().rol !== 'controlCaja') {
+    const userData = await obtenerUsuarioConCache(user.uid);
+
+    if (!userData || userData.rol !== 'controlCaja') {
       alert('Solo personal de caja puede acceder');
       window.location.href = 'https://ilbcontrol.mx/sice';
       return;
     }
 
-    const userData = userDoc.data();
     document.getElementById('userName').textContent = userData.nombre;
     document.getElementById('userEmail').textContent = user.email;
 
