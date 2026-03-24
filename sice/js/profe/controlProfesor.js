@@ -461,8 +461,8 @@ function generarTablaCalificaciones() {
     const tieneNP = cal.parcial1 === 'NP' || cal.parcial2 === 'NP' || cal.parcial3 === 'NP';
     
     if (tieneNP) {
-      promedio = 5.0;
-      promedioTexto = '5.0';
+      promedio = 'NP';
+      promedioTexto = 'NP';
     } else {
       const cals = [cal.parcial1, cal.parcial2, cal.parcial3]
         .filter(c => c !== null && c !== undefined && c !== '' && c !== '-')
@@ -478,7 +478,8 @@ function generarTablaCalificaciones() {
     // Color del promedio
     let colorPromedio = '#666';
     if (promedio !== null) {
-      if (promedio < 6) colorPromedio = '#dc3545';
+      if (promedio === 'NP') colorPromedio = '#dc3545';
+      else if (promedio < 6) colorPromedio = '#dc3545';
       else if (promedio >= 8) colorPromedio = '#4caf50';
       else colorPromedio = '#ff9800';
     }
@@ -734,7 +735,7 @@ async function guardarCalificacionesProfe() {
                       nuevosParciales.parcial3 === 'NP';
       
       if (tieneNP) {
-        promedio = 5.0;
+        promedio = 'NP';
       } else {
         const cals = [nuevosParciales.parcial1, nuevosParciales.parcial2, nuevosParciales.parcial3]
           .filter(c => c !== null && c !== undefined)
@@ -906,7 +907,7 @@ async function verExtraordinarios() {
           
           let promedio = calcularPromedio(parciales);
           
-          if (promedio !== null && promedio < 6) {
+          if (promedio !== null && (promedio === 'NP' || promedio < 6)) {
             alumnosReprobados.push({
               ...alumno,
               promedio,
@@ -936,7 +937,7 @@ async function verExtraordinarios() {
             
             let promedio = calcularPromedio(parciales);
             
-            if (promedio !== null && promedio < 6) {
+            if (promedio !== null && (promedio === 'NP' || promedio < 6)) {
               alumnosReprobados.push({
                 id: inscripcion.alumnoId,
                 nombre: alumno.nombre,
@@ -994,7 +995,7 @@ function calcularPromedio(parciales) {
   const tieneNP = parciales.parcial1 === 'NP' || parciales.parcial2 === 'NP' || parciales.parcial3 === 'NP';
   
   if (tieneNP) {
-    return 5.0;
+    return 'NP';
   }
   
   const cals = [parciales.parcial1, parciales.parcial2, parciales.parcial3]
@@ -1046,7 +1047,7 @@ function generarSeccionExtraordinarios(asignacion, alumnos) {
           ${alumno.nombre}${badgeEspecial}
         </td>
         <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
-        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #dc3545; font-weight: bold;">${alumno.promedio.toFixed(1)}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #dc3545; font-weight: bold;">${alumno.promedio === 'NP' ? 'NP' : alumno.promedio.toFixed(1)}</td>
         
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
           ${alumno.extraordinario !== null && alumno.extraordinario !== undefined
