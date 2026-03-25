@@ -301,17 +301,19 @@ async function mostrarInformes() {
       });
 
       return `
-        <div class="reporte-item" onclick="verDetalleReporte('${r.id}')">
-          <div class="ri-nombre">${r.alumnoNombre}</div>
-          <div class="ri-fecha">${fecha} · Grupo: ${r.codigoGrupo}</div>
-          <div class="ri-estado ${completo ? 'badge-completo' : 'badge-pendiente'}">
-            ${completo
-              ? 'Completo'
-              : `${pendientes} de ${total} profesor${pendientes !== 1 ? 'es' : ''} sin responder`}
+        <div class="reporte-item" style="display:flex;align-items:center;justify-content:space-between;gap:12px;" onclick="verDetalleReporte('${r.id}')">
+          <div style="flex:1;min-width:0;">
+            <div class="ri-nombre">${r.alumnoNombre}</div>
+            <div class="ri-fecha">${fecha} · Grupo: ${r.codigoGrupo}</div>
+            <div class="ri-estado ${completo ? 'badge-completo' : 'badge-pendiente'}">
+              ${completo
+                ? 'Completo'
+                : `${pendientes} de ${total} profesor${pendientes !== 1 ? 'es' : ''} sin responder`}
+            </div>
           </div>
           <button onclick="event.stopPropagation(); enviarWhatsApp('${r.id}')"
-            style="margin-top:10px;padding:8px 16px;background:#ccc;color:#666;border:none;
-                   border-radius:8px;font-size:0.85rem;cursor:not-allowed;width:100%;">
+            style="flex-shrink:0;padding:6px 12px;background:#ccc;color:#666;border:none;
+                   border-radius:8px;font-size:0.78rem;cursor:not-allowed;white-space:nowrap;">
             no usar
           </button>
         </div>
