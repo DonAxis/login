@@ -441,11 +441,13 @@ function generarPDFReporte() {
 
   // ----- TABLA DE REPORTES -----
   const profesores = r.profesores || {};
-  const filas = Object.entries(profesores).map(([, p]) => [
-    p.nombre || '-',
-    p.respuesta || '[vacío]',
-    p.fecha ? new Date(p.fecha).toLocaleDateString('es-MX') : '-'
-  ]);
+  const filas = Object.entries(profesores)
+    .filter(([, p]) => p.respuesta)
+    .map(([, p]) => [
+      p.nombre || '-',
+      p.respuesta,
+      p.fecha ? new Date(p.fecha).toLocaleDateString('es-MX') : '-'
+    ]);
 
   doc.autoTable({
     startY: y,
