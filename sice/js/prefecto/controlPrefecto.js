@@ -309,6 +309,11 @@ async function mostrarInformes() {
               ? 'Completo'
               : `${pendientes} de ${total} profesor${pendientes !== 1 ? 'es' : ''} sin responder`}
           </div>
+          <button onclick="event.stopPropagation(); enviarWhatsApp('${r.id}')"
+            style="margin-top:10px;padding:8px 16px;background:#ccc;color:#666;border:none;
+                   border-radius:8px;font-size:0.85rem;cursor:not-allowed;width:100%;">
+            no usar
+          </button>
         </div>
       `;
     }).join('');
@@ -486,6 +491,15 @@ function generarPDFReporte() {
   // ----- GUARDAR -----
   const nombreArchivo = `reporte_${(r.alumnoNombre || 'alumno').replace(/\s+/g, '_')}_${r.fechaSolicitud?.slice(0, 10)}.pdf`;
   doc.save(nombreArchivo);
+}
+
+// ============================================================================
+// WHATSAPP (pendiente — requiere campo tutor.telefono en alumno)
+// ============================================================================
+
+async function enviarWhatsApp(_reporteId) {
+  // TODO: leer alumno.tutor.telefono desde Firestore y abrir wa.me link
+  alert('Función próximamente disponible.');
 }
 
 console.log('Panel Prefecto cargado');

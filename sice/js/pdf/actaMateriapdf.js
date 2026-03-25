@@ -90,9 +90,7 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
       const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
       
       if (tieneNP) {
-        promedio = '5.0';
-        totalPromedio += 5.0;
-        countPromedio++;
+        promedio = 'NP';
       } else {
         const cals = [p1, p2, p3]
           .filter(c => c !== '-' && c !== null && c !== undefined && c !== '')
