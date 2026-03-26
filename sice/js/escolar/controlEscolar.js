@@ -177,12 +177,14 @@ function mostrarCarreras() {
   ];
   const otras = [];
 
-  carrerasData.forEach(carrera => {
-    const prefijo = (carrera.codigo || '').charAt(0).toUpperCase();
-    const seccion = secciones.find(s => s.prefijos.includes(prefijo));
-    if (seccion) seccion.carreras.push(carrera);
-    else otras.push(carrera);
-  });
+  carrerasData
+    .filter(carrera => !CARRERAS_OCULTAS.includes(carrera.codigo))
+    .forEach(carrera => {
+      const prefijo = (carrera.codigo || '').charAt(0).toUpperCase();
+      const seccion = secciones.find(s => s.prefijos.includes(prefijo));
+      if (seccion) seccion.carreras.push(carrera);
+      else otras.push(carrera);
+    });
 
   if (otras.length > 0) secciones.push({ label: 'Otras', prefijos: [], carreras: otras });
 
@@ -1273,11 +1275,19 @@ function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
 
 console.log('Control Escolar cargado - versión completa con alumnos especiales');
 
+const CARRERAS_OCULTAS = ['DE', 'PRUEBA'];
+
 // ===== EDITAR NOMBRES DE ALUMNOS =====
 function abrirEditorNombres() {
-  const panel = document.getElementById('editorNombresPanel');
-  const visible = panel.style.display !== 'none';
-  panel.style.display = visible ? 'none' : 'block';
+  const panel    = document.getElementById('editorNombresPanel');
+  const statsGrid = document.getElementById('statsGrid');
+  const content  = document.getElementById('mainContent');
+  const visible  = panel.style.display !== 'none';
+
+  panel.style.display    = visible ? 'none' : 'block';
+  statsGrid.style.display = visible ? ''     : 'none';
+  content.style.display  = visible ? ''     : 'none';
+
   if (!visible) poblarFiltrosEdicion();
 }
 
@@ -1285,6 +1295,7 @@ function poblarFiltrosEdicion() {
   const sel = document.getElementById('filtroCarreraEdicion');
   sel.innerHTML = '<option value="">-- Selecciona Carrera --</option>';
   [...carrerasData]
+    .filter(c => !CARRERAS_OCULTAS.includes(c.codigo))
     .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
     .forEach(c => {
       sel.innerHTML += `<option value="${c.id}">${c.codigo} — ${c.nombre}</option>`;
@@ -1300,11 +1311,7 @@ function filtrarAlumnosEdicion() {
   let filtrados = alumnosData.filter(a => a.carreraId === carreraId);
 
   if (periodo) {
-    filtrados = filtrados.filter(a => {
-      if (!a.codigoGrupo) return false;
-      const partes = a.codigoGrupo.split('-');
-      return partes.length >= 2 && parseInt(partes[1]) === parseInt(periodo);
-    });
+    filtrados = filtrados.filter(a => String(a.periodo) === String(periodo));
   }
 
   filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
