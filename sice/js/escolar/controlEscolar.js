@@ -1275,20 +1275,239 @@ function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
 
 console.log('Control Escolar cargado - versión completa con alumnos especiales');
 
+// ===== UTILIDAD: FLASH VERDE EN FILA =====
+function flashFila(fila) {
+  if (!fila) return;
+  fila.classList.remove('fila-guardada');
+  void fila.offsetWidth;
+  fila.classList.add('fila-guardada');
+  setTimeout(() => fila.classList.remove('fila-guardada'), 1500);
+}
+
+// ===== PANEL PROFESORES =====
+async function abrirEditorProfesores() {
+  _togglePanel('editorProfesoresPanel', async () => {
+    if (profesoresData.length === 0) {
+      document.getElementById('resultadoProfesoresEdicion').innerHTML =
+        '<p style="color:#666; padding:10px;">Cargando profesores...</p>';
+      try {
+        const snap = await db.collection('usuarios')
+          .where('rol', '==', 'profesor')
+          .where('activo', '==', true)
+          .get();
+        profesoresData = [];
+        snap.forEach(doc => profesoresData.push({ uid: doc.id, ...doc.data() }));
+        profesoresData.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      } catch (e) {
+        console.error('Error cargando profesores:', e);
+      }
+    }
+    renderProfesoresEdicion(profesoresData);
+  });
+}
+
+function filtrarProfesoresEdicion() {
+  const texto = (document.getElementById('busquedaProfesor').value || '').toLowerCase();
+  const filtrados = texto
+    ? profesoresData.filter(p => p.nombre.toLowerCase().includes(texto))
+    : profesoresData;
+  renderProfesoresEdicion(filtrados);
+}
+
+function renderProfesoresEdicion(lista) {
+  const resultado = document.getElementById('resultadoProfesoresEdicion');
+  if (lista.length === 0) {
+    resultado.innerHTML = '<p style="color:#666; text-align:center; padding:20px;">Sin resultados</p>';
+    return;
+  }
+  let html = `<p style="margin-bottom:10px; color:#666;">${lista.length} profesores</p>
+  <table>
+    <thead><tr>
+      <th>Nombre Actual</th><th>Nuevo Nombre</th><th></th>
+    </tr></thead>
+    <tbody>`;
+  lista.forEach(prof => {
+    const nombreEsc = (prof.nombre || '').replace(/"/g, '&quot;');
+    html += `<tr>
+      <td id="nombreActualProf_${prof.uid}">${prof.nombre}</td>
+      <td><input type="text" id="inputProf_${prof.uid}" value="${nombreEsc}"
+           style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px;"></td>
+      <td><button onclick="guardarNombreProfesor('${prof.uid}')"
+           class="btn-accion" style="white-space:nowrap;">Guardar</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  resultado.innerHTML = html;
+}
+
+async function guardarNombreProfesor(uid) {
+  const input = document.getElementById('inputProf_' + uid);
+  const nuevoNombre = input.value.trim();
+  if (!nuevoNombre) { alert('El nombre no puede estar vacío'); return; }
+
+  const btn = input.closest('tr').querySelector('button');
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Guardando...';
+  btn.disabled = true;
+
+  try {
+    const [califs, profMaterias] = await Promise.all([
+      db.collection('calificaciones').where('profesorId', '==', uid).get(),
+      db.collection('profesorMaterias').where('profesorId', '==', uid).get()
+    ]);
+
+    const ops = [{ ref: db.collection('usuarios').doc(uid), data: { nombre: nuevoNombre } }];
+    califs.forEach(doc    => ops.push({ ref: doc.ref, data: { profesorNombre: nuevoNombre } }));
+    profMaterias.forEach(doc => ops.push({ ref: doc.ref, data: { profesorNombre: nuevoNombre } }));
+
+    const CHUNK = 499;
+    for (let i = 0; i < ops.length; i += CHUNK) {
+      const batch = db.batch();
+      ops.slice(i, i + CHUNK).forEach(op => batch.update(op.ref, op.data));
+      await batch.commit();
+    }
+
+    const prof = profesoresData.find(p => p.uid === uid);
+    if (prof) prof.nombre = nuevoNombre;
+    const celda = document.getElementById('nombreActualProf_' + uid);
+    if (celda) celda.textContent = nuevoNombre;
+
+    flashFila(input.closest('tr'));
+    console.log(`Profesor actualizado: usuarios + ${califs.size} calificaciones + ${profMaterias.size} profesorMaterias`);
+
+  } catch (error) {
+    console.error('Error al guardar profesor:', error);
+    alert('Error al guardar: ' + error.message);
+  } finally {
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+  }
+}
+
+// ===== PANEL MATERIAS =====
+function abrirEditorMaterias() {
+  _togglePanel('editorMateriasPanel', () => {
+    const sel = document.getElementById('filtroCarreraMateria');
+    sel.innerHTML = '<option value="">-- Selecciona Carrera --</option>';
+    [...carrerasData]
+      .filter(c => !CARRERAS_OCULTAS.includes(c.codigo))
+      .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
+      .forEach(c => {
+        sel.innerHTML += `<option value="${c.id}">${c.codigo} — ${c.nombre}</option>`;
+      });
+  });
+}
+
+function filtrarMateriasEdicion() {
+  const carreraId = document.getElementById('filtroCarreraMateria').value;
+  if (!carreraId) { alert('Selecciona una carrera'); return; }
+
+  const filtradas = materiasData
+    .filter(m => m.carreraId === carreraId)
+    .sort((a, b) => {
+      const pa = parseInt(a.periodo) || 0, pb = parseInt(b.periodo) || 0;
+      return pa !== pb ? pa - pb : (a.nombre || '').localeCompare(b.nombre || '');
+    });
+
+  const resultado = document.getElementById('resultadoMateriasEdicion');
+  if (filtradas.length === 0) {
+    resultado.innerHTML = '<p style="color:#666; text-align:center; padding:20px;">No hay materias para esta carrera</p>';
+    return;
+  }
+
+  let html = `<p style="margin-bottom:10px; color:#666;">${filtradas.length} materias</p>
+  <table>
+    <thead><tr>
+      <th>Código</th><th>Per.</th><th>Nombre Actual</th><th>Nuevo Nombre</th><th></th>
+    </tr></thead>
+    <tbody>`;
+  filtradas.forEach(mat => {
+    const nombreEsc = (mat.nombre || '').replace(/"/g, '&quot;');
+    html += `<tr>
+      <td>${mat.codigo || 'N/A'}</td>
+      <td style="text-align:center;">${mat.periodo || '-'}</td>
+      <td id="nombreActualMat_${mat.id}">${mat.nombre}</td>
+      <td><input type="text" id="inputMat_${mat.id}" value="${nombreEsc}"
+           style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px;"></td>
+      <td><button onclick="guardarNombreMateria('${mat.id}')"
+           class="btn-accion" style="white-space:nowrap;">Guardar</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  resultado.innerHTML = html;
+}
+
+async function guardarNombreMateria(materiaId) {
+  const input = document.getElementById('inputMat_' + materiaId);
+  const nuevoNombre = input.value.trim();
+  if (!nuevoNombre) { alert('El nombre no puede estar vacío'); return; }
+
+  const btn = input.closest('tr').querySelector('button');
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Guardando...';
+  btn.disabled = true;
+
+  try {
+    const [profMaterias, califs] = await Promise.all([
+      db.collection('profesorMaterias').where('materiaId', '==', materiaId).get(),
+      db.collection('calificaciones').where('materiaId', '==', materiaId).get()
+    ]);
+
+    const ops = [{ ref: db.collection('materias').doc(materiaId), data: { nombre: nuevoNombre } }];
+    profMaterias.forEach(doc => ops.push({ ref: doc.ref, data: { materiaNombre: nuevoNombre } }));
+    califs.forEach(doc      => ops.push({ ref: doc.ref, data: { materiaNombre: nuevoNombre } }));
+
+    const CHUNK = 499;
+    for (let i = 0; i < ops.length; i += CHUNK) {
+      const batch = db.batch();
+      ops.slice(i, i + CHUNK).forEach(op => batch.update(op.ref, op.data));
+      await batch.commit();
+    }
+
+    const mat = materiasData.find(m => m.id === materiaId);
+    if (mat) mat.nombre = nuevoNombre;
+    const celda = document.getElementById('nombreActualMat_' + materiaId);
+    if (celda) celda.textContent = nuevoNombre;
+
+    flashFila(input.closest('tr'));
+    console.log(`Materia actualizada: materias + ${profMaterias.size} profesorMaterias + ${califs.size} calificaciones`);
+
+  } catch (error) {
+    console.error('Error al guardar materia:', error);
+    alert('Error al guardar: ' + error.message);
+  } finally {
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+  }
+}
+
 const CARRERAS_OCULTAS = ['DE', 'PRUEBA'];
+let profesoresData = [];
 
-// ===== EDITAR NOMBRES DE ALUMNOS =====
-function abrirEditorNombres() {
-  const panel    = document.getElementById('editorNombresPanel');
-  const statsGrid = document.getElementById('statsGrid');
-  const content  = document.getElementById('mainContent');
-  const visible  = panel.style.display !== 'none';
+// ===== TOGGLE DE PANELES =====
+function _togglePanel(panelId, onAbrir) {
+  const ids = ['editorNombresPanel', 'editorProfesoresPanel', 'editorMateriasPanel'];
+  const statsGrid  = document.getElementById('statsGrid');
+  const mainContent = document.getElementById('mainContent');
+  const panel = document.getElementById(panelId);
+  const yaVisible = panel.style.display !== 'none';
 
-  panel.style.display    = visible ? 'none' : 'block';
-  statsGrid.style.display = visible ? ''     : 'none';
-  content.style.display  = visible ? ''     : 'none';
+  ids.forEach(id => { document.getElementById(id).style.display = 'none'; });
 
-  if (!visible) poblarFiltrosEdicion();
+  if (yaVisible) {
+    statsGrid.style.display  = '';
+    mainContent.style.display = '';
+  } else {
+    panel.style.display      = 'block';
+    statsGrid.style.display  = 'none';
+    mainContent.style.display = 'none';
+    if (onAbrir) onAbrir();
+  }
+}
+
+// ===== PANEL ALUMNOS =====
+function abrirEditorAlumnos() {
+  _togglePanel('editorNombresPanel', poblarFiltrosEdicion);
 }
 
 function poblarFiltrosEdicion() {
@@ -1399,10 +1618,8 @@ async function guardarNombreAlumno(uid) {
     const celdaActual = document.getElementById('nombreActual_' + uid);
     if (celdaActual) celdaActual.textContent = nuevoNombre;
 
-    input.style.background = '#e8f5e9';
-    setTimeout(() => { input.style.background = ''; }, 2000);
+    flashFila(input.closest('tr'));
 
-    const total = califs.size + inscEsp.size + reportes.size;
     console.log(`Nombre actualizado en usuarios + ${califs.size} calificaciones + ${inscEsp.size} inscripcionesEspeciales + ${reportes.size} reportesPrefecto`);
 
   } catch (error) {
