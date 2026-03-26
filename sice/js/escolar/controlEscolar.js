@@ -8,6 +8,7 @@ let carreraSeleccionada = null;
 let grupoSeleccionado = null;
 let materiaSeleccionada = null;
 let periodoActual = '2026-1';
+let listaHistorial = [];
 
 // ===== PROTECCIÓN DE PÁGINA =====
 auth.onAuthStateChanged(async (user) => {
@@ -745,7 +746,13 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
 
 
 // ===== VER HISTORIAL COMPLETO DE UN ALUMNO =====
-async function verHistorialCompleto(alumnoId, nombreAlumno) {
+function verHistorialCompleto(alumnoId, nombreAlumno) {
+  sessionStorage.setItem('historialAlumnoId', alumnoId);
+  sessionStorage.setItem('historialAlumnoNombre', nombreAlumno);
+  window.open('historialAlumno.html', '_blank');
+}
+
+async function _verHistorialCompletoCancelado(alumnoId, nombreAlumno) {
   console.log('Cargando historial completo de:', nombreAlumno);
   await cargarMateriasSiNecesario();
 
@@ -945,9 +952,15 @@ async function verHistorialCompleto(alumnoId, nombreAlumno) {
 
 // ===== FUNCIONES DE NAVEGACIÓN =====
 function mostrarLista(html) {
+  const listaContainer = document.getElementById('listaContainer');
+  if (listaContainer.classList.contains('active')) {
+    listaHistorial.push(document.getElementById('listaContenido').innerHTML);
+  } else {
+    listaHistorial = [];
+  }
   document.getElementById('listaContenido').innerHTML = html;
   document.getElementById('gruposContainer').classList.remove('active');
-  document.getElementById('listaContainer').classList.add('active');
+  listaContainer.classList.add('active');
 }
 
 function volverCarreras() {
@@ -957,9 +970,14 @@ function volverCarreras() {
   document.getElementById('gruposGrid').innerHTML = '';
   carreraSeleccionada = null;
   grupoSeleccionado = null;
+  listaHistorial = [];
 }
 
 function volverGrupos() {
+  if (listaHistorial.length > 0) {
+    document.getElementById('listaContenido').innerHTML = listaHistorial.pop();
+    return;
+  }
   document.getElementById('listaContainer').classList.remove('active');
   document.getElementById('gruposContainer').classList.add('active');
 }
@@ -1254,3 +1272,135 @@ function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
 }
 
 console.log('Control Escolar cargado - versión completa con alumnos especiales');
+
+// ===== EDITAR NOMBRES DE ALUMNOS =====
+function abrirEditorNombres() {
+  const panel = document.getElementById('editorNombresPanel');
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  if (!visible) poblarFiltrosEdicion();
+}
+
+function poblarFiltrosEdicion() {
+  const sel = document.getElementById('filtroCarreraEdicion');
+  sel.innerHTML = '<option value="">-- Selecciona Carrera --</option>';
+  [...carrerasData]
+    .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
+    .forEach(c => {
+      sel.innerHTML += `<option value="${c.id}">${c.codigo} — ${c.nombre}</option>`;
+    });
+}
+
+function filtrarAlumnosEdicion() {
+  const carreraId = document.getElementById('filtroCarreraEdicion').value;
+  const periodo   = document.getElementById('filtroPeriodoEdicion').value;
+
+  if (!carreraId) { alert('Selecciona una carrera'); return; }
+
+  let filtrados = alumnosData.filter(a => a.carreraId === carreraId);
+
+  if (periodo) {
+    filtrados = filtrados.filter(a => {
+      if (!a.codigoGrupo) return false;
+      const partes = a.codigoGrupo.split('-');
+      return partes.length >= 2 && parseInt(partes[1]) === parseInt(periodo);
+    });
+  }
+
+  filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const resultado = document.getElementById('resultadoEdicionNombres');
+
+  if (filtrados.length === 0) {
+    resultado.innerHTML = '<p style="color:#666; text-align:center; padding:20px;">No se encontraron alumnos con esos filtros</p>';
+    return;
+  }
+
+  let html = `<p style="margin-bottom:10px; color:#666;">${filtrados.length} alumnos encontrados</p>
+  <table>
+    <thead><tr>
+      <th>Matrícula</th><th>Grupo</th><th>Nombre Actual</th><th>Nuevo Nombre</th><th></th>
+    </tr></thead>
+    <tbody>`;
+
+  filtrados.forEach(alumno => {
+    const nombreEsc = (alumno.nombre || '').replace(/"/g, '&quot;');
+    html += `<tr>
+      <td><strong>${alumno.matricula || 'N/A'}</strong></td>
+      <td>${alumno.codigoGrupo || ''}</td>
+      <td id="nombreActual_${alumno.uid}">${alumno.nombre}</td>
+      <td><input type="text" id="inputNombre_${alumno.uid}" value="${nombreEsc}"
+           style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px;"></td>
+      <td><button onclick="guardarNombreAlumno('${alumno.uid}')"
+           class="btn-accion" style="white-space:nowrap;">Guardar</button></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  resultado.innerHTML = html;
+}
+
+async function guardarNombreAlumno(uid) {
+  const input = document.getElementById('inputNombre_' + uid);
+  const nuevoNombre = input.value.trim();
+
+  if (!nuevoNombre) { alert('El nombre no puede estar vacío'); return; }
+
+  const btn = input.closest('tr').querySelector('button');
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Guardando...';
+  btn.disabled = true;
+
+  try {
+    // Buscar todos los documentos que referencian al alumno
+    const [califs, inscEsp, reportes] = await Promise.all([
+      db.collection('calificaciones').where('alumnoId', '==', uid).get(),
+      db.collection('inscripcionesEspeciales').where('alumnoId', '==', uid).get(),
+      db.collection('reportesPrefecto').where('alumnoId', '==', uid).get()
+    ]);
+
+    // Firestore batch tiene límite de 500 ops; usamos múltiples batches si hace falta
+    const todasOps = [];
+
+    // usuarios
+    todasOps.push({ ref: db.collection('usuarios').doc(uid), data: { nombre: nuevoNombre } });
+
+    califs.forEach(doc => {
+      todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } });
+    });
+    inscEsp.forEach(doc => {
+      todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } });
+    });
+    reportes.forEach(doc => {
+      todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } });
+    });
+
+    // Ejecutar en batches de 499
+    const CHUNK = 499;
+    for (let i = 0; i < todasOps.length; i += CHUNK) {
+      const batch = db.batch();
+      todasOps.slice(i, i + CHUNK).forEach(op => batch.update(op.ref, op.data));
+      await batch.commit();
+    }
+
+    // Actualizar memoria local
+    const alumno = alumnosData.find(a => a.uid === uid);
+    if (alumno) alumno.nombre = nuevoNombre;
+
+    const celdaActual = document.getElementById('nombreActual_' + uid);
+    if (celdaActual) celdaActual.textContent = nuevoNombre;
+
+    input.style.background = '#e8f5e9';
+    setTimeout(() => { input.style.background = ''; }, 2000);
+
+    const total = califs.size + inscEsp.size + reportes.size;
+    console.log(`Nombre actualizado en usuarios + ${califs.size} calificaciones + ${inscEsp.size} inscripcionesEspeciales + ${reportes.size} reportesPrefecto`);
+
+  } catch (error) {
+    console.error('Error al guardar nombre:', error);
+    alert('Error al guardar el nombre: ' + error.message);
+  } finally {
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+  }
+}

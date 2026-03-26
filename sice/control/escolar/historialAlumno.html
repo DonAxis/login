@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../../css/common/botones.css">
+  <link rel="stylesheet" href="../../css/modules/controlEscolar.css">
+  <title>Historial Académico</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #6A2135, #8B2E45); color: white; padding: 20px 30px; border-radius: 12px; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .header h1 { margin: 0; font-size: 1.5rem; }
+    .header p { margin: 0; opacity: 0.85; }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    th { background: #6A2135; color: white; padding: 12px 15px; text-align: left; font-size: 0.9rem; }
+    td { padding: 10px 15px; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+    tfoot td { background: #f8f9fa; font-weight: bold; }
+    .info-card { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #6A2135; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+    .periodo-titulo { margin: 25px 0 12px; color: #6A2135; border-bottom: 2px solid #6A2135; padding-bottom: 8px; font-size: 1.1rem; }
+    .cargando { text-align: center; padding: 60px; color: #666; font-size: 1.1rem; }
+    .btn-pdf { background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; width: 100%; margin-top: 15px; }
+    .btn-pdf:hover { background: #c82333; }
+    .btn-cerrar { background: transparent; color: white; border: 2px solid rgba(255,255,255,0.7); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+    .btn-cerrar:hover { background: rgba(255,255,255,0.15); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>Historial Académico</h1>
+        <p id="subtitulo">Cargando...</p>
+      </div>
+      <button onclick="window.close()" class="btn-cerrar">Cerrar pestaña</button>
+    </div>
+    <div id="contenido" class="cargando">Cargando historial...</div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="../../js/utils/firebase.js"></script>
+  <script src="../../js/utils/logoPdf.js"></script>
+  <script src="../../js/coordinador/HistorialAlumnoPDF.js"></script>
+  <script>
+    const auth = firebase.auth();
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        document.getElementById('contenido').innerHTML = '<p style="color:red;text-align:center;padding:40px;">Sesión no iniciada. Cierra esta pestaña.</p>';
+        return;
+      }
+      const snap = await db.collection('usuarios').doc(user.uid).get();
+      if (!snap.exists || snap.data().rol !== 'controlEscolar') {
+        document.getElementById('contenido').innerHTML = '<p style="color:red;text-align:center;padding:40px;">Sin permisos.</p>';
+        return;
+      }
+      const alumnoId    = sessionStorage.getItem('historialAlumnoId');
+      const alumnoNombre = sessionStorage.getItem('historialAlumnoNombre') || 'Alumno';
+
+      if (!alumnoId) {
+        document.getElementById('contenido').innerHTML = '<p style="color:#666;text-align:center;padding:40px;">No se recibió información del alumno.</p>';
+        return;
+      }
+      document.getElementById('subtitulo').textContent = alumnoNombre;
+      await cargarHistorial(alumnoId, alumnoNombre);
+    });
+
+    async function cargarHistorial(alumnoId, nombreAlumno) {
+      try {
+        // Cargar calificaciones del alumno
+        const calSnap = await db.collection('calificaciones')
+          .where('alumnoId', '==', alumnoId)
+          .get();
+
+        if (calSnap.empty) {
+          document.getElementById('contenido').innerHTML =
+            `<p style="color:#666;text-align:center;padding:40px;">Este alumno no tiene calificaciones registradas.</p>`;
+          return;
+        }
+
+        // Cargar catálogo de materias para resolver nombres faltantes
+        const materiasSnap = await db.collection('materias').get();
+        const materiasCache = {};
+        materiasSnap.forEach(d => { materiasCache[d.id] = d.data(); });
+
+        // Procesar registros
+        const materiasMap = {};
+        calSnap.forEach(doc => {
+          const cal = doc.data();
+          const key = `${cal.materiaId}_${cal.periodo}`;
+          let nombre = cal.materiaNombre || materiasCache[cal.materiaId]?.nombre || 'Sin nombre';
+          let codigo = cal.materiaCodigo || materiasCache[cal.materiaId]?.codigo || '';
+          materiasMap[key] = {
+            materiaNombre: nombre,
+            materiaCodigo: codigo,
+            periodo: cal.periodo || 'N/A',
+            parcial1: cal.parciales?.parcial1 ?? '-',
+            parcial2: cal.parciales?.parcial2 ?? '-',
+            parcial3: cal.parciales?.parcial3 ?? '-'
+          };
+        });
+
+        // Agrupar por periodo
+        const porPeriodo = {};
+        Object.values(materiasMap).forEach(m => {
+          if (!porPeriodo[m.periodo]) porPeriodo[m.periodo] = [];
+          porPeriodo[m.periodo].push(m);
+        });
+        const periodos = Object.keys(porPeriodo).sort().reverse();
+
+        // Construir HTML
+        let html = `
+          <div class="info-card">
+            <div><strong style="color:#666;">Alumno:</strong><br>${nombreAlumno}</div>
+            <div><strong style="color:#666;">Total Materias:</strong><br>
+              <span style="font-size:1.5rem;color:#4caf50;font-weight:bold;">${Object.keys(materiasMap).length}</span></div>
+            <div><strong style="color:#666;">Periodos Cursados:</strong><br>
+              <span style="font-size:1.5rem;color:#6A2135;font-weight:bold;">${periodos.length}</span></div>
+            <div>
+              <button class="btn-pdf" onclick="descargarHistorialAlumnoPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}')">
+                Descargar PDF
+              </button>
+            </div>
+          </div>`;
+
+        periodos.forEach(periodo => {
+          const materias = porPeriodo[periodo];
+          let suma = 0, count = 0;
+
+          html += `<h3 class="periodo-titulo">Periodo ${periodo}</h3>
+            <table>
+              <thead><tr>
+                <th>Materia</th><th>Código</th>
+                <th style="text-align:center;">Parcial 1</th>
+                <th style="text-align:center;">Parcial 2</th>
+                <th style="text-align:center;">Parcial 3</th>
+                <th style="text-align:center;">Promedio</th>
+              </tr></thead>
+              <tbody>`;
+
+          materias.forEach(m => {
+            const { p1, p2, p3, prom, color } = calcularPromedio(m.parcial1, m.parcial2, m.parcial3);
+            if (prom !== '-') { suma += parseFloat(prom); count++; }
+            html += `<tr>
+              <td><strong>${m.materiaNombre}</strong></td>
+              <td>${m.materiaCodigo}</td>
+              <td style="text-align:center;font-weight:bold;">${p1}</td>
+              <td style="text-align:center;font-weight:bold;">${p2}</td>
+              <td style="text-align:center;font-weight:bold;">${p3}</td>
+              <td style="text-align:center;font-weight:bold;font-size:1.2rem;color:${color};">${prom}</td>
+            </tr>`;
+          });
+
+          const promPeriodo = count > 0 ? (suma / count).toFixed(1) : '-';
+          html += `</tbody>
+            <tfoot><tr>
+              <td colspan="5" style="text-align:right;padding-right:20px;">Promedio del Periodo:</td>
+              <td style="text-align:center;font-size:1.2rem;color:#6A2135;">${promPeriodo}</td>
+            </tr></tfoot>
+            </table>`;
+        });
+
+        document.getElementById('contenido').innerHTML = html;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('contenido').innerHTML =
+          '<p style="color:red;text-align:center;padding:40px;">Error al cargar el historial.</p>';
+      }
+    }
+
+    function calcularPromedio(p1, p2, p3) {
+      const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
+      let prom = '-';
+      if (tieneNP) {
+        prom = '5.0';
+      } else {
+        const vals = [p1, p2, p3]
+          .filter(v => v !== '-' && v != null && v !== '')
+          .map(Number).filter(n => !isNaN(n));
+        if (vals.length > 0) prom = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+      }
+      const color = prom === '-' ? '#333' : parseFloat(prom) >= 8 ? '#4caf50' : parseFloat(prom) >= 6 ? '#ff9800' : '#f44336';
+      return { p1, p2, p3, prom, color };
+    }
+  </script>
+</body>
+</html>

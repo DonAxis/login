@@ -50,7 +50,39 @@
     <div class="header">
       <h1>Control Escolar</h1>
       <p id="nombreUsuario">Cargando...</p>
+      <button onclick="abrirEditorNombres()" class="btn-accion" style="margin-right:10px;">Editar Nombres</button>
       <button onclick="cerrarSesion()" class="btn-salir">Cerrar Sesión</button>
+    </div>
+
+    <!-- Panel de edición de nombres -->
+    <div id="editorNombresPanel" style="display:none; background:#fff; border:2px solid #6A2135; border-radius:12px; padding:25px; margin-bottom:20px;">
+      <h2 style="color:#6A2135; margin:0 0 20px;">Editar Nombres de Alumnos</h2>
+      <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
+        <div>
+          <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
+          <select id="filtroCarreraEdicion" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
+            <option value="">-- Selecciona Carrera --</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Periodo / Semestre</label>
+          <select id="filtroPeriodoEdicion" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
+            <option value="">Todos</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+          </select>
+        </div>
+        <button onclick="filtrarAlumnosEdicion()" class="btn-accion">Buscar Alumnos</button>
+        <button onclick="document.getElementById('editorNombresPanel').style.display='none'" class="btn-volver" style="margin:0;">Cerrar</button>
+      </div>
+      <div id="resultadoEdicionNombres"></div>
     </div>
 
     <div class="stats-grid">
