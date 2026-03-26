@@ -286,11 +286,18 @@
   <div id="seccionDetalle" class="seccion">
     <div class="seccion-header" style="display:flex; justify-content:space-between; align-items:center;">
       <h2 id="detalleNombreAlumno">Detalle del Reporte</h2>
-      <button onclick="generarPDFReporte()"
-        style="padding:10px 20px; background:linear-gradient(135deg,#006064 0%,#00838f 100%);
-               color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
-        Descargar PDF
-      </button>
+      <div style="display:flex; gap:10px;">
+        <button onclick="generarPDFReporte()"
+          style="padding:10px 20px; background:linear-gradient(135deg,#006064 0%,#00838f 100%);
+                 color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+          Descargar PDF
+        </button>
+        <button onclick="enviarWhatsApp()"
+          style="padding:10px 20px; background:linear-gradient(135deg,#00838f 0%,#00acc1 100%);
+                 color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+          no usar
+        </button>
+      </div>
     </div>
     <div id="detalleMetadata" style="color:#666; font-size:0.9rem; margin-bottom:20px;"></div>
     <div id="listaProfesRespuestas"></div>

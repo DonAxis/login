@@ -301,21 +301,14 @@ async function mostrarInformes() {
       });
 
       return `
-        <div class="reporte-item" style="display:flex;align-items:center;justify-content:space-between;gap:12px;" onclick="verDetalleReporte('${r.id}')">
-          <div style="flex:1;min-width:0;">
-            <div class="ri-nombre">${r.alumnoNombre}</div>
-            <div class="ri-fecha">${fecha} · Grupo: ${r.codigoGrupo}</div>
-            <div class="ri-estado ${completo ? 'badge-completo' : 'badge-pendiente'}">
-              ${completo
-                ? 'Completo'
-                : `${pendientes} de ${total} profesor${pendientes !== 1 ? 'es' : ''} sin responder`}
-            </div>
+        <div class="reporte-item" onclick="verDetalleReporte('${r.id}')">
+          <div class="ri-nombre">${r.alumnoNombre}</div>
+          <div class="ri-fecha">${fecha} · Grupo: ${r.codigoGrupo}</div>
+          <div class="ri-estado ${completo ? 'badge-completo' : 'badge-pendiente'}">
+            ${completo
+              ? 'Completo'
+              : `${pendientes} de ${total} profesor${pendientes !== 1 ? 'es' : ''} sin responder`}
           </div>
-          <button onclick="event.stopPropagation(); enviarWhatsApp('${r.id}')"
-            style="flex-shrink:0;padding:6px 12px;background:#ccc;color:#666;border:none;
-                   border-radius:8px;font-size:0.78rem;cursor:not-allowed;white-space:nowrap;">
-            no usar
-          </button>
         </div>
       `;
     }).join('');
@@ -501,9 +494,20 @@ function generarPDFReporte() {
 // WHATSAPP (pendiente — requiere campo tutor.telefono en alumno)
 // ============================================================================
 
-async function enviarWhatsApp(_reporteId) {
-  // TODO: leer alumno.tutor.telefono desde Firestore y abrir wa.me link
-  alert('Función próximamente disponible.');
+async function enviarWhatsApp() {
+  if (!reporteDetalleActual) return;
+
+  const r = reporteDetalleActual;
+
+  // TODO: leer r.alumnoId → alumno.tutor.telefono desde Firestore
+  const telefono = ''; // pendiente — campo tutor.telefono en alumno
+
+  const fecha = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+  const mensaje = `Buen dia. Reporte realizado del alumno *${r.alumnoNombre}* | *${r.codigoGrupo}* | *${fecha}*`;
+  const url = `https://wa.me/52${telefono}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, '_blank');
 }
 
 console.log('Panel Prefecto cargado');
