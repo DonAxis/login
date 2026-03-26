@@ -15,14 +15,14 @@ const logosEscuela = {
     // Logo izquierdo
     izq: {
       x: 15,      // Posición X (mm desde la izquierda)
-      y: 10,      // Posición Y (mm desde arriba)
-      ancho: 25,  // Ancho en mm
-      alto: 25    // Alto en mm
+      y: 5,       // Posición Y (mm desde arriba)
+      ancho: 19,  // Ancho en mm
+      alto: 19    // Alto en mm
     },
     // Logo derecho
     der: {
       x: 145,     // Posición X
-      y: 14,      // Posición Y
+      y: 5,       // Posición Y
       ancho: 55,  // Ancho en mm
       alto: 6     // Alto en mm
     }
