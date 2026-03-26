@@ -499,15 +499,23 @@ async function enviarWhatsApp() {
 
   const r = reporteDetalleActual;
 
-  // TODO: leer r.alumnoId → alumno.tutor.telefono desde Firestore
-  const telefono = ''; // pendiente — campo tutor.telefono en alumno
+  try {
+    const alumnoDoc = await db.collection('usuarios').doc(r.alumnoId).get();
+    if (!alumnoDoc.exists) { alert('No se encontró el alumno.'); return; }
 
-  const fecha = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
-    day: '2-digit', month: 'long', year: 'numeric'
-  });
-  const mensaje = `Buen dia. Reporte realizado del alumno *${r.alumnoNombre}* | *${r.codigoGrupo}* | *${fecha}*`;
-  const url = `https://wa.me/52${telefono}?text=${encodeURIComponent(mensaje)}`;
-  window.open(url, '_blank');
+    const telefono = alumnoDoc.data()?.tutor?.telefono;
+    if (!telefono) { alert('El alumno no tiene teléfono de tutor registrado.'); return; }
+
+    const fecha = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
+      day: '2-digit', month: 'long', year: 'numeric'
+    });
+    const mensaje = `Buen dia. Reporte realizado del alumno *${r.alumnoNombre}* | *${r.codigoGrupo}* | *${fecha}*`;
+    const url = `https://wa.me/52${telefono}?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
+
+  } catch (e) {
+    alert('Error al obtener datos del tutor: ' + e.message);
+  }
 }
 
 console.log('Panel Prefecto cargado');
