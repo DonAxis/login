@@ -55,7 +55,9 @@ async function mostrarSeccion(seccion) {
             case 'periodos':
                 await cargarPeriodoActual();
                 await cargarEstadisticasPeriodo();
-                // No necesitamos hacer nada más aquí, ya se agregó la clase 'active' arriba
+                break;
+            case 'reporteProfesores':
+                cargarReporteProfesores();
                 break;
         }
     }
@@ -3098,6 +3100,154 @@ window.onclick = function(event) {
     if (event.target === modal) {
         cerrarModal();
     }
+}
+
+// ===== REPORTE DE PROFESORES CON CALIFICACIONES PENDIENTES =====
+
+async function cargarReporteProfesores() {
+    const container = document.getElementById('reporteProfesoresContenido');
+    container.innerHTML = '<p style="text-align:center; padding:30px; color:#666;">Cargando reporte...</p>';
+
+    try {
+        // 1. Asignaciones activas de la carrera
+        const asigSnap = await db.collection('profesorMaterias')
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .where('activa', '==', true)
+            .get();
+
+        if (asigSnap.empty) {
+            container.innerHTML = '<div class="sin-datos">No hay asignaciones activas en esta carrera.</div>';
+            return;
+        }
+
+        // 2. Todas las calificaciones de la carrera en un solo query → mapa en memoria
+        const calSnap = await db.collection('calificaciones')
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .get();
+
+        const calMap = {};
+        calSnap.forEach(doc => { calMap[doc.id] = doc.data(); });
+
+        // 3. Alumnos activos por grupoId (deduplicado)
+        const grupoIds = [...new Set(asigSnap.docs.map(d => d.data().grupoId).filter(Boolean))];
+        const alumnosPorGrupo = {};
+
+        await Promise.all(grupoIds.map(async grupoId => {
+            const snap = await db.collection('usuarios')
+                .where('rol', '==', 'alumno')
+                .where('grupoId', '==', grupoId)
+                .where('activo', '==', true)
+                .get();
+            alumnosPorGrupo[grupoId] = snap.docs.map(d => d.id);
+        }));
+
+        // 4. Analizar pendientes por parcial
+        const pendientes = { 1: [], 2: [], 3: [] };
+
+        asigSnap.forEach(asigDoc => {
+            const asig = asigDoc.data();
+            const alumnos = alumnosPorGrupo[asig.grupoId] || [];
+            if (alumnos.length === 0) return;
+
+            const sinCalif = { 1: 0, 2: 0, 3: 0 };
+
+            alumnos.forEach(alumnoId => {
+                const docId = `${alumnoId}_${asig.materiaId}`;
+                const cal = calMap[docId];
+                const parciales = cal ? (cal.parciales || {}) : {};
+                if (!cal || parciales.parcial1 == null) sinCalif[1]++;
+                if (!cal || parciales.parcial2 == null) sinCalif[2]++;
+                if (!cal || parciales.parcial3 == null) sinCalif[3]++;
+            });
+
+            for (const p of [1, 2, 3]) {
+                if (sinCalif[p] > 0) {
+                    pendientes[p].push({
+                        profesorNombre: asig.profesorNombre || 'Sin asignar',
+                        materiaNombre: asig.materiaNombre,
+                        grupo: asig.codigoGrupo || 'Sin grupo',
+                        sinCalif: sinCalif[p],
+                        total: alumnos.length
+                    });
+                }
+            }
+        });
+
+        // 5. Render
+        const renderTabla = (lista) => {
+            if (lista.length === 0) {
+                return `<p style="text-align:center; color:#4caf50; padding:20px; font-weight:600;">
+                    ✓ Todos los profesores han subido calificaciones en este parcial.
+                </p>`;
+            }
+            // Ordenar: más pendientes primero
+            lista.sort((a, b) => b.sinCalif - a.sinCalif);
+            return `
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f5f5f5;">
+                            <th style="padding:10px 12px; text-align:left; border-bottom:2px solid #ddd;">Profesor</th>
+                            <th style="padding:10px 12px; text-align:left; border-bottom:2px solid #ddd;">Materia</th>
+                            <th style="padding:10px 12px; text-align:center; border-bottom:2px solid #ddd;">Grupo</th>
+                            <th style="padding:10px 12px; text-align:center; border-bottom:2px solid #ddd;">Sin calificar / Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${lista.map(r => `
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:10px 12px;">${r.profesorNombre}</td>
+                                <td style="padding:10px 12px;">${r.materiaNombre}</td>
+                                <td style="padding:10px 12px; text-align:center;">${r.grupo}</td>
+                                <td style="padding:10px 12px; text-align:center;">
+                                    <span style="background:#ffebee; color:#c62828; padding:4px 12px; border-radius:12px; font-weight:600;">
+                                        ${r.sinCalif} / ${r.total}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        };
+
+        container.innerHTML = `
+            <div style="display:flex; gap:0; border-bottom:2px solid #ddd; margin-bottom:20px;">
+                ${[1, 2, 3].map(p => `
+                    <button onclick="mostrarParcialReporte(${p})" id="tabParcialReporte${p}"
+                        style="padding:12px 28px; border:none; cursor:pointer; font-weight:600; font-size:0.95rem;
+                               background:${p === 1 ? '#43a047' : '#f5f5f5'}; color:${p === 1 ? 'white' : '#555'};
+                               border-radius:${p === 1 ? '8px 8px 0 0' : '0'}; transition:all 0.2s;">
+                        Parcial ${p}
+                        ${pendientes[p].length > 0
+                            ? `<span style="background:#c62828; color:white; border-radius:10px; padding:2px 8px; font-size:0.8rem; margin-left:6px;">${pendientes[p].length}</span>`
+                            : ''}
+                    </button>
+                `).join('')}
+            </div>
+            ${[1, 2, 3].map(p => `
+                <div id="contenidoParcialReporte${p}" style="display:${p === 1 ? 'block' : 'none'};">
+                    ${renderTabla(pendientes[p])}
+                </div>
+            `).join('')}
+        `;
+
+    } catch (error) {
+        console.error('Error al cargar reporte de profesores:', error);
+        container.innerHTML = `<p style="color:red; padding:20px;">Error al cargar el reporte: ${error.message}</p>`;
+    }
+}
+
+function mostrarParcialReporte(parcial) {
+    [1, 2, 3].forEach(p => {
+        const tab = document.getElementById(`tabParcialReporte${p}`);
+        const cont = document.getElementById(`contenidoParcialReporte${p}`);
+        if (!tab || !cont) return;
+        const activo = p === parcial;
+        tab.style.background = activo ? '#43a047' : '#f5f5f5';
+        tab.style.color = activo ? 'white' : '#555';
+        tab.style.borderRadius = activo ? '8px 8px 0 0' : '0';
+        cont.style.display = activo ? 'block' : 'none';
+    });
 }
 
 console.log(' Panel de Coordinador cargado');

@@ -288,6 +288,11 @@
  <h3>Periodos</h3>
  <p>Gestionar periodos academicos</p>
  </div>
+
+ <div class="menu-card" onclick="mostrarSeccion('reporteProfesores')">
+ <h3>Reporte Profesores</h3>
+ <p>Profesores con calificaciones pendientes</p>
+ </div>
  </div>
 
  <!-- SECCION: CARRERAS -->
@@ -893,6 +898,26 @@
       <p style="margin: 5px 0 0 0;">El cambio de periodo NO se puede deshacer. Asegurate de que todo este correcto antes de continuar.</p>
     </div>
   </div>
+</div>
+
+ <!-- SECCION: REPORTE PROFESORES -->
+<div id="seccionReporteProfesores" class="seccion-contenido">
+ <div class="seccion-header">
+  <h2>Reporte de Calificaciones Pendientes</h2>
+  <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+ </div>
+
+ <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center;">
+  <p style="margin:0; color:#666;">Profesores que aun no han subido calificaciones en el periodo actual.</p>
+  <button onclick="cargarReporteProfesores()"
+   style="padding:10px 20px; background: linear-gradient(135deg,#43a047,#2e7d32); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer;">
+   Actualizar
+  </button>
+ </div>
+
+ <div id="reporteProfesoresContenido" style="background:white; padding:20px; border-radius:10px;">
+  <p style="text-align:center; color:#999;">Selecciona esta seccion para cargar el reporte.</p>
+ </div>
 </div>
 
  <!-- MODAL GENERICO -->

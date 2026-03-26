@@ -14,10 +14,10 @@ const logosEscuela = {
   config: {
     // Logo izquierdo
     izq: {
-      x: 15,      // Posición X (mm desde la izquierda)
-      y: 10,      // Posición Y (mm desde arriba)
-      ancho: 25,  // Ancho en mm
-      alto: 25    // Alto en mm
+      x: 10,      // Posición X (mm desde la izquierda)
+      y: 14,      // Posición Y (mm desde arriba)
+      ancho: 55,  // Ancho en mm
+      alto: 6     // Alto en mm
     },
     // Logo derecho
     der: {
