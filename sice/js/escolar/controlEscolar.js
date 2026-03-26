@@ -1310,7 +1310,9 @@ function filtrarAlumnosEdicion() {
 
   let filtrados = alumnosData.filter(a => a.carreraId === carreraId);
 
-  if (periodo) {
+  if (periodo === 'especial') {
+    filtrados = filtrados.filter(a => a.grupoId === null || a.grupoId === undefined || a.grupoId === '');
+  } else if (periodo) {
     filtrados = filtrados.filter(a => String(a.periodo) === String(periodo));
   }
 

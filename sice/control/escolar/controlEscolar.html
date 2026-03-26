@@ -8,24 +8,23 @@
   <link rel="stylesheet" type="text/css" href="../../css/modules/controlEscolar.css">
   <title>Control Escolar</title>
   <style>
-    .btn-editar-nombres {
-      background: linear-gradient(135deg, #f5a623, #e8901a);
+    .btn-nav-seccion {
+      background: linear-gradient(135deg, #6A2159, #6A3221);
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 10px 28px;
       border-radius: 8px;
       font-weight: bold;
       font-size: 0.95rem;
       cursor: pointer;
-      box-shadow: 0 3px 10px rgba(245,166,35,0.45);
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: opacity 0.15s, transform 0.15s;
       letter-spacing: 0.3px;
     }
-    .btn-editar-nombres:hover {
+    .btn-nav-seccion:hover {
+      opacity: 0.85;
       transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(245,166,35,0.55);
     }
-    .btn-editar-nombres:active {
+    .btn-nav-seccion:active {
       transform: translateY(0);
     }
 
@@ -68,11 +67,19 @@
 <body>
 
   <div class="container">
-    <div class="header" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-      <h1 style="margin:0; flex:1 1 auto;">Control Escolar</h1>
-      <p id="nombreUsuario" style="margin:0;">Cargando...</p>
-      <button onclick="abrirEditorNombres()" class="btn-editar-nombres">✏️ Editar Nombres</button>
-      <button onclick="cerrarSesion()" class="btn-salir" style="margin-left:auto;">Cerrar Sesión</button>
+    <div class="header" style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="flex:1;">
+          <h1 style="margin:0; color:#216A57;">Control Escolar</h1>
+          <p id="nombreUsuario" style="margin:4px 0 0; opacity:0.85;">Cargando...</p>
+        </div>
+        <button onclick="cerrarSesion()" class="btn-salir">Cerrar Sesion</button>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button onclick="abrirEditorNombres()" class="btn-nav-seccion">Alumnos</button>
+        <button onclick="alert('Pendiente')" class="btn-nav-seccion">Materias</button>
+        <button onclick="alert('Pendiente')" class="btn-nav-seccion">Profesores</button>
+      </div>
     </div>
 
     <!-- Panel de edición de nombres -->
@@ -98,6 +105,7 @@
             <option value="7">7</option>
             <option value="8">8</option>
             <option value="9">9</option>
+            <option value="especial">Caso especial</option>
           </select>
         </div>
         <button onclick="filtrarAlumnosEdicion()" class="btn-accion">Buscar Alumnos</button>

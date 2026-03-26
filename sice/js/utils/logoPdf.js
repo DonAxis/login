@@ -22,9 +22,9 @@ const logosEscuela = {
     // Logo derecho
     der: {
       x: 145,     // Posición X
-      y: 5,       // Posición Y
+      y: 7,       // Posición Y
       ancho: 50,  // Ancho en mm
-      alto: 6     // Alto en mm
+      alto: 8     // Alto en mm
     }
   },
   
