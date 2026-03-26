@@ -3128,17 +3128,17 @@ async function cargarReporteProfesores() {
         const calMap = {};
         calSnap.forEach(doc => { calMap[doc.id] = doc.data(); });
 
-        // 3. Alumnos activos por grupoId (deduplicado)
-        const grupoIds = [...new Set(asigSnap.docs.map(d => d.data().grupoId).filter(Boolean))];
-        const alumnosPorGrupo = {};
+        // 3. Alumnos activos por codigoGrupo (deduplicado)
+        const codigoGrupos = [...new Set(asigSnap.docs.map(d => d.data().codigoGrupo).filter(Boolean))];
+        const alumnosPorCodigoGrupo = {};
 
-        await Promise.all(grupoIds.map(async grupoId => {
+        await Promise.all(codigoGrupos.map(async codigoGrupo => {
             const snap = await db.collection('usuarios')
                 .where('rol', '==', 'alumno')
-                .where('grupoId', '==', grupoId)
+                .where('codigoGrupo', '==', codigoGrupo)
                 .where('activo', '==', true)
                 .get();
-            alumnosPorGrupo[grupoId] = snap.docs.map(d => d.id);
+            alumnosPorCodigoGrupo[codigoGrupo] = snap.docs.map(d => d.id);
         }));
 
         // 4. Analizar pendientes por parcial
@@ -3146,7 +3146,7 @@ async function cargarReporteProfesores() {
 
         asigSnap.forEach(asigDoc => {
             const asig = asigDoc.data();
-            const alumnos = alumnosPorGrupo[asig.grupoId] || [];
+            const alumnos = alumnosPorCodigoGrupo[asig.codigoGrupo] || [];
             if (alumnos.length === 0) return;
 
             const sinCalif = { 1: 0, 2: 0, 3: 0 };
@@ -3177,7 +3177,7 @@ async function cargarReporteProfesores() {
         const renderTabla = (lista) => {
             if (lista.length === 0) {
                 return `<p style="text-align:center; color:#4caf50; padding:20px; font-weight:600;">
-                    ✓ Todos los profesores han subido calificaciones en este parcial.
+                    Todos los profesores han subido calificaciones en este parcial.
                 </p>`;
             }
             // Ordenar: más pendientes primero
