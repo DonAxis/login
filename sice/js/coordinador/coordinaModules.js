@@ -3173,41 +3173,55 @@ async function cargarReporteProfesores() {
             }
         });
 
-        // 5. Render
-        const renderTabla = (lista) => {
+        // 5. Render agrupado por profesor
+        const renderPorProfesor = (lista) => {
             if (lista.length === 0) {
                 return `<p style="text-align:center; color:#4caf50; padding:20px; font-weight:600;">
                     Todos los profesores han subido calificaciones en este parcial.
                 </p>`;
             }
-            // Ordenar: más pendientes primero
-            lista.sort((a, b) => b.sinCalif - a.sinCalif);
-            return `
-                <table style="width:100%; border-collapse:collapse;">
-                    <thead>
-                        <tr style="background:#f5f5f5;">
-                            <th style="padding:10px 12px; text-align:left; border-bottom:2px solid #ddd;">Profesor</th>
-                            <th style="padding:10px 12px; text-align:left; border-bottom:2px solid #ddd;">Materia</th>
-                            <th style="padding:10px 12px; text-align:center; border-bottom:2px solid #ddd;">Grupo</th>
-                            <th style="padding:10px 12px; text-align:center; border-bottom:2px solid #ddd;">Sin calificar / Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${lista.map(r => `
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:10px 12px;">${r.profesorNombre}</td>
-                                <td style="padding:10px 12px;">${r.materiaNombre}</td>
-                                <td style="padding:10px 12px; text-align:center;">${r.grupo}</td>
-                                <td style="padding:10px 12px; text-align:center;">
-                                    <span style="background:#ffebee; color:#c62828; padding:4px 12px; border-radius:12px; font-weight:600;">
-                                        ${r.sinCalif} / ${r.total}
+
+            // Agrupar por profesorNombre
+            const porProfesor = {};
+            lista.forEach(r => {
+                if (!porProfesor[r.profesorNombre]) {
+                    porProfesor[r.profesorNombre] = { materias: [], totalSin: 0, totalAlumnos: 0 };
+                }
+                porProfesor[r.profesorNombre].materias.push(r);
+                porProfesor[r.profesorNombre].totalSin += r.sinCalif;
+                porProfesor[r.profesorNombre].totalAlumnos += r.total;
+            });
+
+            // Ordenar profesores: más pendientes primero
+            const profesoresOrdenados = Object.entries(porProfesor)
+                .sort((a, b) => b[1].totalSin - a[1].totalSin);
+
+            return profesoresOrdenados.map(([nombre, datos]) => `
+                <div style="background:#fff; border:1px solid #e0e0e0; border-left:4px solid #e53935; border-radius:8px; margin-bottom:16px; overflow:hidden;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:#fafafa;">
+                        <div>
+                            <span style="font-weight:700; font-size:1rem; color:#222;">${nombre}</span>
+                            <span style="margin-left:10px; font-size:0.85rem; color:#888;">${datos.materias.length} materia${datos.materias.length > 1 ? 's' : ''} pendiente${datos.materias.length > 1 ? 's' : ''}</span>
+                        </div>
+                        <span style="background:#e53935; color:white; padding:5px 14px; border-radius:20px; font-weight:700; font-size:0.9rem;">
+                            ${datos.totalSin} / ${datos.totalAlumnos} sin calificar
+                        </span>
+                    </div>
+                    <div style="padding:10px 18px 14px;">
+                        ${datos.materias.map(m => `
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                                <span style="color:#444; font-size:0.92rem;">${m.materiaNombre}</span>
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <span style="color:#888; font-size:0.82rem;">Grupo: ${m.grupo}</span>
+                                    <span style="background:#ffebee; color:#c62828; padding:3px 10px; border-radius:10px; font-weight:600; font-size:0.85rem;">
+                                        ${m.sinCalif} / ${m.total}
                                     </span>
-                                </td>
-                            </tr>
+                                </div>
+                            </div>
                         `).join('')}
-                    </tbody>
-                </table>
-            `;
+                    </div>
+                </div>
+            `).join('');
         };
 
         container.innerHTML = `
@@ -3226,7 +3240,7 @@ async function cargarReporteProfesores() {
             </div>
             ${[1, 2, 3].map(p => `
                 <div id="contenidoParcialReporte${p}" style="display:${p === 1 ? 'block' : 'none'};">
-                    ${renderTabla(pendientes[p])}
+                    ${renderPorProfesor(pendientes[p])}
                 </div>
             `).join('')}
         `;
@@ -6175,10 +6189,16 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
       <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1000px; margin: 20px auto; max-height: 85vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;">
           <h3 style="margin: 0; color: #6A2135;">Historial Academico: ${nombreAlumno}</h3>
-          <button onclick="descargarHistorialAlumnoPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}');" 
-                  style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-            Descargar PDF
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button onclick="descargarHistorialAlumnoPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}');"
+                    style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              Historial Académico
+            </button>
+            <button onclick="descargarInformeCalificacionesPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}');"
+                    style="background: #6A2135; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              Informe de Calificaciones
+            </button>
+          </div>
         </div>
         
         <div style="overflow-x: auto;">
