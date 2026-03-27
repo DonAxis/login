@@ -494,6 +494,23 @@ function generarPDFReporte() {
 // WHATSAPP (pendiente — requiere campo tutor.telefono en alumno)
 // ============================================================================
 
+function mostrarMsgWhatsapp(texto, tipo = 'warn') {
+  const el = document.getElementById('msgWhatsapp');
+  if (!el) return;
+  el.textContent = texto;
+  el.style.display = 'block';
+  if (tipo === 'error') {
+    el.style.background = '#fdecea';
+    el.style.color      = '#b71c1c';
+    el.style.border     = '1px solid #ef9a9a';
+  } else {
+    el.style.background = '#fff3e0';
+    el.style.color      = '#e65100';
+    el.style.border     = '1px solid #ffcc80';
+  }
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
 async function enviarWhatsApp() {
   if (!reporteDetalleActual) return;
 
@@ -501,10 +518,16 @@ async function enviarWhatsApp() {
 
   try {
     const alumnoDoc = await db.collection('usuarios').doc(r.alumnoId).get();
-    if (!alumnoDoc.exists) { alert('No se encontró el alumno.'); return; }
+    if (!alumnoDoc.exists) {
+      mostrarMsgWhatsapp('No se encontró el alumno en la base de datos.', 'error');
+      return;
+    }
 
     const telefono = alumnoDoc.data()?.tutor?.telefono;
-    if (!telefono) { alert('El alumno no tiene teléfono de tutor registrado.'); return; }
+    if (!telefono) {
+      mostrarMsgWhatsapp('Este alumno no tiene número de contacto registrado.');
+      return;
+    }
 
     const fecha = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
       day: '2-digit', month: 'long', year: 'numeric'
@@ -514,7 +537,7 @@ async function enviarWhatsApp() {
     window.open(url, '_blank');
 
   } catch (e) {
-    alert('Error al obtener datos del tutor: ' + e.message);
+    mostrarMsgWhatsapp('Error al obtener datos del tutor: ' + e.message, 'error');
   }
 }
 
