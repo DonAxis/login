@@ -1054,7 +1054,7 @@ async function verAlumnosEspeciales() {
           <tr>
             <th>Matrícula</th>
             <th>Nombre</th>
-            <th>Email</th>
+            <th>Correo</th>
             <th>Periodo</th>
             <th>Materias</th>
             <th>Acciones</th>
