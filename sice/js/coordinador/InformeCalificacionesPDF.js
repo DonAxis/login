@@ -254,33 +254,20 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
         ],
         body: tableData,
         theme: 'grid',
-        headStyles: HEAD_STYLES,
+        headStyles: { ...HEAD_STYLES, fontSize: 6 },
         styles: { fontSize: 7, cellPadding: 1.5, valign: 'middle' },
         columnStyles: {
           0:  { halign: 'center', cellWidth: 8   },
-          1:  { halign: 'left',   cellWidth: 58  },
-          2:  { halign: 'center', cellWidth: 13  },
+          1:  { halign: 'left',   cellWidth: 62  },
+          2:  { halign: 'center', cellWidth: 15  },
           3:  { halign: 'center', cellWidth: 10  },
-          4:  { halign: 'center', cellWidth: 13  },
+          4:  { halign: 'center', cellWidth: 15  },
           5:  { halign: 'center', cellWidth: 10  },
-          6:  { halign: 'center', cellWidth: 13  },
+          6:  { halign: 'center', cellWidth: 15  },
           7:  { halign: 'center', cellWidth: 10  },
-          8:  { halign: 'center', cellWidth: 14, fontStyle: 'bold' },
-          9:  { halign: 'center', cellWidth: 12  },
-          10: { halign: 'center', cellWidth: 12  }
-        },
-        didParseCell: function(data) {
-          if (data.section === 'body' && data.column.index === 8) {
-            const val = data.cell.text[0];
-            if (val === 'NP') {
-              data.cell.styles.textColor = [200, 0, 0];
-            } else if (val !== '-' && val !== '') {
-              const n = parseFloat(val);
-              if (!isNaN(n)) {
-                data.cell.styles.textColor = n < 6 ? [244, 67, 54] : n >= 8 ? [76, 175, 80] : [0, 0, 0];
-              }
-            }
-          }
+          8:  { halign: 'center', cellWidth: 12, fontStyle: 'bold' },
+          9:  { halign: 'center', cellWidth: 10  },
+          10: { halign: 'center', cellWidth: 10  }
         }
       });
     }
@@ -289,6 +276,10 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
     const numPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= numPages; i++) {
       doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(200, 0, 0);
+      doc.text('ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL', pageWidth / 2, pageHeight - 10, { align: 'center' });
       doc.setFontSize(7);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(128);

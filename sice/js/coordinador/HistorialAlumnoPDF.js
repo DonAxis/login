@@ -321,15 +321,14 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
     const numPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= numPages; i++) {
       doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(200, 0, 0);
+      doc.text('ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL', pageWidth / 2, pageHeight - 15, { align: 'center' });
       doc.setFontSize(8);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(128);
-      doc.text(
-        `Pagina ${i} de ${numPages}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' }
-      );
+      doc.text(`Pagina ${i} de ${numPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
     }
     
     // Nombre del archivo
