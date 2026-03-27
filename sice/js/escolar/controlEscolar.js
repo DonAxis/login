@@ -1553,7 +1553,7 @@ function filtrarAlumnosEdicion() {
       <th>Grupo</th>
       <th>Nombre</th>
       <th>Matrícula</th>
-      <th>Correo</th>
+      <th>Email</th>
       <th>Tutor Nombre</th>
       <th>Tutor Teléfono</th>
       <th></th>
@@ -1567,7 +1567,7 @@ function filtrarAlumnosEdicion() {
       <td>${alumno.codigoGrupo || ''}</td>
       <td><input type="text" id="inputNombre_${uid}" value="${esc(alumno.nombre)}" ${inp()}></td>
       <td><input type="text" id="inputMatricula_${uid}" value="${esc(alumno.matricula)}" ${inp()}></td>
-      <td><input type="email" id="inputCorreo_${uid}" value="${esc(alumno.correo)}" ${inp()}></td>
+      <td><input type="email" id="inputEmail_${uid}" value="${esc(alumno.email)}" ${inp()}></td>
       <td><input type="text" id="inputTutorNombre_${uid}" value="${esc(alumno.tutor?.nombre)}" ${inp()}></td>
       <td><input type="text" id="inputTutorTel_${uid}" value="${esc(alumno.tutor?.telefono)}" ${inp()}></td>
       <td><button onclick="guardarDatosAlumno('${uid}')"
@@ -1582,7 +1582,7 @@ function filtrarAlumnosEdicion() {
 async function guardarDatosAlumno(uid) {
   const nuevoNombre    = document.getElementById('inputNombre_'      + uid).value.trim();
   const nuevaMatricula = document.getElementById('inputMatricula_'   + uid).value.trim();
-  const nuevoCorreo    = document.getElementById('inputCorreo_'      + uid).value.trim();
+  const nuevoEmail     = document.getElementById('inputEmail_'        + uid).value.trim();
   const tutorNombre    = document.getElementById('inputTutorNombre_' + uid).value.trim();
   const tutorTel       = document.getElementById('inputTutorTel_'    + uid).value.trim();
 
@@ -1603,7 +1603,7 @@ async function guardarDatosAlumno(uid) {
     const datosUsuario = {
       nombre:    nuevoNombre,
       matricula: nuevaMatricula,
-      correo:    nuevoCorreo,
+      email:     nuevoEmail,
       tutor:     { nombre: tutorNombre, telefono: tutorTel }
     };
 
@@ -1624,7 +1624,7 @@ async function guardarDatosAlumno(uid) {
     if (alumno) {
       alumno.nombre    = nuevoNombre;
       alumno.matricula = nuevaMatricula;
-      alumno.correo    = nuevoCorreo;
+      alumno.email     = nuevoEmail;
       alumno.tutor     = { nombre: tutorNombre, telefono: tutorTel };
     }
 
