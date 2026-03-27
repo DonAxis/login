@@ -6214,13 +6214,12 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
         };
 
         Object.values(materiasMap).forEach(materia => {
-            // REGLA DE NEGOCIO: Si hay NP en cualquier parcial, promedio = 5.0
             const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
 
             let promedio = '-';
 
             if (tieneNP) {
-                promedio = '5.0';
+                promedio = 'NP';
             } else {
                 // Calculo que incluye 0 correctamente
                 const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
@@ -6235,7 +6234,9 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
 
             // Color del promedio
             let colorPromedio = '#667eea';
-            if (promedio !== '-') {
+            if (promedio === 'NP') {
+                colorPromedio = '#dc3545';
+            } else if (promedio !== '-') {
                 const promedioNum = parseFloat(promedio);
                 if (promedioNum < 6) colorPromedio = '#dc3545';
                 else if (promedioNum >= 8) colorPromedio = '#4caf50';

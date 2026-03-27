@@ -1544,66 +1544,75 @@ function filtrarAlumnosEdicion() {
     return;
   }
 
+  const inp = s => `style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box;"`;
+
   let html = `<p style="margin-bottom:10px; color:#666;">${filtrados.length} alumnos encontrados</p>
-  <table>
+  <div style="overflow-x:auto;">
+  <table style="min-width:900px;">
     <thead><tr>
-      <th>Matrícula</th><th>Grupo</th><th>Nombre Actual</th><th>Nuevo Nombre</th><th></th>
+      <th>Grupo</th>
+      <th>Nombre</th>
+      <th>Matrícula</th>
+      <th>Correo</th>
+      <th>Tutor Nombre</th>
+      <th>Tutor Teléfono</th>
+      <th></th>
     </tr></thead>
     <tbody>`;
 
   filtrados.forEach(alumno => {
-    const nombreEsc = (alumno.nombre || '').replace(/"/g, '&quot;');
+    const esc = v => (v || '').replace(/"/g, '&quot;');
+    const uid = alumno.uid;
     html += `<tr>
-      <td><strong>${alumno.matricula || 'N/A'}</strong></td>
       <td>${alumno.codigoGrupo || ''}</td>
-      <td id="nombreActual_${alumno.uid}">${alumno.nombre}</td>
-      <td><input type="text" id="inputNombre_${alumno.uid}" value="${nombreEsc}"
-           style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px;"></td>
-      <td><button onclick="guardarNombreAlumno('${alumno.uid}')"
+      <td><input type="text" id="inputNombre_${uid}" value="${esc(alumno.nombre)}" ${inp()}></td>
+      <td><input type="text" id="inputMatricula_${uid}" value="${esc(alumno.matricula)}" ${inp()}></td>
+      <td><input type="email" id="inputCorreo_${uid}" value="${esc(alumno.correo)}" ${inp()}></td>
+      <td><input type="text" id="inputTutorNombre_${uid}" value="${esc(alumno.tutor?.nombre)}" ${inp()}></td>
+      <td><input type="text" id="inputTutorTel_${uid}" value="${esc(alumno.tutor?.telefono)}" ${inp()}></td>
+      <td><button onclick="guardarDatosAlumno('${uid}')"
            class="btn-accion" style="white-space:nowrap;">Guardar</button></td>
     </tr>`;
   });
 
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
   resultado.innerHTML = html;
 }
 
-async function guardarNombreAlumno(uid) {
-  const input = document.getElementById('inputNombre_' + uid);
-  const nuevoNombre = input.value.trim();
+async function guardarDatosAlumno(uid) {
+  const nuevoNombre    = document.getElementById('inputNombre_'      + uid).value.trim();
+  const nuevaMatricula = document.getElementById('inputMatricula_'   + uid).value.trim();
+  const nuevoCorreo    = document.getElementById('inputCorreo_'      + uid).value.trim();
+  const tutorNombre    = document.getElementById('inputTutorNombre_' + uid).value.trim();
+  const tutorTel       = document.getElementById('inputTutorTel_'    + uid).value.trim();
 
   if (!nuevoNombre) { alert('El nombre no puede estar vacío'); return; }
 
-  const btn = input.closest('tr').querySelector('button');
+  const btn = document.getElementById('inputNombre_' + uid).closest('tr').querySelector('button');
   const textoOriginal = btn.textContent;
   btn.textContent = 'Guardando...';
   btn.disabled = true;
 
   try {
-    // Buscar todos los documentos que referencian al alumno
     const [califs, inscEsp, reportes] = await Promise.all([
       db.collection('calificaciones').where('alumnoId', '==', uid).get(),
       db.collection('inscripcionesEspeciales').where('alumnoId', '==', uid).get(),
       db.collection('reportesPrefecto').where('alumnoId', '==', uid).get()
     ]);
 
-    // Firestore batch tiene límite de 500 ops; usamos múltiples batches si hace falta
-    const todasOps = [];
+    const datosUsuario = {
+      nombre:    nuevoNombre,
+      matricula: nuevaMatricula,
+      correo:    nuevoCorreo,
+      tutor:     { nombre: tutorNombre, telefono: tutorTel }
+    };
 
-    // usuarios
-    todasOps.push({ ref: db.collection('usuarios').doc(uid), data: { nombre: nuevoNombre } });
+    const todasOps = [{ ref: db.collection('usuarios').doc(uid), data: datosUsuario }];
 
-    califs.forEach(doc => {
-      todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } });
-    });
-    inscEsp.forEach(doc => {
-      todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } });
-    });
-    reportes.forEach(doc => {
-      todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } });
-    });
+    califs.forEach(doc   => todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } }));
+    inscEsp.forEach(doc  => todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } }));
+    reportes.forEach(doc => todasOps.push({ ref: doc.ref, data: { alumnoNombre: nuevoNombre } }));
 
-    // Ejecutar en batches de 499
     const CHUNK = 499;
     for (let i = 0; i < todasOps.length; i += CHUNK) {
       const batch = db.batch();
@@ -1611,20 +1620,21 @@ async function guardarNombreAlumno(uid) {
       await batch.commit();
     }
 
-    // Actualizar memoria local
     const alumno = alumnosData.find(a => a.uid === uid);
-    if (alumno) alumno.nombre = nuevoNombre;
+    if (alumno) {
+      alumno.nombre    = nuevoNombre;
+      alumno.matricula = nuevaMatricula;
+      alumno.correo    = nuevoCorreo;
+      alumno.tutor     = { nombre: tutorNombre, telefono: tutorTel };
+    }
 
-    const celdaActual = document.getElementById('nombreActual_' + uid);
-    if (celdaActual) celdaActual.textContent = nuevoNombre;
+    flashFila(document.getElementById('inputNombre_' + uid).closest('tr'));
 
-    flashFila(input.closest('tr'));
-
-    console.log(`Nombre actualizado en usuarios + ${califs.size} calificaciones + ${inscEsp.size} inscripcionesEspeciales + ${reportes.size} reportesPrefecto`);
+    console.log(`Alumno actualizado: usuarios + ${califs.size} calificaciones + ${inscEsp.size} inscripcionesEspeciales + ${reportes.size} reportesPrefecto`);
 
   } catch (error) {
-    console.error('Error al guardar nombre:', error);
-    alert('Error al guardar el nombre: ' + error.message);
+    console.error('Error al guardar alumno:', error);
+    alert('Error al guardar: ' + error.message);
   } finally {
     btn.textContent = textoOriginal;
     btn.disabled = false;

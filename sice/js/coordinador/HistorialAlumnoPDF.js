@@ -251,9 +251,7 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
         const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
         
         if (tieneNP) {
-          promedio = '5.0';
-          sumaPromedios += 5.0;
-          countPromedios++;
+          promedio = 'NP';
         } else {
           const cals = [p1, p2, p3]
             .filter(c => c !== '-' && c !== null && c !== undefined && c !== '')

@@ -71,7 +71,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
         p2: String(p2), f2: String(f2),
         p3: String(p3), f3: String(f3),
         final: String(final),
-        extra: cal.extraordinario != null ? String(cal.extraordinario) : '',
+        extra: tieneNP ? 'NP' : (cal.extraordinario != null ? String(cal.extraordinario) : ''),
         ets: cal.ets != null ? String(cal.ets) : ''
       });
     }
@@ -123,9 +123,9 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
     }).toUpperCase();
 
     // ── Generar PDF ───────────────────────────────────────────────────
-    const doc = new jsPDF({ orientation: 'landscape' });
-    const pageWidth  = doc.internal.pageSize.getWidth();   // 297
-    const pageHeight = doc.internal.pageSize.getHeight();  // 210
+    const doc = new jsPDF();
+    const pageWidth  = doc.internal.pageSize.getWidth();   // 210
+    const pageHeight = doc.internal.pageSize.getHeight();  // 297
 
     function dibujarEncabezado(doc) {
       // Logos
@@ -255,19 +255,19 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
         body: tableData,
         theme: 'grid',
         headStyles: HEAD_STYLES,
-        styles: { fontSize: 8, cellPadding: 2, valign: 'middle' },
+        styles: { fontSize: 7, cellPadding: 1.5, valign: 'middle' },
         columnStyles: {
-          0:  { halign: 'center', cellWidth: 10  },
-          1:  { halign: 'left',   cellWidth: 75  },
-          2:  { halign: 'center', cellWidth: 18  },
-          3:  { halign: 'center', cellWidth: 14  },
-          4:  { halign: 'center', cellWidth: 18  },
-          5:  { halign: 'center', cellWidth: 14  },
-          6:  { halign: 'center', cellWidth: 18  },
-          7:  { halign: 'center', cellWidth: 14  },
-          8:  { halign: 'center', cellWidth: 18, fontStyle: 'bold' },
-          9:  { halign: 'center', cellWidth: 14  },
-          10: { halign: 'center', cellWidth: 14  }
+          0:  { halign: 'center', cellWidth: 8   },
+          1:  { halign: 'left',   cellWidth: 58  },
+          2:  { halign: 'center', cellWidth: 13  },
+          3:  { halign: 'center', cellWidth: 10  },
+          4:  { halign: 'center', cellWidth: 13  },
+          5:  { halign: 'center', cellWidth: 10  },
+          6:  { halign: 'center', cellWidth: 13  },
+          7:  { halign: 'center', cellWidth: 10  },
+          8:  { halign: 'center', cellWidth: 14, fontStyle: 'bold' },
+          9:  { halign: 'center', cellWidth: 12  },
+          10: { halign: 'center', cellWidth: 12  }
         },
         didParseCell: function(data) {
           if (data.section === 'body' && data.column.index === 8) {
