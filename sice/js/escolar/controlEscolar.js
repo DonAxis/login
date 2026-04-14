@@ -303,7 +303,10 @@ function verAlumnosGrupo() {
 
   let html = `
     <h2 class="titulo-seccion">Alumnos — ${grupoSeleccionado.codigoGrupo}</h2>
-    <p style="margin-bottom:20px; color:#666;">Total: ${alumnos.length} alumnos</p>
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+      <p style="margin:0; color:#666;">Total: ${alumnos.length} alumnos</p>
+      <button onclick="generarListaObservacionesPDF()" class="btn-accion" style="white-space:nowrap;">Lista PDF</button>
+    </div>
     <table>
       <thead><tr>
         <th>Matrícula</th><th>Nombre</th><th>Periodo</th><th>Acciones</th>
@@ -1639,4 +1642,63 @@ async function guardarDatosAlumno(uid) {
     btn.textContent = textoOriginal;
     btn.disabled = false;
   }
+}
+
+// ===== LISTA DE ALUMNOS CON OBSERVACIONES (PDF) =====
+function generarListaObservacionesPDF() {
+  const alumnos = alumnosData
+    .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial')
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  if (alumnos.length === 0) { alert('No hay alumnos en este grupo'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  const fecha = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+  const grupo = grupoSeleccionado.codigoGrupo;
+  const carrera = carreraSeleccionada ? carreraSeleccionada.nombre : '';
+
+  // Logos
+  if (typeof logosEscuela !== 'undefined') {
+    try { if (logosEscuela.logoIzquierdo) doc.addImage(logosEscuela.logoIzquierdo, 'PNG', 15, 8, 25, 25); } catch(e) {}
+    try { if (logosEscuela.logoDerecho)   doc.addImage(logosEscuela.logoDerecho,   'PNG', pageWidth - 40, 8, 25, 30); } catch(e) {}
+  }
+
+  // Encabezado
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.text('Lista de Alumnos', pageWidth / 2, 18, { align: 'center' });
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Grupo: ${grupo}`, pageWidth / 2, 26, { align: 'center' });
+  if (carrera) doc.text(carrera, pageWidth / 2, 32, { align: 'center' });
+  doc.text(`Periodo: ${periodoActual}     Fecha: ${fecha}`, pageWidth / 2, 38, { align: 'center' });
+
+  // Tabla
+  const filas = alumnos.map((alumno, i) => [
+    i + 1,
+    alumno.matricula || 'N/A',
+    alumno.nombre,
+    ''   // columna observaciones en blanco
+  ]);
+
+  doc.autoTable({
+    startY: 44,
+    head: [['#', 'Matrícula', 'Nombre', 'Observaciones']],
+    body: filas,
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [106, 33, 53], textColor: 255, fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 12,  halign: 'center' },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 70 },
+      3: { cellWidth: 70 }
+    },
+    alternateRowStyles: { fillColor: [248, 248, 248] }
+  });
+
+  doc.save(`Lista_${grupo}_${periodoActual}.pdf`);
 }

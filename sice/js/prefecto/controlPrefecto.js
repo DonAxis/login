@@ -75,6 +75,7 @@ function ocultarTodasSecciones() {
   document.getElementById('seccionSolicitar').style.display = 'none';
   document.getElementById('seccionInformes').style.display  = 'none';
   document.getElementById('seccionDetalle').style.display   = 'none';
+  document.getElementById('seccionArchivo').style.display   = 'none';
   document.getElementById('btnVolver').style.display        = 'inline-block';
 }
 
@@ -289,7 +290,10 @@ async function mostrarInformes() {
     }
 
     const reportes = [];
-    snap.forEach(doc => reportes.push({ id: doc.id, ...doc.data() }));
+    snap.forEach(doc => {
+      const d = { id: doc.id, ...doc.data() };
+      if (!d.archivado) reportes.push(d);
+    });
     reportes.sort((a, b) => new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud));
 
     contenedor.innerHTML = reportes.map(r => {
@@ -488,6 +492,80 @@ function generarPDFReporte() {
   // ----- GUARDAR -----
   const nombreArchivo = `reporte_${(r.alumnoNombre || 'alumno').replace(/\s+/g, '_')}_${r.fechaSolicitud?.slice(0, 10)}.pdf`;
   doc.save(nombreArchivo);
+}
+
+// ============================================================================
+// ARCHIVAR REPORTE
+// ============================================================================
+
+async function archivarReporte() {
+  if (!reporteDetalleActual) return;
+
+  const msgEl = document.getElementById('msgWhatsapp'); // reutiliza el área de mensajes
+  try {
+    await db.collection('reportesPrefecto').doc(reporteDetalleActual.id).update({
+      archivado: true
+    });
+    mostrarMenu();
+  } catch (e) {
+    if (msgEl) {
+      msgEl.textContent = 'Error al archivar: ' + e.message;
+      msgEl.style.display    = 'block';
+      msgEl.style.background = '#fdecea';
+      msgEl.style.color      = '#b71c1c';
+      msgEl.style.border     = '1px solid #ef9a9a';
+      setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
+    }
+  }
+}
+
+// ============================================================================
+// SECCIÓN: ARCHIVO
+// ============================================================================
+
+async function mostrarArchivo() {
+  ocultarTodasSecciones();
+  document.getElementById('seccionArchivo').style.display = 'block';
+
+  const contenedor = document.getElementById('listaArchivo');
+  contenedor.innerHTML = '<div class="msg-info">Cargando archivo...</div>';
+
+  try {
+    const snap = await db.collection('reportesPrefecto').get();
+
+    const reportes = [];
+    snap.forEach(doc => {
+      const d = { id: doc.id, ...doc.data() };
+      if (d.archivado) reportes.push(d);
+    });
+    reportes.sort((a, b) => new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud));
+
+    if (!reportes.length) {
+      contenedor.innerHTML = '<div class="msg-info">No hay reportes archivados.</div>';
+      return;
+    }
+
+    contenedor.innerHTML = reportes.map(r => {
+      const pendientes = (r.profesoresPendientes || []).length;
+      const total      = Object.keys(r.profesores || {}).length;
+      const completo   = pendientes === 0;
+      const fecha      = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
+        day: '2-digit', month: 'long', year: 'numeric'
+      });
+      return `
+        <div class="reporte-item" onclick="verDetalleReporte('${r.id}')">
+          <div class="ri-nombre">${r.alumnoNombre}</div>
+          <div class="ri-fecha">${fecha} · Grupo: ${r.codigoGrupo}</div>
+          <div class="ri-estado ${completo ? 'badge-completo' : 'badge-pendiente'}">
+            ${completo ? 'Completo' : `${pendientes} de ${total} profesor${pendientes !== 1 ? 'es' : ''} sin responder`}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (e) {
+    contenedor.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+  }
 }
 
 // ============================================================================

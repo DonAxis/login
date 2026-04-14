@@ -233,6 +233,10 @@
       <h3>Ver Informes</h3>
       <p>Consultar reportes enviados y respuestas de profesores</p>
     </div>
+    <div class="card-prefecto" onclick="mostrarArchivo()">
+      <h3>Archivo</h3>
+      <p>Reportes cerrados y archivados</p>
+    </div>
   </div>
 
   <!-- SECCIÓN: SOLICITAR REPORTE -->
@@ -298,6 +302,11 @@
                    color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
             no usar
           </button>
+          <button onclick="archivarReporte()"
+            style="padding:10px 20px; background:linear-gradient(135deg,#546e7a 0%,#78909c 100%);
+                   color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+            Archivar
+          </button>
         </div>
         <div id="msgWhatsapp" style="display:none; font-size:0.8rem; padding:5px 10px;
              background:#fff3e0; color:#e65100; border-radius:6px; border:1px solid #ffcc80;">
@@ -306,6 +315,16 @@
     </div>
     <div id="detalleMetadata" style="color:#666; font-size:0.9rem; margin-bottom:20px;"></div>
     <div id="listaProfesRespuestas"></div>
+  </div>
+
+  <!-- SECCIÓN: ARCHIVO -->
+  <div id="seccionArchivo" class="seccion">
+    <div class="seccion-header">
+      <h2>Archivo</h2>
+    </div>
+    <div id="listaArchivo">
+      <div class="msg-info">Cargando archivo...</div>
+    </div>
   </div>
 
   <!-- MODAL CONFIRMACIÓN SOLICITUD -->
