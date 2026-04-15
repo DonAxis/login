@@ -871,7 +871,19 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
       }
       
       asignacionCalifActual = { id: asignacionId, ...asigDoc.data() };
-      
+
+      // Leer tieneExamenFinal de la carrera para mostrar columnas correctas
+      if (typeof tieneExamenFinalCoord !== 'undefined') {
+        tieneExamenFinalCoord = false;
+        if (asignacionCalifActual.carreraId) {
+          try {
+            const cDocEsp = await db.collection('carreras').doc(asignacionCalifActual.carreraId).get();
+            tieneExamenFinalCoord = cDocEsp.exists && cDocEsp.data().tieneExamenFinal === true;
+          } catch (_) {}
+        }
+        console.log('[tieneExamenFinalCoord]', asignacionCalifActual.carreraId, '→', tieneExamenFinalCoord);
+      }
+
       console.log('Asignación cargada:', asignacionCalifActual);
       
       // Obtener nombre del turno
