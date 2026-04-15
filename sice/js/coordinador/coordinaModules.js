@@ -3311,11 +3311,18 @@ async function cargarMateriasCalificaciones() {
 
         select.innerHTML = '<option value="">Seleccionar materia...</option>';
 
-        snapshot.forEach(doc => {
-            const asig = doc.data();
-            // CORREGIDO: usar codigoGrupo en lugar de grupoNombre
+        const asignaciones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        asignaciones.sort((a, b) => {
+            const grupoA = (a.codigoGrupo || '').toLowerCase();
+            const grupoB = (b.codigoGrupo || '').toLowerCase();
+            if (grupoA < grupoB) return -1;
+            if (grupoA > grupoB) return 1;
+            return (a.materiaNombre || '').localeCompare(b.materiaNombre || '', 'es');
+        });
+
+        asignaciones.forEach(asig => {
             const grupoTexto = asig.codigoGrupo || 'Sin grupo';
-            select.innerHTML += `<option value="${doc.id}">${asig.materiaNombre} - ${grupoTexto} (${asig.profesorNombre})</option>`;
+            select.innerHTML += `<option value="${asig.id}">${grupoTexto} - ${asig.materiaNombre} (${asig.profesorNombre})</option>`;
         });
 
     } catch (error) {
