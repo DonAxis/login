@@ -149,7 +149,7 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
       },
       styles: {
         fontSize: 8,
-        cellPadding: 1
+        cellPadding: 2
       },
       columnStyles: {
         0: { halign: 'center', cellWidth: 10 },

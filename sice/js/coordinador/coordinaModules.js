@@ -3961,7 +3961,7 @@ function descargarActaPDF() {
             },
             styles: {
                 fontSize: 10,
-                cellPadding: 5
+                cellPadding: 2
             },
             columnStyles: {
                 0: {

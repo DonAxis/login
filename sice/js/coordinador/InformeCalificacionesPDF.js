@@ -140,16 +140,16 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
       doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 18, { align: 'center' });
+      doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 36, { align: 'center' });
 
       // Subtítulo
       doc.setFontSize(11);
-      doc.text('INFORME DE CALIFICACIONES', pageWidth / 2, 26, { align: 'center' });
+      doc.text('INFORME DE CALIFICACIONES', pageWidth / 2, 43, { align: 'center' });
 
       // Línea separadora
       doc.setLineWidth(0.5);
       doc.setDrawColor(108, 29, 69);
-      doc.line(10, 30, pageWidth - 10, 30);
+      doc.line(10, 47, pageWidth - 10, 47);
       doc.setDrawColor(0, 0, 0);
     }
 
@@ -159,7 +159,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
 
       const izq = 12;
       const der = pageWidth - 12;
-      let y = 37;
+      let y = 53;
 
       // Fila 1
       doc.setFont(undefined, 'bold'); doc.setTextColor(...COLOR);
