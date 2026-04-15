@@ -3364,10 +3364,13 @@ async function cargarCalificacionesMateria() {
             grupoId: asigDoc.data().grupoId || null
         };
 
-        // Obtener tieneExamenFinal de la carrera
+        // Obtener tieneExamenFinal de la carrera (lectura directa, sin caché)
         tieneExamenFinalCoord = false;
         if (asignacionCalifActual.carreraId) {
-            tieneExamenFinalCoord = await obtenerTieneExamenFinal(asignacionCalifActual.carreraId);
+            try {
+                const cDocCoord = await db.collection('carreras').doc(asignacionCalifActual.carreraId).get();
+                tieneExamenFinalCoord = cDocCoord.exists && cDocCoord.data().tieneExamenFinal === true;
+            } catch (_) {}
         }
 
         console.log('[DEBUG ASIGNACION]', JSON.stringify(asignacionCalifActual));
