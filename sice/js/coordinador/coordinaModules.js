@@ -3284,6 +3284,7 @@ function cambiarModo(modo) {
 
 let asignacionCalifActual = null;
 let alumnosCalifMateria = [];
+let tieneExamenFinalCoord = false;
 
 // Cargar materias en el selector
 async function cargarMateriasCalificaciones() {
@@ -3362,6 +3363,12 @@ async function cargarCalificacionesMateria() {
             ...asigDoc.data(),
             grupoId: asigDoc.data().grupoId || null
         };
+
+        // Obtener tieneExamenFinal de la carrera
+        tieneExamenFinalCoord = false;
+        if (asignacionCalifActual.carreraId) {
+            tieneExamenFinalCoord = await obtenerTieneExamenFinal(asignacionCalifActual.carreraId);
+        }
 
         console.log('[DEBUG ASIGNACION]', JSON.stringify(asignacionCalifActual));
 
@@ -3443,6 +3450,9 @@ async function cargarCalificacionesMateria() {
 // Generar tabla HTML con dropdowns
 function generarTablaCalificaciones() {
     const container = document.getElementById('tablaCalificacionesCoord');
+    const labelP3 = tieneExamenFinalCoord ? 'Examen Final' : 'Parcial 3';
+    const thStyle = 'padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);';
+    const thStyleNaranja = thStyle + ' background: rgba(255,152,0,0.4);';
 
     let html = `
     <div style="overflow-x: auto;">
@@ -3450,50 +3460,71 @@ function generarTablaCalificaciones() {
         <thead>
           <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <th style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Matrícula</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 1</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">Faltas 1</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 2</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">Faltas 2</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 3</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">Faltas 3</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Calificación</th>
+            <th style="${thStyle}">Matrícula</th>
+            <th style="${thStyle}">Parcial 1</th>
+            <th style="${thStyleNaranja}">Faltas 1</th>
+            <th style="${thStyle}">Parcial 2</th>
+            <th style="${thStyleNaranja}">Faltas 2</th>
+            <th style="${thStyle}">${labelP3}</th>
+            ${!tieneExamenFinalCoord ? `<th style="${thStyleNaranja}">Faltas 3</th>` : ''}
+            <th style="${thStyle}">Calificación</th>
           </tr>
         </thead>
         <tbody>
     `;
 
     alumnosCalifMateria.forEach((alumno, index) => {
-        const promedio = calcularPromedioAlumno(alumno);
+        const p1 = alumno.calificaciones.parcial1;
+        const p2 = alumno.calificaciones.parcial2;
+        const p3 = alumno.calificaciones.parcial3;
+        const p1Num = (p1 !== null && p1 !== undefined && p1 !== 'NP') ? parseFloat(p1) : (p1 === 'NP' ? 'NP' : null);
+        const p2Num = (p2 !== null && p2 !== undefined && p2 !== 'NP') ? parseFloat(p2) : (p2 === 'NP' ? 'NP' : null);
+        const p3Num = (p3 !== null && p3 !== undefined && p3 !== 'NP') ? parseFloat(p3) : (p3 === 'NP' ? 'NP' : null);
+        const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalCoord);
+        let calTexto = '-';
+        if (calNum === 'NP') calTexto = 'NP';
+        else if (calNum !== null) calTexto = calNum.toFixed(1);
+
+        let celdaP3;
+        if (tieneExamenFinalCoord) {
+            const p1n = (p1 !== null && p1 !== undefined && p1 !== 'NP') ? parseFloat(p1) : null;
+            const p2n = (p2 !== null && p2 !== undefined && p2 !== 'NP') ? parseFloat(p2) : null;
+            if (p1n === null || p2n === null) {
+                celdaP3 = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #999;">-</td>`;
+            } else if ((p1n + p2n) / 2 > 7.5) {
+                celdaP3 = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #4caf50; font-weight: bold;">Aprobado</td>`;
+            } else {
+                celdaP3 = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${generarDropdownCalif(index, 'parcial3', p3)}</td>`;
+            }
+        } else {
+            celdaP3 = `
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+            ${generarDropdownCalif(index, 'parcial3', p3)}
+          </td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff8e1;">
+            ${generarDropdownFalta(index, 'falta3', alumno.calificaciones.falta3)}
+          </td>`;
+        }
 
         html += `
         <tr style="border-bottom: 1px solid #eee;">
           <td style="padding: 12px; border: 1px solid #ddd;"><strong>${alumno.nombre}</strong></td>
           <td style="padding: 12px; text-align: center; border: 1px solid #ddd; color: #666;">${alumno.matricula}</td>
-
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
-            ${generarDropdownCalif(index, 'parcial1', alumno.calificaciones.parcial1)}
+            ${generarDropdownCalif(index, 'parcial1', p1)}
           </td>
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff8e1;">
             ${generarDropdownFalta(index, 'falta1', alumno.calificaciones.falta1)}
           </td>
-
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
-            ${generarDropdownCalif(index, 'parcial2', alumno.calificaciones.parcial2)}
+            ${generarDropdownCalif(index, 'parcial2', p2)}
           </td>
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff8e1;">
             ${generarDropdownFalta(index, 'falta2', alumno.calificaciones.falta2)}
           </td>
-
-          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
-            ${generarDropdownCalif(index, 'parcial3', alumno.calificaciones.parcial3)}
-          </td>
-          <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff8e1;">
-            ${generarDropdownFalta(index, 'falta3', alumno.calificaciones.falta3)}
-          </td>
-
+          ${celdaP3}
           <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2rem; color: #667eea;">
-            ${promedio}
+            ${calTexto}
           </td>
         </tr>
         `;
@@ -3552,31 +3583,18 @@ function generarDropdownFalta(index, faltaKey, valor) {
 }
 
 
-// Calcular promedio
+// Calcular calificación
 function calcularPromedioAlumno(alumno) {
-    const parciales = [
-        alumno.calificaciones.parcial1,
-        alumno.calificaciones.parcial2,
-        alumno.calificaciones.parcial3
-    ];
-
-    // REGLA DE NEGOCIO: Si hay NP en cualquier parcial, promedio = 5.0
-    if (parciales.includes('NP')) {
-        return 'NP';
-    }
-
-    // Filtrar solo valores numéricos válidos
-    const cals = parciales
-        .filter(c => c !== null && c !== '' && c !== undefined)
-        .map(c => parseFloat(c))
-        .filter(c => !isNaN(c));
-
-    // Si no hay calificaciones, retornar guión
-    if (cals.length === 0) return '-';
-
-    // Calcular promedio normal
-    const suma = cals.reduce((a, b) => a + b, 0);
-    return (suma / cals.length).toFixed(1);
+    const p1 = alumno.calificaciones.parcial1;
+    const p2 = alumno.calificaciones.parcial2;
+    const p3 = alumno.calificaciones.parcial3;
+    const p1Num = (p1 !== null && p1 !== undefined && p1 !== 'NP') ? parseFloat(p1) : (p1 === 'NP' ? 'NP' : null);
+    const p2Num = (p2 !== null && p2 !== undefined && p2 !== 'NP') ? parseFloat(p2) : (p2 === 'NP' ? 'NP' : null);
+    const p3Num = (p3 !== null && p3 !== undefined && p3 !== 'NP') ? parseFloat(p3) : (p3 === 'NP' ? 'NP' : null);
+    const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalCoord);
+    if (calNum === null) return '-';
+    if (calNum === 'NP') return 'NP';
+    return calNum.toFixed(1);
 }
 
 // Guardar todas las calificaciones
@@ -3628,7 +3646,8 @@ async function guardarTodasCalificacionesCoord() {
             // preservar lo que hay en la base de datos.
             const falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
             const falta2 = (f2 !== origF2) ? parseInt(f2) : (existingFaltas.falta2 !== undefined ? existingFaltas.falta2 : parseInt(f2));
-            const falta3 = (f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3));
+            // No hay falta3 en carreras con examen final
+            const falta3 = tieneExamenFinalCoord ? null : ((f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3)));
 
             console.log(`[GUARDAR ${alumno.nombre}] dropdown f1=${f1} orig=${origF1} existDB=${existingFaltas.falta1} → final=${falta1}`);
             console.log(`[GUARDAR ${alumno.nombre}] dropdown f2=${f2} orig=${origF2} existDB=${existingFaltas.falta2} → final=${falta2}`);
@@ -6142,6 +6161,15 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
             return;
         }
 
+        // Obtener tieneExamenFinal del alumno a partir de su carrera
+        let tieneExamenFinalHistorial = false;
+        try {
+            const aDoc = await db.collection('usuarios').doc(alumnoId).get();
+            if (aDoc.exists && aDoc.data().carreraId) {
+                tieneExamenFinalHistorial = await obtenerTieneExamenFinal(aDoc.data().carreraId);
+            }
+        } catch (_) {}
+
         const materiasMap = {};
         const materiasCache = {};
 
@@ -6209,7 +6237,7 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
                 <th style="padding: 12px; border: 1px solid #ddd;">Periodo</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Parcial 1</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Parcial 2</th>
-                <th style="padding: 12px; border: 1px solid #ddd;">Parcial 3</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">${tieneExamenFinalHistorial ? 'Examen Final' : 'Parcial 3'}</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Calificación</th>
               </tr>
             </thead>
@@ -6228,23 +6256,18 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
         };
 
         Object.values(materiasMap).forEach(materia => {
-            const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
+            const p1Raw = materia.parcial1;
+            const p2Raw = materia.parcial2;
+            const p3Raw = materia.parcial3;
 
+            const p1Num = (p1Raw !== '-' && p1Raw !== null && p1Raw !== undefined && p1Raw !== 'NP') ? parseFloat(p1Raw) : (p1Raw === 'NP' ? 'NP' : null);
+            const p2Num = (p2Raw !== '-' && p2Raw !== null && p2Raw !== undefined && p2Raw !== 'NP') ? parseFloat(p2Raw) : (p2Raw === 'NP' ? 'NP' : null);
+            const p3Num = (p3Raw !== '-' && p3Raw !== null && p3Raw !== undefined && p3Raw !== 'NP') ? parseFloat(p3Raw) : (p3Raw === 'NP' ? 'NP' : null);
+
+            const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalHistorial);
             let promedio = '-';
-
-            if (tieneNP) {
-                promedio = 'NP';
-            } else {
-                // Calculo que incluye 0 correctamente
-                const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
-                    .filter(c => c !== '-' && c !== null && c !== undefined && c !== '')
-                    .map(c => parseFloat(c))
-                    .filter(c => !isNaN(c));
-
-                if (cals.length > 0) {
-                    promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
-                }
-            }
+            if (calNum === 'NP') promedio = 'NP';
+            else if (calNum !== null) promedio = calNum.toFixed(1);
 
             // Color del promedio
             let colorPromedio = '#667eea';
