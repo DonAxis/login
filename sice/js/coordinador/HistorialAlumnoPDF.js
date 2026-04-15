@@ -301,7 +301,7 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
         },
         styles: {
           fontSize: 9,
-          cellPadding: 4
+          cellPadding: 2
         },
         columnStyles: {
           0: { halign: 'left', cellWidth: 90 },
