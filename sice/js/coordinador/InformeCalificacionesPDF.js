@@ -25,6 +25,35 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
       return;
     }
 
+    // ── Fetch datos del alumno primero (necesario para tieneExamenFinalInforme) ──
+    let especialidad = '';
+    let grupo = '';
+    let turnoStr = '';
+    let semestreStr = '';
+    let noControl = '';
+    let tieneExamenFinalInforme = false;
+
+    try {
+      const aDoc = await db.collection('usuarios').doc(alumnoId).get();
+      if (aDoc.exists) {
+        const a = aDoc.data();
+        noControl  = a.matricula   || '';
+        grupo      = a.codigoGrupo || '';
+        turnoStr   = TURNOS_INFORME[a.turno]    || String(a.turno || '');
+        semestreStr = SEMESTRES_INFORME[a.periodo] || String(a.periodo || '');
+
+        if (a.carreraId) {
+          try {
+            const cDoc = await db.collection('carreras').doc(a.carreraId).get();
+            if (cDoc.exists) {
+              especialidad = (cDoc.data().nombre || '').toUpperCase();
+              tieneExamenFinalInforme = cDoc.data().tieneExamenFinal === true;
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
     // Cache de materias
     const materiasCache = {};
     const registros = [];
@@ -74,35 +103,6 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
         ets: cal.ets != null ? String(cal.ets) : ''
       });
     }
-
-    // ── Fetch datos del alumno ────────────────────────────────────────
-    let especialidad = '';
-    let grupo = '';
-    let turnoStr = '';
-    let semestreStr = '';
-    let noControl = '';
-    let tieneExamenFinalInforme = false;
-
-    try {
-      const aDoc = await db.collection('usuarios').doc(alumnoId).get();
-      if (aDoc.exists) {
-        const a = aDoc.data();
-        noControl  = a.matricula   || '';
-        grupo      = a.codigoGrupo || '';
-        turnoStr   = TURNOS_INFORME[a.turno]    || String(a.turno || '');
-        semestreStr = SEMESTRES_INFORME[a.periodo] || String(a.periodo || '');
-
-        if (a.carreraId) {
-          try {
-            const cDoc = await db.collection('carreras').doc(a.carreraId).get();
-            if (cDoc.exists) {
-              especialidad = (cDoc.data().nombre || '').toUpperCase();
-              tieneExamenFinalInforme = cDoc.data().tieneExamenFinal === true;
-            }
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
 
     // ── Agrupar por periodo académico ─────────────────────────────────
     const porPeriodo = {};
