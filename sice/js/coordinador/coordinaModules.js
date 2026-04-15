@@ -3320,10 +3320,17 @@ async function cargarMateriasCalificaciones() {
             return (a.materiaNombre || '').localeCompare(b.materiaNombre || '', 'es');
         });
 
+        let grupoActual = null;
         asignaciones.forEach(asig => {
             const grupoTexto = asig.codigoGrupo || 'Sin grupo';
-            select.innerHTML += `<option value="${asig.id}">${grupoTexto} - ${asig.materiaNombre} (${asig.profesorNombre})</option>`;
+            if (grupoTexto !== grupoActual) {
+                if (grupoActual !== null) select.innerHTML += '</optgroup>';
+                select.innerHTML += `<optgroup label="── ${grupoTexto} ──">`;
+                grupoActual = grupoTexto;
+            }
+            select.innerHTML += `<option value="${asig.id}">${asig.materiaNombre} (${asig.profesorNombre})</option>`;
         });
+        if (grupoActual !== null) select.innerHTML += '</optgroup>';
 
     } catch (error) {
         console.error('Error al cargar materias:', error);
