@@ -288,23 +288,23 @@
 
   <!-- SECCIÓN: DETALLE REPORTE -->
   <div id="seccionDetalle" class="seccion">
-    <div class="seccion-header" style="display:flex; justify-content:space-between; align-items:center;">
-      <h2 id="detalleNombreAlumno">Detalle del Reporte</h2>
+    <div class="seccion-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+      <h2 id="detalleNombreAlumno" style="margin:0;">Detalle del Reporte</h2>
       <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end;">
           <button onclick="generarPDFReporte()"
-            style="padding:10px 20px; background:linear-gradient(135deg,#006064 0%,#00838f 100%);
-                   color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+            style="padding:8px 14px; background:linear-gradient(135deg,#006064 0%,#00838f 100%);
+                   color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.85rem;">
             Descargar PDF
           </button>
           <button onclick="enviarWhatsApp()"
-            style="padding:10px 20px; background:linear-gradient(135deg,#00838f 0%,#00acc1 100%);
-                   color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+            style="padding:8px 14px; background:linear-gradient(135deg,#00838f 0%,#00acc1 100%);
+                   color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.85rem;">
             no usar
           </button>
           <button onclick="archivarReporte()"
-            style="padding:10px 20px; background:linear-gradient(135deg,#546e7a 0%,#78909c 100%);
-                   color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+            style="padding:8px 14px; background:linear-gradient(135deg,#546e7a 0%,#78909c 100%);
+                   color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.85rem;">
             Archivar
           </button>
         </div>
