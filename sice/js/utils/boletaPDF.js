@@ -141,11 +141,16 @@ async function generarPDFBoletaActual() {
     }
     
     console.log('Total materias cargadas:', materias.length);
-    
+
     if (materias.length === 0) {
       alert('No hay materias para generar el PDF');
       return;
     }
+
+    // Determinar si la carrera usa examen final
+    const tieneExamenFinalCarrera = alumnoActual.carreraId
+      ? await obtenerTieneExamenFinal(alumnoActual.carreraId)
+      : false;
     
     // Agregar logos si existen
     if (typeof logosEscuela !== 'undefined') {
@@ -239,49 +244,64 @@ async function generarPDFBoletaActual() {
     
     // Preparar datos para la tabla
     const tableData = [];
-    let sumaPromedios = 0;
-    let countPromedios = 0;
-    
+    let sumaCalificaciones = 0;
+    let countCalificaciones = 0;
+
     materias.forEach(materia => {
-      const p1 = materia.parcial1;
-      const p2 = materia.parcial2;
-      const p3 = materia.parcial3;
-      
-      // Calcular promedio
-      let promedio = '-';
-      const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
-      
-      if (tieneNP) {
-        promedio = '5.0';
-        sumaPromedios += 5.0;
-        countPromedios++;
-      } else {
-        const cals = [p1, p2, p3]
-          .filter(c => c !== '-' && c !== null && c !== undefined && c !== '')
-          .map(c => parseFloat(c))
-          .filter(c => !isNaN(c));
-        
-        if (cals.length > 0) {
-          const prom = cals.reduce((a, b) => a + b, 0) / cals.length;
-          promedio = prom.toFixed(1);
-          sumaPromedios += prom;
-          countPromedios++;
-        }
+      const p1Raw = materia.parcial1;
+      const p2Raw = materia.parcial2;
+      const p3Raw = materia.parcial3;
+
+      // Normalizar: '-' equivale a null para el cálculo
+      const p1 = (p1Raw === '-' || p1Raw === '' || p1Raw === undefined) ? null : p1Raw;
+      const p2 = (p2Raw === '-' || p2Raw === '' || p2Raw === undefined) ? null : p2Raw;
+      const p3 = (p3Raw === '-' || p3Raw === '' || p3Raw === undefined) ? null : p3Raw;
+
+      // Calcular calificación usando la función centralizada
+      const calNum = calcularCalificacion(
+        typeof p1 === 'string' && p1 !== 'NP' ? parseFloat(p1) : p1,
+        typeof p2 === 'string' && p2 !== 'NP' ? parseFloat(p2) : p2,
+        typeof p3 === 'string' && p3 !== 'NP' ? parseFloat(p3) : p3,
+        tieneExamenFinalCarrera
+      );
+
+      let calTexto = '-';
+      if (calNum === 'NP') {
+        calTexto = 'NP';
+        sumaCalificaciones += 5.0;
+        countCalificaciones++;
+      } else if (calNum !== null) {
+        calTexto = calNum.toFixed(1);
+        sumaCalificaciones += calNum;
+        countCalificaciones++;
       }
-      
-      tableData.push([
-        `${materia.nombre}\n${materia.profesor}`,
-        p1.toString(),
-        p2.toString(),
-        p3.toString(),
-        promedio
-      ]);
+
+      const p1Txt = p1Raw !== null && p1Raw !== undefined ? p1Raw.toString() : '-';
+      const p2Txt = p2Raw !== null && p2Raw !== undefined ? p2Raw.toString() : '-';
+      const p3Txt = p3Raw !== null && p3Raw !== undefined ? p3Raw.toString() : '-';
+
+      if (tieneExamenFinalCarrera) {
+        tableData.push([
+          `${materia.nombre}\n${materia.profesor}`,
+          p1Txt, p2Txt, p3Txt, calTexto
+        ]);
+      } else {
+        tableData.push([
+          `${materia.nombre}\n${materia.profesor}`,
+          p1Txt, p2Txt, p3Txt, calTexto
+        ]);
+      }
     });
-    
-    // Generar tabla (MISMO FORMATO para ambos tipos)
+
+    // Encabezado de columnas según tipo de carrera
+    const colHeaders = tieneExamenFinalCarrera
+      ? ['Materia / Profesor', 'P1', 'P2', 'Examen Final', 'Calificación']
+      : ['Materia / Profesor', 'P1', 'P2', 'P3', 'Calificación'];
+
+    // Generar tabla
     doc.autoTable({
       startY: y,
-      head: [['Materia / Profesor', 'P1', 'P2', 'P3', 'Promedio']],
+      head: [colHeaders],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -303,16 +323,16 @@ async function generarPDFBoletaActual() {
         4: { halign: 'center', cellWidth: 30, fontStyle: 'bold' }
       }
     });
-    
-    // Promedio general
+
+    // Calificación general
     y = doc.lastAutoTable.finalY + 10;
-    const promedioGeneral = countPromedios > 0 
-      ? (sumaPromedios / countPromedios).toFixed(1) 
+    const promedioGeneral = countCalificaciones > 0
+      ? (sumaCalificaciones / countCalificaciones).toFixed(1)
       : '-';
-    
+
     doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
-    doc.text(`Promedio General: ${promedioGeneral}`, 20, y);
+    doc.text(`Calificación General: ${promedioGeneral}`, 20, y);
     
     // Mensaje de no validez
     y = pageHeight - 25;

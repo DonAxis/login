@@ -3443,7 +3443,7 @@ function generarTablaCalificaciones() {
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">Faltas 2</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Parcial 3</th>
             <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,152,0,0.4);">Faltas 3</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Promedio</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">Calificación</th>
           </tr>
         </thead>
         <tbody>
@@ -6196,7 +6196,7 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
                 <th style="padding: 12px; border: 1px solid #ddd;">Parcial 1</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Parcial 2</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Parcial 3</th>
-                <th style="padding: 12px; border: 1px solid #ddd;">Promedio</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Calificación</th>
               </tr>
             </thead>
             <tbody>

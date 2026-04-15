@@ -43,26 +43,25 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
         materiaNombre = (materiasCache[cal.materiaId] || {}).nombre || 'Sin nombre';
       }
 
-      const p1 = cal.parciales?.parcial1 ?? '-';
-      const p2 = cal.parciales?.parcial2 ?? '-';
-      const p3 = cal.parciales?.parcial3 ?? '-';
+      const p1Raw = cal.parciales?.parcial1 ?? null;
+      const p2Raw = cal.parciales?.parcial2 ?? null;
+      const p3Raw = cal.parciales?.parcial3 ?? null;
 
-      // Calcular final
-      let final;
-      const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
-      if (tieneNP) {
-        final = 'NP';
-      } else {
-        const vals = [p1, p2, p3]
-          .filter(v => v !== '-' && v !== null && v !== undefined && v !== '')
-          .map(Number)
-          .filter(v => !isNaN(v));
-        final = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '-';
-      }
+      const p1 = p1Raw ?? '-';
+      const p2 = p2Raw ?? '-';
+      const p3 = p3Raw ?? '-';
+
+      // Calcular calificación usando la función centralizada
+      const p1Num = (p1Raw !== null && p1Raw !== 'NP') ? Number(p1Raw) : p1Raw;
+      const p2Num = (p2Raw !== null && p2Raw !== 'NP') ? Number(p2Raw) : p2Raw;
+      const p3Num = (p3Raw !== null && p3Raw !== 'NP') ? Number(p3Raw) : p3Raw;
+      const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalInforme);
+      const final = calNum === null ? '-' : (calNum === 'NP' ? 'NP' : calNum.toFixed(1));
 
       const f1 = cal.faltas?.falta1 ?? '-';
       const f2 = cal.faltas?.falta2 ?? '-';
-      const f3 = cal.faltas?.falta3 ?? '-';
+      // No hay faltas para el examen final en carreras con tieneExamenFinal
+      const f3 = tieneExamenFinalInforme ? '-' : (cal.faltas?.falta3 ?? '-');
 
       registros.push({
         periodo: cal.periodo || 'N/A',
@@ -71,7 +70,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
         p2: String(p2), f2: String(f2),
         p3: String(p3), f3: String(f3),
         final: String(final),
-        extra: tieneNP ? 'NP' : (cal.extraordinario != null ? String(cal.extraordinario) : ''),
+        extra: (p1Raw === 'NP' || p2Raw === 'NP') ? 'NP' : (cal.extraordinario != null ? String(cal.extraordinario) : ''),
         ets: cal.ets != null ? String(cal.ets) : ''
       });
     }
@@ -82,6 +81,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
     let turnoStr = '';
     let semestreStr = '';
     let noControl = '';
+    let tieneExamenFinalInforme = false;
 
     try {
       const aDoc = await db.collection('usuarios').doc(alumnoId).get();
@@ -95,7 +95,10 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
         if (a.carreraId) {
           try {
             const cDoc = await db.collection('carreras').doc(a.carreraId).get();
-            if (cDoc.exists) especialidad = (cDoc.data().nombre || '').toUpperCase();
+            if (cDoc.exists) {
+              especialidad = (cDoc.data().nombre || '').toUpperCase();
+              tieneExamenFinalInforme = cDoc.data().tieneExamenFinal === true;
+            }
           } catch (_) {}
         }
       }
@@ -241,6 +244,10 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
         m.final, m.extra, m.ets
       ]);
 
+      const subHeaderCols = tieneExamenFinalInforme
+        ? ['P1', 'FALTAS', 'P2', 'FALTAS', 'EXAMEN FINAL', '-', 'CALIFICACIÓN', 'EXTRA', 'ETS']
+        : ['PERIODO 1', 'FALTAS', 'PERIODO 2', 'FALTAS', 'PERIODO 3', 'FALTAS', 'CALIFICACIÓN', 'EXTRA', 'ETS'];
+
       doc.autoTable({
         startY,
         margin: { left: 10, right: 10 },
@@ -250,7 +257,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
             { content: 'UNIDAD DE APRENDIZAJE', rowSpan: 2, styles: { valign: 'middle', halign: 'left'   } },
             { content: 'CALIFICACIÓN/FALTAS',   colSpan: 9, styles: { halign: 'center' } }
           ],
-          ['PERIODO 1', 'FALTAS', 'PERIODO 2', 'FALTAS', 'PERIODO 3', 'FALTAS', 'FINAL', 'EXTRA', 'ETS']
+          subHeaderCols
         ],
         body: tableData,
         theme: 'grid',

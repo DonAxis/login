@@ -9,6 +9,7 @@ let asignacionActual = null;
 let alumnosMateria = [];
 let carrerasData = [];
 let cargandoAlumnos = false; // Control para evitar duplicados y lecturas extra
+let tieneExamenFinalActual = false; // Indica si la carrera de la materia actual usa examen final
 
 // ============================================================================
 // SECCIÓN 1: INICIALIZACIÓN Y AUTENTICACIÓN
@@ -244,8 +245,13 @@ async function verCalificacionesMateria(asignacionId) {
       id: asignacionId,
       ...asigDoc.data()
     };
-    
+
+    // Determinar si la carrera usa examen final
+    const carreraActual = carrerasData.find(c => c.id === asignacionActual.carreraId);
+    tieneExamenFinalActual = carreraActual?.tieneExamenFinal === true;
+
     console.log('Asignación cargada:', asignacionActual);
+    console.log('tieneExamenFinal:', tieneExamenFinalActual);
     
     // Mostrar información de la materia
     const turnosNombres = {1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino'};
@@ -431,116 +437,132 @@ async function cargarAlumnosYCalificaciones() {
 
 function generarTablaCalificaciones() {
   const container = document.getElementById('tablaCalificaciones');
-  
+
+  // Encabezado según el tipo de carrera
+  let encabezadoCols;
+  if (tieneExamenFinalActual) {
+    encabezadoCols = `
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 1</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 2</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 120px; background: rgba(106,33,53,0.5);">Examen Final</th>`;
+  } else {
+    encabezadoCols = `
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 1</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 2</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 3</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>`;
+  }
+
   let html = `
-  
     <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-      <table style="width: 100%; min-width: 1000px; border-collapse: collapse; background: white;">
+      <table style="width: 100%; min-width: ${tieneExamenFinalActual ? '850px' : '1000px'}; border-collapse: collapse; background: white;">
         <thead style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white;">
           <tr>
             <th rowspan="2" style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2); min-width: 150px;">Alumno</th>
             <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Matrícula</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 1</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 2</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 3</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
-            <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Promedio</th>
+            ${encabezadoCols}
+            <th rowspan="2" style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Calificación</th>
           </tr>
         </thead>
         <tbody>
   `;
-  
+
   alumnosMateria.forEach((alumno, index) => {
     const cal = alumno.calificaciones;
-    
-    // Calcular promedio
-    let promedio = null;
-    let promedioTexto = '-';
-    const tieneNP = cal.parcial1 === 'NP' || cal.parcial2 === 'NP' || cal.parcial3 === 'NP';
-    
-    if (tieneNP) {
-      promedio = 'NP';
-      promedioTexto = 'NP';
-    } else {
-      const cals = [cal.parcial1, cal.parcial2, cal.parcial3]
-        .filter(c => c !== null && c !== undefined && c !== '' && c !== '-')
-        .map(c => parseFloat(c))
-        .filter(c => !isNaN(c));
-      
-      if (cals.length > 0) {
-        promedio = cals.reduce((a, b) => a + b, 0) / cals.length;
-        promedioTexto = promedio.toFixed(1);
-      }
+
+    // Calcular calificación usando la función centralizada
+    const calificacion = calcularCalificacion(cal.parcial1, cal.parcial2, cal.parcial3, tieneExamenFinalActual);
+    const calTexto = calificacion === null ? '-' : (calificacion === 'NP' ? 'NP' : calificacion.toFixed(1));
+
+    // Color de la calificación
+    let colorCal = '#666';
+    if (calificacion !== null) {
+      if (calificacion === 'NP') colorCal = '#dc3545';
+      else if (esReprobado(calificacion, tieneExamenFinalActual)) colorCal = '#dc3545';
+      else if (calificacion >= 8) colorCal = '#4caf50';
+      else colorCal = '#ff9800';
     }
-    
-    // Color del promedio
-    let colorPromedio = '#666';
-    if (promedio !== null) {
-      if (promedio === 'NP') colorPromedio = '#dc3545';
-      else if (promedio < 6) colorPromedio = '#dc3545';
-      else if (promedio >= 8) colorPromedio = '#4caf50';
-      else colorPromedio = '#ff9800';
-    }
-    
+
     // Badge para alumnos especiales
-    const badgeEspecial = alumno.tipoInscripcion === 'especial' 
-      ? '<span style="display: inline-block; padding: 2px 6px; background: #fff3e0; color: #e65100; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 5px;">ESPECIAL</span>' 
+    const badgeEspecial = alumno.tipoInscripcion === 'especial'
+      ? '<span style="display: inline-block; padding: 2px 6px; background: #fff3e0; color: #e65100; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 5px;">ESPECIAL</span>'
       : '';
-    
-    html += `
-      <tr style="border-bottom: 1px solid #eee;">
-        <td style="padding: 12px; border: 1px solid #ddd; font-weight: 600;">
-          ${alumno.nombre || 'Sin nombre'}${badgeEspecial}
-        </td>
-        <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
-        
+
+    let filaCols;
+    if (tieneExamenFinalActual) {
+      filaCols = `
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial1, index, 'p1')}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
           ${generarCeldaFalta(cal.falta1, index, 'f1')}
         </td>
-        
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial2, index, 'p2')}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
           ${generarCeldaFalta(cal.falta2, index, 'f2')}
         </td>
-        
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f3e5f5;">
+          ${generarCeldaExamenFinal(cal.parcial3, cal.parcial1, cal.parcial2, index)}
+        </td>`;
+    } else {
+      filaCols = `
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          ${generarCeldaCalificacion(cal.parcial1, index, 'p1')}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
+          ${generarCeldaFalta(cal.falta1, index, 'f1')}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          ${generarCeldaCalificacion(cal.parcial2, index, 'p2')}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
+          ${generarCeldaFalta(cal.falta2, index, 'f2')}
+        </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial3, index, 'p3')}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
           ${generarCeldaFalta(cal.falta3, index, 'f3')}
+        </td>`;
+    }
+
+    html += `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px; border: 1px solid #ddd; font-weight: 600;">
+          ${alumno.nombre || 'Sin nombre'}${badgeEspecial}
         </td>
-        
-        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 1.1rem; background: #f0f7ff; color: ${colorPromedio};">
-          ${promedioTexto}
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
+        ${filaCols}
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 1.1rem; background: #f0f7ff; color: ${colorCal};">
+          ${calTexto}
         </td>
       </tr>
     `;
   });
-  
+
   html += `
         </tbody>
       </table>
     </div>
-    
+
     <div style="text-align: center; color: #999; font-size: 0.85rem; margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 6px;">
       ← Desliza horizontalmente para ver todas las columnas →
     </div>
-    
-    <button onclick="guardarCalificacionesProfe()" 
+
+    <button onclick="guardarCalificacionesProfe()"
             style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block; transition: all 0.3s;">
       Guardar Calificaciones
     </button>
   `;
-  
+
   container.innerHTML = html;
-  
+
   console.log('Tabla generada correctamente');
 }
 
@@ -614,6 +636,58 @@ function generarCeldaFalta(valor, index, falta) {
       </select>`;
 }
 
+/**
+ * Genera la celda de Examen Final para carreras con tieneExamenFinal = true.
+ * Solo muestra el input si ambos parciales están guardados y avg(p1,p2) <= 7.5.
+ */
+function generarCeldaExamenFinal(p3, p1, p2, index) {
+  // Si algún parcial base no está guardado aún, no se puede mostrar el examen
+  const p1Guardado = p1 !== null && p1 !== undefined;
+  const p2Guardado = p2 !== null && p2 !== undefined;
+
+  if (!p1Guardado || !p2Guardado) {
+    return '<span style="color: #bbb; font-size: 0.85rem;">—</span>';
+  }
+
+  // NP en parciales → no aplica examen final
+  if (p1 === 'NP' || p2 === 'NP') {
+    return '<span style="color: #dc3545; font-weight: bold;">NP</span>';
+  }
+
+  const avg12 = (parseFloat(p1) + parseFloat(p2)) / 2;
+
+  if (avg12 > 7.5) {
+    return '<span style="color: #4caf50; font-weight: bold; font-size: 0.85rem;">Aprobado</span>';
+  }
+
+  // avg <= 7.5 → requiere examen final
+  if (p3 !== null && p3 !== undefined) {
+    // Ya guardado → mostrar bloqueado
+    const color = p3 === 'NP' ? '#dc3545' : '#4caf50';
+    return `<span style="font-weight: bold; color: ${color};">${p3}</span>`;
+  }
+
+  // Pendiente → mostrar select editable
+  return `
+    <select id="cal_${index}_ef"
+            style="width: 80px; padding: 8px 4px; border: 2px solid #9c27b0; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.95rem; background: #f3e5f5;">
+      <option value="">-</option>
+      <option value="10">10</option>
+      <option value="9">9</option>
+      <option value="8">8</option>
+      <option value="7.5">7.5</option>
+      <option value="7">7</option>
+      <option value="6">6</option>
+      <option value="5">5</option>
+      <option value="4">4</option>
+      <option value="3">3</option>
+      <option value="2">2</option>
+      <option value="1">1</option>
+      <option value="0">0</option>
+      <option value="NP">NP</option>
+    </select>`;
+}
+
 // ============================================================================
 // SECCIÓN 5: GUARDAR CALIFICACIONES
 // ============================================================================
@@ -640,114 +714,106 @@ async function guardarCalificacionesProfe() {
       // Leer valores de los inputs
       const inputP1 = document.getElementById(`cal_${i}_p1`);
       const inputP2 = document.getElementById(`cal_${i}_p2`);
-      const inputP3 = document.getElementById(`cal_${i}_p3`);
-      
+      // Para tieneExamenFinal: el input es "ef", para normal: "p3"
+      const inputP3 = tieneExamenFinalActual
+        ? document.getElementById(`cal_${i}_ef`)
+        : document.getElementById(`cal_${i}_p3`);
+
       const inputF1 = document.getElementById(`fal_${i}_f1`);
       const inputF2 = document.getElementById(`fal_${i}_f2`);
-      const inputF3 = document.getElementById(`fal_${i}_f3`);
-      
+      // Para tieneExamenFinal no hay falta3
+      const inputF3 = tieneExamenFinalActual ? null : document.getElementById(`fal_${i}_f3`);
+
       const p1 = inputP1 ? inputP1.value : '';
       const p2 = inputP2 ? inputP2.value : '';
       const p3 = inputP3 ? inputP3.value : '';
-      
+
       const f1 = inputF1 ? inputF1.value : '0';
       const f2 = inputF2 ? inputF2.value : '0';
       const f3 = inputF3 ? inputF3.value : '0';
-      
+
       console.log('  Valores leídos:');
       console.log('    P1:', p1, '  F1:', f1);
       console.log('    P2:', p2, '  F2:', f2);
-      console.log('    P3:', p3, '  F3:', f3);
-      
+      console.log(tieneExamenFinalActual ? '    EF:' : '    P3:', p3, tieneExamenFinalActual ? '' : '  F3: ' + f3);
+
       // Convertir a formato correcto
       const parcial1 = p1 === '' ? null : (p1 === 'NP' ? 'NP' : parseFloat(p1));
       const parcial2 = p2 === '' ? null : (p2 === 'NP' ? 'NP' : parseFloat(p2));
       const parcial3 = p3 === '' ? null : (p3 === 'NP' ? 'NP' : parseFloat(p3));
-      
+
       // La falta solo es válida si hay un parcial correspondiente capturado
-      // (ya guardado en Firestore o recién capturado en el input)
       const tieneParcial1 = parcial1 !== null || alumno.calificaciones.parcial1 !== null;
       const tieneParcial2 = parcial2 !== null || alumno.calificaciones.parcial2 !== null;
-      const tieneParcial3 = parcial3 !== null || alumno.calificaciones.parcial3 !== null;
+      const tieneParcial3 = !tieneExamenFinalActual && (parcial3 !== null || alumno.calificaciones.parcial3 !== null);
 
       const falta1 = tieneParcial1 ? (inputF1 ? parseInt(f1) : null) : null;
       const falta2 = tieneParcial2 ? (inputF2 ? parseInt(f2) : null) : null;
       const falta3 = tieneParcial3 ? (inputF3 ? parseInt(f3) : null) : null;
-      
+
       console.log('  Valores convertidos:');
       console.log('    Parciales:', parcial1, parcial2, parcial3);
       console.log('    Faltas:', falta1, falta2, falta3);
-      
+
       // Verificar si hay datos nuevos
-      const hayNuevasParciales = 
+      const hayNuevasParciales =
         (alumno.calificaciones.parcial1 === null && parcial1 !== null) ||
         (alumno.calificaciones.parcial2 === null && parcial2 !== null) ||
         (alumno.calificaciones.parcial3 === null && parcial3 !== null);
-      
+
       const hayNuevasFaltas =
         (alumno.calificaciones.falta1 === null && falta1 !== null) ||
         (alumno.calificaciones.falta2 === null && falta2 !== null) ||
-        (alumno.calificaciones.falta3 === null && falta3 !== null);
-      
+        (!tieneExamenFinalActual && alumno.calificaciones.falta3 === null && falta3 !== null);
+
       if (!hayNuevasParciales && !hayNuevasFaltas) {
         console.log('  -> Sin cambios, omitiendo');
         continue;
       }
-      
+
       const docId = `${alumno.id}_${asignacionActual.materiaId}`;
       console.log('  -> Documento:', docId);
-      
+
       const calDoc = await db.collection('calificaciones').doc(docId).get();
-      
+
       let datosActuales = {
         parciales: { parcial1: null, parcial2: null, parcial3: null },
         faltas: { falta1: null, falta2: null, falta3: null }
       };
-      
+
       if (calDoc.exists) {
         const data = calDoc.data();
         datosActuales.parciales = data.parciales || datosActuales.parciales;
         datosActuales.faltas = data.faltas || datosActuales.faltas;
         console.log('  -> Datos actuales:', datosActuales);
       }
-      
+
       // Actualizar solo campos vacíos
       const nuevosParciales = {
         parcial1: datosActuales.parciales.parcial1 ?? parcial1,
         parcial2: datosActuales.parciales.parcial2 ?? parcial2,
         parcial3: datosActuales.parciales.parcial3 ?? parcial3
       };
-      
+
       const nuevasFaltas = {
         falta1: falta1 !== null ? (datosActuales.faltas.falta1 ?? falta1) : null,
         falta2: falta2 !== null ? (datosActuales.faltas.falta2 ?? falta2) : null,
-        falta3: falta3 !== null ? (datosActuales.faltas.falta3 ?? falta3) : null
+        falta3: !tieneExamenFinalActual && falta3 !== null ? (datosActuales.faltas.falta3 ?? falta3) : null
       };
-      
+
       console.log('  -> Nuevos datos a guardar:');
       console.log('     Parciales:', nuevosParciales);
       console.log('     Faltas:', nuevasFaltas);
-      
-      // Calcular promedio
-      let promedio = null;
-      const tieneNP = nuevosParciales.parcial1 === 'NP' || 
-                      nuevosParciales.parcial2 === 'NP' || 
-                      nuevosParciales.parcial3 === 'NP';
-      
-      if (tieneNP) {
-        promedio = 'NP';
-      } else {
-        const cals = [nuevosParciales.parcial1, nuevosParciales.parcial2, nuevosParciales.parcial3]
-          .filter(c => c !== null && c !== undefined)
-          .map(c => parseFloat(c))
-          .filter(c => !isNaN(c));
-        
-        if (cals.length > 0) {
-          promedio = cals.reduce((a, b) => a + b, 0) / cals.length;
-        }
-      }
-      
-      console.log('  -> Promedio calculado:', promedio);
+
+      // Calcular calificación usando la función centralizada
+      const promedio = calcularCalificacion(
+        nuevosParciales.parcial1,
+        nuevosParciales.parcial2,
+        nuevosParciales.parcial3,
+        tieneExamenFinalActual
+      );
+
+      console.log('  -> Calificación calculada:', promedio);
       
       // Guardar
       try {
@@ -1026,7 +1092,7 @@ function generarSeccionExtraordinarios(asignacion, alumnos) {
             <tr>
               <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Alumno</th>
               <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px;">Matrícula</th>
-              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 80px;">Promedio</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 80px;">Calificación</th>
               <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px; background: #fff3e0;">Extraordinario</th>
               <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px; background: #ffebee;">ETS</th>
             </tr>
