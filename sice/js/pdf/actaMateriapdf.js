@@ -72,6 +72,17 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     doc.text(`Total de Alumnos: ${alumnosEnMateria.length}`, 20, y);
     y += 15;
     
+    // Determinar si la carrera usa examen final
+    let tieneExamenFinalActa = false;
+    try {
+      const materiaDoc = await db.collection('materias').doc(materiaId).get();
+      if (materiaDoc.exists && materiaDoc.data().carreraId) {
+        tieneExamenFinalActa = await obtenerTieneExamenFinal(materiaDoc.data().carreraId);
+      }
+    } catch (_) {}
+
+    const colP3Label = tieneExamenFinalActa ? 'E.Final' : 'P3';
+
     // Preparar datos para la tabla
     const tableData = [];
     let totalP1 = 0, countP1 = 0;
@@ -79,66 +90,54 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     let totalP3 = 0, countP3 = 0;
     let totalPromedio = 0, countPromedio = 0;
     let aprobados = 0;
-    
+
     alumnosEnMateria.forEach((alumno, index) => {
-      const p1 = alumno.parcial1;
-      const p2 = alumno.parcial2;
-      const p3 = alumno.parcial3;
-      
-      // Calcular promedio
+      const p1Raw = alumno.parcial1;
+      const p2Raw = alumno.parcial2;
+      const p3Raw = alumno.parcial3;
+
+      const p1 = (p1Raw === '-' || p1Raw === null || p1Raw === undefined) ? null : p1Raw;
+      const p2 = (p2Raw === '-' || p2Raw === null || p2Raw === undefined) ? null : p2Raw;
+      const p3 = (p3Raw === '-' || p3Raw === null || p3Raw === undefined) ? null : p3Raw;
+
+      const p1Num = (p1 !== null && p1 !== 'NP') ? parseFloat(p1) : p1;
+      const p2Num = (p2 !== null && p2 !== 'NP') ? parseFloat(p2) : p2;
+      const p3Num = (p3 !== null && p3 !== 'NP') ? parseFloat(p3) : p3;
+
+      const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalActa);
       let promedio = '-';
-      const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
-      
-      if (tieneNP) {
+      if (calNum === 'NP') {
         promedio = 'NP';
-      } else {
-        const cals = [p1, p2, p3]
-          .filter(c => c !== '-' && c !== null && c !== undefined && c !== '')
-          .map(c => parseFloat(c))
-          .filter(c => !isNaN(c));
-        
-        if (cals.length > 0) {
-          const prom = cals.reduce((a, b) => a + b, 0) / cals.length;
-          promedio = prom.toFixed(1);
-          totalPromedio += prom;
-          countPromedio++;
-          
-          if (prom >= 6) {
-            aprobados++;
-          }
+      } else if (calNum !== null) {
+        promedio = calNum.toFixed(1);
+        totalPromedio += calNum;
+        countPromedio++;
+        if (!esReprobado(calNum, tieneExamenFinalActa)) {
+          aprobados++;
         }
       }
-      
+
       // Estadísticas por parcial
-      if (p1 !== '-' && p1 !== 'NP') {
-        totalP1 += parseFloat(p1);
-        countP1++;
-      }
-      if (p2 !== '-' && p2 !== 'NP') {
-        totalP2 += parseFloat(p2);
-        countP2++;
-      }
-      if (p3 !== '-' && p3 !== 'NP') {
-        totalP3 += parseFloat(p3);
-        countP3++;
-      }
-      
+      if (p1 !== null && p1 !== 'NP') { totalP1 += parseFloat(p1); countP1++; }
+      if (p2 !== null && p2 !== 'NP') { totalP2 += parseFloat(p2); countP2++; }
+      if (p3 !== null && p3 !== 'NP') { totalP3 += parseFloat(p3); countP3++; }
+
       tableData.push([
         (index + 1).toString(),
         alumno.matricula || 'N/A',
         alumno.nombre,
         alumno.codigoGrupo || alumno.grupoNombre || 'N/A',
-        p1.toString(),
-        p2.toString(),
-        p3.toString(),
+        p1Raw !== null && p1Raw !== undefined ? String(p1Raw) : '-',
+        p2Raw !== null && p2Raw !== undefined ? String(p2Raw) : '-',
+        p3Raw !== null && p3Raw !== undefined ? String(p3Raw) : '-',
         promedio
       ]);
     });
-    
+
     // Generar tabla
     doc.autoTable({
       startY: y,
-      head: [['#', 'Matrícula', 'Nombre', 'Grupo', 'P1', 'P2', 'P3', 'Prom.']],
+      head: [['#', 'Matrícula', 'Nombre', 'Grupo', 'P1', 'P2', colP3Label, 'Cal.']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -197,13 +196,14 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     const promedioGeneral = countPromedio > 0 ? (totalPromedio / countPromedio).toFixed(1) : '-';
     const porcentajeAprobados = countPromedio > 0 ? ((aprobados / countPromedio) * 100).toFixed(1) : '0';
     
+    const labelP3Stats = tieneExamenFinalActa ? 'Prom. E.Final' : 'Promedio Parcial 3';
     doc.text(`Promedio Parcial 1: ${promedioP1}`, 20, y);
     doc.text(`Promedio Parcial 2: ${promedioP2}`, 80, y);
-    doc.text(`Promedio Parcial 3: ${promedioP3}`, 140, y);
-    
+    doc.text(`${labelP3Stats}: ${promedioP3}`, 140, y);
+
     y += 7;
     doc.setFont(undefined, 'bold');
-    doc.text(`Promedio General de la Materia: ${promedioGeneral}`, 20, y);
+    doc.text(`Calificación General de la Materia: ${promedioGeneral}`, 20, y);
     
     y += 7;
     doc.setFont(undefined, 'normal');

@@ -151,6 +151,9 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
     doc.text(`Alumno: ${nombreAlumno}`, 20, y);
     y += 7;
     
+    // Variable para el sistema de calificación de esta carrera
+    let tieneExamenFinalPDF = false;
+
     // Cargar datos adicionales del alumno
     try {
       const alumnoDoc = await db.collection('usuarios').doc(alumnoId).get();
@@ -168,6 +171,7 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
             if (carreraDoc.exists) {
               doc.text(`Carrera: ${carreraDoc.data().nombre}`, 20, y);
               y += 7;
+              tieneExamenFinalPDF = carreraDoc.data().tieneExamenFinal === true;
             }
           } catch (error) {
             console.error('Error al cargar carrera:', error);
@@ -242,35 +246,33 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       let countPromedios = 0;
       
       materias.forEach(materia => {
-        const p1 = materia.parcial1;
-        const p2 = materia.parcial2;
-        const p3 = materia.parcial3;
-        
-        // Calcular promedio
+        const p1Raw = materia.parcial1;
+        const p2Raw = materia.parcial2;
+        const p3Raw = materia.parcial3;
+
+        const p1 = (p1Raw === '-' || p1Raw === null || p1Raw === undefined) ? null : p1Raw;
+        const p2 = (p2Raw === '-' || p2Raw === null || p2Raw === undefined) ? null : p2Raw;
+        const p3 = (p3Raw === '-' || p3Raw === null || p3Raw === undefined) ? null : p3Raw;
+
+        const p1Num = (p1 !== null && p1 !== 'NP') ? parseFloat(p1) : p1;
+        const p2Num = (p2 !== null && p2 !== 'NP') ? parseFloat(p2) : p2;
+        const p3Num = (p3 !== null && p3 !== 'NP') ? parseFloat(p3) : p3;
+
+        const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalPDF);
         let promedio = '-';
-        const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
-        
-        if (tieneNP) {
+        if (calNum === 'NP') {
           promedio = 'NP';
-        } else {
-          const cals = [p1, p2, p3]
-            .filter(c => c !== '-' && c !== null && c !== undefined && c !== '')
-            .map(c => parseFloat(c))
-            .filter(c => !isNaN(c));
-          
-          if (cals.length > 0) {
-            const prom = cals.reduce((a, b) => a + b, 0) / cals.length;
-            promedio = prom.toFixed(1);
-            sumaPromedios += prom;
-            countPromedios++;
-          }
+        } else if (calNum !== null) {
+          promedio = calNum.toFixed(1);
+          sumaPromedios += calNum;
+          countPromedios++;
         }
-        
+
         tableData.push([
           materia.materiaNombre,
-          p1.toString(),
-          p2.toString(),
-          p3.toString(),
+          p1Raw !== null && p1Raw !== undefined ? String(p1Raw) : '-',
+          p2Raw !== null && p2Raw !== undefined ? String(p2Raw) : '-',
+          p3Raw !== null && p3Raw !== undefined ? String(p3Raw) : '-',
           promedio
         ]);
       });
@@ -283,7 +285,11 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       // Generar tabla
       doc.autoTable({
         startY: y,
-        head: [['Materia', 'P1', 'P2', 'P3', 'Promedio']],
+        head: [[
+          'Materia', 'P1', 'P2',
+          tieneExamenFinalPDF ? 'Examen Final' : 'P3',
+          'Calificación'
+        ]],
         body: tableData,
         theme: 'grid',
         headStyles: {
@@ -312,7 +318,7 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       // Promedio del periodo
       doc.setFontSize(10);
       doc.setFont(undefined, 'bold');
-      doc.text(`Promedio del periodo: ${promedioPeriodo}`, 20, y);
+      doc.text(`Calificación del periodo: ${promedioPeriodo}`, 20, y);
       
       y += 15;
     }
