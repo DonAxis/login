@@ -3372,6 +3372,7 @@ async function cargarCalificacionesMateria() {
                 tieneExamenFinalCoord = cDocCoord.exists && cDocCoord.data().tieneExamenFinal === true;
             } catch (_) {}
         }
+        console.log('[DEBUG tieneExamenFinal] carreraId:', asignacionCalifActual.carreraId, '→ tieneExamenFinalCoord:', tieneExamenFinalCoord);
 
         console.log('[DEBUG ASIGNACION]', JSON.stringify(asignacionCalifActual));
 
