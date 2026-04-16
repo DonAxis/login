@@ -3904,7 +3904,7 @@ function descargarActaPDF() {
         const {
             jsPDF
         } = window.jspdf;
-        const doc = new jsPDF();
+        const doc = new jsPDF({ format: 'letter' });
 
         // Obtener ancho de página
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -3969,8 +3969,11 @@ function descargarActaPDF() {
         });
 
         // Generar tabla
+        // margin.bottom reserva espacio al fondo para total + firma,
+        // lo que también evita que solo 1-2 alumnos queden solos en página 2
         doc.autoTable({
             startY: y,
+            margin: { bottom: 55 },
             head: [
                 ['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación']
             ],
@@ -4007,15 +4010,9 @@ function descargarActaPDF() {
             }
         });
 
-        // Pie de página con total y firmas
+        // El margin.bottom garantiza que siempre haya espacio para total + firma
         const pageHeight = doc.internal.pageSize.getHeight();
         let finalY = doc.lastAutoTable.finalY + 10;
-
-        // Si no caben el total + firma, agregar nueva página
-        if (finalY + 45 > pageHeight) {
-            doc.addPage();
-            finalY = 20;
-        }
 
         doc.setFontSize(10);
         doc.setFont(undefined, 'bold');

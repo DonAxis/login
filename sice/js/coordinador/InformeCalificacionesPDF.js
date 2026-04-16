@@ -126,7 +126,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
     }).toUpperCase();
 
     // ── Generar PDF ───────────────────────────────────────────────────
-    const doc = new jsPDF();
+    const doc = new jsPDF({ format: 'letter' });
     const pageWidth  = doc.internal.pageSize.getWidth();   // 210
     const pageHeight = doc.internal.pageSize.getHeight();  // 297
 

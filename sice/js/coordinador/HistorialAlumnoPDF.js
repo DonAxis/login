@@ -10,7 +10,7 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
     }
     
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF({ format: 'letter' });
     
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();

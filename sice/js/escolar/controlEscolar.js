@@ -1686,7 +1686,7 @@ function generarListaObservacionesPDF() {
   if (alumnos.length === 0) { alert('No hay alumnos en este grupo'); return; }
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({ format: 'letter' });
   const pageWidth = doc.internal.pageSize.getWidth();
 
   const fecha = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
