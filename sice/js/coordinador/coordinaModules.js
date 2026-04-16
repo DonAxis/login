@@ -4007,8 +4007,15 @@ function descargarActaPDF() {
             }
         });
 
-        // Pie de página con estadísticas
-        const finalY = doc.lastAutoTable.finalY + 10;
+        // Pie de página con total y firmas
+        const pageHeight = doc.internal.pageSize.getHeight();
+        let finalY = doc.lastAutoTable.finalY + 10;
+
+        // Si no caben el total + firma, agregar nueva página
+        if (finalY + 45 > pageHeight) {
+            doc.addPage();
+            finalY = 20;
+        }
 
         doc.setFontSize(10);
         doc.setFont(undefined, 'bold');
