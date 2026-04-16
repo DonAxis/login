@@ -977,6 +977,8 @@ function volverCarreras() {
   carreraSeleccionada = null;
   grupoSeleccionado = null;
   listaHistorial = [];
+  periodoActual = '2026-1';
+  document.getElementById('periodoActual').textContent = '-';
 }
 
 function volverGrupos() {
