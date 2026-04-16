@@ -181,21 +181,30 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     
     // Estadísticas
     y = doc.lastAutoTable.finalY + 15;
-    
+
+    // Si no hay espacio para estadísticas + firmas, agregar nueva página
+    const espacioNecesarioStats = 50; // encabezado + 4 líneas de stats + firma
+    let paginaNueva = false;
+    if (y + espacioNecesarioStats > pageHeight - 65) {
+      doc.addPage();
+      y = 20;
+      paginaNueva = true;
+    }
+
     doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
     doc.text('ESTADÍSTICAS', 20, y);
-    
+
     y += 10;
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    
+
     const promedioP1 = countP1 > 0 ? (totalP1 / countP1).toFixed(1) : '-';
     const promedioP2 = countP2 > 0 ? (totalP2 / countP2).toFixed(1) : '-';
     const promedioP3 = countP3 > 0 ? (totalP3 / countP3).toFixed(1) : '-';
     const promedioGeneral = countPromedio > 0 ? (totalPromedio / countPromedio).toFixed(1) : '-';
     const porcentajeAprobados = countPromedio > 0 ? ((aprobados / countPromedio) * 100).toFixed(1) : '0';
-    
+
     const labelP3Stats = tieneExamenFinalActa ? 'Prom. E.Final' : 'Promedio Parcial 3';
     doc.text(`Promedio Parcial 1: ${promedioP1}`, 20, y);
     doc.text(`Promedio Parcial 2: ${promedioP2}`, 80, y);
@@ -204,28 +213,28 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     y += 7;
     doc.setFont(undefined, 'bold');
     doc.text(`Calificación General de la Materia: ${promedioGeneral}`, 20, y);
-    
+
     y += 7;
     doc.setFont(undefined, 'normal');
     doc.text(`Alumnos Aprobados: ${aprobados} de ${countPromedio} (${porcentajeAprobados}%)`, 20, y);
-    
+
     y += 7;
     const reprobados = countPromedio - aprobados;
     doc.text(`Alumnos Reprobados: ${reprobados} de ${countPromedio} (${(100 - parseFloat(porcentajeAprobados)).toFixed(1)}%)`, 20, y);
-    
-    // Espacio para firmas
-    y = pageHeight - 60;
-    
+
+    // Espacio para firmas: si es página nueva va justo después de stats, si no se ancla al fondo
+    const yFirma = paginaNueva ? y + 30 : pageHeight - 60;
+
     doc.setLineWidth(0.3);
-    
+
     // Firma profesor
-    doc.line(30, y, 90, y);
+    doc.line(30, yFirma, 90, yFirma);
     doc.setFontSize(9);
-    doc.text('Profesor', 60, y + 5, { align: 'center' });
-    
+    doc.text('Profesor', 60, yFirma + 5, { align: 'center' });
+
     // Firma coordinador
-    doc.line(120, y, 180, y);
-    doc.text('Coordinación', 150, y + 5, { align: 'center' });
+    doc.line(120, yFirma, 180, yFirma);
+    doc.text('Coordinación', 150, yFirma + 5, { align: 'center' });
     
     // Pie de página
     doc.setFontSize(8);
