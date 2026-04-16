@@ -725,7 +725,7 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
       const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
       
       if (tieneNP) {
-        promedio = '5.0';
+        promedio = 'NP';
       } else {
         const cals = [p1, p2, p3]
           .filter(c => c !== '-' && c !== null && c !== undefined && c !== '')
@@ -920,7 +920,7 @@ async function _verHistorialCompletoCancelado(alumnoId, nombreAlumno) {
         const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
         
         if (tieneNP) {
-          promedio = '5.0';
+          promedio = 'NP';
           sumaPromedios += 5.0;
           countPromedios++;
         } else {
@@ -1188,7 +1188,7 @@ async function verDetalleAlumnoEspecial(alumnoId, nombreAlumno) {
       if (cals.length > 0) {
         inscripcion.promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
       } else if (inscripcion.parcial1 === 'NP' || inscripcion.parcial2 === 'NP' || inscripcion.parcial3 === 'NP') {
-        inscripcion.promedio = '5.0';
+        inscripcion.promedio = 'NP';
       } else {
         inscripcion.promedio = '-';
       }
