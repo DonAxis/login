@@ -1662,20 +1662,25 @@ function generarListaObservacionesPDF() {
 
   // Logos
   if (typeof logosEscuela !== 'undefined') {
-    try { if (logosEscuela.logoIzquierdo) doc.addImage(logosEscuela.logoIzquierdo, 'PNG', 15, 8, 25, 25); } catch(e) {}
-    try { if (logosEscuela.logoDerecho)   doc.addImage(logosEscuela.logoDerecho,   'PNG', pageWidth - 40, 8, 25, 30); } catch(e) {}
+    try { if (logosEscuela.logoIzquierdo) doc.addImage(logosEscuela.logoIzquierdo, 'PNG', 15, 5, 19, 19); } catch(e) {}
+    try { if (logosEscuela.logoDerecho)   doc.addImage(logosEscuela.logoDerecho,   'PNG', 145, 7, 50, 8); } catch(e) {}
   }
 
   // Encabezado
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
-  doc.text('Lista de Alumnos', pageWidth / 2, 18, { align: 'center' });
+  doc.text('Lista de Alumnos', pageWidth / 2, 22, { align: 'center' });
+
+  // Línea bajo el título
+  doc.setLineWidth(0.5);
+  doc.setDrawColor(0, 0, 0);
+  doc.line(10, 26, pageWidth - 10, 26);
 
   doc.setFontSize(10);
   doc.setFont(undefined, 'normal');
-  doc.text(`Grupo: ${grupo}`, pageWidth / 2, 26, { align: 'center' });
-  if (carrera) doc.text(carrera, pageWidth / 2, 32, { align: 'center' });
-  doc.text(`Periodo: ${periodoActual}     Fecha: ${fecha}`, pageWidth / 2, 38, { align: 'center' });
+  doc.text(`Grupo: ${grupo}`, pageWidth / 2, 32, { align: 'center' });
+  if (carrera) doc.text(carrera, pageWidth / 2, 38, { align: 'center' });
+  doc.text(`Periodo: ${periodoActual}     Fecha: ${fecha}`, pageWidth / 2, 44, { align: 'center' });
 
   // Tabla
   const filas = alumnos.map((alumno, i) => [
@@ -1686,18 +1691,18 @@ function generarListaObservacionesPDF() {
   ]);
 
   doc.autoTable({
-    startY: 44,
+    startY: 50,
     head: [['#', 'Matrícula', 'Nombre', 'Observaciones']],
     body: filas,
+    theme: 'grid',
     styles: { fontSize: 9, cellPadding: 3 },
     headStyles: { fillColor: [106, 33, 53], textColor: 255, fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 12,  halign: 'center' },
-      1: { cellWidth: 28 },
+      1: { cellWidth: 38 },
       2: { cellWidth: 70 },
-      3: { cellWidth: 70 }
-    },
-    alternateRowStyles: { fillColor: [248, 248, 248] }
+      3: { cellWidth: 60 }
+    }
   });
 
   doc.save(`Lista_${grupo}_${periodoActual}.pdf`);
