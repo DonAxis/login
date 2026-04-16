@@ -385,7 +385,7 @@ async function historialActualAlumnos() {
         const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
         let prom = '-';
         if (tieneNP) {
-          prom = '5.0';
+          prom = 'NP';
         } else {
           const vals = [p1, p2, p3].filter(v => v !== '-' && v !== null && v !== undefined).map(Number).filter(n => !isNaN(n));
           if (vals.length > 0) prom = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
@@ -502,7 +502,7 @@ async function historialActualMaterias() {
         const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
         let prom = '-';
         if (tieneNP) {
-          prom = '5.0';
+          prom = 'NP';
         } else {
           const vals = [p1, p2, p3].filter(v => v !== '-' && v !== null && v !== undefined).map(Number).filter(n => !isNaN(n));
           if (vals.length > 0) prom = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
@@ -619,40 +619,69 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
   await cargarAlumnosSiNecesario();
 
   try {
-    // Buscar calificaciones de esta materia
-    const calificacionesSnap = await db.collection('calificaciones')
-      .where('materiaId', '==', materiaId)
-      .get();
-    
-    if (calificacionesSnap.empty) {
+    // Obtener el codigoGrupo: desde contexto de grupo activo o desde profesorMaterias
+    let codigoGrupoMateria = grupoSeleccionado ? grupoSeleccionado.codigoGrupo : null;
+    if (!codigoGrupoMateria) {
+      try {
+        const asigSnap = await db.collection('profesorMaterias')
+          .where('materiaId', '==', materiaId)
+          .where('activa', '==', true)
+          .limit(1)
+          .get();
+        if (!asigSnap.empty) codigoGrupoMateria = asigSnap.docs[0].data().codigoGrupo;
+      } catch (_) {}
+    }
+
+    // Construir lista de alumnos: todos los del grupo (con o sin calificaciones)
+    const alumnosEnMateria = [];
+
+    if (codigoGrupoMateria) {
+      const alumnosGrupo = alumnosData
+        .filter(a => a.codigoGrupo === codigoGrupoMateria && a.tipoAlumno !== 'especial')
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+      for (const alumno of alumnosGrupo) {
+        const docId = `${alumno.uid}_${materiaId}`;
+        const calDoc = await db.collection('calificaciones').doc(docId).get({ source: 'server' })
+          .catch(() => db.collection('calificaciones').doc(docId).get());
+        const cal = calDoc.exists ? calDoc.data() : null;
+        alumnosEnMateria.push({
+          ...alumno,
+          parcial1: cal?.parciales?.parcial1 ?? '-',
+          parcial2: cal?.parciales?.parcial2 ?? '-',
+          parcial3: cal?.parciales?.parcial3 ?? '-',
+          periodo: cal?.periodo || periodoActual
+        });
+      }
+    } else {
+      // Sin contexto de grupo: fallback a query por calificaciones
+      const calSnap = await db.collection('calificaciones')
+        .where('materiaId', '==', materiaId)
+        .get();
+      for (const doc of calSnap.docs) {
+        const cal = doc.data();
+        const alumno = alumnosData.find(a => a.uid === cal.alumnoId);
+        if (alumno) {
+          alumnosEnMateria.push({
+            ...alumno,
+            parcial1: cal.parciales?.parcial1 ?? '-',
+            parcial2: cal.parciales?.parcial2 ?? '-',
+            parcial3: cal.parciales?.parcial3 ?? '-',
+            periodo: cal.periodo
+          });
+        }
+      }
+      alumnosEnMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }
+
+    if (alumnosEnMateria.length === 0) {
       mostrarLista(`
         <h2 class="titulo-seccion">Alumnos en ${nombreMateria}</h2>
-        <div class="sin-datos">El profesor aún no ha subido calificaciones</div>
+        <div class="sin-datos">No hay alumnos en este grupo</div>
       `);
       return;
     }
-    
-    // Obtener datos de alumnos
-    const alumnosEnMateria = [];
-    
-    for (const doc of calificacionesSnap.docs) {
-      const cal = doc.data();
-      const alumno = alumnosData.find(a => a.uid === cal.alumnoId);
-      
-      if (alumno) {
-        alumnosEnMateria.push({
-          ...alumno,
-          parcial1: cal.parciales?.parcial1 ?? '-',
-          parcial2: cal.parciales?.parcial2 ?? '-',
-          parcial3: cal.parciales?.parcial3 ?? '-',
-          periodo: cal.periodo
-        });
-      }
-    }
-    
-    // Ordenar por nombre
-    alumnosEnMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    
+
     // Guardar datos para el PDF en variable global (evita romper el atributo onclick con JSON)
     window._actaAlumnosData = alumnosEnMateria;
     window._actaMateriaId   = materiaId;
@@ -753,9 +782,10 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
 
 // ===== VER HISTORIAL COMPLETO DE UN ALUMNO =====
 function verHistorialCompleto(alumnoId, nombreAlumno) {
-  sessionStorage.setItem('historialAlumnoId', alumnoId);
-  sessionStorage.setItem('historialAlumnoNombre', nombreAlumno);
-  window.open('historialAlumno.html', '_blank');
+  window.open(
+    `historialAlumno.html?id=${encodeURIComponent(alumnoId)}&nombre=${encodeURIComponent(nombreAlumno)}`,
+    '_blank'
+  );
 }
 
 async function _verHistorialCompletoCancelado(alumnoId, nombreAlumno) {

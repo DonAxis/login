@@ -62,8 +62,9 @@
         document.getElementById('contenido').innerHTML = '<p style="color:red;text-align:center;padding:40px;">Sin permisos.</p>';
         return;
       }
-      const alumnoId    = sessionStorage.getItem('historialAlumnoId');
-      const alumnoNombre = sessionStorage.getItem('historialAlumnoNombre') || 'Alumno';
+      const params = new URLSearchParams(window.location.search);
+      const alumnoId    = params.get('id')     || sessionStorage.getItem('historialAlumnoId');
+      const alumnoNombre = params.get('nombre') || sessionStorage.getItem('historialAlumnoNombre') || 'Alumno';
 
       if (!alumnoId) {
         document.getElementById('contenido').innerHTML = '<p style="color:#666;text-align:center;padding:40px;">No se recibió información del alumno.</p>';
