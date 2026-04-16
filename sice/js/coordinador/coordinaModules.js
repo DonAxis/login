@@ -3973,7 +3973,7 @@ function descargarActaPDF() {
         // lo que también evita que solo 1-2 alumnos queden solos en página 2
         doc.autoTable({
             startY: y,
-            margin: { bottom: 55 },
+            margin: { bottom: 40 },
             head: [
                 ['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación']
             ],
