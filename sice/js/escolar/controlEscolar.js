@@ -72,17 +72,9 @@ async function inicializar() {
 }
 
 async function cargarPeriodoActual() {
-  try {
-    const configDoc = await db.collection('config').doc('periodoActual').get();
-    
-    if (configDoc.exists) {
-      periodoActual = configDoc.data().periodo;
-    }
-    
-    document.getElementById('periodoActual').textContent = periodoActual;
-  } catch (error) {
-    console.error('Error al cargar periodo:', error);
-  }
+  // El periodo es por carrera (config/periodo_{carreraId}), no hay periodo global.
+  // Se actualiza al seleccionar una carrera.
+  document.getElementById('periodoActual').textContent = '-';
 }
 
 
@@ -209,6 +201,15 @@ function mostrarCarreras() {
 async function seleccionarCarrera(carreraId) {
   carreraSeleccionada = carrerasData.find(c => c.id === carreraId);
   if (!carreraSeleccionada) return;
+
+  // Cargar el periodo activo de esta carrera
+  try {
+    const configDoc = await db.collection('config').doc(`periodo_${carreraId}`).get();
+    periodoActual = configDoc.exists ? (configDoc.data().periodo || '2026-1') : '2026-1';
+  } catch (e) {
+    periodoActual = '2026-1';
+  }
+  document.getElementById('periodoActual').textContent = periodoActual;
 
   document.getElementById('menuCarreras').style.display = 'none';
   grupoSeleccionado = null;
@@ -1695,7 +1696,7 @@ function generarListaObservacionesPDF() {
     head: [['#', 'Matrícula', 'Nombre', 'Observaciones']],
     body: filas,
     theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 3 },
+    styles: { fontSize: 9, cellPadding: 2 },
     headStyles: { fillColor: [106, 33, 53], textColor: 255, fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 12,  halign: 'center' },
