@@ -3996,11 +3996,11 @@ function descargarActaPDF() {
                 },
                 1: {
                     halign: 'center',
-                    cellWidth: 30
+                    cellWidth: 35
                 },
                 2: {
                     halign: 'left',
-                    cellWidth: 100
+                    cellWidth: 95
                 },
                 3: {
                     halign: 'center',
