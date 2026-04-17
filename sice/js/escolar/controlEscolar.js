@@ -1694,9 +1694,8 @@ function generarListaObservacionesPDF() {
   const carrera = carreraSeleccionada ? carreraSeleccionada.nombre : '';
 
   // Logos
-  if (typeof logosEscuela !== 'undefined') {
-    try { if (logosEscuela.logoIzquierdo) doc.addImage(logosEscuela.logoIzquierdo, 'PNG', 15, 5, 19, 19); } catch(e) {}
-    try { if (logosEscuela.logoDerecho)   doc.addImage(logosEscuela.logoDerecho,   'PNG', 145, 7, 50, 8); } catch(e) {}
+  if (typeof agregarLogosAlPDF === 'function') {
+    agregarLogosAlPDF(doc, carreraSeleccionada?.tieneExamenFinal === true);
   }
 
   // Encabezado

@@ -36,9 +36,11 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
     // Construir mapa de materias con cache
     const materiasMapPDF = {}; // Nombre unico para evitar conflictos
     const materiasCachePDF = {};
-    
+    let carreraIdHistorial = null;
+
     for (const calDoc of calificaciones.docs) {
       const cal = calDoc.data();
+      if (!carreraIdHistorial && cal.carreraId) carreraIdHistorial = cal.carreraId;
       const key = `${cal.materiaId}_${cal.periodo}`;
       
       let materiaNombre = cal.materiaNombre || 'Sin nombre';
@@ -89,9 +91,13 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       day: 'numeric'
     });
     
-    // Agregar logos si existe la funcion
-    if (typeof logosEscuela !== 'undefined' && typeof logosEscuela.agregarLogosAlPDF === 'function') {
-      logosEscuela.agregarLogosAlPDF(doc);
+    // Agregar logos
+    let tieneExamenFinalHistorial = false;
+    try {
+      if (carreraIdHistorial) tieneExamenFinalHistorial = await obtenerTieneExamenFinal(carreraIdHistorial);
+    } catch (_) {}
+    if (typeof agregarLogosAlPDF === 'function') {
+      agregarLogosAlPDF(doc, tieneExamenFinalHistorial);
     }
     
     // Encabezado

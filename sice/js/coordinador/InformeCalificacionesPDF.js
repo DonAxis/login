@@ -133,7 +133,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
     function dibujarEncabezado(doc) {
       // Logos
       if (typeof agregarLogosAlPDF === 'function') {
-        agregarLogosAlPDF(doc);
+        agregarLogosAlPDF(doc, tieneExamenFinalInforme);
       }
 
       // Nombre institución

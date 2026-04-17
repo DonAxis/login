@@ -152,23 +152,9 @@ async function generarPDFBoletaActual() {
       ? await obtenerTieneExamenFinal(alumnoActual.carreraId)
       : false;
     
-    // Agregar logos si existen
-    if (typeof logosEscuela !== 'undefined') {
-      try {
-        if (logosEscuela.logoIzquierdo) {
-          doc.addImage(logosEscuela.logoIzquierdo, 'PNG', 15, 8, 25, 25);
-        }
-      } catch (e) {
-        console.log('Error al cargar logo izquierdo:', e);
-      }
-      
-      try {
-        if (logosEscuela.logoDerecho) {
-          doc.addImage(logosEscuela.logoDerecho, 'PNG', 145, 7, 50, 8);
-        }
-      } catch (e) {
-        console.log('Error al cargar logo derecho:', e);
-      }
+    // Agregar logos
+    if (typeof agregarLogosAlPDF === 'function') {
+      agregarLogosAlPDF(doc, tieneExamenFinalCarrera);
     }
     
     // Título

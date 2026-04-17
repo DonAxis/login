@@ -92,13 +92,7 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       
       // Verificar si existe la funcion agregarLogosAlPDF (version 1)
       if (typeof agregarLogosAlPDF === 'function') {
-        console.log('Usando funcion agregarLogosAlPDF');
-        agregarLogosAlPDF(doc);
-      } 
-      // O si esta como metodo del objeto (version 2)
-      else if (typeof logosEscuela.agregarLogosAlPDF === 'function') {
-        console.log('Usando logosEscuela.agregarLogosAlPDF');
-        logosEscuela.agregarLogosAlPDF(doc);
+        agregarLogosAlPDF(doc, tieneExamenFinalPDF);
       }
       // O agregar logos manualmente desde el objeto
       else if (logosEscuela.logoIzquierdo || logosEscuela.logoDerecho) {

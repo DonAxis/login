@@ -3918,7 +3918,7 @@ function descargarActaPDF() {
 
         // Agregar logos (desde logos-pdf.js)
         if (typeof agregarLogosAlPDF === 'function') {
-            agregarLogosAlPDF(doc);
+            agregarLogosAlPDF(doc, tieneExamenFinalCoord);
         }
 
         // Encabezado

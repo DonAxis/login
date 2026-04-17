@@ -26,23 +26,18 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
       day: 'numeric'
     });
     
-    // Agregar logos si existen
-    if (typeof logosEscuela !== 'undefined') {
-      try {
-        if (logosEscuela.logoIzquierdo) {
-          doc.addImage(logosEscuela.logoIzquierdo, 'PNG', 15, 8, 25, 25);
-        }
-      } catch (e) {
-        console.log('Error al cargar logo izquierdo:', e);
+    // Determinar si la carrera usa examen final (necesario para elegir logo)
+    let tieneExamenFinalActa = false;
+    try {
+      const materiaDoc = await db.collection('materias').doc(materiaId).get();
+      if (materiaDoc.exists && materiaDoc.data().carreraId) {
+        tieneExamenFinalActa = await obtenerTieneExamenFinal(materiaDoc.data().carreraId);
       }
-      
-      try {
-        if (logosEscuela.logoDerecho) {
-          doc.addImage(logosEscuela.logoDerecho, 'PNG', 145, 7, 50, 8);
-        }
-      } catch (e) {
-        console.log('Error al cargar logo derecho:', e);
-      }
+    } catch (_) {}
+
+    // Agregar logos
+    if (typeof agregarLogosAlPDF === 'function') {
+      agregarLogosAlPDF(doc, tieneExamenFinalActa);
     }
     
     // Título
@@ -72,15 +67,6 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     doc.text(`Total de Alumnos: ${alumnosEnMateria.length}`, 20, y);
     y += 15;
     
-    // Determinar si la carrera usa examen final
-    let tieneExamenFinalActa = false;
-    try {
-      const materiaDoc = await db.collection('materias').doc(materiaId).get();
-      if (materiaDoc.exists && materiaDoc.data().carreraId) {
-        tieneExamenFinalActa = await obtenerTieneExamenFinal(materiaDoc.data().carreraId);
-      }
-    } catch (_) {}
-
     const colP3Label = tieneExamenFinalActa ? 'E.Final' : 'P3';
 
     // Preparar datos para la tabla
