@@ -1,19 +1,20 @@
 // calificaciones.js
-// Helpers de lógica de calificaciones para carreras con sistema normal (3 parciales)
-// y carreras con examen final (2 parciales + examen final).
+// Helpers de lógica de calificaciones.
 //
-// Carreras con tieneExamenFinal = true (e.g. LAE, 9 trimestres):
-//   - Solo 2 parciales (parcial1, parcial2). parcial3 almacena el examen final.
-//   - calificación = promedio(p1, p2)
-//   - Si promedio <= 7.5 → el alumno debe presentar examen final
-//   - Si presentó examen final → calificación = valor del examen final (p3)
-//   - NP en p1 o p2 → NP absoluto
-//   - NP en p3 solo aplica si promedio(p1,p2) <= 7.5 (el examen era requerido)
-//   - Reprobado: calificación numérica <= 7.5
-//
-// Carreras normales (tieneExamenFinal = false):
+// Sistema Normal (tieneExamenFinal=false, esMaestria=false):
 //   - 3 parciales, calificación = promedio de los parciales disponibles
-//   - Reprobado: calificación numérica < 6
+//   - Reprobado: calificación < 6
+//
+// Sistema Examen Final (tieneExamenFinal=true, ej. LAE):
+//   - 2 parciales + examen final en parcial3
+//   - Si promedio(p1,p2) <= 7.5 → debe presentar examen final
+//   - Si presentó examen final → calificación = p3
+//   - Reprobado: calificación <= 7.5
+//
+// Sistema Maestría (esMaestria=true, código empieza con 'M'):
+//   - Solo 1 calificación (parcial1) y 1 falta (falta1)
+//   - Sin extraordinario, sin ETS, sin parciales adicionales
+//   - Reprobado: calificación < 6
 
 /**
  * Calcula la calificación final de un alumno en una materia.
@@ -74,6 +75,28 @@ async function obtenerTieneExamenFinal(carreraId) {
     return valor;
   } catch (e) {
     console.warn('obtenerTieneExamenFinal error:', e.message);
+    return false;
+  }
+}
+
+/**
+ * Detecta si una carrera es de tipo Maestría (solo 1 parcial + 1 falta).
+ * Identificador: código de carrera empieza con 'M'.
+ * @param {string} carreraId
+ * @returns {Promise<boolean>}
+ */
+async function obtenerEsMaestria(carreraId) {
+  if (!carreraId) return false;
+  const cacheKey = `carrera_esMaestria_${carreraId}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached !== null) return cached === 'true';
+  try {
+    const doc = await db.collection('carreras').doc(carreraId).get();
+    const valor = doc.exists ? (doc.data().codigo || '').startsWith('M') : false;
+    sessionStorage.setItem(cacheKey, String(valor));
+    return valor;
+  } catch (e) {
+    console.warn('obtenerEsMaestria error:', e.message);
     return false;
   }
 }

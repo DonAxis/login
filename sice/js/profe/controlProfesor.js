@@ -10,6 +10,7 @@ let alumnosMateria = [];
 let carrerasData = [];
 let cargandoAlumnos = false; // Control para evitar duplicados y lecturas extra
 let tieneExamenFinalActual = false; // Indica si la carrera de la materia actual usa examen final
+let esMaestriaActual = false;       // Indica si la carrera es Maestría (1 parcial + 1 falta)
 
 // ============================================================================
 // SECCIÓN 1: INICIALIZACIÓN Y AUTENTICACIÓN
@@ -246,12 +247,13 @@ async function verCalificacionesMateria(asignacionId) {
       ...asigDoc.data()
     };
 
-    // Determinar si la carrera usa examen final
+    // Determinar tipo de carrera
     const carreraActual = carrerasData.find(c => c.id === asignacionActual.carreraId);
     tieneExamenFinalActual = carreraActual?.tieneExamenFinal === true;
+    esMaestriaActual = (carreraActual?.codigo || '').startsWith('M');
 
     console.log('Asignación cargada:', asignacionActual);
-    console.log('tieneExamenFinal:', tieneExamenFinalActual);
+    console.log('tieneExamenFinal:', tieneExamenFinalActual, '| esMaestria:', esMaestriaActual);
     
     // Mostrar información de la materia
     const turnosNombres = {1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino'};
@@ -440,7 +442,11 @@ function generarTablaCalificaciones() {
 
   // Encabezado según el tipo de carrera
   let encabezadoCols;
-  if (tieneExamenFinalActual) {
+  if (esMaestriaActual) {
+    encabezadoCols = `
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 120px;">Calificación</th>
+      <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>`;
+  } else if (tieneExamenFinalActual) {
     encabezadoCols = `
       <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px;">Parcial 1</th>
       <th style="padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2); width: 100px; background: rgba(255,152,0,0.45);">Faltas</th>
@@ -459,7 +465,7 @@ function generarTablaCalificaciones() {
 
   let html = `
     <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-      <table style="width: 100%; min-width: ${tieneExamenFinalActual ? '850px' : '1000px'}; border-collapse: collapse; background: white;">
+      <table style="width: 100%; min-width: ${esMaestriaActual ? '550px' : tieneExamenFinalActual ? '850px' : '1000px'}; border-collapse: collapse; background: white;">
         <thead style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white;">
           <tr>
             <th rowspan="2" style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2); min-width: 150px;">Alumno</th>
@@ -475,8 +481,10 @@ function generarTablaCalificaciones() {
     const cal = alumno.calificaciones;
 
     // Calcular calificación usando la función centralizada
-    const calificacion = calcularCalificacion(cal.parcial1, cal.parcial2, cal.parcial3, tieneExamenFinalActual);
-    const calTexto = calificacion === null ? '-' : (calificacion === 'NP' ? 'NP' : calificacion.toFixed(1));
+    const calificacion = esMaestriaActual
+      ? (cal.parcial1 !== null && cal.parcial1 !== undefined ? cal.parcial1 : null)
+      : calcularCalificacion(cal.parcial1, cal.parcial2, cal.parcial3, tieneExamenFinalActual);
+    const calTexto = calificacion === null ? '-' : (calificacion === 'NP' ? 'NP' : (typeof calificacion === 'number' ? calificacion.toFixed(1) : calificacion));
 
     // Color de la calificación
     let colorCal = '#666';
@@ -493,7 +501,15 @@ function generarTablaCalificaciones() {
       : '';
 
     let filaCols;
-    if (tieneExamenFinalActual) {
+    if (esMaestriaActual) {
+      filaCols = `
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          ${generarCeldaCalificacion(cal.parcial1, index, 'p1')}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
+          ${generarCeldaFalta(cal.falta1, index, 'f1')}
+        </td>`;
+    } else if (tieneExamenFinalActual) {
       filaCols = `
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
           ${generarCeldaCalificacion(cal.parcial1, index, 'p1')}
@@ -713,16 +729,15 @@ async function guardarCalificacionesProfe() {
       
       // Leer valores de los inputs
       const inputP1 = document.getElementById(`cal_${i}_p1`);
-      const inputP2 = document.getElementById(`cal_${i}_p2`);
-      // Para tieneExamenFinal: el input es "ef", para normal: "p3"
-      const inputP3 = tieneExamenFinalActual
+      // Para maestría: solo p1. Para examen final: "ef". Para normal: "p3"
+      const inputP2 = esMaestriaActual ? null : document.getElementById(`cal_${i}_p2`);
+      const inputP3 = esMaestriaActual ? null : tieneExamenFinalActual
         ? document.getElementById(`cal_${i}_ef`)
         : document.getElementById(`cal_${i}_p3`);
 
       const inputF1 = document.getElementById(`fal_${i}_f1`);
-      const inputF2 = document.getElementById(`fal_${i}_f2`);
-      // Para tieneExamenFinal no hay falta3
-      const inputF3 = tieneExamenFinalActual ? null : document.getElementById(`fal_${i}_f3`);
+      const inputF2 = esMaestriaActual ? null : document.getElementById(`fal_${i}_f2`);
+      const inputF3 = esMaestriaActual || tieneExamenFinalActual ? null : document.getElementById(`fal_${i}_f3`);
 
       const p1 = inputP1 ? inputP1.value : '';
       const p2 = inputP2 ? inputP2.value : '';
@@ -748,8 +763,8 @@ async function guardarCalificacionesProfe() {
       const tieneParcial3 = !tieneExamenFinalActual && (parcial3 !== null || alumno.calificaciones.parcial3 !== null);
 
       const falta1 = tieneParcial1 ? (inputF1 ? parseInt(f1) : null) : null;
-      const falta2 = tieneParcial2 ? (inputF2 ? parseInt(f2) : null) : null;
-      const falta3 = tieneParcial3 ? (inputF3 ? parseInt(f3) : null) : null;
+      const falta2 = esMaestriaActual ? null : tieneParcial2 ? (inputF2 ? parseInt(f2) : null) : null;
+      const falta3 = esMaestriaActual || tieneExamenFinalActual ? null : tieneParcial3 ? (inputF3 ? parseInt(f3) : null) : null;
 
       console.log('  Valores convertidos:');
       console.log('    Parciales:', parcial1, parcial2, parcial3);
@@ -806,12 +821,14 @@ async function guardarCalificacionesProfe() {
       console.log('     Faltas:', nuevasFaltas);
 
       // Calcular calificación usando la función centralizada
-      const promedio = calcularCalificacion(
-        nuevosParciales.parcial1,
-        nuevosParciales.parcial2,
-        nuevosParciales.parcial3,
-        tieneExamenFinalActual
-      );
+      const promedio = esMaestriaActual
+        ? nuevosParciales.parcial1
+        : calcularCalificacion(
+            nuevosParciales.parcial1,
+            nuevosParciales.parcial2,
+            nuevosParciales.parcial3,
+            tieneExamenFinalActual
+          );
 
       console.log('  -> Calificación calculada:', promedio);
       

@@ -3311,6 +3311,7 @@ function cambiarModo(modo) {
 let asignacionCalifActual = null;
 let alumnosCalifMateria = [];
 let tieneExamenFinalCoord = false;
+let esMaestriaCoord = false;
 
 // Cargar materias en el selector
 async function cargarMateriasCalificaciones() {
@@ -3390,15 +3391,20 @@ async function cargarCalificacionesMateria() {
             grupoId: asigDoc.data().grupoId || null
         };
 
-        // Obtener tieneExamenFinal de la carrera (lectura directa, sin caché)
+        // Obtener tipo de carrera (lectura directa, sin caché)
         tieneExamenFinalCoord = false;
+        esMaestriaCoord = false;
         if (asignacionCalifActual.carreraId) {
             try {
                 const cDocCoord = await db.collection('carreras').doc(asignacionCalifActual.carreraId).get();
-                tieneExamenFinalCoord = cDocCoord.exists && cDocCoord.data().tieneExamenFinal === true;
+                if (cDocCoord.exists) {
+                    const cData = cDocCoord.data();
+                    tieneExamenFinalCoord = cData.tieneExamenFinal === true;
+                    esMaestriaCoord = (cData.codigo || '').startsWith('M');
+                }
             } catch (_) {}
         }
-        console.log('[DEBUG tieneExamenFinal] carreraId:', asignacionCalifActual.carreraId, '→ tieneExamenFinalCoord:', tieneExamenFinalCoord);
+        console.log('[DEBUG carrera] carreraId:', asignacionCalifActual.carreraId, '→ tieneExamenFinal:', tieneExamenFinalCoord, '| esMaestria:', esMaestriaCoord);
 
         console.log('[DEBUG ASIGNACION]', JSON.stringify(asignacionCalifActual));
 
@@ -3456,6 +3462,10 @@ async function cargarCalificacionesMateria() {
                 alumno.calificaciones.falta2 = faltas.falta2 !== undefined ? faltas.falta2 : null;
                 alumno.calificaciones.falta3 = faltas.falta3 !== undefined ? faltas.falta3 : null;
 
+                // Extraordinario y ETS
+                alumno.calificaciones.extraordinario = data.extraordinario !== undefined ? data.extraordinario : null;
+                alumno.calificaciones.ets            = data.ets            !== undefined ? data.ets            : null;
+
                 console.log(`[CARGAR ${alumno.nombre}] faltas en DB:`, JSON.stringify(data.faltas), `→ falta1=${alumno.calificaciones.falta1} falta2=${alumno.calificaciones.falta2} falta3=${alumno.calificaciones.falta3}`);
             } else {
                 console.warn(`[CARGAR ${alumno.nombre}] ⚠️ NO EXISTE documento de calificaciones con docId=${docId}`);
@@ -3484,19 +3494,29 @@ function generarTablaCalificaciones() {
     const thStyle = 'padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.2);';
     const thStyleNaranja = thStyle + ' background: rgba(255,152,0,0.4);';
 
-    let html = `
-    <div style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; min-width: 820px;">
-        <thead>
-          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-            <th style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
-            <th style="${thStyle}">Matrícula</th>
+    let colHeaders;
+    if (esMaestriaCoord) {
+        colHeaders = `
+            <th style="${thStyle}">Calificación</th>
+            <th style="${thStyleNaranja}">Faltas</th>`;
+    } else {
+        colHeaders = `
             <th style="${thStyle}">Parcial 1</th>
             <th style="${thStyleNaranja}">Faltas 1</th>
             <th style="${thStyle}">Parcial 2</th>
             <th style="${thStyleNaranja}">Faltas 2</th>
             <th style="${thStyle}">${labelP3}</th>
-            ${!tieneExamenFinalCoord ? `<th style="${thStyleNaranja}">Faltas 3</th>` : ''}
+            ${!tieneExamenFinalCoord ? `<th style="${thStyleNaranja}">Faltas 3</th>` : ''}`;
+    }
+
+    let html = `
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; min-width: ${esMaestriaCoord ? '500px' : '820px'};">
+        <thead>
+          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
+            <th style="${thStyle}">Matrícula</th>
+            ${colHeaders}
             <th style="${thStyle}">Calificación</th>
           </tr>
         </thead>
@@ -3510,10 +3530,29 @@ function generarTablaCalificaciones() {
         const p1Num = (p1 !== null && p1 !== undefined && p1 !== 'NP') ? parseFloat(p1) : (p1 === 'NP' ? 'NP' : null);
         const p2Num = (p2 !== null && p2 !== undefined && p2 !== 'NP') ? parseFloat(p2) : (p2 === 'NP' ? 'NP' : null);
         const p3Num = (p3 !== null && p3 !== undefined && p3 !== 'NP') ? parseFloat(p3) : (p3 === 'NP' ? 'NP' : null);
-        const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalCoord);
+        const calNum = esMaestriaCoord ? p1Num : calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalCoord);
         let calTexto = '-';
         if (calNum === 'NP') calTexto = 'NP';
-        else if (calNum !== null) calTexto = calNum.toFixed(1);
+        else if (calNum !== null) calTexto = typeof calNum === 'number' ? calNum.toFixed(1) : String(calNum);
+
+        // Celdas intermedias según tipo de carrera
+        if (esMaestriaCoord) {
+            const celdaCalMaestria = `
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+            ${generarDropdownCalif(index, 'parcial1', p1)}
+          </td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff8e1;">
+            ${generarDropdownFalta(index, 'falta1', alumno.calificaciones.falta1)}
+          </td>`;
+            html += `
+        <tr>
+          <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${alumno.nombre}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${alumno.matricula || '-'}</td>
+          ${celdaCalMaestria}
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${calTexto === 'NP' || (parseFloat(calTexto) < 6) ? '#dc3545' : parseFloat(calTexto) >= 8 ? '#4caf50' : '#ff9800'};">${calTexto}</td>
+        </tr>`;
+            return; // pasar al siguiente alumno
+        }
 
         let celdaP3;
         if (tieneExamenFinalCoord) {
@@ -3639,29 +3678,6 @@ async function guardarTodasCalificacionesCoord() {
         for (let i = 0; i < alumnosCalifMateria.length; i++) {
             const alumno = alumnosCalifMateria[i];
 
-            // Parciales
-            const p1 = document.getElementById(`calif_${i}_parcial1`)?.value;
-            const p2 = document.getElementById(`calif_${i}_parcial2`)?.value;
-            const p3 = document.getElementById(`calif_${i}_parcial3`)?.value;
-
-            const parcial1 = p1 === '' || p1 === undefined ? null : (p1 === 'NP' ? 'NP' : parseInt(p1));
-            const parcial2 = p2 === '' || p2 === undefined ? null : (p2 === 'NP' ? 'NP' : parseInt(p2));
-            const parcial3 = p3 === '' || p3 === undefined ? null : (p3 === 'NP' ? 'NP' : parseInt(p3));
-
-            // Faltas — leer del dropdown
-            const selF1 = document.getElementById(`falt_${i}_falta1`);
-            const selF2 = document.getElementById(`falt_${i}_falta2`);
-            const selF3 = document.getElementById(`falt_${i}_falta3`);
-
-            const f1 = selF1?.value;
-            const f2 = selF2?.value;
-            const f3 = selF3?.value;
-
-            // Leer valor original que tenía al cargar (guardado en data-original)
-            const origF1 = selF1?.dataset.original;
-            const origF2 = selF2?.dataset.original;
-            const origF3 = selF3?.dataset.original;
-
             const docId = `${alumno.id}_${asignacionCalifActual.materiaId}`;
 
             // Leer el documento existente para preservar faltas del profesor
@@ -3671,17 +3687,52 @@ async function guardarTodasCalificacionesCoord() {
             const existingData = existingDoc.exists ? existingDoc.data() : {};
             const existingFaltas = existingData.faltas || {};
 
-            // Determinar faltas finales: si el coordinador cambió el valor del dropdown,
-            // usar el nuevo valor. Si no lo cambió (sigue igual al original cargado),
-            // preservar lo que hay en la base de datos.
-            const falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
-            const falta2 = (f2 !== origF2) ? parseInt(f2) : (existingFaltas.falta2 !== undefined ? existingFaltas.falta2 : parseInt(f2));
-            // No hay falta3 en carreras con examen final
-            const falta3 = tieneExamenFinalCoord ? null : ((f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3)));
+            let parcial1, parcial2, parcial3, falta1, falta2, falta3, promedio;
 
-            console.log(`[GUARDAR ${alumno.nombre}] dropdown f1=${f1} orig=${origF1} existDB=${existingFaltas.falta1} → final=${falta1}`);
-            console.log(`[GUARDAR ${alumno.nombre}] dropdown f2=${f2} orig=${origF2} existDB=${existingFaltas.falta2} → final=${falta2}`);
-            console.log(`[GUARDAR ${alumno.nombre}] dropdown f3=${f3} orig=${origF3} existDB=${existingFaltas.falta3} → final=${falta3}`);
+            if (esMaestriaCoord) {
+                // Maestría: solo parcial1 y falta1
+                const p1 = document.getElementById(`calif_${i}_parcial1`)?.value;
+                parcial1 = p1 === '' || p1 === undefined ? null : (p1 === 'NP' ? 'NP' : parseInt(p1));
+                parcial2 = null;
+                parcial3 = null;
+
+                const selF1 = document.getElementById(`falt_${i}_falta1`);
+                const f1 = selF1?.value;
+                const origF1 = selF1?.dataset.original;
+                falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
+                falta2 = null;
+                falta3 = null;
+
+                promedio = parcial1;
+            } else {
+                // Normal / ExamenFinal
+                const p1 = document.getElementById(`calif_${i}_parcial1`)?.value;
+                const p2 = document.getElementById(`calif_${i}_parcial2`)?.value;
+                const p3 = document.getElementById(`calif_${i}_parcial3`)?.value;
+
+                parcial1 = p1 === '' || p1 === undefined ? null : (p1 === 'NP' ? 'NP' : parseInt(p1));
+                parcial2 = p2 === '' || p2 === undefined ? null : (p2 === 'NP' ? 'NP' : parseInt(p2));
+                parcial3 = p3 === '' || p3 === undefined ? null : (p3 === 'NP' ? 'NP' : parseInt(p3));
+
+                const selF1 = document.getElementById(`falt_${i}_falta1`);
+                const selF2 = document.getElementById(`falt_${i}_falta2`);
+                const selF3 = document.getElementById(`falt_${i}_falta3`);
+
+                const f1 = selF1?.value;
+                const f2 = selF2?.value;
+                const f3 = selF3?.value;
+
+                const origF1 = selF1?.dataset.original;
+                const origF2 = selF2?.dataset.original;
+                const origF3 = selF3?.dataset.original;
+
+                falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
+                falta2 = (f2 !== origF2) ? parseInt(f2) : (existingFaltas.falta2 !== undefined ? existingFaltas.falta2 : parseInt(f2));
+                falta3 = tieneExamenFinalCoord ? null : ((f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3)));
+
+                const toNum = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+                promedio = calcularCalificacion(toNum(parcial1), toNum(parcial2), toNum(parcial3), tieneExamenFinalCoord);
+            }
 
             // merge: true para no borrar extraordinario, ets, etc.
             await db.collection('calificaciones').doc(docId).set({
@@ -3705,6 +3756,7 @@ async function guardarTodasCalificacionesCoord() {
                     falta2,
                     falta3
                 },
+                promedio,
                 actualizadoPor: usuarioActual.uid,
                 fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
@@ -3982,58 +4034,51 @@ function descargarActaPDF() {
 
         // Preparar datos para la tabla
         const tableData = [];
+        const toNum = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
 
         alumnosCalifMateria.forEach((alumno, index) => {
             const promedio = calcularPromedioAlumno(alumno);
 
-            tableData.push([
-                (index + 1).toString(),
-                alumno.matricula,
-                alumno.nombre,
-                promedio
-            ]);
+            if (tieneExamenFinalCoord) {
+                const p3Num = toNum(alumno.calificaciones.parcial3);
+                const calNum = isNaN(parseFloat(promedio)) ? promedio : parseFloat(promedio);
+                const necesitaExtra = promedio === 'NP' || (p3Num !== null && p3Num !== 'NP' && p3Num < 6);
+                const extraVal = alumno.calificaciones.extraordinario !== null && alumno.calificaciones.extraordinario !== undefined
+                    ? String(alumno.calificaciones.extraordinario)
+                    : (necesitaExtra ? '' : '-');
+                tableData.push([(index + 1).toString(), alumno.matricula, alumno.nombre, promedio, extraVal]);
+            } else {
+                tableData.push([(index + 1).toString(), alumno.matricula, alumno.nombre, promedio]);
+            }
         });
 
+        const headActa = tieneExamenFinalCoord
+            ? [['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación', 'Extraordinario']]
+            : [['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación']];
+
+        const colStylesActa = tieneExamenFinalCoord ? {
+            0: { halign: 'center', cellWidth: 12 },
+            1: { halign: 'center', cellWidth: 30 },
+            2: { halign: 'left',   cellWidth: 75 },
+            3: { halign: 'center', cellWidth: 30, fontStyle: 'bold' },
+            4: { halign: 'center', cellWidth: 33 }
+        } : {
+            0: { halign: 'center', cellWidth: 15 },
+            1: { halign: 'center', cellWidth: 35 },
+            2: { halign: 'left',   cellWidth: 95 },
+            3: { halign: 'center', cellWidth: 35, fontStyle: 'bold' }
+        };
+
         // Generar tabla
-        // margin.bottom reserva espacio al fondo para total + firma,
-        // lo que también evita que solo 1-2 alumnos queden solos en página 2
         doc.autoTable({
             startY: y,
             margin: { bottom: 40 },
-            head: [
-                ['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación']
-            ],
+            head: headActa,
             body: tableData,
             theme: 'grid',
-            headStyles: {
-                fillColor: [108, 29, 69], // #6C1D45
-                textColor: 255,
-                fontStyle: 'bold',
-                halign: 'center'
-            },
-            styles: {
-                fontSize: 10,
-                cellPadding: 2
-            },
-            columnStyles: {
-                0: {
-                    halign: 'center',
-                    cellWidth: 15
-                },
-                1: {
-                    halign: 'center',
-                    cellWidth: 35
-                },
-                2: {
-                    halign: 'left',
-                    cellWidth: 95
-                },
-                3: {
-                    halign: 'center',
-                    cellWidth: 35,
-                    fontStyle: 'bold'
-                }
-            }
+            headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
+            styles: { fontSize: 10, cellPadding: 2 },
+            columnStyles: colStylesActa
         });
 
         // El margin.bottom garantiza que siempre haya espacio para total + firma

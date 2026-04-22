@@ -647,10 +647,11 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
         const cal = calDoc.exists ? calDoc.data() : null;
         alumnosEnMateria.push({
           ...alumno,
-          parcial1: cal?.parciales?.parcial1 ?? '-',
-          parcial2: cal?.parciales?.parcial2 ?? '-',
-          parcial3: cal?.parciales?.parcial3 ?? '-',
-          periodo: cal?.periodo || periodoActual
+          parcial1:      cal?.parciales?.parcial1 ?? '-',
+          parcial2:      cal?.parciales?.parcial2 ?? '-',
+          parcial3:      cal?.parciales?.parcial3 ?? '-',
+          extraordinario: cal?.extraordinario ?? null,
+          periodo:       cal?.periodo || periodoActual
         });
       }
     } else {

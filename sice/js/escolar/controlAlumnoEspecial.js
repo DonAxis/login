@@ -872,16 +872,21 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
       
       asignacionCalifActual = { id: asignacionId, ...asigDoc.data() };
 
-      // Leer tieneExamenFinal de la carrera para mostrar columnas correctas
+      // Leer tieneExamenFinal y esMaestria de la carrera para mostrar columnas correctas
       if (typeof tieneExamenFinalCoord !== 'undefined') {
         tieneExamenFinalCoord = false;
+        if (typeof esMaestriaCoord !== 'undefined') esMaestriaCoord = false;
         if (asignacionCalifActual.carreraId) {
           try {
             const cDocEsp = await db.collection('carreras').doc(asignacionCalifActual.carreraId).get();
-            tieneExamenFinalCoord = cDocEsp.exists && cDocEsp.data().tieneExamenFinal === true;
+            if (cDocEsp.exists) {
+              const cDataEsp = cDocEsp.data();
+              tieneExamenFinalCoord = cDataEsp.tieneExamenFinal === true;
+              if (typeof esMaestriaCoord !== 'undefined') esMaestriaCoord = (cDataEsp.codigo || '').startsWith('M');
+            }
           } catch (_) {}
         }
-        console.log('[tieneExamenFinalCoord]', asignacionCalifActual.carreraId, '→', tieneExamenFinalCoord);
+        console.log('[tieneExamenFinalCoord]', asignacionCalifActual.carreraId, '→', tieneExamenFinalCoord, '| esMaestria:', esMaestriaCoord);
       }
 
       console.log('Asignación cargada:', asignacionCalifActual);
