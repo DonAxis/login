@@ -476,8 +476,34 @@ async function guardarMateria(event, materiaId) {
         };
 
         if (materiaId) {
+            // Obtener nombre anterior para detectar cambio
+            const materiaActual = await db.collection('materias').doc(materiaId).get();
+            const nombreAnterior = materiaActual.exists ? materiaActual.data().nombre : '';
+
             // Actualizar materia existente
             await db.collection('materias').doc(materiaId).update(materiaData);
+
+            // Propagar cambio de nombre a profesorMaterias y calificaciones
+            if (nombre !== nombreAnterior) {
+                const [pmSnap, calSnap] = await Promise.all([
+                    db.collection('profesorMaterias').where('materiaId', '==', materiaId).get(),
+                    db.collection('calificaciones').where('materiaId', '==', materiaId).get()
+                ]);
+
+                const ops = [];
+                pmSnap.forEach(doc => ops.push({ ref: doc.ref, data: { materiaNombre: nombre } }));
+                calSnap.forEach(doc => ops.push({ ref: doc.ref, data: { materiaNombre: nombre } }));
+
+                const CHUNK = 499;
+                for (let i = 0; i < ops.length; i += CHUNK) {
+                    const batch = db.batch();
+                    ops.slice(i, i + CHUNK).forEach(op => batch.update(op.ref, op.data));
+                    await batch.commit();
+                }
+
+                console.log(`[guardarMateria] nombre propagado a ${pmSnap.size} profesorMaterias y ${calSnap.size} calificaciones`);
+            }
+
             alert('Materia actualizada correctamente');
         } else {
             // Crear nueva materia
