@@ -6,7 +6,7 @@ const SEMESTRES_INFORME = {
   6: 'SEXTO', 7: 'SÉPTIMO', 8: 'OCTAVO', 9: 'NOVENO'
 };
 
-async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
+async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOficial = false) {
   try {
     if (typeof window.jspdf === 'undefined') {
       alert('Error: jsPDF no está cargado. Recarga la página.');
@@ -279,14 +279,28 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno) {
       });
     }
 
+    // Firmas — solo en versión oficial (control escolar)
+    if (esOficial) {
+      const lastPage = doc.internal.getNumberOfPages();
+      doc.setPage(lastPage);
+      const firmasY = pageHeight - 40;
+      doc.setTextColor(0);
+      doc.setLineWidth(0.3);
+      doc.line(25,  firmasY, 95,  firmasY);
+      doc.line(115, firmasY, 185, firmasY);
+      // TODO: definir cargos de firmantes
+    }
+
     // Pie de página en todas las páginas
     const numPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= numPages; i++) {
       doc.setPage(i);
-      doc.setFontSize(9);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(200, 0, 0);
-      doc.text('ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL', pageWidth / 2, pageHeight - 10, { align: 'center' });
+      if (!esOficial) {
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(200, 0, 0);
+        doc.text('ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL', pageWidth / 2, pageHeight - 10, { align: 'center' });
+      }
       doc.setFontSize(7);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(128);

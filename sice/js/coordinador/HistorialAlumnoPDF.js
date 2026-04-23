@@ -319,14 +319,24 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       y += 15;
     }
     
-    // Pie de pagina
+    // Firmas — en la última página, después del contenido
+    const lastPage = doc.internal.getNumberOfPages();
+    doc.setPage(lastPage);
+
+    const firmasY = y + 20;
+    doc.setTextColor(0);
+    doc.setLineWidth(0.3);
+    doc.line(25,  firmasY, 95,  firmasY);
+    doc.line(115, firmasY, 185, firmasY);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    // TODO: definir cargos de firmantes
+    doc.setFont(undefined, 'normal');
+
+    // Pie de página — número de página
     const numPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= numPages; i++) {
       doc.setPage(i);
-      doc.setFontSize(9);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(200, 0, 0);
-      doc.text('ESTE DOCUMENTO NO TIENE VALIDEZ OFICIAL', pageWidth / 2, pageHeight - 15, { align: 'center' });
       doc.setFontSize(8);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(128);
