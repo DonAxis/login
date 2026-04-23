@@ -85,6 +85,9 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
       day: 'numeric'
     });
     
+    // Declarar antes de usarse en logos
+    let tieneExamenFinalPDF = false;
+
     // ===== CORRECCION DE LOGOS =====
     // Agregar logos si existen
     if (typeof logosEscuela !== 'undefined') {
@@ -145,8 +148,7 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
     doc.text(`Alumno: ${nombreAlumno}`, 20, y);
     y += 7;
     
-    // Variable para el sistema de calificación de esta carrera
-    let tieneExamenFinalPDF = false;
+    // tieneExamenFinalPDF se actualiza cuando se carga la carrera del alumno
 
     // Cargar datos adicionales del alumno
     try {
