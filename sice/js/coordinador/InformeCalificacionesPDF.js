@@ -185,17 +185,11 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
       doc.text(noControl, der - 35, y);
 
       y += 6;
-      // Fila 3
+      // Fila 3 — NOMBRE ocupa toda la izquierda, SEMESTRE a la derecha
       doc.setFont(undefined, 'bold'); doc.setTextColor(...COLOR);
       doc.text('NOMBRE:', izq, y);
       doc.setFont(undefined, 'normal'); doc.setTextColor(0, 0, 0);
       doc.text(nombreAlumno.toUpperCase(), izq + 18, y);
-
-      // Centro: PROMEDIO GENERAL
-      doc.setFont(undefined, 'bold'); doc.setTextColor(...COLOR);
-      doc.text('PROMEDIO GENERAL:', pageWidth / 2 - 20, y);
-      doc.setFont(undefined, 'normal'); doc.setTextColor(0, 0, 0);
-      doc.text(promedioGeneral, pageWidth / 2 + 22, y);
 
       doc.setFont(undefined, 'bold'); doc.setTextColor(...COLOR);
       doc.text('SEMESTRE:', der - 60, y);
@@ -203,17 +197,21 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
       doc.text(semestreStr, der - 38, y);
 
       y += 6;
-      // Fila 4
+      // Fila 4 — PROMEDIO GENERAL | GRUPO | TURNO
       doc.setFont(undefined, 'bold'); doc.setTextColor(...COLOR);
-      doc.text('GRUPO:', izq, y);
+      doc.text('PROMEDIO GENERAL:', izq, y);
       doc.setFont(undefined, 'normal'); doc.setTextColor(0, 0, 0);
-      doc.text(grupo, izq + 15, y);
+      doc.text(promedioGeneral, izq + 36, y);
 
-      // Centro: TURNO
       doc.setFont(undefined, 'bold'); doc.setTextColor(...COLOR);
-      doc.text('TURNO:', pageWidth / 2 - 20, y);
+      doc.text('GRUPO:', pageWidth / 2 - 20, y);
       doc.setFont(undefined, 'normal'); doc.setTextColor(0, 0, 0);
-      doc.text(turnoStr, pageWidth / 2 - 4, y);
+      doc.text(grupo, pageWidth / 2 - 5, y);
+
+      doc.setFont(undefined, 'bold'); doc.setTextColor(...COLOR);
+      doc.text('TURNO:', der - 55, y);
+      doc.setFont(undefined, 'normal'); doc.setTextColor(0, 0, 0);
+      doc.text(turnoStr, der - 40, y);
 
       doc.setTextColor(0, 0, 0);
       return y + 6;
