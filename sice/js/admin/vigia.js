@@ -34,13 +34,11 @@ async function accionVigia() {
                 const tepic = typeof d.creditosTepic === 'number' ? d.creditosTepic : null;
                 const legado = typeof d.creditos === 'number' ? d.creditos : null;
 
-                // Valor canónico: primer campo no-nulo y no-cero, si existe
-                const canonico = satca || tepic || legado || 0;
+                // Primer valor positivo encontrado (no usa || para no confundir 0 con ausente)
+                const canonico = (satca > 0) ? satca : (tepic > 0) ? tepic : (legado > 0) ? legado : null;
 
-                // Solo migrar si hay algo distinto al estado final esperado:
-                // creditosSatca = canonico, creditosTepic = 0 (o ausente)
-                const yaEstaOk = satca === canonico && (tepic === 0 || tepic === null);
-                if (!yaEstaOk || legado !== null) {
+                // Solo migrar si existe un valor y creditosSatca no lo tiene todavía
+                if (canonico !== null && satca !== canonico) {
                     materiasAMigrar.push({
                         id: doc.id,
                         nombre: d.nombre || doc.id,
@@ -59,23 +57,22 @@ async function accionVigia() {
         }
 
         // 3. Mostrar resumen y pedir confirmación
-        let preview = `Se normalizarán los créditos de ${materiasAMigrar.length} materia(s) de maestría.\n`;
-        preview += `El valor se moverá a "creditosSatca" y se borrará "creditosTepic" y el campo antiguo "creditos".\n\n`;
+        let preview = `Se establecerá creditosSatca en ${materiasAMigrar.length} materia(s) de maestría.\n`;
+        preview += `Los campos existentes (creditosTepic, creditos) NO se eliminan.\n\n`;
         materiasAMigrar.forEach(m => {
-            preview += `• ${m.nombre}: satca=${m.satca} | tepic=${m.tepic} | creditos=${m.legado}  →  creditosSatca=${m.canonico}\n`;
+            const origen = (m.satca > 0) ? 'creditosSatca' : (m.tepic > 0) ? 'creditosTepic' : 'creditos';
+            preview += `• ${m.nombre}: ${origen}=${m.canonico}  →  creditosSatca=${m.canonico}\n`;
         });
         preview += `\n¿Proceder?`;
 
         if (!confirm(preview)) return;
 
-        // 4. Ejecutar en batches de 499
+        // 4. Ejecutar en batches de 499 — solo escribe creditosSatca, no borra nada
         const CHUNK = 499;
         const ops = materiasAMigrar.map(m => ({
             ref: db.collection('materias').doc(m.id),
             data: {
-                creditosSatca: m.canonico,
-                creditosTepic: firebase.firestore.FieldValue.delete(),
-                creditos: firebase.firestore.FieldValue.delete()
+                creditosSatca: m.canonico
             }
         }));
 
