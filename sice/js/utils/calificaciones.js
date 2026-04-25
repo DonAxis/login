@@ -11,7 +11,7 @@
 //   - Si presentó examen final → calificación = p3
 //   - Reprobado: calificación <= 7.5
 //
-// Sistema Maestría (esMaestria=true, código empieza con 'M'):
+// Sistema Maestría (esMaestria=true, código empieza con 'M' o nombre empieza con 'maestr'):
 //   - Solo 1 calificación (parcial1) y 1 falta (falta1)
 //   - Sin extraordinario, sin ETS, sin parciales adicionales
 //   - Reprobado: calificación < 6
