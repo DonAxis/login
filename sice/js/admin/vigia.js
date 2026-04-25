@@ -1,185 +1,97 @@
-// vigia.js — Diagnóstico y reparación de reportes prefecto
-
-let _inconsistenciasVigia = []; // guarda los datos para reparar
+// vigia.js — Herramientas de mantenimiento para el admin
 
 async function accionVigia() {
-  _inconsistenciasVigia = [];
-  mostrarModalVigia('<p style="color:#666;text-align:center;padding:20px;">Analizando reportes...</p>');
+    const btn = document.querySelector('[onclick="accionVigia()"]');
+    const pTag = btn ? btn.querySelector('p') : null;
 
-  try {
-    const db = firebase.firestore();
+    if (pTag) pTag.textContent = 'Analizando...';
+    if (btn) btn.style.opacity = '0.7';
 
-    const reportesSnap = await db.collection('reportesPrefecto').get();
-    const reportes = [];
-    reportesSnap.forEach(doc => {
-      const d = { id: doc.id, ...doc.data() };
-      if (!d.archivado) reportes.push(d);
-    });
+    try {
+        // 1. Buscar todas las carreras de maestría
+        const carrerasSnap = await db.collection('carreras').get();
+        const maestriaIds = [];
+        carrerasSnap.forEach(doc => {
+            const d = doc.data();
+            const esMaestria = (d.codigo || '').startsWith('M') ||
+                               (d.nombre || '').toLowerCase().startsWith('maestr');
+            if (esMaestria) maestriaIds.push(doc.id);
+        });
 
-    if (!reportes.length) {
-      mostrarModalVigia('<p style="color:#2e7d32;text-align:center;padding:20px;">Sin reportes activos.</p>');
-      return;
+        if (maestriaIds.length === 0) {
+            alert('No se encontraron carreras de maestría.');
+            return;
+        }
+
+        // 2. Buscar materias de esas carreras (in-query de hasta 10 ids)
+        const materiasAMigrar = [];
+        for (let i = 0; i < maestriaIds.length; i += 10) {
+            const chunk = maestriaIds.slice(i, i + 10);
+            const snap = await db.collection('materias').where('carreraId', 'in', chunk).get();
+            snap.forEach(doc => {
+                const d = doc.data();
+                const satca = typeof d.creditosSatca === 'number' ? d.creditosSatca : null;
+                const tepic = typeof d.creditosTepic === 'number' ? d.creditosTepic : null;
+                const legado = typeof d.creditos === 'number' ? d.creditos : null;
+
+                // Valor canónico: primer campo no-nulo y no-cero, si existe
+                const canonico = satca || tepic || legado || 0;
+
+                // Solo migrar si hay algo distinto al estado final esperado:
+                // creditosSatca = canonico, creditosTepic = 0 (o ausente)
+                const yaEstaOk = satca === canonico && (tepic === 0 || tepic === null);
+                if (!yaEstaOk || legado !== null) {
+                    materiasAMigrar.push({
+                        id: doc.id,
+                        nombre: d.nombre || doc.id,
+                        satca,
+                        tepic,
+                        legado,
+                        canonico
+                    });
+                }
+            });
+        }
+
+        if (materiasAMigrar.length === 0) {
+            alert('Sin novedad: todas las materias de maestría ya tienen los créditos normalizados en creditosSatca.');
+            return;
+        }
+
+        // 3. Mostrar resumen y pedir confirmación
+        let preview = `Se normalizarán los créditos de ${materiasAMigrar.length} materia(s) de maestría.\n`;
+        preview += `El valor se moverá a "creditosSatca" y se borrará "creditosTepic" y el campo antiguo "creditos".\n\n`;
+        materiasAMigrar.forEach(m => {
+            preview += `• ${m.nombre}: satca=${m.satca} | tepic=${m.tepic} | creditos=${m.legado}  →  creditosSatca=${m.canonico}\n`;
+        });
+        preview += `\n¿Proceder?`;
+
+        if (!confirm(preview)) return;
+
+        // 4. Ejecutar en batches de 499
+        const CHUNK = 499;
+        const ops = materiasAMigrar.map(m => ({
+            ref: db.collection('materias').doc(m.id),
+            data: {
+                creditosSatca: m.canonico,
+                creditosTepic: firebase.firestore.FieldValue.delete(),
+                creditos: firebase.firestore.FieldValue.delete()
+            }
+        }));
+
+        for (let i = 0; i < ops.length; i += CHUNK) {
+            const batch = db.batch();
+            ops.slice(i, i + CHUNK).forEach(op => batch.update(op.ref, op.data));
+            await batch.commit();
+        }
+
+        alert(`Migración completada: ${materiasAMigrar.length} materia(s) actualizadas.`);
+
+    } catch (e) {
+        console.error('[vigia] accionVigia:', e);
+        alert('Error: ' + e.message);
+    } finally {
+        if (pTag) pTag.textContent = 'Migrar créditos maestría';
+        if (btn) btn.style.opacity = '1';
     }
-
-    for (const reporte of reportes) {
-      const profSnap = await db.collection('profesorMaterias')
-        .where('codigoGrupo', '==', reporte.codigoGrupo)
-        .where('activa', '==', true)
-        .get();
-
-      const actuales = {};
-      profSnap.forEach(doc => {
-        const d = doc.data();
-        if (d.profesorId) actuales[d.profesorId] = d.profesorNombre || 'Sin nombre';
-      });
-
-      const enReporte = reporte.profesores || {};
-
-      const faltantes = Object.entries(actuales)
-        .filter(([uid]) => !enReporte[uid])
-        .map(([uid, nombre]) => ({ uid, nombre }));
-
-      if (faltantes.length) {
-        _inconsistenciasVigia.push({ reporte, faltantes });
-      }
-    }
-
-    if (!_inconsistenciasVigia.length) {
-      mostrarModalVigia(`
-        <p style="color:#2e7d32;font-weight:600;text-align:center;padding:20px;">
-          ✓ Sin inconsistencias. Todos los profesores activos están en sus reportes.
-        </p>`);
-      return;
-    }
-
-    renderResultadosVigia();
-
-  } catch (e) {
-    mostrarModalVigia(`<p style="color:#b71c1c;">Error: ${e.message}</p>`);
-  }
-}
-
-function renderResultadosVigia() {
-  const total = _inconsistenciasVigia.length;
-  let html = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-      <p style="color:#b71c1c;font-weight:600;margin:0;">
-        ${total} reporte(s) con profesores sin acceso:
-      </p>
-      <button onclick="repararTodo()"
-        style="padding:8px 16px;background:linear-gradient(135deg,#1b5e20,#2e7d32);
-               color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;">
-        Reparar todo
-      </button>
-    </div>`;
-
-  _inconsistenciasVigia.forEach(({ reporte, faltantes }, i) => {
-    const fecha = new Date(reporte.fechaSolicitud).toLocaleDateString('es-MX', {
-      day: '2-digit', month: 'long', year: 'numeric'
-    });
-    html += `
-      <div id="vigiaItem_${i}" style="border-left:3px solid #b71c1c;padding:10px 15px;margin-bottom:12px;
-                  background:#fff5f5;border-radius:4px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-          <div>
-            <strong>${reporte.alumnoNombre}</strong>
-            &nbsp;·&nbsp; Grupo: <strong>${reporte.codigoGrupo}</strong>
-            &nbsp;·&nbsp; ${fecha}<br>
-            <span style="color:#b71c1c;font-size:0.9rem;">
-              Sin acceso: ${faltantes.map(p => p.nombre).join(', ')}
-            </span>
-          </div>
-          <button onclick="repararReporte(${i})"
-            style="flex-shrink:0;padding:6px 14px;background:linear-gradient(135deg,#1b5e20,#2e7d32);
-                   color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.82rem;">
-            Reparar
-          </button>
-        </div>
-        <div id="vigiaMsg_${i}" style="display:none;margin-top:8px;font-size:0.85rem;"></div>
-      </div>`;
-  });
-
-  mostrarModalVigia(html);
-}
-
-async function repararReporte(i) {
-  const item = _inconsistenciasVigia[i];
-  if (!item) return;
-
-  const msgEl = document.getElementById(`vigiaMsg_${i}`);
-  const btn   = document.querySelector(`#vigiaItem_${i} button`);
-  if (btn) { btn.disabled = true; btn.textContent = 'Reparando...'; }
-
-  try {
-    const db     = firebase.firestore();
-    const update = {};
-
-    item.faltantes.forEach(({ uid, nombre }) => {
-      update[`profesores.${uid}`] = { nombre, respuesta: null, fecha: null };
-    });
-
-    await db.collection('reportesPrefecto').doc(item.reporte.id).update({
-      ...update,
-      profesoresPendientes: firebase.firestore.FieldValue.arrayUnion(
-        ...item.faltantes.map(p => p.uid)
-      )
-    });
-
-    if (msgEl) {
-      msgEl.textContent  = `✓ Reparado — ${item.faltantes.length} profesor(es) agregados.`;
-      msgEl.style.display = 'block';
-      msgEl.style.color   = '#2e7d32';
-    }
-    if (btn) { btn.textContent = 'Reparado'; btn.style.background = '#2e7d32'; }
-
-  } catch (e) {
-    if (msgEl) {
-      msgEl.textContent  = 'Error: ' + e.message;
-      msgEl.style.display = 'block';
-      msgEl.style.color   = '#b71c1c';
-    }
-    if (btn) { btn.disabled = false; btn.textContent = 'Reparar'; }
-  }
-}
-
-async function repararTodo() {
-  const btn = document.querySelector('[onclick="repararTodo()"]');
-  if (btn) { btn.disabled = true; btn.textContent = 'Reparando...'; }
-
-  for (let i = 0; i < _inconsistenciasVigia.length; i++) {
-    await repararReporte(i);
-  }
-
-  if (btn) { btn.textContent = 'Completado'; btn.style.background = '#2e7d32'; }
-}
-
-function mostrarModalVigia(contenidoHtml) {
-  const existente = document.getElementById('modalVigia');
-  if (existente) {
-    document.getElementById('contenidoVigia').innerHTML = contenidoHtml;
-    return;
-  }
-
-  const modal = document.createElement('div');
-  modal.id = 'modalVigia';
-  modal.style.cssText = [
-    'position:fixed', 'top:0', 'left:0', 'width:100%', 'height:100%',
-    'background:rgba(0,0,0,0.6)', 'z-index:9999',
-    'display:flex', 'align-items:center', 'justify-content:center'
-  ].join(';');
-
-  modal.innerHTML = `
-    <div style="background:white;padding:30px;border-radius:15px;max-width:640px;width:90%;
-                max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;
-                  padding-bottom:12px;border-bottom:2px solid #1b5e20;">
-        <h3 style="margin:0;color:#1b5e20;">Diagnóstico Vigía — Reportes</h3>
-        <button onclick="document.getElementById('modalVigia').remove()"
-          style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#666;line-height:1;">✕</button>
-      </div>
-      <div id="contenidoVigia">${contenidoHtml}</div>
-    </div>`;
-
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  document.body.appendChild(modal);
 }

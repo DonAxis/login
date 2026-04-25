@@ -81,7 +81,7 @@ async function obtenerTieneExamenFinal(carreraId) {
 
 /**
  * Detecta si una carrera es de tipo Maestría (solo 1 parcial + 1 falta).
- * Identificador: código de carrera empieza con 'M'.
+ * Condición: código empieza con 'M' O nombre empieza con 'maestr' (sin distinción de acento).
  * @param {string} carreraId
  * @returns {Promise<boolean>}
  */
@@ -92,7 +92,9 @@ async function obtenerEsMaestria(carreraId) {
   if (cached !== null) return cached === 'true';
   try {
     const doc = await db.collection('carreras').doc(carreraId).get();
-    const valor = doc.exists ? (doc.data().codigo || '').startsWith('M') : false;
+    const data = doc.exists ? doc.data() : {};
+    const valor = (data.codigo || '').startsWith('M') ||
+                  (data.nombre || '').toLowerCase().startsWith('maestr');
     sessionStorage.setItem(cacheKey, String(valor));
     return valor;
   } catch (e) {

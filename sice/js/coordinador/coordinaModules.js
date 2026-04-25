@@ -204,6 +204,7 @@ async function cargarMaterias() {
             return;
         }
 
+        const esMaestria = await obtenerEsMaestria(usuarioActual.carreraId || '');
         let html = '';
         snapshot.forEach(doc => {
             const materia = doc.data();
@@ -211,12 +212,13 @@ async function cargarMaterias() {
             // Obtener créditos (compatibilidad con sistema anterior y nuevo)
             const satca = materia.creditosSatca || materia.creditosLocal || materia.creditos || 0;
             const tepic = materia.creditosTepic || materia.creditosExterno || 0;
+            const creditosMaestria = satca || tepic;
 
             html += `
               <div class="item">
                 <div class="item-info">
                   <h4>${materia.nombre}</h4>
-                  <p>Periodo: ${materia.periodo || 'N/A'} | SATCA: ${satca} | TEPIC: ${tepic}</p>
+                  <p>Periodo: ${materia.periodo || 'N/A'} | ${esMaestria ? `Créditos: ${creditosMaestria}` : `SATCA: ${satca} | TEPIC: ${tepic}`}</p>
                   <small style="color: #666;">Grados: ${(materia.codigos || []).join(', ')}</small>
                 </div>
                 <div class="item-acciones">
@@ -234,27 +236,42 @@ async function cargarMaterias() {
     }
 }
 
-function mostrarFormMateria(materiaId = null) {
+async function mostrarFormMateria(materiaId = null) {
     const esEdicion = materiaId !== null;
+    const esMaestria = await obtenerEsMaestria(usuarioActual.carreraId || '');
+
     document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Materia' : 'Nueva Materia';
+
+    const seccionCreditos = esMaestria ? `
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Créditos:</label>
+          <input type="number" id="creditos" min="0" max="30" step="0.001" value="3"
+            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+        </div>` : `
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Créditos SATCA:</label>
+          <input type="number" id="creditosSatca" min="0" max="30" step="0.001" value="6"
+            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Créditos TEPIC:</label>
+          <input type="number" id="creditosTepic" min="0" max="30" step="0.001" value="0"
+            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+        </div>`;
 
     const html = `
     <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; margin: 20px auto;">
       <h3 style="margin: 0 0 20px 0; color: #667eea;">${esEdicion ? 'Editar Materia' : 'Nueva Materia'}</h3>
-      
+
       <form onsubmit="guardarMateria(event, '${materiaId || ''}')">
-        
+
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nombre de la Materia:</label>
           <input type="text" id="nombreMateria" required placeholder="Ej: Calculo Diferencial"
             style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
         </div>
-        
-        <div style="margin-bottom: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Creditos:</label>
-          <input type="number" id="creditos" min="1" max="12" value="6"
-            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
-        </div>
+
+        ${seccionCreditos}
         
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600;">Periodo:</label>
@@ -350,19 +367,26 @@ function mostrarFormMateria(materiaId = null) {
     }, 500);
 
     if (esEdicion) {
-        cargarDatosMateria(materiaId);
+        cargarDatosMateria(materiaId, esMaestria);
     }
 }
 
 
-async function cargarDatosMateria(materiaId) {
+async function cargarDatosMateria(materiaId, esMaestria = false) {
     try {
         const doc = await db.collection('materias').doc(materiaId).get();
         if (doc.exists) {
             const materia = doc.data();
             document.getElementById('nombreMateria').value = materia.nombre;
-            document.getElementById('creditos').value = materia.creditos || 6;
             document.getElementById('periodo').value = materia.periodo || 1;
+
+            if (esMaestria) {
+                const credVal = materia.creditosSatca || materia.creditosTepic || materia.creditos || 0;
+                document.getElementById('creditos').value = credVal;
+            } else {
+                document.getElementById('creditosSatca').value = materia.creditosSatca || materia.creditos || 0;
+                document.getElementById('creditosTepic').value = materia.creditosTepic || 0;
+            }
 
             // Disparar evento change para mostrar preview
             const periodoSelect = document.getElementById('periodo');
@@ -380,11 +404,20 @@ async function guardarMateria(event, materiaId) {
     event.preventDefault();
 
     const nombre = document.getElementById('nombreMateria').value.trim();
-    const creditos = parseInt(document.getElementById('creditos').value);
     const periodo = parseInt(document.getElementById('periodo').value);
+    const esMaestria = await obtenerEsMaestria(usuarioActual.carreraId || '');
 
-    if (!nombre || !periodo || !creditos) {
-        alert('Todos los campos son obligatorios');
+    let creditosSatcaVal, creditosTepicVal;
+    if (esMaestria) {
+        creditosSatcaVal = parseFloat(document.getElementById('creditos').value) || 0;
+        creditosTepicVal = 0;
+    } else {
+        creditosSatcaVal = parseFloat(document.getElementById('creditosSatca').value) || 0;
+        creditosTepicVal = parseFloat(document.getElementById('creditosTepic').value) || 0;
+    }
+
+    if (!nombre || !periodo) {
+        alert('Nombre y periodo son obligatorios');
         return;
     }
 
@@ -468,7 +501,8 @@ async function guardarMateria(event, materiaId) {
             codigos: codigosGenerados,
             grupos: gruposEnlazados,
             periodo: periodo,
-            creditos: creditos,
+            creditosSatca: creditosSatcaVal,
+            creditosTepic: creditosTepicVal,
             carreraId: usuarioActual.carreraId,
             codigoCarrera: codigoCarrera,
             activa: true,
