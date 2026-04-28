@@ -654,7 +654,7 @@ function generarCeldaFalta(valor, index, falta) {
 
 /**
  * Genera la celda de Examen Final para carreras con tieneExamenFinal = true.
- * Solo muestra el input si ambos parciales están guardados y avg(p1,p2) <= 7.5.
+ * Solo muestra el input si ambos parciales están guardados y avg(p1,p2) < 7.5.
  */
 function generarCeldaExamenFinal(p3, p1, p2, index) {
   // Si algún parcial base no está guardado aún, no se puede mostrar el examen
@@ -672,11 +672,15 @@ function generarCeldaExamenFinal(p3, p1, p2, index) {
 
   const avg12 = (parseFloat(p1) + parseFloat(p2)) / 2;
 
-  if (avg12 > 7.5) {
+  if (avg12 >= 7.5) {
     return '<span style="color: #4caf50; font-weight: bold; font-size: 0.85rem;">Aprobado</span>';
   }
 
-  // avg <= 7.5 → requiere examen final
+  if (avg12 < 6) {
+    return '<span style="color: #dc3545; font-size: 0.8rem;">Sin derecho</span>';
+  }
+
+  // 6 <= avg < 7.5 → requiere examen final
   if (p3 !== null && p3 !== undefined) {
     // Ya guardado → mostrar bloqueado
     const color = p3 === 'NP' ? '#dc3545' : '#4caf50';

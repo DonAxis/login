@@ -7,9 +7,10 @@
 //
 // Sistema Examen Final (tieneExamenFinal=true, ej. LAE):
 //   - 2 parciales + examen final en parcial3
-//   - Si promedio(p1,p2) <= 7.5 → debe presentar examen final
-//   - Si presentó examen final → calificación = p3
-//   - Reprobado: calificación <= 7.5
+//   - avg >= 7.5 → aprobado sin examen (7.5 redondea a 8)
+//   - 6 <= avg < 7.5 → debe presentar examen final; calificación = p3
+//   - avg < 6 → sin derecho a examen final, va directo a extraordinario
+//   - Reprobado: calificación < 7.5
 //
 // Sistema Maestría (esMaestria=true, código empieza con 'M' o nombre empieza con 'maestr'):
 //   - Solo 1 calificación (parcial1) y 1 falta (falta1)
@@ -30,8 +31,8 @@ function calcularCalificacion(p1, p2, p3, tieneExamenFinal) {
     const vals = [p1, p2].filter(v => v !== null && v !== undefined);
     if (vals.length === 0) return null;
     const avg12 = vals.reduce((a, b) => a + b, 0) / vals.length;
-    // Solo usar el examen final si ambos parciales están capturados y el promedio <= 7.5
-    if (vals.length === 2 && avg12 <= 7.5) {
+    // Solo usar el examen final si avg está en rango [6, 7.5)
+    if (vals.length === 2 && avg12 >= 6 && avg12 < 7.5) {
       if (p3 === 'NP') return 'NP';
       if (p3 !== null && p3 !== undefined) return p3;
       // Examen final aún pendiente: devolver avg12 (indica que se requiere examen)
@@ -53,7 +54,7 @@ function calcularCalificacion(p1, p2, p3, tieneExamenFinal) {
 function esReprobado(calificacion, tieneExamenFinal) {
   if (calificacion === 'NP') return true;
   if (calificacion === null || calificacion === undefined) return false;
-  return tieneExamenFinal ? calificacion <= 7.5 : calificacion < 6;
+  return tieneExamenFinal ? calificacion < 7.5 : calificacion < 6;
 }
 
 /**

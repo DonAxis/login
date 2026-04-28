@@ -3540,12 +3540,14 @@ function generarTablaCalificaciones() {
             <th style="${thStyle}">Parcial 2</th>
             <th style="${thStyleNaranja}">Faltas 2</th>
             <th style="${thStyle}">${labelP3}</th>
-            ${!tieneExamenFinalCoord ? `<th style="${thStyleNaranja}">Faltas 3</th>` : ''}`;
+            ${tieneExamenFinalCoord
+                ? `<th style="${thStyle}">Extraordinario</th>`
+                : `<th style="${thStyleNaranja}">Faltas 3</th>`}`;
     }
 
     let html = `
     <div style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; min-width: ${esMaestriaCoord ? '500px' : '820px'};">
+      <table style="width: 100%; border-collapse: collapse; min-width: ${esMaestriaCoord ? '500px' : tieneExamenFinalCoord ? '950px' : '820px'};">
         <thead>
           <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <th style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
@@ -3588,16 +3590,28 @@ function generarTablaCalificaciones() {
             return; // pasar al siguiente alumno
         }
 
-        let celdaP3;
+        let celdaP3, celdaExtra = '';
         if (tieneExamenFinalCoord) {
             const p1n = (p1 !== null && p1 !== undefined && p1 !== 'NP') ? parseFloat(p1) : null;
             const p2n = (p2 !== null && p2 !== undefined && p2 !== 'NP') ? parseFloat(p2) : null;
-            if (p1n === null || p2n === null) {
-                celdaP3 = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #999;">-</td>`;
-            } else if ((p1n + p2n) / 2 > 7.5) {
-                celdaP3 = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #4caf50; font-weight: bold;">Aprobado</td>`;
+            const avg12 = (p1n !== null && p2n !== null) ? (p1n + p2n) / 2 : null;
+            if (avg12 === null) {
+                celdaP3  = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #999;">-</td>`;
+                celdaExtra = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #999;">-</td>`;
+            } else if (avg12 >= 7.5) {
+                celdaP3  = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #4caf50; font-weight: bold;">Aprobado</td>`;
+                celdaExtra = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #999;">-</td>`;
+            } else if (avg12 < 6) {
+                // Sin derecho a examen final → extraordinario directo
+                celdaP3  = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #dc3545; font-size: 0.85rem;">Sin derecho</td>`;
+                celdaExtra = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${generarDropdownCalif(index, 'extraordinario', alumno.calificaciones.extraordinario)}</td>`;
             } else {
-                celdaP3 = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${generarDropdownCalif(index, 'parcial3', p3)}</td>`;
+                // 6 <= avg < 7.5 → necesita examen final
+                celdaP3  = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${generarDropdownCalif(index, 'parcial3', p3)}</td>`;
+                const necesitaExtra = p3Num !== null && p3Num !== 'NP' && p3Num < 6;
+                celdaExtra = necesitaExtra
+                    ? `<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${generarDropdownCalif(index, 'extraordinario', alumno.calificaciones.extraordinario)}</td>`
+                    : `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #999;">-</td>`;
             }
         } else {
             celdaP3 = `
@@ -3626,6 +3640,7 @@ function generarTablaCalificaciones() {
             ${generarDropdownFalta(index, 'falta2', alumno.calificaciones.falta2)}
           </td>
           ${celdaP3}
+          ${celdaExtra}
           <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2rem; color: #667eea;">
             ${calTexto}
           </td>
@@ -3768,8 +3783,17 @@ async function guardarTodasCalificacionesCoord() {
                 promedio = calcularCalificacion(toNum(parcial1), toNum(parcial2), toNum(parcial3), tieneExamenFinalCoord);
             }
 
-            // merge: true para no borrar extraordinario, ets, etc.
-            await db.collection('calificaciones').doc(docId).set({
+            // Extraordinario — solo para tieneExamenFinalCoord (dropdown visible en la tabla)
+            let extraordinarioGuardar = undefined; // undefined = no tocar (merge)
+            if (tieneExamenFinalCoord) {
+                const extraEl = document.getElementById(`calif_${i}_extraordinario`);
+                if (extraEl) {
+                    const extraVal = extraEl.value;
+                    extraordinarioGuardar = extraVal === '' ? null : parseFloat(extraVal);
+                }
+            }
+
+            const updateData = {
                 alumnoId: alumno.id,
                 alumnoNombre: alumno.nombre,
                 materiaId: asignacionCalifActual.materiaId,
@@ -3780,20 +3804,16 @@ async function guardarTodasCalificacionesCoord() {
                 profesorId: asignacionCalifActual.profesorId,
                 profesorNombre: asignacionCalifActual.profesorNombre,
                 periodo: asignacionCalifActual.periodo,
-                parciales: {
-                    parcial1,
-                    parcial2,
-                    parcial3
-                },
-                faltas: {
-                    falta1,
-                    falta2,
-                    falta3
-                },
+                parciales: { parcial1, parcial2, parcial3 },
+                faltas: { falta1, falta2, falta3 },
                 promedio,
                 actualizadoPor: usuarioActual.uid,
                 fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            };
+            if (extraordinarioGuardar !== undefined) updateData.extraordinario = extraordinarioGuardar;
+
+            // merge: true para no borrar ets u otros campos
+            await db.collection('calificaciones').doc(docId).set(updateData, { merge: true });
 
             guardadas++;
         }
