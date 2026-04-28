@@ -3096,8 +3096,6 @@ async function toggleActivoUsuario(userId, tipo, nuevoEstado) {
 
 // ===== FUNCIONES DE ELIMINACIÓN =====
 async function eliminarProfesor(profesorId, nombreProfesor) {
-    if (!confirm(`¿Eliminar definitivamente a "${nombreProfesor}"?\n\nEsta acción no se puede deshacer.`)) return;
-
     try {
         const snapshot = await db.collection('profesorMaterias')
             .where('profesorId', '==', profesorId)
@@ -3111,6 +3109,8 @@ async function eliminarProfesor(profesorId, nombreProfesor) {
             alert(`No se puede eliminar a "${nombreProfesor}".\n\nTiene las siguientes materias asignadas:\n\n${lista}\n\nPrimero desasigna las materias o usa "Desactivar" para dar de baja temporal.`);
             return;
         }
+
+        if (!confirm(`El profesor "${nombreProfesor}" no tiene materias asignadas.\n\n¿Eliminar definitivamente? Esta acción no se puede deshacer.`)) return;
 
         await db.collection('usuarios').doc(profesorId).delete();
         alert(`Profesor "${nombreProfesor}" eliminado correctamente.`);
