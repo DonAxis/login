@@ -959,7 +959,12 @@ async function verExtraordinarios() {
     // Procesar cada materia
     for (const asigDoc of asignacionesSnap.docs) {
       const asignacion = { id: asigDoc.id, ...asigDoc.data() };
-      
+
+      // Obtener tieneExamenFinal de la carrera (con caché sessionStorage)
+      const tieneEFExtra = asignacion.carreraId
+        ? await obtenerTieneExamenFinal(asignacion.carreraId)
+        : false;
+
       console.log('\nProcesando materia:', asignacion.materiaNombre);
       
       // Buscar alumnos del grupo
@@ -990,14 +995,14 @@ async function verExtraordinarios() {
         
         if (calDoc.exists) {
           const data = calDoc.data();
-          const parciales = data.parciales || {};
-          
-          let promedio = calcularPromedio(parciales);
-          
-          if (promedio !== null && (promedio === 'NP' || promedio < 6)) {
+          const p = data.parciales || {};
+          const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+          const calificacion = calcularCalificacion(toN(p.parcial1), toN(p.parcial2), toN(p.parcial3), tieneEFExtra);
+
+          if (calificacion !== null && (calificacion === 'NP' || calificacion < 6)) {
             alumnosReprobados.push({
               ...alumno,
-              promedio,
+              promedio: calificacion,
               extraordinario: data.extraordinario,
               ets: data.ets,
               materiaId: asignacion.materiaId
@@ -1005,31 +1010,31 @@ async function verExtraordinarios() {
           }
         }
       }
-      
+
       // Procesar alumnos especiales
       for (const inscripcionDoc of especialesSnap.docs) {
         const inscripcion = inscripcionDoc.data();
-        
+
         const alumnoDoc = await db.collection('usuarios').doc(inscripcion.alumnoId).get();
-        
+
         if (alumnoDoc.exists) {
           const alumno = alumnoDoc.data();
-          
+
           const docId = `${inscripcion.alumnoId}_${asignacion.materiaId}`;
           const calDoc = await db.collection('calificaciones').doc(docId).get();
-          
+
           if (calDoc.exists) {
             const data = calDoc.data();
-            const parciales = data.parciales || {};
-            
-            let promedio = calcularPromedio(parciales);
-            
-            if (promedio !== null && (promedio === 'NP' || promedio < 6)) {
+            const p = data.parciales || {};
+            const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+            const calificacion = calcularCalificacion(toN(p.parcial1), toN(p.parcial2), toN(p.parcial3), tieneEFExtra);
+
+            if (calificacion !== null && (calificacion === 'NP' || calificacion < 6)) {
               alumnosReprobados.push({
                 id: inscripcion.alumnoId,
                 nombre: alumno.nombre,
                 matricula: alumno.matricula || inscripcion.alumnoMatricula,
-                promedio,
+                promedio: calificacion,
                 extraordinario: data.extraordinario,
                 ets: data.ets,
                 materiaId: asignacion.materiaId,

@@ -2270,6 +2270,7 @@ async function cargarProfesores() {
  <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="${profesor.activo ? 'botAzu' : 'botVerde'}">
  ${profesor.activo ? 'Desactivar' : 'Activar'}
  </button>
+ <button onclick="eliminarProfesor('${item.id}', '${profesor.nombre.replace(/'/g, "\\'")}')" class="botRojo">Eliminar</button>
  ` : `
  <span style="color: #666; font-size: 0.9rem;">Coordinador (no editable desde aquí)</span>
  `}
@@ -3094,6 +3095,32 @@ async function toggleActivoUsuario(userId, tipo, nuevoEstado) {
 }
 
 // ===== FUNCIONES DE ELIMINACIÓN =====
+async function eliminarProfesor(profesorId, nombreProfesor) {
+    if (!confirm(`¿Eliminar definitivamente a "${nombreProfesor}"?\n\nEsta acción no se puede deshacer.`)) return;
+
+    try {
+        const snapshot = await db.collection('profesorMaterias')
+            .where('profesorId', '==', profesorId)
+            .get();
+
+        if (!snapshot.empty) {
+            const lista = snapshot.docs.map(d => {
+                const m = d.data();
+                return `• ${m.materiaNombre} — Grupo ${m.codigoGrupo} (${m.periodo})`;
+            }).join('\n');
+            alert(`No se puede eliminar a "${nombreProfesor}".\n\nTiene las siguientes materias asignadas:\n\n${lista}\n\nPrimero desasigna las materias o usa "Desactivar" para dar de baja temporal.`);
+            return;
+        }
+
+        await db.collection('usuarios').doc(profesorId).delete();
+        alert(`Profesor "${nombreProfesor}" eliminado correctamente.`);
+        cargarProfesores();
+    } catch (error) {
+        console.error('Error al eliminar profesor:', error);
+        alert('Error al intentar eliminar el profesor. Intenta de nuevo.');
+    }
+}
+
 async function eliminarCarrera(id) {
     if (usuarioActual.rol !== 'admin') {
         alert('Solo el administrador puede eliminar carreras');
