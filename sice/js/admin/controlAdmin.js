@@ -1349,6 +1349,7 @@ async function cargarAcademias() {
             nombre: data.nombre,
             descripcion: data.descripcion,
             coordinadores: [],
+            materiasAutorizadas: data.materiasAutorizadas || [],
             fechaCreacion: data.fechaCreacion
           });
         } else {
@@ -1357,6 +1358,7 @@ async function cargarAcademias() {
           if (academia) {
             academia.descripcion = data.descripcion;
             academia.fechaCreacion = data.fechaCreacion;
+            academia.materiasAutorizadas = data.materiasAutorizadas || [];
           }
         }
       });
@@ -1397,26 +1399,29 @@ function mostrarAcademias() {
   
   academiasData.forEach(academia => {
     const numCoordinadores = academia.coordinadores.length;
-    const coordNames = academia.coordinadores.map(c => c.nombre).join(', ') || 'Sin coordinadores';
-    
+    const numMaterias = (academia.materiasAutorizadas || []).length;
+
     html += `
       <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #5e35b1; transition: all 0.3s;"
            onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
            onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';">
-        
+
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
           <div style="flex: 1;">
             <h3 style="margin: 0 0 5px 0; color: #5e35b1;">${academia.nombre}</h3>
             <p style="margin: 0; color: #999; font-size: 0.9rem; font-family: monospace;">ID: ${academia.id}</p>
             ${academia.descripcion ? `<p style="margin: 10px 0 0 0; color: #666; font-size: 0.95rem;">${academia.descripcion}</p>` : ''}
           </div>
-          <div style="text-align: right;">
-            <span style="padding: 6px 14px; background: #e8eaf6; color: #5e35b1; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
+          <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+            <span style="padding: 5px 12px; background: #e8eaf6; color: #5e35b1; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
               ${numCoordinadores} coordinador${numCoordinadores !== 1 ? 'es' : ''}
+            </span>
+            <span style="padding: 5px 12px; background: ${numMaterias > 0 ? '#f3e5f5' : '#fafafa'}; color: ${numMaterias > 0 ? '#7b1fa2' : '#aaa'}; border-radius: 20px; font-size: 0.85rem; font-weight: 600; border: 1px solid ${numMaterias > 0 ? '#ce93d8' : '#eee'};">
+              ${numMaterias} materia${numMaterias !== 1 ? 's' : ''} asignada${numMaterias !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
-        
+
         ${numCoordinadores > 0 ? `
           <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; margin-top: 15px;">
             <p style="margin: 0 0 8px 0; font-weight: 600; color: #333; font-size: 0.9rem;">Coordinadores:</p>
@@ -1435,13 +1440,17 @@ function mostrarAcademias() {
             </p>
           </div>
         `}
-        
-        <div style="margin-top: 15px; display: flex; gap: 8px; justify-content: flex-end;">
-          <button onclick="editarAcademia('${academia.id}')" 
-                  style="padding: 8px 16px; background: #5e35b1; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
+
+        <div style="margin-top: 15px; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+          <button onclick="mostrarModalMateriasAcademia('${academia.id}')"
+                  style="padding: 8px 16px; background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
+            Gestionar Materias
+          </button>
+          <button onclick="editarAcademia('${academia.id}')"
+                  style="padding: 8px 16px; background: #546e7a; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
             Editar
           </button>
-          <button onclick="eliminarAcademia('${academia.id}', '${academia.nombre}')" 
+          <button onclick="eliminarAcademia('${academia.id}', '${academia.nombre}')"
                   style="padding: 8px 16px; background: #d32f2f; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
             Eliminar
           </button>
@@ -1617,6 +1626,248 @@ async function eliminarAcademia(academiaId, academiaNombre) {
 }
 
 console.log('Sistema de Gestión de Academias cargado');
+
+// ===== GESTIONAR MATERIAS DE ACADEMIA =====
+
+let academiaMateriasActualId = null;
+let todasLasMateriasAdmin = [];
+let carrerasAdminModal = [];
+
+async function mostrarModalMateriasAcademia(academiaId) {
+  academiaMateriasActualId = academiaId;
+  const academia = academiasData.find(a => a.id === academiaId);
+  if (!academia) return;
+
+  document.getElementById('tituloModalMaterias').textContent =
+    `Materias de Academia: ${academia.nombre}`;
+  document.getElementById('buscadorMateriasModal').value = '';
+  document.getElementById('modalMateriasAcademia').style.display = 'block';
+  document.getElementById('contenidoModalMaterias').innerHTML =
+    '<p style="text-align: center; color: #999; padding: 30px 0;">Cargando...</p>';
+
+  await cargarMateriasModalAdmin(academiaId);
+}
+
+async function cargarMateriasModalAdmin(academiaId) {
+  try {
+    // Obtener materiasAutorizadas actuales del doc de academia
+    const academiaDoc = await db.collection('academias').doc(academiaId).get();
+    const materiasAutorizadas = (academiaDoc.exists && academiaDoc.data().materiasAutorizadas)
+      ? academiaDoc.data().materiasAutorizadas
+      : [];
+
+    // Cargar carreras y materias en paralelo
+    const [carrerasSnap, materiasSnap] = await Promise.all([
+      db.collection('carreras').get(),
+      db.collection('materias').get()
+    ]);
+
+    carrerasAdminModal = carrerasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    todasLasMateriasAdmin = materiasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    renderMateriasModalAdmin(materiasAutorizadas);
+
+  } catch (error) {
+    document.getElementById('contenidoModalMaterias').innerHTML =
+      '<p style="color: red; text-align: center;">Error: ' + error.message + '</p>';
+  }
+}
+
+function renderMateriasModalAdmin(materiasAutorizadas) {
+  // Agrupar materias por carrera
+  const porCarrera = {};
+  todasLasMateriasAdmin.forEach(m => {
+    const cid = m.carreraId || 'SIN_CARRERA';
+    if (!porCarrera[cid]) {
+      const carrera = carrerasAdminModal.find(c => c.id === cid);
+      porCarrera[cid] = {
+        nombre: carrera ? carrera.nombre : 'Sin Carrera',
+        materias: []
+      };
+    }
+    porCarrera[cid].materias.push(m);
+  });
+
+  const carrerasOrdenadas = Object.entries(porCarrera)
+    .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre));
+
+  if (carrerasOrdenadas.length === 0) {
+    document.getElementById('contenidoModalMaterias').innerHTML =
+      '<p style="text-align: center; color: #999; padding: 30px 0;">No hay materias en el sistema.</p>';
+    actualizarContadorMaterias();
+    return;
+  }
+
+  let html = '';
+
+  carrerasOrdenadas.forEach(([carreraId, carrera]) => {
+    const materiasCarrera = carrera.materias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const todasAsignadas = materiasCarrera.length > 0 &&
+      materiasCarrera.every(m => materiasAutorizadas.includes(m.id));
+
+    html += `
+      <div class="carrera-modal-section" data-carrera="${carreraId}"
+           style="margin-bottom: 14px; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
+
+        <!-- Cabecera de carrera -->
+        <div style="display: flex; align-items: center; justify-content: space-between;
+                    padding: 12px 16px; background: #f3e5f5; border-bottom: 1px solid #e0e0e0;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="checkAllCarrera_${carreraId}"
+                   ${todasAsignadas ? 'checked' : ''}
+                   onchange="toggleTodasCarreraModal('${carreraId}', this.checked)"
+                   style="width: 18px; height: 18px; cursor: pointer; accent-color: #5e35b1;">
+            <label for="checkAllCarrera_${carreraId}"
+                   style="cursor: pointer; font-weight: 700; color: #5e35b1; font-size: 0.95rem;">
+              ${carrera.nombre}
+            </label>
+            <span style="color: #999; font-size: 0.8rem;">(${materiasCarrera.length})</span>
+          </div>
+          <button onclick="agregarTodasCarreraModal('${carreraId}')"
+            style="padding: 5px 12px; background: #5e35b1; color: white; border: none;
+                   border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+                   transition: background 0.2s;"
+            onmouseover="this.style.background='#7e57c2';"
+            onmouseout="this.style.background='#5e35b1';">
+            + Agregar todas
+          </button>
+        </div>
+
+        <!-- Lista de materias -->
+        <div style="padding: 8px 12px 12px 12px;">
+    `;
+
+    materiasCarrera.forEach(m => {
+      const asignada = materiasAutorizadas.includes(m.id);
+      html += `
+        <label class="materia-modal-item"
+               data-nombre="${m.nombre.toLowerCase()}"
+               style="display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+                      margin-bottom: 4px; border-radius: 6px; cursor: pointer;
+                      background: ${asignada ? '#f3e5f5' : '#fafafa'};
+                      border: 1px solid ${asignada ? '#ce93d8' : '#eee'};
+                      transition: background 0.15s;">
+          <input type="checkbox" class="materia-check"
+                 id="materia_${m.id}" value="${m.id}"
+                 data-carrera="${carreraId}"
+                 ${asignada ? 'checked' : ''}
+                 onchange="onCheckMateria(this, '${carreraId}')"
+                 style="width: 16px; height: 16px; cursor: pointer; accent-color: #5e35b1; flex-shrink: 0;">
+          <span style="flex: 1; font-size: 0.9rem;">${m.nombre}</span>
+          ${m.codigo ? `<span style="color: #bbb; font-size: 0.78rem; font-family: monospace;">${m.codigo}</span>` : ''}
+        </label>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById('contenidoModalMaterias').innerHTML = html;
+  actualizarContadorMaterias();
+}
+
+function toggleTodasCarreraModal(carreraId, checked) {
+  const checkboxes = document.querySelectorAll(`.materia-check[data-carrera="${carreraId}"]`);
+  checkboxes.forEach(cb => {
+    cb.checked = checked;
+    actualizarEstiloItemMateria(cb, checked);
+  });
+  actualizarContadorMaterias();
+}
+
+function agregarTodasCarreraModal(carreraId) {
+  toggleTodasCarreraModal(carreraId, true);
+  const checkAll = document.getElementById('checkAllCarrera_' + carreraId);
+  if (checkAll) checkAll.checked = true;
+}
+
+function onCheckMateria(cb, carreraId) {
+  actualizarEstiloItemMateria(cb, cb.checked);
+  actualizarCheckAllCarrera(carreraId);
+  actualizarContadorMaterias();
+}
+
+function actualizarEstiloItemMateria(cb, checked) {
+  const label = cb.closest('label');
+  if (!label) return;
+  label.style.background = checked ? '#f3e5f5' : '#fafafa';
+  label.style.borderColor = checked ? '#ce93d8' : '#eee';
+}
+
+function actualizarCheckAllCarrera(carreraId) {
+  const checkboxes = document.querySelectorAll(`.materia-check[data-carrera="${carreraId}"]`);
+  const todas = Array.from(checkboxes).every(cb => cb.checked);
+  const checkAll = document.getElementById('checkAllCarrera_' + carreraId);
+  if (checkAll) checkAll.checked = todas;
+}
+
+function actualizarContadorMaterias() {
+  const total = document.querySelectorAll('.materia-check:checked').length;
+  const el = document.getElementById('resumenMateriasSeleccionadas');
+  if (el) el.textContent = `${total} materia${total !== 1 ? 's' : ''} seleccionada${total !== 1 ? 's' : ''}`;
+}
+
+function filtrarMateriasModal() {
+  const texto = document.getElementById('buscadorMateriasModal').value.toLowerCase().trim();
+  const items = document.querySelectorAll('.materia-modal-item');
+  const sections = document.querySelectorAll('.carrera-modal-section');
+
+  items.forEach(item => {
+    const nombre = item.getAttribute('data-nombre') || '';
+    item.style.display = (!texto || nombre.includes(texto)) ? 'flex' : 'none';
+  });
+
+  sections.forEach(section => {
+    const hayVisibles = Array.from(section.querySelectorAll('.materia-modal-item'))
+      .some(i => i.style.display !== 'none');
+    section.style.display = hayVisibles ? 'block' : 'none';
+  });
+}
+
+async function guardarMateriasAcademia() {
+  if (!academiaMateriasActualId) return;
+
+  const checkboxes = document.querySelectorAll('.materia-check:checked');
+  const materiasAutorizadas = Array.from(checkboxes).map(cb => cb.value);
+
+  const btn = document.getElementById('btnGuardarMateriasAcademia');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  try {
+    await db.collection('academias').doc(academiaMateriasActualId).update({
+      materiasAutorizadas: materiasAutorizadas,
+      fechaActualizacionMaterias: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Actualizar en memoria para reflejar el nuevo count sin recargar
+    const academia = academiasData.find(a => a.id === academiaMateriasActualId);
+    if (academia) academia.materiasAutorizadas = materiasAutorizadas;
+
+    alert(`Guardado correctamente: ${materiasAutorizadas.length} materia(s) asignada(s) a la academia.`);
+    cerrarModalMateriasAcademia();
+    mostrarAcademias(); // refrescar la lista para actualizar el contador
+
+  } catch (error) {
+    console.error('Error al guardar materias:', error);
+    alert('Error al guardar: ' + error.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Guardar';
+    }
+  }
+}
+
+function cerrarModalMateriasAcademia() {
+  document.getElementById('modalMateriasAcademia').style.display = 'none';
+  academiaMateriasActualId = null;
+  todasLasMateriasAdmin = [];
+  carrerasAdminModal = [];
+}
 
 // ===== SELECTOR DE CRÉDITOS EN CREAR CARRERA =====
 let creditosSeleccion = '';
