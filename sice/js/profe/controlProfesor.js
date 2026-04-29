@@ -1051,7 +1051,7 @@ async function verExtraordinarios() {
       if (alumnosReprobados.length > 0) {
         hayReprobados = true;
         
-        html += generarSeccionExtraordinarios(asignacion, alumnosReprobados);
+        html += generarSeccionExtraordinarios(asignacion, alumnosReprobados, tieneEFExtra);
       }
     }
     
@@ -1102,7 +1102,7 @@ function calcularPromedio(parciales) {
   return null;
 }
 
-function generarSeccionExtraordinarios(asignacion, alumnos) {
+function generarSeccionExtraordinarios(asignacion, alumnos, tieneEFExtra = false) {
   let html = `
     <div style="margin-bottom: 30px; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
       <div style="background: linear-gradient(135deg, #dc3545 0%, #c62828 100%); color: white; padding: 15px;">
@@ -1111,7 +1111,7 @@ function generarSeccionExtraordinarios(asignacion, alumnos) {
           Grupo: ${asignacion.codigoGrupo} | ${alumnos.length} alumno(s) reprobado(s)
         </div>
       </div>
-      
+
       <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
         <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
           <thead style="background: #f5f5f5;">
@@ -1120,19 +1120,17 @@ function generarSeccionExtraordinarios(asignacion, alumnos) {
               <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px;">Matrícula</th>
               <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 80px;">Calificación</th>
               <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px; background: #fff3e0;">Extraordinario</th>
-              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px; background: #ffebee;">ETS</th>
+              ${!tieneEFExtra ? `<th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px; background: #ffebee;">ETS</th>` : ''}
             </tr>
           </thead>
           <tbody>
   `;
-  
-  alumnos.forEach((alumno) => {
-    const globalIndex = `${asignacion.id}_${alumno.id}`;
-    
-    const badgeEspecial = alumno.tipoInscripcion === 'especial' 
-      ? '<span style="display: inline-block; padding: 2px 6px; background: #fff3e0; color: #e65100; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-left: 5px;">ESP</span>' 
+
+  alumnos.forEach((alumno, idx) => {
+    const badgeEspecial = alumno.tipoInscripcion === 'especial'
+      ? '<span style="display: inline-block; padding: 2px 6px; background: #fff3e0; color: #e65100; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-left: 5px;">ESP</span>'
       : '';
-    
+
     html += `
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 12px; border: 1px solid #ddd; font-weight: 600;">
@@ -1140,26 +1138,29 @@ function generarSeccionExtraordinarios(asignacion, alumnos) {
         </td>
         <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
         <td style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #dc3545; font-weight: bold;">${alumno.promedio === 'NP' ? 'NP' : alumno.promedio.toFixed(1)}</td>
-        
+
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
           ${alumno.extraordinario !== null && alumno.extraordinario !== undefined
             ? `<span style="font-weight: bold; color: #4caf50;">${alumno.extraordinario}</span>`
-            : `<select id="ext_${globalIndex}" style="width: 70px; padding: 6px; border: 2px solid #ff9800; border-radius: 6px; text-align: center; font-weight: bold;">
+            : `<select id="ext_${idx}" data-alumno-id="${alumno.id}" data-materia-id="${asignacion.materiaId}" data-tipo="ext"
+                       style="width: 70px; padding: 6px; border: 2px solid #ff9800; border-radius: 6px; text-align: center; font-weight: bold;">
                 <option value="">-</option>
                 ${generarOpcionesCalificacion()}
               </select>`
           }
         </td>
-        
+
+        ${!tieneEFExtra ? `
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fce4ec;">
           ${alumno.ets !== null && alumno.ets !== undefined
             ? `<span style="font-weight: bold; color: #4caf50;">${alumno.ets}</span>`
-            : `<select id="ets_${globalIndex}" style="width: 70px; padding: 6px; border: 2px solid #dc3545; border-radius: 6px; text-align: center; font-weight: bold;">
+            : `<select id="ets_${idx}" data-alumno-id="${alumno.id}" data-materia-id="${asignacion.materiaId}" data-tipo="ets"
+                       style="width: 70px; padding: 6px; border: 2px solid #dc3545; border-radius: 6px; text-align: center; font-weight: bold;">
                 <option value="">-</option>
                 ${generarOpcionesCalificacion()}
               </select>`
           }
-        </td>
+        </td>` : ''}
       </tr>
     `;
   });
@@ -1194,36 +1195,36 @@ async function guardarExtraordinarios() {
   if (!confirm('¿Guardar las calificaciones de Extraordinario y ETS?\n\nEstas calificaciones pueden ser modificadas por el coordinador.')) {
     return;
   }
-  
+
   try {
     let guardadas = 0;
-    const elementos = document.querySelectorAll('[id^="ext_"], [id^="ets_"]');
-    
+    const elementos = document.querySelectorAll('[data-alumno-id][data-materia-id][data-tipo]');
+
     console.log('Elementos de extraordinarios encontrados:', elementos.length);
-    
+
     for (const elem of elementos) {
       const valor = elem.value;
       if (valor === '' || valor === null) continue;
-      
-      const id = elem.id;
-      const [tipo, asignacionId, alumnoId] = id.split('_');
-      
-      const docId = `${alumnoId}_${asignacionId}`;
-      
+
+      const tipo = elem.dataset.tipo;
+      const alumnoId = elem.dataset.alumnoId;
+      const materiaId = elem.dataset.materiaId;
+      const docId = `${alumnoId}_${materiaId}`;
+
       console.log(`Guardando ${tipo} para documento: ${docId}, valor: ${valor}`);
-      
+
       const updateData = {
         actualizadoPor: usuarioActual.uid,
         fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
       };
-      
+
       if (tipo === 'ext') {
         updateData.extraordinario = parseFloat(valor);
       } else if (tipo === 'ets') {
         updateData.ets = parseFloat(valor);
       }
-      
-      await db.collection('calificaciones').doc(docId).update(updateData);
+
+      await db.collection('calificaciones').doc(docId).set(updateData, { merge: true });
       guardadas++;
     }
     

@@ -2270,7 +2270,6 @@ async function cargarProfesores() {
  <button onclick="toggleActivoUsuario('${item.id}', 'profesor', ${!profesor.activo})" class="${profesor.activo ? 'botAzu' : 'botVerde'}">
  ${profesor.activo ? 'Desactivar' : 'Activar'}
  </button>
- <button onclick="eliminarProfesor('${item.id}', '${profesor.nombre.replace(/'/g, "\\'")}')" class="botRojo">Eliminar</button>
  ` : `
  <span style="color: #666; font-size: 0.9rem;">Coordinador (no editable desde aquí)</span>
  `}
@@ -2316,10 +2315,11 @@ function mostrarFormProfesor(profesorId = null) {
  Profesor activo
  </label>
  </div>
- 
+
  <div class="form-botones">
  <button type="submit" class="btn-guardar"> Guardar</button>
  <button type="button" onclick="cerrarModal()" class="btn-cancelar"> Cancelar</button>
+ ${esEdicion ? `<button type="button" onclick="eliminarProfesor('${profesorId}', document.getElementById('nombreProfesor').value)" class="botRojo">Eliminar</button>` : ''}
  </div>
  </form>
  `;
