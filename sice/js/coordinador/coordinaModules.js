@@ -3569,12 +3569,13 @@ function generarTablaCalificaciones() {
             <th style="${thStyle}">${labelP3}</th>
             ${tieneExamenFinalCoord
                 ? `<th style="${thStyle}">Extraordinario</th>`
-                : `<th style="${thStyleNaranja}">Faltas 3</th>`}`;
+                : `<th style="${thStyleNaranja}">Faltas 3</th>
+                   <th style="${thStyle}">Extraordinario</th>`}`;
     }
 
     let html = `
     <div style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; min-width: ${esMaestriaCoord ? '500px' : tieneExamenFinalCoord ? '950px' : '820px'};">
+      <table style="width: 100%; border-collapse: collapse; min-width: ${esMaestriaCoord ? '500px' : tieneExamenFinalCoord ? '950px' : '920px'};">
         <thead>
           <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <th style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
@@ -3647,6 +3648,9 @@ function generarTablaCalificaciones() {
           </td>
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff8e1;">
             ${generarDropdownFalta(index, 'falta3', alumno.calificaciones.falta3)}
+          </td>`;
+            celdaExtra = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+            ${generarDropdownCalif(index, 'extraordinario', alumno.calificaciones.extraordinario)}
           </td>`;
         }
 
@@ -3810,14 +3814,12 @@ async function guardarTodasCalificacionesCoord() {
                 promedio = calcularCalificacion(toNum(parcial1), toNum(parcial2), toNum(parcial3), tieneExamenFinalCoord);
             }
 
-            // Extraordinario — solo para tieneExamenFinalCoord (dropdown visible en la tabla)
+            // Extraordinario — guardar si existe el dropdown (aplica a todas las carreras)
             let extraordinarioGuardar = undefined; // undefined = no tocar (merge)
-            if (tieneExamenFinalCoord) {
-                const extraEl = document.getElementById(`calif_${i}_extraordinario`);
-                if (extraEl) {
-                    const extraVal = extraEl.value;
-                    extraordinarioGuardar = extraVal === '' ? null : parseFloat(extraVal);
-                }
+            const extraEl = document.getElementById(`calif_${i}_extraordinario`);
+            if (extraEl) {
+                const extraVal = extraEl.value;
+                extraordinarioGuardar = extraVal === '' ? null : parseFloat(extraVal);
             }
 
             const updateData = {

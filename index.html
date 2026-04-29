@@ -276,18 +276,21 @@ async function cargarMateriasYCalificaciones() {
     const materias = materiasData.map((materia, i) => {
       const calDoc = calDocs[i];
       let parcial1 = '-', parcial2 = '-', parcial3 = '-';
+      let extraordinario = null, ets = null;
       if (calDoc.exists) {
         const data = calDoc.data();
         parcial1 = data.parciales?.parcial1 ?? '-';
         parcial2 = data.parciales?.parcial2 ?? '-';
         parcial3 = data.parciales?.parcial3 ?? '-';
+        extraordinario = data.extraordinario ?? null;
+        ets = data.ets ?? null;
       }
       return {
         nombre: materia.materiaNombre,
         codigo: materia.codigoGrupo,
         profesor: materia.profesorNombre,
         periodo: materia.periodo || materia.periodoAcademico || '',
-        parcial1, parcial2, parcial3
+        parcial1, parcial2, parcial3, extraordinario, ets
       };
     });
 
@@ -309,7 +312,7 @@ function renderizarMaterias(materias, tieneEF = false) {
     <div style="background: white; padding: 20px; border-radius: 10px;">
       <h3 style="color: #6A2135; margin: 0 0 20px 0; text-align: center;">Boleta de Calificaciones</h3>
       <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-        <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
+        <table style="width: 100%; min-width: ${tieneEF ? '680px' : '760px'}; border-collapse: collapse;">
         <thead>
           <tr style="background: #6A2135; color: white;">
             <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
@@ -317,6 +320,8 @@ function renderizarMaterias(materias, tieneEF = false) {
             <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 2</th>
             <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">${labelP3}</th>
             <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Calificación</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Extraordinario</th>
+            ${!tieneEF ? `<th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 80px; min-width: 80px;">ETS</th>` : ''}
           </tr>
         </thead>
         <tbody>
@@ -345,6 +350,12 @@ function renderizarMaterias(materias, tieneEF = false) {
         <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.3rem; font-weight: bold; background: #f0f7ff; color: #6A2135;">
           ${promedio}
         </td>
+        <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.1rem; font-weight: bold; color: ${materia.extraordinario !== null ? '#4caf50' : '#999'};">
+          ${materia.extraordinario !== null ? materia.extraordinario : '-'}
+        </td>
+        ${!tieneEF ? `<td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.1rem; font-weight: bold; color: ${materia.ets !== null ? '#4caf50' : '#999'};">
+          ${materia.ets !== null ? materia.ets : '-'}
+        </td>` : ''}
       </tr>
     `;
   });
