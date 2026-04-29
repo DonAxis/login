@@ -235,10 +235,11 @@ async function mostrarInformacionAlumno() {
 
 async function cargarMateriasYCalificaciones() {
   const container = document.getElementById('listaMaterias');
+  const tieneEF = await obtenerTieneExamenFinal(alumnoActual.carreraId || '');
 
   // Si ya tenemos datos en memoria, renderizar sin ir a Firestore
   if (materiasCache !== null) {
-    renderizarMaterias(materiasCache);
+    renderizarMaterias(materiasCache, tieneEF);
     return;
   }
 
@@ -292,7 +293,7 @@ async function cargarMateriasYCalificaciones() {
 
     console.log('Total materias procesadas:', materias.length);
     materiasCache = materias;
-    renderizarMaterias(materias);
+    renderizarMaterias(materias, tieneEF);
 
   } catch (error) {
     console.error('Error:', error);
@@ -300,8 +301,9 @@ async function cargarMateriasYCalificaciones() {
   }
 }
 
-function renderizarMaterias(materias) {
+function renderizarMaterias(materias, tieneEF = false) {
   const container = document.getElementById('listaMaterias');
+  const labelP3 = tieneEF ? 'Examen Final' : 'Parcial 3';
 
   let html = `
     <div style="background: white; padding: 20px; border-radius: 10px;">
@@ -313,7 +315,7 @@ function renderizarMaterias(materias) {
             <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
             <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 1</th>
             <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 2</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Parcial 3</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">${labelP3}</th>
             <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px; min-width: 90px;">Calificación</th>
           </tr>
         </thead>
@@ -321,19 +323,9 @@ function renderizarMaterias(materias) {
   `;
 
   materias.forEach(materia => {
-    const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
-    let promedio = '-';
-    if (tieneNP) {
-      promedio = 'NP';
-    } else {
-      const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
-        .filter(c => c !== '-' && c !== null && c !== undefined)
-        .map(c => parseFloat(c))
-        .filter(c => !isNaN(c));
-      if (cals.length > 0) {
-        promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
-      }
-    }
+    const toN = v => (v !== '-' && v !== null && v !== undefined) ? (v === 'NP' ? 'NP' : parseFloat(v)) : null;
+    const calNum = calcularCalificacion(toN(materia.parcial1), toN(materia.parcial2), toN(materia.parcial3), tieneEF);
+    const promedio = calNum === null ? '-' : (calNum === 'NP' ? 'NP' : calNum.toFixed(1));
 
     html += `
       <tr style="border-bottom: 1px solid #eee;">
