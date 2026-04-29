@@ -3568,9 +3568,9 @@ function generarTablaCalificaciones() {
             <th style="${thStyleNaranja}">Faltas 2</th>
             <th style="${thStyle}">${labelP3}</th>
             ${tieneExamenFinalCoord
-                ? `<th style="${thStyle}">Extraordinario</th>`
+                ? `<th style="${thStyle}">Extra.</th>`
                 : `<th style="${thStyleNaranja}">Faltas 3</th>
-                   <th style="${thStyle}">Extraordinario</th>`}`;
+                   <th style="${thStyle}">Extra.</th>`}`;
     }
 
     let html = `
