@@ -1,4 +1,4 @@
-// controlAcademia.js — v2
+// controlAcademia.js — v3
 // Acceso de solo lectura basado en materiasAutorizadas asignadas por el admin
 
 const auth = firebase.auth();
@@ -6,12 +6,15 @@ let usuarioActual = null;
 let materiasAcademia = [];  // materias únicas
 let carrerasData = [];
 let todasLasMaterias = []; // una entrada por asignación (grupo) en profesorMaterias
+let materiaActual = null;  // materia seleccionada para detalle
 
 // ===== NAVEGACIÓN =====
 
 function ocultarTodasSecciones() {
   document.getElementById('menuAcademia').style.display = 'none';
   document.getElementById('seccionVerCarreras').style.display = 'none';
+  document.getElementById('seccionDetalleMateria').style.display = 'none';
+  document.getElementById('seccionProfesores').style.display = 'none';
   document.getElementById('seccionCalificaciones').style.display = 'none';
 }
 
@@ -33,7 +36,69 @@ function mostrarVerCarreras() {
 }
 
 function volverAMaterias() {
+  materiaActual = null;
   mostrarVerCarreras();
+}
+
+function volverDetalleMateria() {
+  if (!materiaActual) {
+    mostrarVerCarreras();
+    return;
+  }
+  ocultarTodasSecciones();
+  document.getElementById('seccionDetalleMateria').style.display = 'block';
+  document.getElementById('btnVolverMenu').style.display = 'inline-block';
+}
+
+function verDetalleMateria(idx) {
+  materiaActual = todasLasMaterias[idx];
+  ocultarTodasSecciones();
+  document.getElementById('seccionDetalleMateria').style.display = 'block';
+  document.getElementById('btnVolverMenu').style.display = 'inline-block';
+  document.getElementById('tituloDetalleMateria').textContent = materiaActual.nombre;
+  document.getElementById('infoDetalleMateria').textContent =
+    `${materiaActual.carreraNombre} · Grupo: ${materiaActual.codigoCompleto || materiaActual.codigoGrupo} · ${materiaActual.nombreTurno} · Periodo ${materiaActual.periodo}`;
+}
+
+function mostrarProfesoresMateria() {
+  if (!materiaActual) return;
+  ocultarTodasSecciones();
+  document.getElementById('seccionProfesores').style.display = 'block';
+  document.getElementById('btnVolverMenu').style.display = 'inline-block';
+  document.getElementById('tituloProfesores').textContent = materiaActual.nombre;
+
+  const asignaciones = todasLasMaterias.filter(m => m.id === materiaActual.id);
+  const container = document.getElementById('contenidoProfesores');
+
+  if (asignaciones.length === 0) {
+    container.innerHTML = '<p style="color:#999; text-align:center; padding:30px;">No hay profesores asignados a esta materia.</p>';
+    return;
+  }
+
+  let html = '<div style="display:grid; gap:14px; padding:10px 0;">';
+  asignaciones.forEach(asig => {
+    const tieneProf = asig.profesorNombre && asig.profesorNombre !== 'Sin profesor';
+    html += `
+      <div style="background:white; border-radius:10px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid ${asig.carreraColor || '#5e35b1'};">
+        <div style="font-weight:700; font-size:1.05rem; color:#333; margin-bottom:8px;">
+          ${tieneProf ? asig.profesorNombre : '<span style="color:#999; font-weight:400;">Sin profesor asignado</span>'}
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:16px; color:#666; font-size:0.88rem;">
+          <span>Carrera: <strong>${asig.carreraNombre}</strong></span>
+          <span>Grupo: <strong>${asig.codigoCompleto || asig.codigoGrupo}</strong></span>
+          <span>Turno: <strong>${asig.nombreTurno}</strong></span>
+          <span>Periodo: <strong>${asig.periodo}</strong></span>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function mostrarAlumnosMateria() {
+  if (!materiaActual) return;
+  verActaCalificaciones(materiaActual.asignacionId, materiaActual.nombre, materiaActual.codigoGrupo);
 }
 
 // ===== AUTENTICACIÓN =====
@@ -230,9 +295,9 @@ function mostrarMateriasPorCarrera() {
     return;
   }
 
-  // Agrupar por carrera
+  // Agrupar por carrera (guardando índice original para verDetalleMateria)
   const porCarrera = {};
-  todasLasMaterias.forEach(m => {
+  todasLasMaterias.forEach((m, idx) => {
     const cid = m.carreraId || 'sin-carrera';
     if (!porCarrera[cid]) {
       porCarrera[cid] = {
@@ -242,7 +307,7 @@ function mostrarMateriasPorCarrera() {
         materias: []
       };
     }
-    porCarrera[cid].materias.push(m);
+    porCarrera[cid].materias.push({ ...m, _idx: idx });
   });
 
   const carrerasOrdenadas = Object.values(porCarrera).sort((a, b) =>
@@ -262,10 +327,6 @@ function mostrarMateriasPorCarrera() {
     `;
 
     carrera.materias.forEach(m => {
-      const safeAsig = (m.asignacionId || '').replace(/'/g, "\\'");
-      const safeNombre = m.nombre.replace(/'/g, "\\'");
-      const safeCodigo = m.codigoGrupo.replace(/'/g, "\\'");
-
       html += `
         <div class="materia-card" data-nombre="${m.nombre.toLowerCase()}">
           <div class="materia-header">
@@ -282,8 +343,8 @@ function mostrarMateriasPorCarrera() {
             : '<p class="materia-info" style="color: #999;">Sin profesor asignado</p>'
           }
           <div class="materia-acciones">
-            <button onclick="verActaCalificaciones('${safeAsig}', '${safeNombre}', '${safeCodigo}')" class="btn-ver">
-              Ver Acta
+            <button onclick="verDetalleMateria(${m._idx})" class="btn-ver">
+              Ver
             </button>
           </div>
         </div>
