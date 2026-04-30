@@ -57,7 +57,7 @@ function verDetalleMateria(idx) {
   document.getElementById('btnVolverMenu').style.display = 'inline-block';
   document.getElementById('tituloDetalleMateria').textContent = materiaActual.nombre;
   document.getElementById('infoDetalleMateria').textContent =
-    `${materiaActual.carreraNombre} · Grupo: ${materiaActual.codigoCompleto || materiaActual.codigoGrupo} · ${materiaActual.nombreTurno} · Periodo ${materiaActual.periodo}`;
+    `${materiaActual.carreraNombre} · Grupo: ${materiaActual.codigoGrupo} · ${materiaActual.nombreTurno} · Periodo ${materiaActual.periodo}`;
 }
 
 function mostrarProfesoresMateria() {
@@ -75,19 +75,37 @@ function mostrarProfesoresMateria() {
     return;
   }
 
-  let html = '<div style="display:grid; gap:14px; padding:10px 0;">';
+  // Agrupar por profesorId para evitar tarjetas duplicadas
+  const porProfesor = {};
   asignaciones.forEach(asig => {
-    const tieneProf = asig.profesorNombre && asig.profesorNombre !== 'Sin profesor';
+    const pid = asig.profesorId || '__sin_profesor__';
+    if (!porProfesor[pid]) {
+      porProfesor[pid] = {
+        nombre: asig.profesorNombre && asig.profesorNombre !== 'Sin profesor'
+          ? asig.profesorNombre : null,
+        color: asig.carreraColor || '#5e35b1',
+        grupos: []
+      };
+    }
+    porProfesor[pid].grupos.push(asig);
+  });
+
+  let html = '<div style="display:grid; gap:14px; padding:10px 0;">';
+  Object.values(porProfesor).forEach(prof => {
     html += `
-      <div style="background:white; border-radius:10px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid ${asig.carreraColor || '#5e35b1'};">
-        <div style="font-weight:700; font-size:1.05rem; color:#333; margin-bottom:8px;">
-          ${tieneProf ? asig.profesorNombre : '<span style="color:#999; font-weight:400;">Sin profesor asignado</span>'}
+      <div style="background:white; border-radius:10px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid ${prof.color};">
+        <div style="font-weight:700; font-size:1.05rem; color:#333; margin-bottom:10px;">
+          ${prof.nombre || '<span style="color:#999; font-weight:400;">Sin profesor asignado</span>'}
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:16px; color:#666; font-size:0.88rem;">
-          <span>Carrera: <strong>${asig.carreraNombre}</strong></span>
-          <span>Grupo: <strong>${asig.codigoCompleto || asig.codigoGrupo}</strong></span>
-          <span>Turno: <strong>${asig.nombreTurno}</strong></span>
-          <span>Periodo: <strong>${asig.periodo}</strong></span>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${prof.grupos.map(g => `
+            <div style="font-size:0.88rem; color:#666; padding:6px 10px; background:#f8f9fa; border-radius:6px; display:flex; flex-wrap:wrap; gap:12px;">
+              <span>${g.carreraNombre}</span>
+              <span>Grupo: <strong>${g.codigoGrupo}</strong></span>
+              <span>${g.nombreTurno}</span>
+              <span>Periodo ${g.periodo}</span>
+            </div>
+          `).join('')}
         </div>
       </div>
     `;
@@ -328,25 +346,13 @@ function mostrarMateriasPorCarrera() {
 
     carrera.materias.forEach(m => {
       html += `
-        <div class="materia-card" data-nombre="${m.nombre.toLowerCase()}">
-          <div class="materia-header">
-            <h3>${m.nombre}</h3>
-            <span class="carrera-badge" style="background: ${carrera.color}22; color: ${carrera.color};">
-              ${carrera.siglas}
-            </span>
+        <div class="materia-card" data-nombre="${m.nombre.toLowerCase()}"
+             style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 16px;">
+          <div style="min-width:0;">
+            <div style="font-weight:600; color:#333; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.nombre}</div>
+            <div style="color:#888; font-size:0.82rem; margin-top:2px;">Grupo: ${m.codigoGrupo || '-'}</div>
           </div>
-          <p class="materia-info"><strong>Periodo:</strong> ${m.periodo}</p>
-          <p class="materia-info"><strong>Turno:</strong> ${m.nombreTurno}</p>
-          <p class="materia-info"><strong>Grupo:</strong> ${m.codigoCompleto || m.codigoGrupo || '-'}</p>
-          ${m.profesorNombre && m.profesorNombre !== 'Sin profesor'
-            ? `<p class="materia-info"><strong>Profesor:</strong> ${m.profesorNombre}</p>`
-            : '<p class="materia-info" style="color: #999;">Sin profesor asignado</p>'
-          }
-          <div class="materia-acciones">
-            <button onclick="verDetalleMateria(${m._idx})" class="btn-ver">
-              Ver
-            </button>
-          </div>
+          <button onclick="verDetalleMateria(${m._idx})" class="btn-ver" style="flex-shrink:0;">Ver</button>
         </div>
       `;
     });
