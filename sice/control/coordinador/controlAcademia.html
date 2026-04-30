@@ -59,40 +59,12 @@
     <div id="contenidoCarreras" class="contenido-carreras"></div>
   </div>
 
-  <!-- SECCIÓN: DETALLE DE MATERIA (2 OPCIONES) -->
-  <div id="seccionDetalleMateria" class="seccion-contenido" style="display: none;">
-    <div class="seccion-header">
-      <h2 id="tituloDetalleMateria">Materia</h2>
-      <button onclick="volverAMaterias()" class="btn-asignar">← Ver Materias</button>
-    </div>
-    <p id="infoDetalleMateria" style="margin: 5px 0 24px 0; color: #666;"></p>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 560px;">
-      <div class="card-academia" onclick="mostrarProfesoresMateria()">
-        <h3>Profesores</h3>
-        <p>Ver quién imparte esta materia en la academia.</p>
-      </div>
-      <div class="card-academia" onclick="mostrarAlumnosMateria()">
-        <h3>Alumnos</h3>
-        <p>Ver alumnos y calificaciones del grupo.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- SECCIÓN: PROFESORES DE MATERIA -->
-  <div id="seccionProfesores" class="seccion-contenido" style="display: none;">
-    <div class="seccion-header">
-      <h2>Profesores — <span id="tituloProfesores" style="font-weight: 400;"></span></h2>
-      <button onclick="volverDetalleMateria()" class="btn-asignar">← Volver</button>
-    </div>
-    <div id="contenidoProfesores" style="padding: 0 5px;"></div>
-  </div>
-
-  <!-- SECCIÓN: ACTA DE CALIFICACIONES -->
+  <!-- SECCIÓN: ALUMNOS Y CALIFICACIONES -->
   <div id="seccionCalificaciones" class="seccion-contenido" style="display: none;">
     <div class="seccion-header">
       <h2>Alumnos y Calificaciones — Solo Lectura</h2>
-      <button id="btnVerOtraMateria" onclick="volverDetalleMateria()" class="btn-asignar" style="display: none;">
-        ← Volver a Materia
+      <button id="btnVerOtraMateria" onclick="volverAMaterias()" class="btn-asignar" style="display: none;">
+        ← Ver Materias
       </button>
     </div>
     <p style="margin: 5px 0 20px 0; color: #666;" id="infoMateriaCalif">-</p>

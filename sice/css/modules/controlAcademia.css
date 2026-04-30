@@ -194,11 +194,38 @@
       padding: 20px;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
-      transition: border-color 0.2s;
+      transition: all 0.2s ease;
+      cursor: pointer;
     }
 
     .materia-card:hover {
-      border-color: #94a3b8;
+      border-color: #6F1D46;
+      background: #fdf4f7;
+      box-shadow: 0 4px 12px rgba(111, 29, 70, 0.14);
+      transform: translateY(-2px);
+    }
+
+    /* Secciones de grupo dentro de carrera */
+    .grupo-section {
+      margin-bottom: 14px;
+    }
+
+    .grupo-header {
+      background: #f1f5f9;
+      padding: 7px 14px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      border-left: 3px solid #6F1D46;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #475569;
+      letter-spacing: 0.02em;
+    }
+
+    .grupo-materias {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
 
     .carrera-badge {

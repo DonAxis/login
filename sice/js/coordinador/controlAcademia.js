@@ -13,8 +13,6 @@ let materiaActual = null;  // materia seleccionada para detalle
 function ocultarTodasSecciones() {
   document.getElementById('menuAcademia').style.display = 'none';
   document.getElementById('seccionVerCarreras').style.display = 'none';
-  document.getElementById('seccionDetalleMateria').style.display = 'none';
-  document.getElementById('seccionProfesores').style.display = 'none';
   document.getElementById('seccionCalificaciones').style.display = 'none';
 }
 
@@ -40,83 +38,17 @@ function volverAMaterias() {
   mostrarVerCarreras();
 }
 
-function volverDetalleMateria() {
-  if (!materiaActual) {
-    mostrarVerCarreras();
-    return;
-  }
-  ocultarTodasSecciones();
-  document.getElementById('seccionDetalleMateria').style.display = 'block';
-  document.getElementById('btnVolverMenu').style.display = 'inline-block';
-}
-
-function verDetalleMateria(idx) {
+// Abre directamente la vista de alumnos/calificaciones desde la lista de materias
+function abrirMateriaDirecto(idx) {
   materiaActual = todasLasMaterias[idx];
-  ocultarTodasSecciones();
-  document.getElementById('seccionDetalleMateria').style.display = 'block';
-  document.getElementById('btnVolverMenu').style.display = 'inline-block';
-  document.getElementById('tituloDetalleMateria').textContent = materiaActual.nombre;
-  document.getElementById('infoDetalleMateria').textContent =
-    `${materiaActual.carreraNombre} · Grupo: ${materiaActual.codigoGrupo} · ${materiaActual.nombreTurno} · Periodo ${materiaActual.periodo}`;
-}
-
-function mostrarProfesoresMateria() {
-  if (!materiaActual) return;
-  ocultarTodasSecciones();
-  document.getElementById('seccionProfesores').style.display = 'block';
-  document.getElementById('btnVolverMenu').style.display = 'inline-block';
-  document.getElementById('tituloProfesores').textContent = materiaActual.nombre;
-
-  const asignaciones = todasLasMaterias.filter(m => m.id === materiaActual.id);
-  const container = document.getElementById('contenidoProfesores');
-
-  if (asignaciones.length === 0) {
-    container.innerHTML = '<p style="color:#999; text-align:center; padding:30px;">No hay profesores asignados a esta materia.</p>';
-    return;
-  }
-
-  // Agrupar por profesorId para evitar tarjetas duplicadas
-  const porProfesor = {};
-  asignaciones.forEach(asig => {
-    const pid = asig.profesorId || '__sin_profesor__';
-    if (!porProfesor[pid]) {
-      porProfesor[pid] = {
-        nombre: asig.profesorNombre && asig.profesorNombre !== 'Sin profesor'
-          ? asig.profesorNombre : null,
-        color: asig.carreraColor || '#5e35b1',
-        grupos: []
-      };
-    }
-    porProfesor[pid].grupos.push(asig);
-  });
-
-  let html = '<div style="display:grid; gap:14px; padding:10px 0;">';
-  Object.values(porProfesor).forEach(prof => {
-    html += `
-      <div style="background:white; border-radius:10px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid ${prof.color};">
-        <div style="font-weight:700; font-size:1.05rem; color:#333; margin-bottom:10px;">
-          ${prof.nombre || '<span style="color:#999; font-weight:400;">Sin profesor asignado</span>'}
-        </div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          ${prof.grupos.map(g => `
-            <div style="font-size:0.88rem; color:#666; padding:6px 10px; background:#f8f9fa; border-radius:6px; display:flex; flex-wrap:wrap; gap:12px;">
-              <span>${g.carreraNombre}</span>
-              <span>Grupo: <strong>${g.codigoGrupo}</strong></span>
-              <span>${g.nombreTurno}</span>
-              <span>Periodo ${g.periodo}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  });
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-function mostrarAlumnosMateria() {
-  if (!materiaActual) return;
   verActaCalificaciones(materiaActual.asignacionId, materiaActual.nombre, materiaActual.codigoGrupo);
+}
+
+// Extrae turno, semestre y orden del codigoGrupo (ej. "TIAC-1201" → turno=1, semestre=2, orden=1)
+function parsearCodigoGrupo(cg) {
+  const m = (cg || '').match(/-(\d)(\d)(\d{2})$/);
+  if (!m) return { turno: 9, semestre: 9, orden: 99 };
+  return { turno: +m[1], semestre: +m[2], orden: +m[3] };
 }
 
 // ===== AUTENTICACIÓN =====
@@ -313,46 +245,68 @@ function mostrarMateriasPorCarrera() {
     return;
   }
 
-  // Agrupar por carrera (guardando índice original para verDetalleMateria)
+  // Agrupar por carrera → dentro, por codigoGrupo
   const porCarrera = {};
   todasLasMaterias.forEach((m, idx) => {
     const cid = m.carreraId || 'sin-carrera';
     if (!porCarrera[cid]) {
-      porCarrera[cid] = {
-        nombre: m.carreraNombre || 'Sin Carrera',
-        color: m.carreraColor || '#e0e0e0',
-        siglas: cid,
-        materias: []
-      };
+      porCarrera[cid] = { nombre: m.carreraNombre || 'Sin Carrera', siglas: cid, grupos: {} };
     }
-    porCarrera[cid].materias.push({ ...m, _idx: idx });
+    const cg = m.codigoGrupo || 'sin-grupo';
+    if (!porCarrera[cid].grupos[cg]) {
+      porCarrera[cid].grupos[cg] = { codigo: cg, sort: parsearCodigoGrupo(cg), materias: [] };
+    }
+    porCarrera[cid].grupos[cg].materias.push({ ...m, _idx: idx });
   });
 
-  const carrerasOrdenadas = Object.values(porCarrera).sort((a, b) =>
-    a.nombre.localeCompare(b.nombre)
-  );
+  // Ordenar carreras por nombre; grupos por turno→semestre→orden; materias por nombre
+  const carrerasOrdenadas = Object.values(porCarrera).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   let html = '';
 
-  carrerasOrdenadas.forEach((carrera, index) => {
+  carrerasOrdenadas.forEach((carrera, ci) => {
+    const gruposOrdenados = Object.values(carrera.grupos).sort((a, b) => {
+      if (a.sort.turno !== b.sort.turno) return a.sort.turno - b.sort.turno;
+      if (a.sort.semestre !== b.sort.semestre) return a.sort.semestre - b.sort.semestre;
+      return a.sort.orden - b.sort.orden;
+    });
+
+    gruposOrdenados.forEach(g => {
+      g.materias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    });
+
     html += `
       <div class="carrera-section" data-carrera="${carrera.siglas}">
-        <div class="carrera-header" onclick="toggleCarrera('carrera-${index}')">
+        <div class="carrera-header" onclick="toggleCarrera('carrera-${ci}')">
           <h3>${carrera.nombre} <span style="font-weight:400; font-size:0.85rem; opacity:0.7;">(${carrera.siglas})</span></h3>
-          <span class="carrera-toggle" id="toggle-carrera-${index}">−</span>
+          <span class="carrera-toggle" id="toggle-carrera-${ci}">−</span>
         </div>
-        <div class="carrera-materias" id="carrera-${index}">
+        <div class="carrera-materias" id="carrera-${ci}">
     `;
 
-    carrera.materias.forEach(m => {
+    gruposOrdenados.forEach(g => {
+      const p = g.sort;
+      const turnoNombre = { 1:'Matutino', 2:'Vespertino', 3:'Nocturno', 4:'Sabatino' }[p.turno] || '';
+      const label = `${g.codigo}${turnoNombre ? ' · ' + turnoNombre : ''}${p.semestre < 9 ? ' · Semestre ' + p.semestre : ''}`;
+
       html += `
-        <div class="materia-card" data-nombre="${m.nombre.toLowerCase()}"
-             style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 16px;">
-          <div style="min-width:0;">
-            <div style="font-weight:600; color:#333; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.nombre}</div>
-            <div style="color:#888; font-size:0.82rem; margin-top:2px;">Grupo: ${m.codigoGrupo || '-'}</div>
+        <div class="grupo-section" data-grupo="${g.codigo}">
+          <div class="grupo-header">${label}</div>
+          <div class="grupo-materias">
+      `;
+
+      g.materias.forEach(m => {
+        html += `
+          <div class="materia-card" data-nombre="${m.nombre.toLowerCase()}"
+               style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 16px;">
+            <div style="font-weight:600; color:#333; font-size:0.95rem;">${m.nombre}</div>
+            <button onclick="abrirMateriaDirecto(${m._idx})" class="btn-ver" style="flex-shrink:0;">Ver</button>
           </div>
-          <button onclick="verDetalleMateria(${m._idx})" class="btn-ver" style="flex-shrink:0;">Ver</button>
+        `;
+      });
+
+      html += `
+          </div>
         </div>
       `;
     });
@@ -381,23 +335,29 @@ function toggleCarrera(carreraId) {
 function filtrarMateriasPorNombre() {
   const buscador = document.getElementById('buscadorMateria').value.toLowerCase().trim();
   const cards = document.querySelectorAll('#contenidoCarreras .materia-card');
-  const secciones = document.querySelectorAll('.carrera-section');
+  const grupos = document.querySelectorAll('.grupo-section');
+  const carreras = document.querySelectorAll('.carrera-section');
 
   if (!buscador) {
-    cards.forEach(c => c.style.display = 'block');
-    secciones.forEach(s => s.style.display = 'block');
+    cards.forEach(c => c.style.display = 'flex');
+    grupos.forEach(g => g.style.display = 'block');
+    carreras.forEach(s => s.style.display = 'block');
     return;
   }
 
   cards.forEach(card => {
     const nombre = card.getAttribute('data-nombre') || '';
-    card.style.display = nombre.includes(buscador) ? 'block' : 'none';
+    card.style.display = nombre.includes(buscador) ? 'flex' : 'none';
   });
 
-  secciones.forEach(sec => {
-    const hayVisibles = Array.from(sec.querySelectorAll('.materia-card'))
-      .some(c => c.style.display !== 'none');
-    sec.style.display = hayVisibles ? 'block' : 'none';
+  grupos.forEach(g => {
+    g.style.display = Array.from(g.querySelectorAll('.materia-card'))
+      .some(c => c.style.display !== 'none') ? 'block' : 'none';
+  });
+
+  carreras.forEach(s => {
+    s.style.display = Array.from(s.querySelectorAll('.materia-card'))
+      .some(c => c.style.display !== 'none') ? 'block' : 'none';
   });
 }
 
@@ -414,7 +374,7 @@ async function verActaCalificaciones(asignacionId, materiaNombre, codigoGrupo) {
   document.getElementById('btnVolverMenu').style.display = 'inline-block';
   document.getElementById('btnVerOtraMateria').style.display = 'inline-block';
 
-  const titulo = materiaNombre + (codigoGrupo ? ` — Grupo ${codigoGrupo}` : '');
+  const titulo = materiaNombre + (codigoGrupo ? ` — Semestre ${codigoGrupo}` : '');
   document.getElementById('infoMateriaCalif').textContent = titulo;
 
   const container = document.getElementById('contenidoCalificaciones');
@@ -525,7 +485,41 @@ async function verActaCalificaciones(asignacionId, materiaNombre, codigoGrupo) {
       return p >= 6 ? '#2e7d32' : '#c62828';
     };
 
-    let html = `
+    // Bloque de profesores (desde todasLasMaterias, sin lectura extra a Firestore)
+    const materiaId = materiaActual ? materiaActual.id : null;
+    const profesoresBloque = (() => {
+      if (!materiaId) return '';
+      const asignaciones = todasLasMaterias.filter(m => m.id === materiaId);
+      if (asignaciones.length === 0) return '';
+
+      // Agrupar por profesorId
+      const porProf = {};
+      asignaciones.forEach(a => {
+        const pid = a.profesorId || '__sin__';
+        if (!porProf[pid]) porProf[pid] = { nombre: a.profesorNombre || null, grupos: [] };
+        porProf[pid].grupos.push(a);
+      });
+
+      const filas = Object.values(porProf).map(p => {
+        const nombre = p.nombre || '<em style="color:#999;">Sin asignar</em>';
+        const grupos = p.grupos.map(g =>
+          `<span style="background:#f1f5f9; border-radius:4px; padding:2px 8px; font-size:0.8rem; color:#475569;">${g.codigoGrupo}</span>`
+        ).join(' ');
+        return `<div style="display:flex; align-items:center; gap:12px; padding:6px 0; border-bottom:1px solid #f1f5f9;">
+          <span style="font-weight:600; color:#1e293b; min-width:200px;">${nombre}</span>
+          <span style="display:flex; flex-wrap:wrap; gap:6px;">${grupos}</span>
+        </div>`;
+      }).join('');
+
+      return `
+        <div style="margin-bottom:20px; padding:14px 16px; background:#fafafa; border:1px solid #e2e8f0; border-radius:8px; border-left:3px solid #6F1D46;">
+          <div style="font-size:0.78rem; font-weight:700; color:#6F1D46; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">Profesores</div>
+          ${filas}
+        </div>
+      `;
+    })();
+
+    let html = profesoresBloque + `
       <div style="overflow-x: auto;">
         <table class="tabla-calificaciones">
           <thead>
@@ -566,7 +560,7 @@ async function verActaCalificaciones(asignacionId, materiaNombre, codigoGrupo) {
         </table>
       </div>
       <p style="margin-top: 10px; color: #666; font-size: 0.85rem;">
-        Total: ${alumnos.length} alumno(s) | Grupo: ${asig.codigoGrupo} | Profesor: ${asig.profesorNombre || '-'}
+        Total: ${alumnos.length} alumno(s) | Semestre: ${asig.codigoGrupo} | Profesor: ${asig.profesorNombre || '-'}
         ${inscripcionesSnap.size > 0 ? ' | ★ Inscripción especial' : ''}
       </p>
     `;
@@ -586,4 +580,4 @@ function volverCoordinador() {
   window.location.href = './controlCoordinador.html';
 }
 
-console.log('controlAcademia v2 — materias autorizadas por admin');
+console.log('controlAcademia v3 — grupos por semestre, profesores en acta');
