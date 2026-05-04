@@ -291,15 +291,19 @@ function mostrarMateriasPorCarrera() {
         <div class="carrera-materias" id="carrera-${ci}">
     `;
 
-    gruposOrdenados.forEach(g => {
+    gruposOrdenados.forEach((g, gi) => {
       const p = g.sort;
       const turnoNombre = { 1:'Matutino', 2:'Vespertino', 3:'Nocturno', 4:'Sabatino' }[p.turno] || '';
       const label = `${g.codigo}${turnoNombre ? ' · ' + turnoNombre : ''}${p.semestre < 9 ? ' · Semestre ' + p.semestre : ''}`;
+      const grupoUid = `grupo-${ci}-${gi}`;
 
       html += `
         <div class="grupo-section" data-grupo="${g.codigo}">
-          <div class="grupo-header">${label}</div>
-          <div class="grupo-materias">
+          <div class="grupo-header" onclick="toggleGrupo('${grupoUid}')">
+            <span>${label}</span>
+            <span id="toggle-${grupoUid}">−</span>
+          </div>
+          <div class="grupo-materias" id="${grupoUid}">
       `;
 
       g.materias.forEach(m => {
@@ -325,6 +329,18 @@ function mostrarMateriasPorCarrera() {
   });
 
   container.innerHTML = html;
+}
+
+function toggleGrupo(grupoId) {
+  const materias = document.getElementById(grupoId);
+  const icon = document.getElementById('toggle-' + grupoId);
+  if (materias.classList.contains('collapsed')) {
+    materias.classList.remove('collapsed');
+    icon.textContent = '−';
+  } else {
+    materias.classList.add('collapsed');
+    icon.textContent = '+';
+  }
 }
 
 function toggleCarrera(carreraId) {

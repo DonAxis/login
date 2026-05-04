@@ -220,6 +220,27 @@
       font-weight: 600;
       color: #475569;
       letter-spacing: 0.02em;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      transition: background 0.15s;
+    }
+
+    .grupo-header:hover {
+      background: #e8edf4;
+    }
+
+    .grupo-header span:last-child {
+      color: #6F1D46;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .collapsed {
+      display: none;
     }
 
     .grupo-materias {
