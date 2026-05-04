@@ -211,7 +211,6 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     const alumnosSnap = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
       .where('carreraId', '==', carreraId)
-      .where('periodo', '==', periodoActual)
       .where('activo', '==', true)
       .get();
 
@@ -389,7 +388,6 @@ async function archivarGrupos(carreraId, periodoActual) {
   try {
     const gruposSnap = await db.collection('grupos')
       .where('carreraId', '==', carreraId)
-      .where('periodo', '==', periodoActual)
       .where('activo', '==', true)
       .get();
     
@@ -853,9 +851,9 @@ async function generarHistorialAcademicoMasivo() {
         }));
         batch.set(db.collection('historialAcademico').doc(alumnoId), {
           alumnoId,
-          alumnoNombre: info.nombre,
-          matricula: info.matricula,
-          carreraId: info.carreraId,
+          alumnoNombre: info.nombre || '',
+          matricula: info.matricula || '',
+          carreraId: info.carreraId || '',
           periodos: periodosArray,
           fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
         });

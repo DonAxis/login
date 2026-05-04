@@ -325,6 +325,18 @@ async function guardarUsuario(event) {
       // 2. Guardar en Firestore
       await db.collection('usuarios').doc(newUid).set(userData);
       console.log('Usuario guardado en Firestore');
+
+      // 3a. Si es alumno, crear su documento en historialAcademico (vacío, se llena al cambiar periodo)
+      if (rol === 'alumno') {
+        await db.collection('historialAcademico').doc(newUid).set({
+          alumnoId: newUid,
+          alumnoNombre: nombre,
+          matricula: userData.matricula || '',
+          carreraId: userData.carreraId || '',
+          periodos: [],
+          fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
       
       // 3. Cerrar sesión del usuario recién creado y restaurar admin
       await auth.signOut();
