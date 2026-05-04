@@ -293,6 +293,11 @@
  <h3>Reporte Profesores</h3>
  <p>Profesores con calificaciones pendientes</p>
  </div>
+
+ <div class="menu-card" onclick="mostrarSeccion('herramientas')">
+ <h3>Herramientas</h3>
+ <p>Historial academico y mantenimiento de datos</p>
+ </div>
  </div>
 
  <!-- SECCION: CARRERAS -->
@@ -917,6 +922,42 @@
 
  <div id="reporteProfesoresContenido" style="background:white; padding:20px; border-radius:10px;">
   <p style="text-align:center; color:#999;">Selecciona esta seccion para cargar el reporte.</p>
+ </div>
+</div>
+
+ <!-- SECCION: HERRAMIENTAS -->
+<div id="seccionHerramientas" class="seccion-contenido">
+ <div class="seccion-header">
+  <h2>Herramientas</h2>
+  <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+ </div>
+
+ <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:20px;">
+
+  <div style="background:white;padding:25px;border-radius:12px;border:2px solid #1b5e20;">
+   <h3 style="margin:0 0 10px;color:#1b5e20;">Historial Académico Masivo</h3>
+   <p style="color:#666;font-size:0.9rem;margin-bottom:18px;">
+    Construye o reconstruye el expediente histórico completo de cada alumno
+    leyendo todas las calificaciones archivadas y activas.
+    Úsalo una vez para poblar datos históricos o para resincronizar.
+   </p>
+   <button onclick="generarHistorialAcademicoMasivo()"
+    style="width:100%;padding:12px;background:linear-gradient(135deg,#1b5e20,#2e7d32);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+    Generar Historial Académico
+   </button>
+  </div>
+
+  <div style="background:white;padding:25px;border-radius:12px;border:2px solid #9e9e9e;">
+   <h3 style="margin:0 0 10px;color:#9e9e9e;">Cambio de Contraseñas</h3>
+   <p style="color:#aaa;font-size:0.9rem;margin-bottom:18px;">
+    Restablecer contraseña de alumnos y profesores desde el panel.
+   </p>
+   <button disabled
+    style="width:100%;padding:12px;background:#e0e0e0;color:#999;border:none;border-radius:8px;font-weight:600;cursor:not-allowed;">
+    Próximamente
+   </button>
+  </div>
+
  </div>
 </div>
 

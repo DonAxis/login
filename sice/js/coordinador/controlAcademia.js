@@ -334,25 +334,17 @@ function mostrarMateriasPorCarrera() {
 function toggleGrupo(grupoId) {
   const materias = document.getElementById(grupoId);
   const icon = document.getElementById('toggle-' + grupoId);
-  if (materias.classList.contains('collapsed')) {
-    materias.classList.remove('collapsed');
-    icon.textContent = '−';
-  } else {
-    materias.classList.add('collapsed');
-    icon.textContent = '+';
-  }
+  const oculto = materias.style.display === 'none';
+  materias.style.display = oculto ? 'flex' : 'none';
+  icon.textContent = oculto ? '−' : '+';
 }
 
 function toggleCarrera(carreraId) {
   const materias = document.getElementById(carreraId);
   const icon = document.getElementById('toggle-' + carreraId);
-  if (materias.classList.contains('collapsed')) {
-    materias.classList.remove('collapsed');
-    icon.textContent = '−';
-  } else {
-    materias.classList.add('collapsed');
-    icon.textContent = '+';
-  }
+  const oculto = materias.style.display === 'none';
+  materias.style.display = oculto ? 'block' : 'none';
+  icon.textContent = oculto ? '−' : '+';
 }
 
 function filtrarMateriasPorNombre() {

@@ -129,7 +129,7 @@ async function mostrarCambioPeriodo(carreraId, periodoActual) {
           <p style="margin: 5px 0 0 0;">Esta acción no se puede deshacer. Verifica que todo esté correcto antes de continuar.</p>
         </div>
         
-        <form onsubmit="ejecutarCambioPeriodoCarrera(event, '${carreraId}', '${periodoActual}', '${siguientePeriodo}', ${periodosAnio})">
+        <form onsubmit="ejecutarCambioPeriodoCarrera(event, '${carreraId}', '${periodoActual}', '${siguientePeriodo}', ${periodosAnio}, ${carreraData.numeroPeriodos || 9})">
           <div style="display: flex; gap: 10px;">
             <button type="submit" style="flex: 1; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.1rem;">
               Avanzar a ${siguientePeriodo}
@@ -152,7 +152,8 @@ async function mostrarCambioPeriodo(carreraId, periodoActual) {
 }
 
 // MODIFICADO: Ejecutar cambio de periodo con validación del tipo de periodo
-async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, siguientePeriodo, periodosAnio) {
+async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, siguientePeriodo, periodosAnio, numeroPeriodos) {
+  numeroPeriodos = numeroPeriodos || 9;
   event.preventDefault();
   
   // El nuevoPeriodo ya viene como parámetro calculado
@@ -165,11 +166,10 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     `A: ${nuevoPeriodo}\n` +
     `Tipo: ${nombrePeriodo} (${periodosAnio} periodos por año)\n\n` +
     `Esta acción:\n` +
-    `- Avanzará todos los alumnos al siguiente semestre\n` +
-    `- Actualizará grupos automáticamente\n` +
+    `- Avanzará todos los alumnos al siguiente semestre (o a pasante si terminaron la carrera)\n` +
     `- Archivará grupos en historial\n` +
-    `- Desactivará asignaciones del periodo anterior\n` +
-    `- Guardará calificaciones en historial\n\n` +
+    `- Eliminará asignaciones de profesores (armar grupos desde cero)\n` +
+    `- Guardará calificaciones en historial y actualizará historial académico\n\n` +
     `Los alumnos sin grupo disponible se mostrarán como "Alumno inactivo académico"\n\n` +
     `¿Continuar?`
   );
@@ -204,70 +204,87 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     await archivarGrupos(carreraId, periodoActual);
     gruposArchivados = await contarGruposArchivados(carreraId, periodoActual);
     
-    // 2. PROCESAR ALUMNOS (50%)
+    // 2. PROCESAR ALUMNOS (55%)
     progressBar.style.width = '20%';
     progressText.textContent = 'Procesando alumnos...';
-    
+
     const alumnosSnap = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
       .where('carreraId', '==', carreraId)
       .where('periodo', '==', periodoActual)
       .where('activo', '==', true)
       .get();
-    
-    const totalAlumnos = alumnosSnap.size;
+
+    // Mapa para paso 3.5: alumnoId → { nombre, matricula, semestreActual }
+    const alumnoDataMap = {};
+    alumnosSnap.docs.forEach(doc => {
+      const a = doc.data();
+      alumnoDataMap[doc.id] = { nombre: a.nombre, matricula: a.matricula, semestreActual: a.semestreActual };
+    });
+
+    const alumnosDocs = alumnosSnap.docs;
+    const totalAlumnos = alumnosDocs.length;
     let procesados = 0;
-    
-    for (const alumnoDoc of alumnosSnap.docs) {
-      const alumno = alumnoDoc.data();
-      const semestreActual = alumno.semestreActual || 1;
-      const nuevoSemestre = semestreActual + 1;
-      
-      // Calcular nuevo grupo
-      const nuevoGrupoId = calcularNuevoGrupo(alumno.grupoId, nuevoSemestre);
-      
-      // Actualizar alumno (se mantiene ACTIVO incluso si el grupo no existe)
-      // La interfaz mostrará "Alumno inactivo académico" si el grupo no existe
-      await alumnoDoc.ref.update({
-        semestreActual: nuevoSemestre,
-        grupoId: nuevoGrupoId,
-        periodo: nuevoPeriodo,
-        ultimoCambio: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      alumnosAvanzados++;
-      
-      procesados++;
-      const progreso = 20 + (procesados / totalAlumnos) * 40;
+
+    for (let i = 0; i < alumnosDocs.length; i += 499) {
+      const lote = alumnosDocs.slice(i, i + 499);
+      const batchAlumnos = db.batch();
+      for (const alumnoDoc of lote) {
+        const alumno = alumnoDoc.data();
+        const semestreActual = alumno.semestreActual || 1;
+        const nuevoSemestre = semestreActual + 1;
+        const esPasante = nuevoSemestre > numeroPeriodos;
+        const nuevoCodigoGrupo = esPasante
+          ? `${carreraId}-PASANTE`
+          : calcularNuevoCodigoGrupo(alumno.codigoGrupo, nuevoSemestre);
+        const updateData = {
+          semestreActual: nuevoSemestre,
+          codigoGrupo: nuevoCodigoGrupo,
+          periodo: nuevoPeriodo,
+          ultimoCambio: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if (esPasante) updateData.pasante = true;
+        batchAlumnos.update(alumnoDoc.ref, updateData);
+        alumnosAvanzados++;
+      }
+      await batchAlumnos.commit();
+      procesados += lote.length;
+      const progreso = 20 + (procesados / totalAlumnos) * 35;
       progressBar.style.width = `${progreso}%`;
       progressText.textContent = `Procesando alumnos... ${procesados}/${totalAlumnos}`;
     }
     
-    // 3. ARCHIVAR CALIFICACIONES (20%)
-    progressBar.style.width = '65%';
+    // 3. ARCHIVAR CALIFICACIONES
+    progressBar.style.width = '58%';
     progressText.textContent = 'Archivando calificaciones...';
-    
-    calificacionesArchivadas = await archivarCalificaciones(carreraId, periodoActual, nuevoPeriodo);
-    
-    // 4. DESACTIVAR ASIGNACIONES (20%)
-    progressBar.style.width = '80%';
-    progressText.textContent = 'Desactivando asignaciones...';
-    
+
+    const resultCals = await archivarCalificaciones(carreraId, periodoActual);
+    calificacionesArchivadas = resultCals.contador;
+
+    // 3.5 ACTUALIZAR HISTORIAL ACADÉMICO
+    progressBar.style.width = '68%';
+    progressText.textContent = 'Actualizando historial académico...';
+
+    await actualizarHistorialAcademico(carreraId, periodoActual, resultCals.docs, alumnoDataMap);
+
+    // 4. ELIMINAR ASIGNACIONES DEL PERIODO (para que el coordinador arme grupos nuevos)
+    progressBar.style.width = '85%';
+    progressText.textContent = 'Eliminando asignaciones del periodo...';
+
     const asignacionesSnap = await db.collection('profesorMaterias')
       .where('carreraId', '==', carreraId)
       .where('periodo', '==', periodoActual)
-      .where('activa', '==', true)
       .get();
-    
-    const batch = db.batch();
-    asignacionesSnap.forEach(doc => {
-      batch.update(doc.ref, {
-        activa: false,
-        fechaFin: firebase.firestore.FieldValue.serverTimestamp()
+
+    // Borrar en lotes de 499
+    for (let i = 0; i < asignacionesSnap.docs.length; i += 499) {
+      const batchDel = db.batch();
+      asignacionesSnap.docs.slice(i, i + 499).forEach(doc => {
+        batchDel.delete(doc.ref);
+        asignacionesDesactivadas++;
       });
-      asignacionesDesactivadas++;
-    });
-    
-    await batch.commit();
+      await batchDel.commit();
+    }
     
     // 5. ACTUALIZAR CONFIGURACION DEL PERIODO (10%)
     progressBar.style.width = '95%';
@@ -314,7 +331,7 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
                 <strong>${calificacionesArchivadas}</strong>
               </div>
               <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 4px;">
-                <span>Asignaciones desactivadas:</span>
+                <span>Asignaciones eliminadas:</span>
                 <strong>${asignacionesDesactivadas}</strong>
               </div>
             </div>
@@ -354,29 +371,17 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
   }
 }
 
-// Función auxiliar: Calcular nuevo grupo basado en semestre
-function calcularNuevoGrupo(grupoIdActual, nuevoSemestre) {
-  if (!grupoIdActual) return null;
-  
-  // Formato esperado: SSGG-XXX donde SS es semestre, GG es grupo, XXX es carrera
-  // Ejemplo: 1101-MAT (semestre 11, grupo 01, carrera MAT)
-  
-  const partes = grupoIdActual.split('-');
-  if (partes.length !== 2) return grupoIdActual; // No se puede calcular
-  
-  const codigo = partes[0]; // Ejemplo: "1101"
-  const carrera = partes[1]; // Ejemplo: "MAT"
-  
-  if (codigo.length < 4) return grupoIdActual;
-  
-  // Extraer las partes del código
-  const grupoNumero = codigo.substring(2, 4); // Los últimos 2 dígitos (grupo)
-  
-  // Formatear nuevo semestre a 2 dígitos
+// Calcula el nuevo codigoGrupo en formato CARRERA-SSGG (ej: "TIAC-1201" → "TIAC-1301")
+function calcularNuevoCodigoGrupo(codigoGrupoActual, nuevoSemestre) {
+  if (!codigoGrupoActual) return null;
+  const guion = codigoGrupoActual.lastIndexOf('-');
+  if (guion === -1) return null;
+  const carrera = codigoGrupoActual.substring(0, guion);
+  const sufijo = codigoGrupoActual.substring(guion + 1);
+  if (sufijo.length < 4) return null;
+  const grupoNum = sufijo.substring(2, 4);
   const nuevoSemestreStr = nuevoSemestre.toString().padStart(2, '0');
-  
-  // Construir nuevo grupoId
-  return `${nuevoSemestreStr}${grupoNumero}-${carrera}`;
+  return `${carrera}-${nuevoSemestreStr}${grupoNum}`;
 }
 
 // Archivar grupos del periodo que termina
@@ -434,54 +439,106 @@ async function contarGruposArchivados(carreraId, periodo) {
   }
 }
 
-// Archivar calificaciones
-async function archivarCalificaciones(carreraId, periodoActual, nuevoPeriodo) {
+// Archivar calificaciones — filtra por carreraId en query (evita N+1 reads)
+// Requiere índice compuesto en Firestore: calificaciones → periodo ASC, carreraId ASC
+async function archivarCalificaciones(carreraId, periodoActual) {
   try {
-    // Obtener todas las calificaciones del periodo actual
     const calificacionesSnap = await db.collection('calificaciones')
       .where('periodo', '==', periodoActual)
+      .where('carreraId', '==', carreraId)
       .get();
-    
-    const batch = db.batch();
+
+    let batch = db.batch();
+    let batchCount = 0;
     let contador = 0;
-    
+
     for (const calDoc of calificacionesSnap.docs) {
-      const calificacion = calDoc.data();
-      
-      // Verificar que sea de esta carrera
-      const alumnoDoc = await db.collection('usuarios').doc(calificacion.alumnoId).get();
-      if (!alumnoDoc.exists || alumnoDoc.data().carreraId !== carreraId) {
-        continue;
-      }
-      
-      // Crear documento en historial
       const historialRef = db.collection('historialCalificaciones').doc();
       batch.set(historialRef, {
-        ...calificacion,
+        ...calDoc.data(),
         calificacionOriginalId: calDoc.id,
         periodoArchivado: periodoActual,
         fechaArchivado: firebase.firestore.FieldValue.serverTimestamp()
       });
-      
       contador++;
-      
-      // Ejecutar batch cada 500 documentos
-      if (contador % 500 === 0) {
+      batchCount++;
+
+      if (batchCount === 499) {
         await batch.commit();
-        const newBatch = db.batch();
+        batch = db.batch();
+        batchCount = 0;
       }
     }
-    
-    // Ejecutar batch restante
-    if (contador % 500 !== 0) {
+
+    if (batchCount > 0) {
       await batch.commit();
     }
-    
+
     console.log(`Calificaciones archivadas: ${contador}`);
-    return contador;
-    
+    return { contador, docs: calificacionesSnap.docs };
+
   } catch (error) {
     console.error('Error al archivar calificaciones:', error);
+    throw error;
+  }
+}
+
+// Escribe/actualiza historialAcademico/{alumnoId} con las materias del periodo terminado
+async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, alumnoDataMap) {
+  try {
+    const porAlumno = {};
+    for (const calDoc of calsDocs) {
+      const c = calDoc.data();
+      if (!porAlumno[c.alumnoId]) porAlumno[c.alumnoId] = [];
+      porAlumno[c.alumnoId].push(c);
+    }
+
+    let batch = db.batch();
+    let batchCount = 0;
+
+    for (const [alumnoId, materias] of Object.entries(porAlumno)) {
+      const info = alumnoDataMap[alumnoId] || {};
+      const periodoEntry = {
+        periodo: periodoActual,
+        semestre: info.semestreActual || null,
+        materias: materias.map(m => ({
+          materiaId: m.materiaId || '',
+          materiaNombre: m.materiaNombre || '',
+          materiaCodigo: m.materiaCodigo || '',
+          parciales: m.parciales || {},
+          faltas: m.faltas || {},
+          promedio: m.promedio ?? null,
+          extraordinario: m.extraordinario ?? null,
+          ets: m.ets ?? null,
+          profesorId: m.profesorId || '',
+          profesorNombre: m.profesorNombre || '',
+          calificacionId: `${m.alumnoId}_${m.materiaId}`
+        }))
+      };
+
+      const ref = db.collection('historialAcademico').doc(alumnoId);
+      batch.set(ref, {
+        alumnoId,
+        alumnoNombre: info.nombre || materias[0].alumnoNombre || '',
+        matricula: info.matricula || '',
+        carreraId,
+        periodos: firebase.firestore.FieldValue.arrayUnion(periodoEntry),
+        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      batchCount++;
+      if (batchCount === 499) {
+        await batch.commit();
+        batch = db.batch();
+        batchCount = 0;
+      }
+    }
+
+    if (batchCount > 0) await batch.commit();
+
+    console.log(`historialAcademico actualizado para ${Object.keys(porAlumno).length} alumnos`);
+  } catch (error) {
+    console.error('Error al actualizar historialAcademico:', error);
     throw error;
   }
 }
@@ -630,6 +687,223 @@ function mostrarMensajeModal(mensaje, tipo) {
   
   document.getElementById('contenidoModal').innerHTML = html;
   document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+// Avanza UN alumno al siguiente período (actualiza semestreActual, periodo, codigoGrupo)
+// No archiva calificaciones — eso lo hace el cambio de periodo general o historialAcademicoMasivo
+async function avanzarAlumnoIndividual(alumnoId) {
+  try {
+    const alumnoDoc = await db.collection('usuarios').doc(alumnoId).get();
+    if (!alumnoDoc.exists) { alert('Alumno no encontrado'); return; }
+    const alumno = alumnoDoc.data();
+
+    const carreraDoc = await db.collection('carreras').doc(alumno.carreraId).get();
+    const carrera = carreraDoc.data();
+    const periodosAnio = carrera?.periodosAnio || 2;
+    const numeroPeriodos = carrera?.numeroPeriodos || 9;
+
+    const periodoActual = alumno.periodo;
+    const siguientePeriodo = calcularSiguientePeriodo(periodoActual, periodosAnio);
+    const nuevoSemestre = (alumno.semestreActual || 1) + 1;
+    const esPasante = nuevoSemestre > numeroPeriodos;
+    const nuevoCodigoGrupo = esPasante
+      ? `${alumno.carreraId}-PASANTE`
+      : calcularNuevoCodigoGrupo(alumno.codigoGrupo, nuevoSemestre);
+    const nombrePeriodo = obtenerNombrePeriodo(periodosAnio);
+
+    const confirmacion = confirm(
+      `AVANZAR ALUMNO AL SIGUIENTE ${nombrePeriodo.toUpperCase()}\n\n` +
+      `Alumno: ${alumno.nombre}\n` +
+      `Matrícula: ${alumno.matricula || '-'}\n\n` +
+      `${nombrePeriodo} actual: ${periodoActual}\n` +
+      `${nombrePeriodo} siguiente: ${siguientePeriodo}\n` +
+      `Semestre: ${alumno.semestreActual || 1} → ${nuevoSemestre}\n` +
+      (esPasante
+        ? `Estado: PASANTE (completó ${numeroPeriodos} periodos)\n`
+        : `Grupo nuevo: ${nuevoCodigoGrupo || '(sin grupo calculado)'}\n`) +
+      `\nNota: solo actualiza el registro del alumno. Las calificaciones\n` +
+      `se archivan al ejecutar el cambio de periodo general.\n\n` +
+      `¿Continuar?`
+    );
+    if (!confirmacion) return;
+
+    const updateData = {
+      periodo: siguientePeriodo,
+      semestreActual: nuevoSemestre,
+      codigoGrupo: nuevoCodigoGrupo,
+      ultimoCambio: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (esPasante) updateData.pasante = true;
+    await db.collection('usuarios').doc(alumnoId).update(updateData);
+
+    const msg = esPasante
+      ? `✓ ${alumno.nombre} marcado como PASANTE`
+      : `✓ ${alumno.nombre} avanzado al ${nombrePeriodo.toLowerCase()} ${siguientePeriodo}`;
+    alert(msg);
+
+  } catch (error) {
+    console.error('Error al avanzar alumno:', error);
+    alert('Error: ' + error.message);
+  }
+}
+
+// Garantiza que exista la infraestructura de modal (modalGenerico / contenidoModal)
+// Para páginas que no tengan modal propio (ej: controlAdmin)
+function _asegurarModalGenerico() {
+  if (!document.getElementById('modalGenerico')) {
+    const overlay = document.createElement('div');
+    overlay.id = 'modalGenerico';
+    overlay.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;overflow-y:auto;';
+    overlay.innerHTML = '<div id="contenidoModal" style="width:100%;max-height:90vh;overflow-y:auto;"></div>';
+    document.body.appendChild(overlay);
+    if (typeof cerrarModal === 'undefined') {
+      window.cerrarModal = () => { overlay.style.display = 'none'; };
+    }
+  }
+}
+
+// Genera/reconstruye historialAcademico/{alumnoId} para TODOS los alumnos.
+// Lee historialCalificaciones (periodos pasados) + calificaciones activas (periodo actual).
+// Idempotente: sobreescribe el documento completo cada vez.
+async function generarHistorialAcademicoMasivo() {
+  const confirmado = confirm(
+    'GENERAR HISTORIAL ACADÉMICO MASIVO\n\n' +
+    'Lee historialCalificaciones y calificaciones activas para\n' +
+    'reconstruir el expediente histórico de cada alumno.\n\n' +
+    'Es seguro ejecutarlo varias veces (sobreescribe).\n\n¿Continuar?'
+  );
+  if (!confirmado) return;
+
+  _asegurarModalGenerico();
+
+  document.getElementById('contenidoModal').innerHTML = `
+    <div style="background:white;padding:40px;border-radius:15px;text-align:center;max-width:500px;margin:20px auto;">
+      <div style="font-size:18px;font-weight:600;margin-bottom:20px;">Generando Historial Académico...</div>
+      <div style="color:#666;margin-bottom:20px;">Por favor espera, esto puede tomar unos momentos.</div>
+      <div style="background:#e0e0e0;height:8px;border-radius:4px;overflow:hidden;">
+        <div id="vigiaProgressBar" style="background:linear-gradient(90deg,#1b5e20,#4caf50);height:100%;width:0%;transition:width 0.3s;"></div>
+      </div>
+      <div id="vigiaProgressText" style="margin-top:10px;color:#666;font-size:14px;">Leyendo datos...</div>
+    </div>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+
+  const progressBar = document.getElementById('vigiaProgressBar');
+  const progressText = document.getElementById('vigiaProgressText');
+
+  try {
+    progressText.textContent = 'Leyendo historialCalificaciones...';
+    progressBar.style.width = '10%';
+    const histSnap = await db.collection('historialCalificaciones').get();
+
+    progressText.textContent = 'Leyendo calificaciones activas...';
+    progressBar.style.width = '25%';
+    const calSnap = await db.collection('calificaciones').get();
+
+    progressText.textContent = 'Leyendo alumnos...';
+    progressBar.style.width = '40%';
+    const alumnosSnap = await db.collection('usuarios').where('rol', '==', 'alumno').get();
+
+    const alumnoDataMap = {};
+    alumnosSnap.docs.forEach(doc => {
+      const a = doc.data();
+      alumnoDataMap[doc.id] = { nombre: a.nombre || '', matricula: a.matricula || '', carreraId: a.carreraId || '' };
+    });
+
+    progressText.textContent = 'Procesando historial...';
+    progressBar.style.width = '55%';
+
+    const porAlumno = {};
+    const agregar = (c, periodoKey) => {
+      if (!c.alumnoId || !periodoKey) return;
+      if (!porAlumno[c.alumnoId]) porAlumno[c.alumnoId] = {};
+      if (!porAlumno[c.alumnoId][periodoKey]) porAlumno[c.alumnoId][periodoKey] = [];
+      porAlumno[c.alumnoId][periodoKey].push({
+        materiaId: c.materiaId || '',
+        materiaNombre: c.materiaNombre || '',
+        materiaCodigo: c.materiaCodigo || '',
+        parciales: c.parciales || {},
+        faltas: c.faltas || {},
+        promedio: c.promedio ?? null,
+        extraordinario: c.extraordinario ?? null,
+        ets: c.ets ?? null,
+        profesorId: c.profesorId || '',
+        profesorNombre: c.profesorNombre || '',
+        calificacionId: `${c.alumnoId}_${c.materiaId}`
+      });
+    };
+
+    histSnap.docs.forEach(doc => { const c = doc.data(); agregar(c, c.periodoArchivado || c.periodo || ''); });
+    calSnap.docs.forEach(doc => { const c = doc.data(); agregar(c, c.periodo || ''); });
+
+    progressText.textContent = 'Escribiendo historialAcademico...';
+    progressBar.style.width = '70%';
+
+    const alumnoIds = Object.keys(porAlumno);
+    let escritos = 0;
+
+    for (let i = 0; i < alumnoIds.length; i += 499) {
+      const lote = alumnoIds.slice(i, i + 499);
+      const batch = db.batch();
+      for (const alumnoId of lote) {
+        const info = alumnoDataMap[alumnoId] || {};
+        const periodosArray = Object.keys(porAlumno[alumnoId]).sort().map(periodo => ({
+          periodo,
+          materias: porAlumno[alumnoId][periodo]
+        }));
+        batch.set(db.collection('historialAcademico').doc(alumnoId), {
+          alumnoId,
+          alumnoNombre: info.nombre,
+          matricula: info.matricula,
+          carreraId: info.carreraId,
+          periodos: periodosArray,
+          fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        escritos++;
+      }
+      await batch.commit();
+      const progreso = 70 + (escritos / alumnoIds.length) * 28;
+      progressBar.style.width = `${progreso}%`;
+      progressText.textContent = `Escribiendo... ${escritos}/${alumnoIds.length} alumnos`;
+    }
+
+    progressBar.style.width = '100%';
+    setTimeout(() => {
+      document.getElementById('contenidoModal').innerHTML = `
+        <div style="background:white;padding:30px;border-radius:15px;max-width:500px;margin:20px auto;">
+          <h3 style="color:#2e7d32;text-align:center;margin:0 0 20px 0;">Historial Académico Generado</h3>
+          <div style="background:#e8f5e9;border-radius:8px;padding:20px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:8px;">
+              <span>Registros archivados leídos:</span><strong>${histSnap.size}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:8px;">
+              <span>Calificaciones activas:</span><strong>${calSnap.size}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;">
+              <span>Documentos escritos:</span><strong style="color:#4caf50;">${escritos}</strong>
+            </div>
+          </div>
+          <button onclick="cerrarModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#1b5e20,#2e7d32);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+            Cerrar
+          </button>
+        </div>
+      `;
+    }, 800);
+
+  } catch (error) {
+    console.error('Error en generarHistorialAcademicoMasivo:', error);
+    document.getElementById('contenidoModal').innerHTML = `
+      <div style="background:white;padding:30px;border-radius:15px;max-width:500px;margin:20px auto;">
+        <h3 style="color:#d32f2f;text-align:center;margin:0 0 20px 0;">Error</h3>
+        <div style="background:#ffebee;border-left:4px solid #f44336;padding:15px;border-radius:4px;margin-bottom:20px;">
+          <p style="margin:0;color:#c62828;">${error.message}</p>
+        </div>
+        <button onclick="cerrarModal()" style="width:100%;padding:12px;background:#667eea;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+          Cerrar
+        </button>
+      </div>
+    `;
+  }
 }
 
 console.log('Sistema de Cambio de Periodo cargado con soporte para diferentes tipos de periodos (Semestral, Cuatrimestral, Trimestral)');

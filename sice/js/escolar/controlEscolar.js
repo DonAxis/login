@@ -1740,3 +1740,134 @@ function generarListaObservacionesPDF() {
 
   doc.save(`Lista_${grupo}_${periodoActual}.pdf`);
 }
+
+// ═══ NAVEGACIÓN DE PANELES (controlEscolar) ═══
+
+function mostrarPanelEscolar(panel) {
+  const paneles = ['alumnos', 'editar', 'aprobar', 'herramientas'];
+  paneles.forEach(p => {
+    const el = document.getElementById(`panel${p.charAt(0).toUpperCase() + p.slice(1)}`);
+    const btn = document.getElementById(`btnPanel${p.charAt(0).toUpperCase() + p.slice(1)}`);
+    if (el) el.classList.toggle('activo', p === panel);
+    if (btn) btn.classList.toggle('activo', p === panel);
+  });
+
+  if (panel === 'aprobar') _poblarCarrerasAprobar();
+}
+
+function cerrarModal() {
+  const m = document.getElementById('modalGenerico');
+  if (m) m.style.display = 'none';
+}
+
+// ═══ PANEL APROBAR: cargar selector de carreras ═══
+
+function _poblarCarrerasAprobar() {
+  const sel = document.getElementById('filtroCarreraAprobar');
+  if (!sel || sel.options.length > 1) return;
+  [...carrerasData].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.nombre;
+    sel.appendChild(opt);
+  });
+}
+
+// ═══ PANEL APROBAR: buscar y listar alumnos ═══
+
+async function cargarAlumnosParaAprobar() {
+  const carreraId = document.getElementById('filtroCarreraAprobar').value;
+  const busqueda  = (document.getElementById('busquedaAprobar').value || '').trim().toLowerCase();
+  const contenedor = document.getElementById('resultadoAprobar');
+
+  if (!carreraId) {
+    contenedor.innerHTML = '<p style="color:#c00;padding:12px;">Selecciona una carrera primero.</p>';
+    return;
+  }
+
+  contenedor.innerHTML = '<p style="color:#999;padding:12px;">Buscando...</p>';
+
+  try {
+    let query = db.collection('usuarios')
+      .where('rol', '==', 'alumno')
+      .where('carreraId', '==', carreraId)
+      .where('activo', '==', true);
+
+    const snap = await query.get();
+    let alumnos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (busqueda) {
+      alumnos = alumnos.filter(a =>
+        (a.nombre || '').toLowerCase().includes(busqueda) ||
+        (a.matricula || '').toLowerCase().includes(busqueda)
+      );
+    }
+
+    alumnos.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+    if (alumnos.length === 0) {
+      contenedor.innerHTML = '<p style="color:#999;padding:12px;text-align:center;">No se encontraron alumnos.</p>';
+      return;
+    }
+
+    let html = `
+      <p style="color:#666;font-size:0.85rem;margin-bottom:12px;">${alumnos.length} alumno(s) encontrado(s)</p>
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+        <thead>
+          <tr style="background:#6A2135;color:white;">
+            <th style="padding:10px 12px;text-align:left;">Nombre</th>
+            <th style="padding:10px 12px;text-align:left;">Matrícula</th>
+            <th style="padding:10px 12px;text-align:center;">Semestre</th>
+            <th style="padding:10px 12px;text-align:left;">Periodo</th>
+            <th style="padding:10px 12px;text-align:left;">Grupo</th>
+            <th style="padding:10px 12px;text-align:center;">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    alumnos.forEach(a => {
+      html += `
+        <tr style="border-bottom:1px solid #eee;" id="fila-aprobar-${a.id}">
+          <td style="padding:10px 12px;">${a.nombre || '-'}</td>
+          <td style="padding:10px 12px;">${a.matricula || '-'}</td>
+          <td style="padding:10px 12px;text-align:center;">${a.semestreActual || '-'}</td>
+          <td style="padding:10px 12px;">${a.periodo || '-'}</td>
+          <td style="padding:10px 12px;">${a.codigoGrupo || '-'}</td>
+          <td style="padding:10px 12px;text-align:center;">
+            <button onclick="avanzarYActualizarFila('${a.id}')"
+              style="padding:6px 14px;background:linear-gradient(135deg,#216A32,#4caf50);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem;">
+              Avanzar Periodo
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table></div>';
+    contenedor.innerHTML = html;
+
+  } catch (error) {
+    console.error('Error al cargar alumnos para aprobar:', error);
+    contenedor.innerHTML = `<p style="color:#c00;padding:12px;">Error: ${error.message}</p>`;
+  }
+}
+
+// Avanza el alumno y actualiza la fila en la tabla sin recargar
+async function avanzarYActualizarFila(alumnoId) {
+  await avanzarAlumnoIndividual(alumnoId);
+  // Refrescar la fila leyendo el nuevo estado
+  try {
+    const doc = await db.collection('usuarios').doc(alumnoId).get();
+    if (!doc.exists) return;
+    const a = doc.data();
+    const fila = document.getElementById(`fila-aprobar-${alumnoId}`);
+    if (!fila) return;
+    fila.cells[2].textContent = a.semestreActual || '-';
+    fila.cells[3].textContent = a.periodo || '-';
+    fila.cells[4].textContent = a.codigoGrupo || '-';
+    fila.style.background = '#e8f5e9';
+    setTimeout(() => { fila.style.background = ''; }, 2000);
+  } catch (_) { /* la tabla se actualizará si el usuario vuelve a buscar */ }
+}
