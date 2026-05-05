@@ -491,7 +491,7 @@ async function descargarBoletaGlobalPDF(alumnoId) {
 
     if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
 
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.text('BOLETA GLOBAL DE CALIFICACIONES', pageWidth / 2, 25, { align: 'center' });
     doc.setLineWidth(0.5);
@@ -503,97 +503,95 @@ async function descargarBoletaGlobalPDF(alumnoId) {
     doc.text(`Alumno: ${alumnoNombre}`, 20, y);
     doc.text(`Fecha: ${fecha}`, pageWidth - 20, y, { align: 'right' });
     y += 4;
-    doc.text(`Matrícula: ${matricula}`, 20, y);
+    doc.text(`Matricula: ${matricula}`, 20, y);
     y += 4;
     doc.text(`Carrera: ${carreraNombre}`, 20, y);
-    y += 7;
+    y += 6;
 
-    // Constantes del layout de 2 columnas
-    const GAP       = 5;
-    const halfWidth = (pageWidth - 40 - GAP) / 2;
-    const col2X     = 20 + halfWidth + GAP; // margen izquierdo de la columna derecha
-    // col2X coincide numéricamente con margin.right de la columna izquierda:
-    //   pageWidth - (20 + halfWidth) = col2X ✓
+    // col2X = (pageWidth + GAP) / 2: margen izq. del col. derecha = margen der. del col. izquierda
+    const GAP   = 5;
+    const col2X = (pageWidth + GAP) / 2; // ~110.45mm
 
-    let totalSuma = 0, totalCount = 0;
+    const NIVEL_NOMBRES = ['PRIMER','SEGUNDO','TERCER','CUARTO','QUINTO',
+                           'SEXTO','SEPTIMO','OCTAVO','NOVENO','DECIMO'];
+    const CAL_PALABRAS  = ['cero','uno','dos','tres','cuatro','cinco',
+                           'seis','siete','ocho','nueve','diez'];
 
-    function renderTabla(periodo, startY, esCol2) {
-      const mats     = porPeriodo[periodo];
-      const mgnLeft  = esCol2 ? col2X : 20;
-      const mgnRight = esCol2 ? 20    : col2X;
+    function formatCal(cal) {
+      if (cal === null || cal === undefined) return '-';
+      if (String(cal).toUpperCase() === 'NP') return 'NP';
+      const n = parseInt(cal, 10);
+      if (isNaN(n)) return String(cal);
+      return n + ' (' + (CAL_PALABRAS[n] || String(n)) + ')';
+    }
 
-      doc.setFontSize(9);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(108, 29, 69);
-      doc.text(`Periodo ${periodo}`, mgnLeft, startY);
-      doc.setTextColor(0, 0, 0);
+    // Construir filas de ambas columnas con numeración global secuencial
+    let counter = 0, totalSuma = 0, totalCount = 0;
+    const leftRows  = [];
+    const rightRows = [];
 
-      const rows = [];
-      mats.forEach((m, i) => {
-        const cal    = m.calificacion;
-        const calStr = (cal !== null && cal !== undefined) ? String(cal) : '-';
-        const calNum = parseFloat(cal);
+    periodos.forEach((periodo, idx) => {
+      const mats   = porPeriodo[periodo];
+      const target = (idx % 2 === 0) ? leftRows : rightRows;
+      const label  = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
+
+      // Fila de encabezado de nivel (abarca las 5 columnas)
+      target.push([{
+        content: label,
+        colSpan: 5,
+        styles: { halign: 'center', fontStyle: 'bold',
+                  fillColor: [255, 255, 255], textColor: [0, 0, 0] }
+      }]);
+
+      mats.forEach(m => {
+        counter++;
+        const calNum = parseFloat(m.calificacion);
         if (!isNaN(calNum)) { totalSuma += calNum; totalCount++; }
-        rows.push([(i + 1).toString(), m.materiaNombre || '-', calStr]);
+        target.push([
+          counter.toString(),
+          m.materiaNombre    || '-',
+          m.acr              || 'ORD',
+          m.periodoAcademico || '',
+          formatCal(m.calificacion)
+        ]);
       });
+    });
 
-      doc.autoTable({
-        startY: startY + 3,
-        margin: { left: mgnLeft, right: mgnRight, bottom: 20 },
-        head: [['#', 'Materia', 'Cal.']],
-        body: rows,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [108, 29, 69], textColor: 255,
-          fontStyle: 'bold', halign: 'center', fontSize: 7
-        },
-        styles: {
-          fontSize: 8,
-          cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 }
-        },
-        columnStyles: {
-          0: { halign: 'center', cellWidth: 8 },
-          1: { halign: 'left' },
-          2: { halign: 'center', cellWidth: 13, fontStyle: 'bold' }
-        },
-        didParseCell: function(data) {
-          if (data.column.index === 2 && data.section === 'body') {
-            const v = parseFloat(data.cell.text[0]);
-            if (!isNaN(v)) {
-              data.cell.styles.textColor =
-                v < 6 ? [244, 67, 54] : v >= 8 ? [76, 175, 80] : [255, 152, 0];
-            }
-          }
-        }
-      });
-
-      return doc.lastAutoTable.finalY;
-    }
-
-    // Estimación de altura para decidir salto de página (título + header + filas)
-    function estimarAltura(n) { return 10 + n * 5.5; }
-
-    // Renderizar en pares: (1,2), (3,4), (5,6)...
-    for (let i = 0; i < periodos.length; i += 2) {
-      const pIzq   = periodos[i];
-      const pDer   = periodos[i + 1];
-      const altMax = Math.max(
-        estimarAltura(porPeriodo[pIzq].length),
-        pDer ? estimarAltura(porPeriodo[pDer].length) : 0
-      );
-
-      if (y + altMax > pageHeight - 25) {
-        doc.addPage();
-        if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
-        y = 30;
+    const tableComun = {
+      theme: 'grid',
+      headStyles: {
+        fillColor: [108, 29, 69], textColor: 255,
+        fontStyle: 'bold', halign: 'center', fontSize: 7
+      },
+      styles: {
+        fontSize: 7,
+        cellPadding: { top: 0.7, bottom: 0.7, left: 1, right: 1 }
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 7 },
+        1: { halign: 'left' },
+        2: { halign: 'center', cellWidth: 8 },
+        3: { halign: 'center', cellWidth: 14 },
+        4: { halign: 'center', cellWidth: 15 }
       }
+    };
 
-      const startY   = y;
-      const finalIzq = renderTabla(pIzq, startY, false);
-      const finalDer = pDer ? renderTabla(pDer, startY, true) : startY;
+    const HEAD   = [['#', 'MATERIA', 'ACR', 'PERIODO', 'CALIFICACION']];
+    const startY = y;
 
-      y = Math.max(finalIzq, finalDer) + 8;
-    }
+    doc.autoTable({ ...tableComun, startY,
+      margin: { left: 20, right: col2X, bottom: 20 },
+      head: HEAD, body: leftRows
+    });
+    const leftFinalY = doc.lastAutoTable.finalY;
+
+    doc.autoTable({ ...tableComun, startY,
+      margin: { left: col2X, right: 20, bottom: 20 },
+      head: HEAD, body: rightRows
+    });
+    const rightFinalY = doc.lastAutoTable.finalY;
+
+    y = Math.max(leftFinalY, rightFinalY) + 8;
 
     // Totales y firmas
     if (y + 40 > pageHeight) { doc.addPage(); y = 20; }
@@ -610,10 +608,10 @@ async function descargarBoletaGlobalPDF(alumnoId) {
     doc.line(120, firmasY, 180, firmasY);
     doc.setFont(undefined, 'normal');
     doc.setFontSize(9);
-    doc.text('Coordinación',    60,  firmasY + 5, { align: 'center' });
+    doc.text('Coordinacion',    60,  firmasY + 5, { align: 'center' });
     doc.text('Control Escolar', 150, firmasY + 5, { align: 'center' });
 
-    doc.save(`BoletaGlobal_${alumnoNombre.replace(/\s+/g, '_')}.pdf`);
+    doc.save('BoletaGlobal_' + alumnoNombre.replace(/\s+/g, '_') + '.pdf');
 
   } catch (error) {
     console.error('Error al generar Boleta Global PDF:', error);
