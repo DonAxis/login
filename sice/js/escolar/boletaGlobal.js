@@ -223,7 +223,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
     const btnPDF = `
       <button onclick="descargarPDF()"
         style="padding:12px 24px;background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;">
-        ↓ Descargar PDF
+        Descargar PDF
       </button>`;
 
     let html = `<!DOCTYPE html>
@@ -247,7 +247,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
     .btns-accion { display:flex; gap:10px; flex-wrap:wrap; }
     .sec-titulo { margin:20px 0 7px; color:#667eea; border-bottom:2px solid #667eea; padding-bottom:5px; font-size:0.95rem; font-weight:700; display:flex; align-items:center; gap:8px; }
     table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,0.08); margin-bottom:4px; }
-    th { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:12px 11px; text-align:left; font-size:0.84rem; border:1px solid rgba(255,255,255,0.2); }
+    th { color:white; padding:12px 11px; text-align:left; font-size:0.84rem; border:1px solid rgba(255,255,255,0.2); }
     td { padding:10px 11px; border:1px solid #ddd; font-size:0.85rem; }
     .estado { padding:3px 9px; border-radius:10px; font-size:0.76rem; font-weight:600; white-space:nowrap; }
     select { font-family:inherit; }
@@ -298,7 +298,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
 
       html += `<div class="sec-titulo">${perLabel}</div>
 <table>
-  <thead><tr>
+  <thead><tr style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);">
     <th style="width:34px;text-align:center;">#</th>
     <th>Materia</th>
     <th style="text-align:center;width:110px;">Calificación</th>
