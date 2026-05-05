@@ -118,7 +118,6 @@ async function buscarAlumnoBoletaGlobal() {
 }
 
 // ── Cache sessionStorage de materias por carreraId ───────────────────────────
-// Evita releer la colección materias en cada boleta de la misma carrera.
 const _CACHE_KEY_MATERIAS = 'boleta_materias_v2_';
 
 async function _obtenerMateriasCarrera(carreraId) {
@@ -129,33 +128,37 @@ async function _obtenerMateriasCarrera(carreraId) {
   } catch (_) {}
 
   const [materiasSnap, carreraDoc] = await Promise.all([
-    // Sin filtro activo: igual que el resto del sistema (muchas materias no tienen ese campo)
     db.collection('materias').where('carreraId', '==', carreraId).get(),
     db.collection('carreras').doc(carreraId).get()
   ]);
 
   const carreraNombre = carreraDoc.exists ? (carreraDoc.data().nombre || carreraId) : carreraId;
 
-  // Agrupar por periodo (número de semestre dentro de la carrera)
   const porPeriodo = {};
   materiasSnap.docs.forEach(doc => {
     const m = doc.data();
-    if (m.activo === false) return; // omitir solo si explícitamente desactivado
+    if (m.activo === false) return;
     const per = Number(m.periodo) || 0;
     if (!porPeriodo[per]) porPeriodo[per] = [];
     porPeriodo[per].push({ id: doc.id, nombre: m.nombre || '', codigo: m.codigo || '' });
   });
 
-  // Ordenar materias dentro de cada periodo
   Object.values(porPeriodo).forEach(arr =>
     arr.sort((a, b) => a.nombre.localeCompare(b.nombre))
   );
 
   const resultado = { carreraNombre, porPeriodo };
-  try {
-    sessionStorage.setItem(key, JSON.stringify(resultado));
-  } catch (_) {} // sessionStorage puede estar lleno o bloqueado
+  try { sessionStorage.setItem(key, JSON.stringify(resultado)); } catch (_) {}
   return resultado;
+}
+
+// Construye el HTML de opciones para el select de calificación (0–10 enteros + NP + —)
+function _optsCalificacion(rawCal) {
+  const opciones = [['', '—'], ...Array.from({length: 11}, (_, i) => [String(i), String(i)]), ['NP', 'NP']];
+  return opciones.map(([val, lbl]) => {
+    const sel = (rawCal === null && val === '') || (rawCal !== null && String(rawCal) === val) ? ' selected' : '';
+    return `<option value="${val}"${sel}>${lbl}</option>`;
+  }).join('');
 }
 
 // Abre nueva ventana con todas las materias de la carrera + calificaciones del alumno
@@ -168,28 +171,19 @@ async function verBoletaGlobalAlumno(alumnoId) {
   w.document.write('<html><head><title>Boleta</title></head><body style="font-family:sans-serif;text-align:center;padding:60px;color:#666;">Cargando boleta...</body></html>');
 
   try {
-    // 1. Datos del alumno
     const usuarioDoc = await db.collection('usuarios').doc(alumnoId).get();
-    if (!usuarioDoc.exists) {
-      _escribirError(w, 'Alumno no encontrado.');
-      return;
-    }
+    if (!usuarioDoc.exists) { _escribirError(w, 'Alumno no encontrado.'); return; }
     const alumno = usuarioDoc.data();
     const carreraId = alumno.carreraId;
-    if (!carreraId) {
-      _escribirError(w, 'El alumno no tiene carrera asignada.');
-      return;
-    }
-    // Periodo actual del alumno (número de semestre, e.g. 3)
+    if (!carreraId) { _escribirError(w, 'El alumno no tiene carrera asignada.'); return; }
+
     const alumnoPerActual = Number(alumno.periodo) || 0;
 
-    // 2. Materias (con cache sessionStorage) + calificaciones en paralelo
     const [{ carreraNombre, porPeriodo }, calSnap] = await Promise.all([
       _obtenerMateriasCarrera(carreraId),
       db.collection('calificaciones').where('alumnoId', '==', alumnoId).get()
     ]);
 
-    // Mapa calificaciones por materiaId
     const calMap = {};
     calSnap.docs.forEach(doc => {
       const c = doc.data();
@@ -198,7 +192,6 @@ async function verBoletaGlobalAlumno(alumnoId) {
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
 
-    // Contadores resumen — periodo actual siempre cuenta como "cursando"
     let total = 0, aprobadas = 0, reprobadas = 0, sinCaptura = 0, cursando = 0;
     for (const [perKey, mats] of Object.entries(porPeriodo)) {
       const pn = Number(perKey);
@@ -230,6 +223,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
     .encabezado { background:linear-gradient(135deg,#6A2135,#8B2E45); color:white; padding:18px 22px; border-radius:12px; margin-bottom:16px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; }
     .encabezado h1 { font-size:1.25rem; margin-bottom:4px; }
     .encabezado p { font-size:0.87rem; opacity:0.9; margin-top:3px; }
+    .enc-btns { display:flex; flex-direction:column; gap:8px; align-items:flex-end; flex-shrink:0; }
     .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
     .chip { padding:5px 14px; border-radius:20px; font-size:0.82rem; font-weight:600; }
     .sec-titulo { margin:20px 0 7px; color:#6A2135; border-bottom:2px solid #6A2135; padding-bottom:5px; font-size:0.95rem; font-weight:700; display:flex; align-items:center; gap:8px; }
@@ -238,10 +232,10 @@ async function verBoletaGlobalAlumno(alumnoId) {
     td { padding:8px 11px; border-bottom:1px solid #f0f0f0; font-size:0.85rem; }
     tr:last-child td { border-bottom:none; }
     .estado { padding:3px 9px; border-radius:10px; font-size:0.76rem; font-weight:600; white-space:nowrap; }
-    .btn-cerrar { background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.6); padding:7px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap; }
-    .btn-cerrar:hover { background:rgba(255,255,255,0.35); }
-    input[type=text] { font-family:inherit; }
-    @media print { .btn-cerrar { display:none; } body { background:white; padding:0; } }
+    .btn-enc { background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.6); padding:7px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap; }
+    .btn-enc:hover { background:rgba(255,255,255,0.35); }
+    select { font-family:inherit; }
+    @media print { .btn-enc { display:none; } body { background:white; padding:0; } }
     @media (max-width:600px) { body { padding:10px; } th,td { padding:6px 8px; font-size:0.8rem; } }
   </style>
 </head>
@@ -253,7 +247,10 @@ async function verBoletaGlobalAlumno(alumnoId) {
       <p>Matrícula: <strong>${alumno.matricula || '-'}</strong> &nbsp;|&nbsp; Carrera: <strong>${carreraNombre}</strong></p>
       <p>Periodo Actual: <strong>${alumno.periodo || '-'}</strong></p>
     </div>
-    <button class="btn-cerrar" onclick="window.close()">✕ Cerrar</button>
+    <div class="enc-btns">
+      <button class="btn-enc" onclick="window.close()">✕ Cerrar</button>
+      <button class="btn-enc" onclick="descargarPDF()">↓ Descargar PDF</button>
+    </div>
   </div>
   <div class="chips">
     <span class="chip" style="background:#e8f5e9;color:#2e7d32;">${aprobadas} aprobadas</span>
@@ -276,7 +273,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
       const perLabel = esActualPer
         ? `Semestre ${perNum} <span style="background:#e3f2fd;color:#1565c0;padding:1px 9px;border-radius:10px;font-size:0.72rem;font-weight:700;">ACTUAL</span>`
         : `Semestre ${perNum}`;
-      const estadoThW = esPasadoPer ? '190px' : '120px';
+      const estadoThW = esPasadoPer ? '200px' : '120px';
 
       html += `<div class="sec-titulo">${perLabel}</div>
 <table>
@@ -302,22 +299,24 @@ async function verBoletaGlobalAlumno(alumnoId) {
   </tr>`;
 
         } else if (esPasadoPer) {
-          // ── Semestre pasado: editable ──────────────────────────────────────
-          const sinCap  = rawCal === null;
-          const esNP    = rawCal === 'NP';
-          const calNum  = (!sinCap && !esNP) ? Number(rawCal) : null;
+          // ── Semestre pasado: select editable ──────────────────────────────
+          const sinCap   = rawCal === null;
+          const esNP     = rawCal === 'NP';
+          const calNum   = (!sinCap && !esNP) ? Number(rawCal) : null;
           const aprobada = calNum !== null && calNum >= 6;
           const rowBg    = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
           const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
           const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
           const chipTxt  = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
-          const calStr   = sinCap ? '' : String(rawCal);
+          const optsHtml = _optsCalificacion(rawCal);
           html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
     <td style="text-align:center;">
-      <input id="cal_${m.id}" type="text" value="${calStr}" placeholder="—"
-        style="width:55px;text-align:center;border:1px solid #ccc;border-radius:4px;padding:2px 4px;font-weight:700;font-size:0.88rem;" />
+      <select id="cal_${m.id}"
+        style="width:68px;border:1px solid #ccc;border-radius:4px;padding:2px 4px;font-weight:700;font-size:0.88rem;cursor:pointer;">
+        ${optsHtml}
+      </select>
     </td>
     <td style="text-align:center;">
       <span id="chip_${m.id}" class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span>
@@ -330,9 +329,9 @@ async function verBoletaGlobalAlumno(alumnoId) {
 
         } else {
           // ── Semestre futuro o sin periodo definido: solo lectura normal ────
-          const sinCap  = rawCal === null;
-          const esNP    = rawCal === 'NP';
-          const calNum  = (!sinCap && !esNP) ? Number(rawCal) : null;
+          const sinCap   = rawCal === null;
+          const esNP     = rawCal === 'NP';
+          const calNum   = (!sinCap && !esNP) ? Number(rawCal) : null;
           const aprobada = calNum !== null && calNum >= 6;
           const rowBg    = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
           const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
@@ -354,11 +353,15 @@ async function verBoletaGlobalAlumno(alumnoId) {
     html += `</div>
 <script>
 const _AID = '${alumnoId}';
+
 function guardarCal(mid) {
-  const input = document.getElementById('cal_' + mid);
+  const sel = document.getElementById('cal_' + mid);
   const btn = event.currentTarget;
-  const val = (input ? input.value : '').trim();
-  if (!window.opener || window.opener.closed) { alert('La ventana principal se cerró. Cierra esta boleta y ábrela de nuevo.'); return; }
+  const val = sel ? sel.value : '';
+  if (!window.opener || window.opener.closed) {
+    alert('La ventana principal se cerró. Cierra esta boleta y ábrela de nuevo.');
+    return;
+  }
   btn.disabled = true;
   const origTxt = btn.textContent;
   btn.textContent = '...';
@@ -368,23 +371,26 @@ function guardarCal(mid) {
       btn.textContent = '✓'; btn.style.background = '#2e7d32';
       const chip = document.getElementById('chip_' + mid);
       if (chip) {
-        const u = val.toUpperCase();
-        if (!val || u === '—') {
+        if (!val) {
           chip.style.background='#f5f5f5'; chip.style.color='#888'; chip.textContent='Sin captura';
-        } else if (u === 'NP') {
+        } else if (val === 'NP') {
           chip.style.background='#fff3e0'; chip.style.color='#e65100'; chip.textContent='NP';
         } else {
-          const n = parseFloat(val);
-          if (!isNaN(n) && n >= 6) { chip.style.background='#e8f5e9'; chip.style.color='#2e7d32'; chip.textContent='Aprobada'; }
-          else { chip.style.background='#ffebee'; chip.style.color='#c62828'; chip.textContent='Reprobada'; }
+          const n = parseInt(val, 10);
+          if (n >= 6) { chip.style.background='#e8f5e9'; chip.style.color='#2e7d32'; chip.textContent='Aprobada'; }
+          else        { chip.style.background='#ffebee'; chip.style.color='#c62828'; chip.textContent='Reprobada'; }
         }
       }
     } else {
       btn.textContent = origTxt; btn.style.background = '#c62828';
-      setTimeout(function(){ btn.style.background='#5c6bc0'; }, 2500);
+      setTimeout(function(){ btn.style.background='#5c6bc0'; btn.textContent='Guardar'; }, 2500);
       alert('Error al guardar: ' + err);
     }
   });
+}
+
+function descargarPDF() {
+  // pendiente
 }
 <\/script>
 </body></html>`;
@@ -411,13 +417,13 @@ function _escribirError(w, msg) {
 window.guardarCalBoleta = async function(alumnoId, materiaId, valor, callback) {
   try {
     let promedio;
-    if (!valor || valor === '—') {
+    if (!valor) {
       promedio = null;
     } else if (valor.toUpperCase() === 'NP') {
       promedio = 'NP';
     } else {
-      const num = Number(valor);
-      if (isNaN(num) || num < 0 || num > 10) throw new Error('Calificación inválida (debe ser 0–10 o NP)');
+      const num = parseInt(valor, 10);
+      if (isNaN(num) || num < 0 || num > 10) throw new Error('Calificación inválida');
       promedio = num;
     }
     const docId = `${alumnoId}_${materiaId}`;

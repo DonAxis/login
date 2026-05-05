@@ -941,7 +941,8 @@
   </div>
   <div>
    <label style="display:block;margin-bottom:5px;font-weight:bold;color:#555;">Buscar alumno</label>
-   <input type="text" id="boletagBusqueda" placeholder="Nombre o matrícula..."
+   <input type="text" id="boletagBusqueda" placeholder="Filtrar por nombre o matrícula..."
+          oninput="buscarAlumnoBoletaGlobal()"
           style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;min-width:240px;">
   </div>
   <button onclick="buscarAlumnoBoletaGlobal()"
