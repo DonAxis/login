@@ -152,12 +152,13 @@ async function _obtenerMateriasCarrera(carreraId) {
   return resultado;
 }
 
-// Construye el HTML de opciones para el select de calificación (0–10 enteros + NP + —)
+// Opciones de calificación: 10→0 descendente + NP, igual que panel de calificaciones
 function _optsCalificacion(rawCal) {
-  const opciones = [['', '—'], ...Array.from({length: 11}, (_, i) => [String(i), String(i)]), ['NP', 'NP']];
-  return opciones.map(([val, lbl]) => {
-    const sel = (rawCal === null && val === '') || (rawCal !== null && String(rawCal) === val) ? ' selected' : '';
-    return `<option value="${val}"${sel}>${lbl}</option>`;
+  const vals = [['', '-'], ['10','10'],['9','9'],['8','8'],['7','7'],['6','6'],
+                ['5','5'],['4','4'],['3','3'],['2','2'],['1','1'],['0','0'],['NP','NP']];
+  return vals.map(([v, lbl]) => {
+    const sel = (rawCal === null && v === '') || (rawCal !== null && String(rawCal) === v) ? ' selected' : '';
+    return `<option value="${v}"${sel}>${lbl}</option>`;
   }).join('');
 }
 
@@ -191,7 +192,9 @@ async function verBoletaGlobalAlumno(alumnoId) {
     });
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
+    const hayPeriodosPasados = alumnoPerActual > 0 && periodoKeys.some(pk => pk < alumnoPerActual);
 
+    // Contadores resumen
     let total = 0, aprobadas = 0, reprobadas = 0, sinCaptura = 0, cursando = 0;
     for (const [perKey, mats] of Object.entries(porPeriodo)) {
       const pn = Number(perKey);
@@ -210,6 +213,19 @@ async function verBoletaGlobalAlumno(alumnoId) {
       ? '<span style="display:inline-block;background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:12px;font-size:0.78rem;font-weight:700;margin-left:8px;vertical-align:middle;">PASANTE</span>'
       : '';
 
+    // ── Botones de acción (estilo calificaciones panel) ──────────────────────
+    const btnGuardar = hayPeriodosPasados ? `
+      <button id="btnGuardar" onclick="guardarTodosCambios()"
+        style="padding:12px 24px;background:linear-gradient(135deg,#216A32 0%,#21596A 100%);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;">
+        Guardar Cambios
+      </button>` : '';
+
+    const btnPDF = `
+      <button onclick="descargarPDF()"
+        style="padding:12px 24px;background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;">
+        ↓ Descargar PDF
+      </button>`;
+
     let html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -219,46 +235,52 @@ async function verBoletaGlobalAlumno(alumnoId) {
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI',Tahoma,sans-serif; background:#f5f5f5; padding:20px; }
-    .container { max-width:940px; margin:0 auto; }
+    .container { max-width:960px; margin:0 auto; }
     .encabezado { background:linear-gradient(135deg,#6A2135,#8B2E45); color:white; padding:18px 22px; border-radius:12px; margin-bottom:16px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; }
     .encabezado h1 { font-size:1.25rem; margin-bottom:4px; }
     .encabezado p { font-size:0.87rem; opacity:0.9; margin-top:3px; }
-    .enc-btns { display:flex; flex-direction:column; gap:8px; align-items:flex-end; flex-shrink:0; }
-    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+    .btn-cerrar { background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.6); padding:7px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap; }
+    .btn-cerrar:hover { background:rgba(255,255,255,0.35); }
+    .barra-acciones { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; background:white; padding:14px 18px; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,0.08); }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
     .chip { padding:5px 14px; border-radius:20px; font-size:0.82rem; font-weight:600; }
-    .sec-titulo { margin:20px 0 7px; color:#6A2135; border-bottom:2px solid #6A2135; padding-bottom:5px; font-size:0.95rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .btns-accion { display:flex; gap:10px; flex-wrap:wrap; }
+    .sec-titulo { margin:20px 0 7px; color:#667eea; border-bottom:2px solid #667eea; padding-bottom:5px; font-size:0.95rem; font-weight:700; display:flex; align-items:center; gap:8px; }
     table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,0.08); margin-bottom:4px; }
-    th { background:#6A2135; color:white; padding:9px 11px; text-align:left; font-size:0.84rem; }
-    td { padding:8px 11px; border-bottom:1px solid #f0f0f0; font-size:0.85rem; }
-    tr:last-child td { border-bottom:none; }
+    th { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:12px 11px; text-align:left; font-size:0.84rem; border:1px solid rgba(255,255,255,0.2); }
+    td { padding:10px 11px; border:1px solid #ddd; font-size:0.85rem; }
     .estado { padding:3px 9px; border-radius:10px; font-size:0.76rem; font-weight:600; white-space:nowrap; }
-    .btn-enc { background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.6); padding:7px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap; }
-    .btn-enc:hover { background:rgba(255,255,255,0.35); }
     select { font-family:inherit; }
-    @media print { .btn-enc { display:none; } body { background:white; padding:0; } }
+    @media print { .btn-cerrar,.btns-accion { display:none; } body { background:white; padding:0; } }
     @media (max-width:600px) { body { padding:10px; } th,td { padding:6px 8px; font-size:0.8rem; } }
   </style>
 </head>
 <body>
 <div class="container">
+
   <div class="encabezado">
     <div>
       <h1>${alumno.nombre || '-'}${pasanteStr}</h1>
       <p>Matrícula: <strong>${alumno.matricula || '-'}</strong> &nbsp;|&nbsp; Carrera: <strong>${carreraNombre}</strong></p>
       <p>Periodo Actual: <strong>${alumno.periodo || '-'}</strong></p>
     </div>
-    <div class="enc-btns">
-      <button class="btn-enc" onclick="window.close()">✕ Cerrar</button>
-      <button class="btn-enc" onclick="descargarPDF()">↓ Descargar PDF</button>
+    <button class="btn-cerrar" onclick="window.close()">✕ Cerrar</button>
+  </div>
+
+  <div class="barra-acciones">
+    <div class="chips">
+      <span class="chip" style="background:#e8f5e9;color:#2e7d32;">${aprobadas} aprobadas</span>
+      <span class="chip" style="background:#ffebee;color:#c62828;">${reprobadas} reprobadas</span>
+      <span class="chip" style="background:#e3f2fd;color:#1565c0;">${cursando} cursando</span>
+      <span class="chip" style="background:#fff3e0;color:#e65100;">${sinCaptura} sin captura</span>
+      <span class="chip" style="background:#f3f4f6;color:#555;">${total} total</span>
+    </div>
+    <div class="btns-accion">
+      ${btnGuardar}
+      ${btnPDF}
     </div>
   </div>
-  <div class="chips">
-    <span class="chip" style="background:#e8f5e9;color:#2e7d32;">${aprobadas} aprobadas</span>
-    <span class="chip" style="background:#ffebee;color:#c62828;">${reprobadas} reprobadas</span>
-    <span class="chip" style="background:#e3f2fd;color:#1565c0;">${cursando} cursando</span>
-    <span class="chip" style="background:#fff3e0;color:#e65100;">${sinCaptura} sin captura</span>
-    <span class="chip" style="background:#f3f4f6;color:#555;">${total} total</span>
-  </div>
+
 `;
 
     if (periodoKeys.length === 0) {
@@ -273,7 +295,6 @@ async function verBoletaGlobalAlumno(alumnoId) {
       const perLabel = esActualPer
         ? `Semestre ${perNum} <span style="background:#e3f2fd;color:#1565c0;padding:1px 9px;border-radius:10px;font-size:0.72rem;font-weight:700;">ACTUAL</span>`
         : `Semestre ${perNum}`;
-      const estadoThW = esPasadoPer ? '200px' : '120px';
 
       html += `<div class="sec-titulo">${perLabel}</div>
 <table>
@@ -281,7 +302,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
     <th style="width:34px;text-align:center;">#</th>
     <th>Materia</th>
     <th style="text-align:center;width:110px;">Calificación</th>
-    <th style="text-align:center;width:${estadoThW};">Estado</th>
+    <th style="text-align:center;width:120px;">Estado</th>
   </tr></thead>
   <tbody>`;
 
@@ -290,16 +311,16 @@ async function verBoletaGlobalAlumno(alumnoId) {
 
         if (esActualPer) {
           // ── Semestre actual: "Cursando", solo lectura ──────────────────────
-          const calStr = rawCal === null ? '—' : String(rawCal);
+          const calStr = rawCal === null ? '-' : String(rawCal);
           html += `<tr>
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
-    <td style="text-align:center;font-weight:700;color:#1565c0;">${calStr}</td>
+    <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
     <td style="text-align:center;"><span class="estado" style="background:#e3f2fd;color:#1565c0;">Cursando</span></td>
   </tr>`;
 
         } else if (esPasadoPer) {
-          // ── Semestre pasado: select editable ──────────────────────────────
+          // ── Semestre pasado: select editable (estilo calificaciones panel) ─
           const sinCap   = rawCal === null;
           const esNP     = rawCal === 'NP';
           const calNum   = (!sinCap && !esNP) ? Number(rawCal) : null;
@@ -314,16 +335,12 @@ async function verBoletaGlobalAlumno(alumnoId) {
     <td>${m.nombre}</td>
     <td style="text-align:center;">
       <select id="cal_${m.id}"
-        style="width:68px;border:1px solid #ccc;border-radius:4px;padding:2px 4px;font-weight:700;font-size:0.88rem;cursor:pointer;">
+        style="width:80px;padding:8px;border:2px solid #ddd;border-radius:5px;text-align:center;font-size:1.1rem;font-weight:bold;cursor:pointer;">
         ${optsHtml}
       </select>
     </td>
     <td style="text-align:center;">
       <span id="chip_${m.id}" class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span>
-      <button onclick="guardarCal('${m.id}')"
-        style="margin-left:5px;padding:3px 8px;background:#5c6bc0;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.75rem;vertical-align:middle;">
-        Guardar
-      </button>
     </td>
   </tr>`;
 
@@ -337,11 +354,11 @@ async function verBoletaGlobalAlumno(alumnoId) {
           const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
           const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
           const chipTxt  = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
-          const calStr   = sinCap ? '—' : String(rawCal);
+          const calStr   = sinCap ? '-' : String(rawCal);
           html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
-    <td style="text-align:center;font-weight:700;color:${chipColor};">${calStr}</td>
+    <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
     <td style="text-align:center;"><span class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span></td>
   </tr>`;
         }
@@ -354,36 +371,43 @@ async function verBoletaGlobalAlumno(alumnoId) {
 <script>
 const _AID = '${alumnoId}';
 
-function guardarCal(mid) {
-  const sel = document.getElementById('cal_' + mid);
-  const btn = event.currentTarget;
-  const val = sel ? sel.value : '';
+function _actualizarChip(chip, val) {
+  if (!val) {
+    chip.style.background='#f5f5f5'; chip.style.color='#888'; chip.textContent='Sin captura';
+  } else if (val === 'NP') {
+    chip.style.background='#fff3e0'; chip.style.color='#e65100'; chip.textContent='NP';
+  } else {
+    const n = parseInt(val, 10);
+    if (n >= 6) { chip.style.background='#e8f5e9'; chip.style.color='#2e7d32'; chip.textContent='Aprobada'; }
+    else        { chip.style.background='#ffebee'; chip.style.color='#c62828'; chip.textContent='Reprobada'; }
+  }
+}
+
+function guardarTodosCambios() {
+  const btn = document.getElementById('btnGuardar');
+  if (!btn) return;
+  const cambios = [];
+  document.querySelectorAll('select[id^="cal_"]').forEach(function(sel) {
+    cambios.push({ mid: sel.id.slice(4), val: sel.value });
+  });
+  if (!cambios.length) return;
   if (!window.opener || window.opener.closed) {
     alert('La ventana principal se cerró. Cierra esta boleta y ábrela de nuevo.');
     return;
   }
   btn.disabled = true;
-  const origTxt = btn.textContent;
-  btn.textContent = '...';
-  window.opener.guardarCalBoleta(_AID, mid, val, function(ok, err) {
+  btn.textContent = 'Guardando...';
+  window.opener.guardarBatchCalBoleta(_AID, cambios, function(ok, err) {
     btn.disabled = false;
     if (ok) {
-      btn.textContent = '✓'; btn.style.background = '#2e7d32';
-      const chip = document.getElementById('chip_' + mid);
-      if (chip) {
-        if (!val) {
-          chip.style.background='#f5f5f5'; chip.style.color='#888'; chip.textContent='Sin captura';
-        } else if (val === 'NP') {
-          chip.style.background='#fff3e0'; chip.style.color='#e65100'; chip.textContent='NP';
-        } else {
-          const n = parseInt(val, 10);
-          if (n >= 6) { chip.style.background='#e8f5e9'; chip.style.color='#2e7d32'; chip.textContent='Aprobada'; }
-          else        { chip.style.background='#ffebee'; chip.style.color='#c62828'; chip.textContent='Reprobada'; }
-        }
-      }
+      btn.textContent = '✓ Guardado';
+      cambios.forEach(function(c) {
+        var chip = document.getElementById('chip_' + c.mid);
+        if (chip) _actualizarChip(chip, c.val);
+      });
+      setTimeout(function(){ btn.textContent = 'Guardar Cambios'; }, 2000);
     } else {
-      btn.textContent = origTxt; btn.style.background = '#c62828';
-      setTimeout(function(){ btn.style.background='#5c6bc0'; btn.textContent='Guardar'; }, 2500);
+      btn.textContent = 'Guardar Cambios';
       alert('Error al guardar: ' + err);
     }
   });
@@ -413,24 +437,28 @@ function _escribirError(w, msg) {
   } catch (_) {}
 }
 
-// Llamado desde la ventana hija via window.opener.guardarCalBoleta(...)
-window.guardarCalBoleta = async function(alumnoId, materiaId, valor, callback) {
+// Guarda todas las calificaciones editadas en batch desde la ventana hija
+window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
   try {
-    let promedio;
-    if (!valor) {
-      promedio = null;
-    } else if (valor.toUpperCase() === 'NP') {
-      promedio = 'NP';
-    } else {
-      const num = parseInt(valor, 10);
-      if (isNaN(num) || num < 0 || num > 10) throw new Error('Calificación inválida');
-      promedio = num;
+    const batch = db.batch();
+    for (const { mid, val } of cambios) {
+      let promedio;
+      if (!val) {
+        promedio = null;
+      } else if (val.toUpperCase() === 'NP') {
+        promedio = 'NP';
+      } else {
+        const num = parseInt(val, 10);
+        if (isNaN(num) || num < 0 || num > 10) throw new Error('Calificación inválida: ' + val);
+        promedio = num;
+      }
+      batch.set(
+        db.collection('calificaciones').doc(`${alumnoId}_${mid}`),
+        { promedio, fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
     }
-    const docId = `${alumnoId}_${materiaId}`;
-    await db.collection('calificaciones').doc(docId).set(
-      { promedio, fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp() },
-      { merge: true }
-    );
+    await batch.commit();
     callback(true, null);
   } catch (e) {
     callback(false, e.message);
