@@ -442,8 +442,8 @@ function _escribirError(w, msg) {
 }
 
 // ── PDF Boleta Global ─────────────────────────────────────────────────────────
-// Lee de la colección historialAcademico (un doc por alumno).
-// Se llama desde el popup via window.opener, en el contexto donde jsPDF está cargado.
+// Lee de historialAcademico. Layout 2 columnas: periodos impares izquierda,
+// pares derecha. Se llama desde el popup via window.opener.
 async function descargarBoletaGlobalPDF(alumnoId) {
   try {
     if (typeof window.jspdf === 'undefined') {
@@ -461,7 +461,7 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       return;
     }
 
-    const data = snap.docs[0].data();
+    const data          = snap.docs[0].data();
     const alumnoNombre  = data.alumnoNombre  || '-';
     const matricula     = data.matricula     || '-';
     const carreraNombre = data.carreraNombre || '-';
@@ -472,7 +472,6 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       return;
     }
 
-    // Agrupar por periodo (int)
     const porPeriodo = {};
     materias.forEach(m => {
       const p = m.periodo;
@@ -492,80 +491,70 @@ async function descargarBoletaGlobalPDF(alumnoId) {
 
     if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
 
-    // Título
-    doc.setFontSize(18);
+    doc.setFontSize(16);
     doc.setFont(undefined, 'bold');
     doc.text('BOLETA GLOBAL DE CALIFICACIONES', pageWidth / 2, 25, { align: 'center' });
     doc.setLineWidth(0.5);
     doc.line(30, 28, pageWidth - 30, 28);
 
-    // Datos del alumno
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont(undefined, 'normal');
-    let y = 34;
+    let y = 33;
     doc.text(`Alumno: ${alumnoNombre}`, 20, y);
     doc.text(`Fecha: ${fecha}`, pageWidth - 20, y, { align: 'right' });
-    y += 5;
+    y += 4;
     doc.text(`Matrícula: ${matricula}`, 20, y);
-    y += 5;
+    y += 4;
     doc.text(`Carrera: ${carreraNombre}`, 20, y);
-    y += 8;
+    y += 7;
+
+    // Constantes del layout de 2 columnas
+    const GAP       = 5;
+    const halfWidth = (pageWidth - 40 - GAP) / 2;
+    const col2X     = 20 + halfWidth + GAP; // margen izquierdo de la columna derecha
+    // col2X coincide numéricamente con margin.right de la columna izquierda:
+    //   pageWidth - (20 + halfWidth) = col2X ✓
 
     let totalSuma = 0, totalCount = 0;
 
-    periodos.forEach(periodo => {
-      const materiasPeriodo = porPeriodo[periodo];
+    function renderTabla(periodo, startY, esCol2) {
+      const mats     = porPeriodo[periodo];
+      const mgnLeft  = esCol2 ? col2X : 20;
+      const mgnRight = esCol2 ? 20    : col2X;
 
-      // Verificar espacio para el encabezado del periodo
-      if (y + 18 > pageHeight - 30) {
-        doc.addPage();
-        if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
-        y = 30;
-      }
-
-      // Encabezado de sección
-      doc.setFontSize(11);
+      doc.setFontSize(9);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(108, 29, 69);
-      doc.text(`Periodo ${periodo}`, 20, y);
+      doc.text(`Periodo ${periodo}`, mgnLeft, startY);
       doc.setTextColor(0, 0, 0);
-      y += 2;
 
-      // Filas de tabla
-      const tableData = [];
-      let periodoSuma = 0, periodoCount = 0;
-
-      materiasPeriodo.forEach((m, i) => {
+      const rows = [];
+      mats.forEach((m, i) => {
         const cal    = m.calificacion;
         const calStr = (cal !== null && cal !== undefined) ? String(cal) : '-';
         const calNum = parseFloat(cal);
-        if (!isNaN(calNum)) {
-          periodoSuma += calNum;  periodoCount++;
-          totalSuma   += calNum;  totalCount++;
-        }
-        tableData.push([(i + 1).toString(), m.materiaNombre || '-', calStr]);
+        if (!isNaN(calNum)) { totalSuma += calNum; totalCount++; }
+        rows.push([(i + 1).toString(), m.materiaNombre || '-', calStr]);
       });
 
-      const promPeriodo = periodoCount > 0 ? (periodoSuma / periodoCount).toFixed(1) : '-';
-
       doc.autoTable({
-        startY: y,
-        margin: { left: 20, right: 20, bottom: 30 },
-        head: [['No.', 'Materia', 'Calificación']],
-        body: tableData,
-        foot: [[{
-          content: `Promedio del periodo: ${promPeriodo}`,
-          colSpan: 3,
-          styles: { halign: 'right', fontStyle: 'bold',
-                    fillColor: [245, 240, 242], textColor: [108, 29, 69] }
-        }]],
+        startY: startY + 3,
+        margin: { left: mgnLeft, right: mgnRight, bottom: 20 },
+        head: [['#', 'Materia', 'Cal.']],
+        body: rows,
         theme: 'grid',
-        headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
-        styles: { fontSize: 10, cellPadding: 2 },
+        headStyles: {
+          fillColor: [108, 29, 69], textColor: 255,
+          fontStyle: 'bold', halign: 'center', fontSize: 7
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 }
+        },
         columnStyles: {
-          0: { halign: 'center', cellWidth: 15 },
+          0: { halign: 'center', cellWidth: 8 },
           1: { halign: 'left' },
-          2: { halign: 'center', cellWidth: 30, fontStyle: 'bold' }
+          2: { halign: 'center', cellWidth: 13, fontStyle: 'bold' }
         },
         didParseCell: function(data) {
           if (data.column.index === 2 && data.section === 'body') {
@@ -578,25 +567,50 @@ async function descargarBoletaGlobalPDF(alumnoId) {
         }
       });
 
-      y = doc.lastAutoTable.finalY + 10;
-    });
+      return doc.lastAutoTable.finalY;
+    }
+
+    // Estimación de altura para decidir salto de página (título + header + filas)
+    function estimarAltura(n) { return 10 + n * 5.5; }
+
+    // Renderizar en pares: (1,2), (3,4), (5,6)...
+    for (let i = 0; i < periodos.length; i += 2) {
+      const pIzq   = periodos[i];
+      const pDer   = periodos[i + 1];
+      const altMax = Math.max(
+        estimarAltura(porPeriodo[pIzq].length),
+        pDer ? estimarAltura(porPeriodo[pDer].length) : 0
+      );
+
+      if (y + altMax > pageHeight - 25) {
+        doc.addPage();
+        if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
+        y = 30;
+      }
+
+      const startY   = y;
+      const finalIzq = renderTabla(pIzq, startY, false);
+      const finalDer = pDer ? renderTabla(pDer, startY, true) : startY;
+
+      y = Math.max(finalIzq, finalDer) + 8;
+    }
 
     // Totales y firmas
-    if (y + 45 > pageHeight) { doc.addPage(); y = 20; }
+    if (y + 40 > pageHeight) { doc.addPage(); y = 20; }
 
     const promGeneral = totalCount > 0 ? (totalSuma / totalCount).toFixed(1) : '-';
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
     doc.text(`Total de materias: ${totalCount}`, 20, y);
     doc.text(`Promedio General: ${promGeneral}`, pageWidth - 20, y, { align: 'right' });
 
-    const firmasY = y + 30;
+    const firmasY = y + 25;
     doc.setLineWidth(0.3);
     doc.line(30,  firmasY, 90,  firmasY);
     doc.line(120, firmasY, 180, firmasY);
     doc.setFont(undefined, 'normal');
     doc.setFontSize(9);
-    doc.text('Coordinación',   60,  firmasY + 5, { align: 'center' });
+    doc.text('Coordinación',    60,  firmasY + 5, { align: 'center' });
     doc.text('Control Escolar', 150, firmasY + 5, { align: 'center' });
 
     doc.save(`BoletaGlobal_${alumnoNombre.replace(/\s+/g, '_')}.pdf`);
