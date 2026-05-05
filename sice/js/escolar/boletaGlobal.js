@@ -525,25 +525,21 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       return n + ' (' + (CAL_PALABRAS[n] || String(n)) + ')';
     }
 
-    // Construir filas de ambas columnas con numeración global secuencial
+    // Construir filas de ambas columnas con numeración global secuencial.
+    // Se procesan en pares (nivel impar → izquierda, par → derecha) y se
+    // agregan filas vacías al lado más corto para alinear los encabezados
+    // de NIVEL entre columnas.
     let counter = 0, totalSuma = 0, totalCount = 0;
     const leftRows  = [];
     const rightRows = [];
 
-    periodos.forEach((periodo, idx) => {
-      const mats   = porPeriodo[periodo];
-      const target = (idx % 2 === 0) ? leftRows : rightRows;
-      const label  = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
+    const nivelStyle = { halign: 'center', fontStyle: 'bold',
+                         fillColor: [255, 255, 255], textColor: [0, 0, 0] };
 
-      // Fila de encabezado de nivel (abarca las 5 columnas)
-      target.push([{
-        content: label,
-        colSpan: 5,
-        styles: { halign: 'center', fontStyle: 'bold',
-                  fillColor: [255, 255, 255], textColor: [0, 0, 0] }
-      }]);
-
-      mats.forEach(m => {
+    function agregarFilasNivel(periodo, target) {
+      const label = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
+      target.push([{ content: label, colSpan: 5, styles: nivelStyle }]);
+      porPeriodo[periodo].forEach(m => {
         counter++;
         const calNum = parseFloat(m.calificacion);
         if (!isNaN(calNum)) { totalSuma += calNum; totalCount++; }
@@ -555,7 +551,25 @@ async function descargarBoletaGlobalPDF(alumnoId) {
           formatCal(m.calificacion)
         ]);
       });
-    });
+      return 1 + porPeriodo[periodo].length; // filas añadidas (header + datos)
+    }
+
+    for (let i = 0; i < periodos.length; i += 2) {
+      const pL = periodos[i];
+      const pR = periodos[i + 1];
+
+      const lLen = agregarFilasNivel(pL, leftRows);
+      const rLen = pR ? agregarFilasNivel(pR, rightRows) : 0;
+
+      // Rellenar el lado más corto con filas vacías para alinear el próximo NIVEL
+      const diff = lLen - rLen;
+      const VACIA = ['', '', '', '', ''];
+      if (diff > 0) {
+        for (let j = 0; j < diff; j++) rightRows.push(VACIA);
+      } else if (diff < 0) {
+        for (let j = 0; j < -diff; j++) leftRows.push(VACIA);
+      }
+    }
 
     const tableComun = {
       theme: 'grid',
@@ -571,8 +585,8 @@ async function descargarBoletaGlobalPDF(alumnoId) {
         0: { halign: 'center', cellWidth: 7 },
         1: { halign: 'left' },
         2: { halign: 'center', cellWidth: 8 },
-        3: { halign: 'center', cellWidth: 14 },
-        4: { halign: 'center', cellWidth: 15 }
+        3: { halign: 'center', cellWidth: 12 },
+        4: { halign: 'center', cellWidth: 19 }   // 19mm para que "CALIFICACION" no parta
       }
     };
 
