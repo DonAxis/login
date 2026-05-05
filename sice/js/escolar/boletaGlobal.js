@@ -414,7 +414,11 @@ function guardarTodosCambios() {
 }
 
 function descargarPDF() {
-  // pendiente
+  if (window.opener && typeof window.opener.descargarBoletaGlobalPDF === 'function') {
+    window.opener.descargarBoletaGlobalPDF(_AID);
+  } else {
+    alert('No se puede generar el PDF desde esta ventana. Ábrela de nuevo desde el historial.');
+  }
 }
 <\/script>
 </body></html>`;
@@ -437,7 +441,173 @@ function _escribirError(w, msg) {
   } catch (_) {}
 }
 
-// Guarda todas las calificaciones editadas en batch desde la ventana hija
+// ── PDF Boleta Global ─────────────────────────────────────────────────────────
+// Lee de la colección historialAcademico (un doc por alumno).
+// Se llama desde el popup via window.opener, en el contexto donde jsPDF está cargado.
+async function descargarBoletaGlobalPDF(alumnoId) {
+  try {
+    if (typeof window.jspdf === 'undefined') {
+      alert('Error: jsPDF no está cargado. Recarga la página.');
+      return;
+    }
+
+    const snap = await db.collection('historialAcademico')
+      .where('alumnoId', '==', alumnoId)
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      alert('No se encontró historial académico para este alumno.\nVerifica que el historial haya sido generado.');
+      return;
+    }
+
+    const data = snap.docs[0].data();
+    const alumnoNombre  = data.alumnoNombre  || '-';
+    const matricula     = data.matricula     || '-';
+    const carreraNombre = data.carreraNombre || '-';
+    const materias      = data.materias      || [];
+
+    if (!materias.length) {
+      alert('El historial académico no tiene materias registradas.');
+      return;
+    }
+
+    // Agrupar por periodo (int)
+    const porPeriodo = {};
+    materias.forEach(m => {
+      const p = m.periodo;
+      if (!porPeriodo[p]) porPeriodo[p] = [];
+      porPeriodo[p].push(m);
+    });
+    const periodos = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
+
+    const { jsPDF } = window.jspdf;
+    const doc        = new jsPDF({ format: 'letter' });
+    const pageWidth  = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const fecha = new Date().toLocaleDateString('es-MX', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
+
+    // Título
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('BOLETA GLOBAL DE CALIFICACIONES', pageWidth / 2, 25, { align: 'center' });
+    doc.setLineWidth(0.5);
+    doc.line(30, 28, pageWidth - 30, 28);
+
+    // Datos del alumno
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    let y = 34;
+    doc.text(`Alumno: ${alumnoNombre}`, 20, y);
+    doc.text(`Fecha: ${fecha}`, pageWidth - 20, y, { align: 'right' });
+    y += 5;
+    doc.text(`Matrícula: ${matricula}`, 20, y);
+    y += 5;
+    doc.text(`Carrera: ${carreraNombre}`, 20, y);
+    y += 8;
+
+    let totalSuma = 0, totalCount = 0;
+
+    periodos.forEach(periodo => {
+      const materiasPeriodo = porPeriodo[periodo];
+
+      // Verificar espacio para el encabezado del periodo
+      if (y + 18 > pageHeight - 30) {
+        doc.addPage();
+        if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
+        y = 30;
+      }
+
+      // Encabezado de sección
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(108, 29, 69);
+      doc.text(`Periodo ${periodo}`, 20, y);
+      doc.setTextColor(0, 0, 0);
+      y += 2;
+
+      // Filas de tabla
+      const tableData = [];
+      let periodoSuma = 0, periodoCount = 0;
+
+      materiasPeriodo.forEach((m, i) => {
+        const cal    = m.calificacion;
+        const calStr = (cal !== null && cal !== undefined) ? String(cal) : '-';
+        const calNum = parseFloat(cal);
+        if (!isNaN(calNum)) {
+          periodoSuma += calNum;  periodoCount++;
+          totalSuma   += calNum;  totalCount++;
+        }
+        tableData.push([(i + 1).toString(), m.materiaNombre || '-', calStr]);
+      });
+
+      const promPeriodo = periodoCount > 0 ? (periodoSuma / periodoCount).toFixed(1) : '-';
+
+      doc.autoTable({
+        startY: y,
+        margin: { left: 20, right: 20, bottom: 30 },
+        head: [['No.', 'Materia', 'Calificación']],
+        body: tableData,
+        foot: [[{
+          content: `Promedio del periodo: ${promPeriodo}`,
+          colSpan: 3,
+          styles: { halign: 'right', fontStyle: 'bold',
+                    fillColor: [245, 240, 242], textColor: [108, 29, 69] }
+        }]],
+        theme: 'grid',
+        headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 10, cellPadding: 2 },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 15 },
+          1: { halign: 'left' },
+          2: { halign: 'center', cellWidth: 30, fontStyle: 'bold' }
+        },
+        didParseCell: function(data) {
+          if (data.column.index === 2 && data.section === 'body') {
+            const v = parseFloat(data.cell.text[0]);
+            if (!isNaN(v)) {
+              data.cell.styles.textColor =
+                v < 6 ? [244, 67, 54] : v >= 8 ? [76, 175, 80] : [255, 152, 0];
+            }
+          }
+        }
+      });
+
+      y = doc.lastAutoTable.finalY + 10;
+    });
+
+    // Totales y firmas
+    if (y + 45 > pageHeight) { doc.addPage(); y = 20; }
+
+    const promGeneral = totalCount > 0 ? (totalSuma / totalCount).toFixed(1) : '-';
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Total de materias: ${totalCount}`, 20, y);
+    doc.text(`Promedio General: ${promGeneral}`, pageWidth - 20, y, { align: 'right' });
+
+    const firmasY = y + 30;
+    doc.setLineWidth(0.3);
+    doc.line(30,  firmasY, 90,  firmasY);
+    doc.line(120, firmasY, 180, firmasY);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.text('Coordinación',   60,  firmasY + 5, { align: 'center' });
+    doc.text('Control Escolar', 150, firmasY + 5, { align: 'center' });
+
+    doc.save(`BoletaGlobal_${alumnoNombre.replace(/\s+/g, '_')}.pdf`);
+
+  } catch (error) {
+    console.error('Error al generar Boleta Global PDF:', error);
+    alert('Error al generar PDF: ' + error.message);
+  }
+}
+
+// ── Guarda todas las calificaciones editadas en batch desde la ventana hija
 window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
   try {
     const batch = db.batch();
