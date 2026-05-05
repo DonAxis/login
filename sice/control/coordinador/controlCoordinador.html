@@ -294,9 +294,14 @@
  <p>Profesores con calificaciones pendientes</p>
  </div>
 
+ <div class="menu-card" onclick="mostrarSeccion('boletaGlobal')">
+ <h3>Boleta Global</h3>
+ <p>Expediente completo de materias y calificaciones por alumno</p>
+ </div>
+
  <div class="menu-card" onclick="mostrarSeccion('herramientas')">
  <h3>Herramientas</h3>
- <p>Historial academico y mantenimiento de datos</p>
+ <p>Mantenimiento de datos</p>
  </div>
  </div>
 
@@ -948,6 +953,33 @@
  </div>
 </div>
 
+<div id="seccionBoletaGlobal" class="seccion-contenido">
+ <div class="seccion-header">
+  <h2>Boleta Global</h2>
+  <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+ </div>
+ <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:20px 0 18px;">
+  <div>
+   <label style="display:block;margin-bottom:5px;font-weight:bold;color:#555;">Carrera</label>
+   <select id="boletagCarrera" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;min-width:220px;">
+    <option value="">-- Todas las carreras --</option>
+   </select>
+  </div>
+  <div>
+   <label style="display:block;margin-bottom:5px;font-weight:bold;color:#555;">Buscar alumno</label>
+   <input type="text" id="boletagBusqueda" placeholder="Nombre o matrícula..."
+          style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;min-width:240px;">
+  </div>
+  <button onclick="buscarAlumnoBoletaGlobal()"
+   style="padding:9px 22px;background:linear-gradient(135deg,#6A2135,#9c2f50);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+   Buscar
+  </button>
+ </div>
+ <div id="boletagResultados">
+  <p style="color:#999;text-align:center;padding:20px 0;">Selecciona una carrera o escribe un nombre y presiona Buscar.</p>
+ </div>
+</div>
+
  <!-- MODAL GENERICO -->
  <div id="modalGenerico" class="modal">
  <div class="modal-contenido">
@@ -997,6 +1029,7 @@
   
   <script src="../../js/escolar/controlAlumnoEspecial.js"></script>  
   <script src="../../js/escolar/cambioPeriodo.js"></script>
+  <script src="../../js/escolar/boletaGlobal.js"></script>
   <script src="../../js/escolar/registroMasivoAlumno.js"></script>
   <script src="../../js/escolar/registroMasivoMaterias.js"></script>
   <script src="../../js/escolar/registroMasivoProfes.js"></script>

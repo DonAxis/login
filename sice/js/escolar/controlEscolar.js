@@ -1744,7 +1744,7 @@ function generarListaObservacionesPDF() {
 // ═══ NAVEGACIÓN DE PANELES (controlEscolar) ═══
 
 function mostrarPanelEscolar(panel) {
-  const paneles = ['alumnos', 'editar', 'aprobar', 'herramientas'];
+  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal'];
   paneles.forEach(p => {
     const el = document.getElementById(`panel${p.charAt(0).toUpperCase() + p.slice(1)}`);
     const btn = document.getElementById(`btnPanel${p.charAt(0).toUpperCase() + p.slice(1)}`);
@@ -1753,6 +1753,7 @@ function mostrarPanelEscolar(panel) {
   });
 
   if (panel === 'aprobar') _poblarCarrerasAprobar();
+  if (panel === 'boletaGlobal') inicializarBoletaGlobal();
 }
 
 function cerrarModal() {

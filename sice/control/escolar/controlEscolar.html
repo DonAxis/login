@@ -93,7 +93,7 @@
         <button id="btnPanelAlumnos"   class="btn-panel activo"  onclick="mostrarPanelEscolar('alumnos')">Alumnos</button>
         <button id="btnPanelEditar"    class="btn-panel"         onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
         <button id="btnPanelAprobar"   class="btn-panel"         onclick="mostrarPanelEscolar('aprobar')">Aprobar Alumnos</button>
-        <button id="btnPanelHerramientas" class="btn-panel" disabled title="Próximamente">Contraseñas</button>
+        <button id="btnPanelBoletaGlobal" class="btn-panel" onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button>
       </nav>
     </div>
 
@@ -202,23 +202,6 @@
     <div id="panelAprobar" class="panel-escolar">
       <div style="padding-top:10px;">
 
-        <!-- Herramienta: Historial Académico Masivo -->
-        <div class="herramienta-card" style="border-color:#1b5e20; margin-bottom:20px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            <div>
-              <h3 style="margin:0 0 6px; color:#1b5e20;">Generar Historial Académico</h3>
-              <p style="margin:0; color:#666; font-size:0.9rem;">
-                Reconstruye el expediente histórico completo de todos los alumnos desde las calificaciones archivadas.
-                Úsalo para poblar datos históricos o resincronizar.
-              </p>
-            </div>
-            <button onclick="generarHistorialAcademicoMasivo()"
-              style="padding:11px 24px; background:linear-gradient(135deg,#1b5e20,#2e7d32); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; white-space:nowrap;">
-              Generar Historial
-            </button>
-          </div>
-        </div>
-
         <!-- Herramienta: Avanzar alumno individual -->
         <div class="herramienta-card" style="border-color:#6A2135;">
           <h3 style="margin:0 0 6px; color:#6A2135;">Aprobar Alumno al Siguiente Periodo</h3>
@@ -249,12 +232,26 @@
       </div>
     </div>
 
-    <!-- ═══════════════════════════════════ PANEL 4: PLACEHOLDER ═══════════════════════════════ -->
-    <div id="panelHerramientas" class="panel-escolar">
-      <div style="padding:40px; text-align:center; color:#999;">
-        <div style="font-size:3rem; margin-bottom:16px;">🔒</div>
-        <h3 style="color:#bbb;">Cambio de Contraseñas</h3>
-        <p>Esta sección estará disponible próximamente.</p>
+    <!-- ═══════════════════════════════════ PANEL 4: BOLETA GLOBAL ════════════════════════════ -->
+    <div id="panelBoletaGlobal" class="panel-escolar">
+      <div style="padding-top:10px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:18px;">
+          <div>
+            <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
+            <select id="boletagCarrera" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
+              <option value="">-- Todas las carreras --</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Buscar alumno</label>
+            <input type="text" id="boletagBusqueda" placeholder="Nombre o matrícula..."
+                   style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:240px;">
+          </div>
+          <button onclick="buscarAlumnoBoletaGlobal()" class="btn-accion">Buscar</button>
+        </div>
+        <div id="boletagResultados">
+          <p style="color:#999; text-align:center; padding:20px 0;">Selecciona una carrera o escribe un nombre y presiona Buscar.</p>
+        </div>
       </div>
     </div>
 
@@ -277,5 +274,6 @@
   <script src="../../js/coordinador/HistorialAlumnoPDF.js"></script>
   <script src="../../js/coordinador/InformeCalificacionesPDF.js"></script>
   <script src="../../js/pdf/actaMateriapdf.js"></script>
+  <script src="../../js/escolar/boletaGlobal.js"></script>
 </body>
 </html>

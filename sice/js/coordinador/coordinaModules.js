@@ -59,6 +59,9 @@ async function mostrarSeccion(seccion) {
             case 'reporteProfesores':
                 cargarReporteProfesores();
                 break;
+            case 'boletaGlobal':
+                inicializarBoletaGlobal();
+                break;
             case 'herramientas':
                 // No precarga — botones bajo demanda
                 break;
