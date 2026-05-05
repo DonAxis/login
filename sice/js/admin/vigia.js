@@ -79,11 +79,12 @@ async function crearHistorialAcademicoInicial() {
     const materiasPorCarrera = {};
     materiasSnap.docs.forEach(doc => {
       const m = doc.data();
-      if (!m.carreraId) return;
+      if (!m.carreraId || m.activo === false) return;
       if (!materiasPorCarrera[m.carreraId]) materiasPorCarrera[m.carreraId] = [];
       materiasPorCarrera[m.carreraId].push({
         materiaId: doc.id,
         materiaNombre: m.nombre || '',
+        periodo: Number(m.periodo) || 0,
         calificacion: 0   // placeholder — carga real pendiente
       });
     });

@@ -117,52 +117,87 @@ async function buscarAlumnoBoletaGlobal() {
   }
 }
 
-// Abre una nueva ventana con todas las materias del alumno (por carreraId) + calificaciones actuales
+// ── Cache sessionStorage de materias por carreraId ───────────────────────────
+// Evita releer la colección materias en cada boleta de la misma carrera.
+// Las materias son datos estáticos dentro de una sesión de trabajo.
+const _CACHE_KEY_MATERIAS = 'boleta_materias_v2_';
+
+async function _obtenerMateriasCarrera(carreraId) {
+  const key = _CACHE_KEY_MATERIAS + carreraId;
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached) return JSON.parse(cached);
+  } catch (_) {}
+
+  const [materiasSnap, carreraDoc] = await Promise.all([
+    // Sin filtro activo: igual que el resto del sistema (muchas materias no tienen ese campo)
+    db.collection('materias').where('carreraId', '==', carreraId).get(),
+    db.collection('carreras').doc(carreraId).get()
+  ]);
+
+  const carreraNombre = carreraDoc.exists ? (carreraDoc.data().nombre || carreraId) : carreraId;
+
+  // Agrupar por periodo (número de semestre dentro de la carrera)
+  const porPeriodo = {};
+  materiasSnap.docs.forEach(doc => {
+    const m = doc.data();
+    if (m.activo === false) return; // omitir solo si explícitamente desactivado
+    const per = Number(m.periodo) || 0;
+    if (!porPeriodo[per]) porPeriodo[per] = [];
+    porPeriodo[per].push({ id: doc.id, nombre: m.nombre || '', codigo: m.codigo || '' });
+  });
+
+  // Ordenar materias dentro de cada periodo
+  Object.values(porPeriodo).forEach(arr =>
+    arr.sort((a, b) => a.nombre.localeCompare(b.nombre))
+  );
+
+  const resultado = { carreraNombre, porPeriodo };
+  try {
+    sessionStorage.setItem(key, JSON.stringify(resultado));
+  } catch (_) {} // sessionStorage puede estar lleno o bloqueado
+  return resultado;
+}
+
+// Abre nueva ventana con todas las materias de la carrera + calificaciones del alumno
 async function verBoletaGlobalAlumno(alumnoId) {
   const w = window.open('', '_blank');
   if (!w) {
-    alert('Permite las ventanas emergentes para ver la boleta.');
+    alert('Activa las ventanas emergentes para ver la boleta.');
     return;
   }
-  w.document.write('<html><head><title>Boleta Global</title></head><body style="font-family:sans-serif;text-align:center;padding:60px;color:#666;">Cargando boleta...</body></html>');
+  w.document.write('<html><head><title>Boleta</title></head><body style="font-family:sans-serif;text-align:center;padding:60px;color:#666;">Cargando boleta...</body></html>');
 
   try {
-    // 1. Obtener datos del alumno
+    // 1. Datos del alumno
     const usuarioDoc = await db.collection('usuarios').doc(alumnoId).get();
     if (!usuarioDoc.exists) {
-      w.document.body.innerHTML = '<p style="color:red;text-align:center;padding:40px;">Alumno no encontrado.</p>';
+      _escribirError(w, 'Alumno no encontrado.');
       return;
     }
     const alumno = usuarioDoc.data();
     const carreraId = alumno.carreraId;
+    if (!carreraId) {
+      _escribirError(w, 'El alumno no tiene carrera asignada.');
+      return;
+    }
 
-    // 2. Paralelo: todas las materias de la carrera + calificaciones del alumno + nombre de carrera
-    const [materiasSnap, calSnap, carreraDoc] = await Promise.all([
-      db.collection('materias').where('carreraId', '==', carreraId).where('activo', '==', true).get(),
-      db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
-      db.collection('carreras').doc(carreraId).get()
+    // 2. Materias (con cache sessionStorage) + calificaciones en paralelo
+    const [{ carreraNombre, porPeriodo }, calSnap] = await Promise.all([
+      _obtenerMateriasCarrera(carreraId),
+      db.collection('calificaciones').where('alumnoId', '==', alumnoId).get()
     ]);
 
-    const carreraNombre = carreraDoc.exists ? (carreraDoc.data().nombre || carreraId) : carreraId;
-
-    // Mapa de calificaciones por materiaId
+    // Mapa calificaciones por materiaId
     const calMap = {};
     calSnap.docs.forEach(doc => {
       const c = doc.data();
       if (c.materiaId) calMap[c.materiaId] = c;
     });
 
-    // Agrupar materias por periodo (número de semestre dentro de la carrera)
-    const porPeriodo = {};
-    materiasSnap.docs.forEach(doc => {
-      const m = { id: doc.id, ...doc.data() };
-      const per = m.periodo || 0;
-      if (!porPeriodo[per]) porPeriodo[per] = [];
-      porPeriodo[per].push(m);
-    });
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
 
-    // Contadores para chips de resumen
+    // Contadores resumen
     let total = 0, aprobadas = 0, reprobadas = 0, sinCaptura = 0;
     for (const mats of Object.values(porPeriodo)) {
       for (const m of mats) {
@@ -175,10 +210,9 @@ async function verBoletaGlobalAlumno(alumnoId) {
     }
 
     const pasanteStr = alumno.pasante
-      ? '<span style="display:inline-block;background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:12px;font-size:0.8rem;font-weight:700;margin-left:8px;">PASANTE</span>'
+      ? '<span style="display:inline-block;background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:12px;font-size:0.78rem;font-weight:700;margin-left:8px;vertical-align:middle;">PASANTE</span>'
       : '';
 
-    // Construir HTML completo para la nueva ventana
     let html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -187,23 +221,23 @@ async function verBoletaGlobalAlumno(alumnoId) {
   <title>Boleta Global — ${alumno.nombre || ''}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Segoe UI',sans-serif; background:#f5f5f5; padding:20px; }
-    .container { max-width:920px; margin:0 auto; }
-    .encabezado { background:linear-gradient(135deg,#6A2135,#8B2E45); color:white; padding:20px 24px; border-radius:12px; margin-bottom:18px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; }
-    .encabezado h1 { font-size:1.3rem; margin-bottom:5px; }
-    .encabezado p { font-size:0.88rem; opacity:0.9; margin-top:3px; }
+    body { font-family:'Segoe UI',Tahoma,sans-serif; background:#f5f5f5; padding:20px; }
+    .container { max-width:940px; margin:0 auto; }
+    .encabezado { background:linear-gradient(135deg,#6A2135,#8B2E45); color:white; padding:18px 22px; border-radius:12px; margin-bottom:16px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .encabezado h1 { font-size:1.25rem; margin-bottom:4px; }
+    .encabezado p { font-size:0.87rem; opacity:0.9; margin-top:3px; }
     .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
     .chip { padding:5px 14px; border-radius:20px; font-size:0.82rem; font-weight:600; }
-    .periodo-titulo { margin:22px 0 8px; color:#6A2135; border-bottom:2px solid #6A2135; padding-bottom:6px; font-size:0.95rem; font-weight:700; }
-    table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:4px; }
-    th { background:#6A2135; color:white; padding:9px 12px; text-align:left; font-size:0.85rem; }
-    td { padding:8px 12px; border-bottom:1px solid #f0f0f0; font-size:0.87rem; }
+    .sec-titulo { margin:20px 0 7px; color:#6A2135; border-bottom:2px solid #6A2135; padding-bottom:5px; font-size:0.95rem; font-weight:700; }
+    table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,0.08); margin-bottom:4px; }
+    th { background:#6A2135; color:white; padding:9px 11px; text-align:left; font-size:0.84rem; }
+    td { padding:8px 11px; border-bottom:1px solid #f0f0f0; font-size:0.85rem; }
     tr:last-child td { border-bottom:none; }
-    .estado { padding:3px 9px; border-radius:10px; font-size:0.78rem; font-weight:600; white-space:nowrap; }
-    .btn-cerrar { background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.7); padding:7px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap; }
+    .estado { padding:3px 9px; border-radius:10px; font-size:0.76rem; font-weight:600; white-space:nowrap; }
+    .btn-cerrar { background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.6); padding:7px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap; }
     .btn-cerrar:hover { background:rgba(255,255,255,0.35); }
     @media print { .btn-cerrar { display:none; } body { background:white; padding:0; } }
-    @media (max-width:600px) { body { padding:10px; } th,td { padding:7px 8px; font-size:0.8rem; } }
+    @media (max-width:600px) { body { padding:10px; } th,td { padding:6px 8px; font-size:0.8rem; } }
   </style>
 </head>
 <body>
@@ -229,11 +263,11 @@ async function verBoletaGlobalAlumno(alumnoId) {
     }
 
     periodoKeys.forEach(perNum => {
-      const mats = [...porPeriodo[perNum]].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
-      html += `<div class="periodo-titulo">Semestre ${perNum}</div>
+      const mats = porPeriodo[perNum]; // ya ordenadas por nombre en _obtenerMateriasCarrera
+      html += `<div class="sec-titulo">Semestre ${perNum}</div>
 <table>
   <thead><tr>
-    <th style="width:36px;text-align:center;">#</th>
+    <th style="width:34px;text-align:center;">#</th>
     <th>Materia</th>
     <th style="text-align:center;width:110px;">Calificación</th>
     <th style="text-align:center;width:120px;">Estado</th>
@@ -243,19 +277,19 @@ async function verBoletaGlobalAlumno(alumnoId) {
       mats.forEach((m, i) => {
         const rawCal = calMap[m.id]?.promedio ?? null;
         const sinCap = rawCal === null;
-        const esNP = rawCal === 'NP';
+        const esNP   = rawCal === 'NP';
         const calNum = (!sinCap && !esNP) ? Number(rawCal) : null;
         const aprobada = calNum !== null && calNum >= 6;
 
-        const rowBg = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
-        const chipBg = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
-        const chipColor = sinCap ? '#888' : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
-        const chipTxt = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
-        const calStr = sinCap ? '—' : String(rawCal);
+        const rowBg    = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
+        const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
+        const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
+        const chipTxt  = sinCap ? 'Sin captura': (esNP ? 'NP'  : (aprobada ? 'Aprobada' : 'Reprobada'));
+        const calStr   = sinCap ? '—' : String(rawCal);
 
         html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
-    <td>${m.nombre || '-'}</td>
+    <td>${m.nombre}</td>
     <td style="text-align:center;font-weight:700;color:${chipColor};">${calStr}</td>
     <td style="text-align:center;"><span class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span></td>
   </tr>`;
@@ -272,10 +306,14 @@ async function verBoletaGlobalAlumno(alumnoId) {
 
   } catch (error) {
     console.error('Error en verBoletaGlobalAlumno:', error);
-    try {
-      w.document.open();
-      w.document.write(`<html><body style="font-family:sans-serif;padding:40px;"><h2 style="color:red;">Error</h2><p>${error.message}</p><button onclick="window.close()">Cerrar</button></body></html>`);
-      w.document.close();
-    } catch (_) {}
+    _escribirError(w, error.message);
   }
+}
+
+function _escribirError(w, msg) {
+  try {
+    w.document.open();
+    w.document.write(`<html><body style="font-family:sans-serif;padding:40px;"><h2 style="color:red;margin-bottom:12px;">Error</h2><p>${msg}</p><br><button onclick="window.close()">Cerrar</button></body></html>`);
+    w.document.close();
+  } catch (_) {}
 }
