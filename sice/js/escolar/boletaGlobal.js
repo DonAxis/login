@@ -1,13 +1,22 @@
-// boletaGlobal.js — Vista del expediente completo por alumno
-// Usado por controlEscolar (Panel 4) y coordinador (seccionBoletaGlobal)
-// IDs esperados en el HTML: boletagCarrera, boletagBusqueda, boletagResultados
+// boletaGlobal.js — Expediente completo de materias por alumno
+// Usado por: controlEscolar (Panel 4), coordinador (seccionBoletaGlobal), historialAlumno.html
+// IDs HTML esperados: boletagCarrera, boletagBusqueda, boletagResultados
 
 let _boletaCarrerasCache = null;
 
-async function inicializarBoletaGlobal() {
+// carreraFija: si se pasa (desde coordinador), oculta el select y lo fija a esa carrera
+async function inicializarBoletaGlobal(carreraFija = null) {
   const select = document.getElementById('boletagCarrera');
   if (!select) return;
-  if (select.dataset.ok === '1') return; // ya poblado
+
+  if (carreraFija) {
+    const wrapper = select.parentElement;
+    if (wrapper) wrapper.style.display = 'none';
+    select.dataset.fija = carreraFija;
+    return;
+  }
+
+  if (select.dataset.ok === '1') return;
 
   try {
     if (!_boletaCarrerasCache) {
@@ -31,7 +40,8 @@ async function inicializarBoletaGlobal() {
 }
 
 async function buscarAlumnoBoletaGlobal() {
-  const carreraId = (document.getElementById('boletagCarrera')?.value || '');
+  const selCarrera = document.getElementById('boletagCarrera');
+  const carreraId = selCarrera?.dataset.fija || selCarrera?.value || '';
   const busqueda = (document.getElementById('boletagBusqueda')?.value || '').trim().toLowerCase();
   const contenedor = document.getElementById('boletagResultados');
   if (!contenedor) return;
@@ -74,7 +84,7 @@ async function buscarAlumnoBoletaGlobal() {
             <th style="padding:10px 12px;text-align:left;">Nombre</th>
             <th style="padding:10px 12px;text-align:left;">Matrícula</th>
             <th style="padding:10px 12px;text-align:left;">Carrera</th>
-            <th style="padding:10px 12px;text-align:center;">Semestre</th>
+            <th style="padding:10px 12px;text-align:center;">Periodo Actual</th>
             <th style="padding:10px 12px;text-align:center;">Acción</th>
           </tr>
         </thead>
@@ -87,7 +97,7 @@ async function buscarAlumnoBoletaGlobal() {
           <td style="padding:10px 12px;">${a.nombre || '-'}</td>
           <td style="padding:10px 12px;">${a.matricula || '-'}</td>
           <td style="padding:10px 12px;">${carrerasRef[a.carreraId] || a.carreraId || '-'}</td>
-          <td style="padding:10px 12px;text-align:center;">${a.semestreActual || '-'}</td>
+          <td style="padding:10px 12px;text-align:center;">${a.periodo || '-'}</td>
           <td style="padding:10px 12px;text-align:center;">
             <button onclick="verBoletaGlobalAlumno('${a.id}')"
               style="padding:6px 16px;background:linear-gradient(135deg,#6A2135,#9c2f50);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem;">
@@ -107,151 +117,165 @@ async function buscarAlumnoBoletaGlobal() {
   }
 }
 
+// Abre una nueva ventana con todas las materias del alumno (por carreraId) + calificaciones actuales
 async function verBoletaGlobalAlumno(alumnoId) {
-  if (typeof _asegurarModalGenerico === 'function') _asegurarModalGenerico();
-
-  const modal = document.getElementById('modalGenerico');
-  const contenido = document.getElementById('contenidoModal');
-  if (!modal || !contenido) return;
-
-  contenido.innerHTML = `
-    <div style="background:white;padding:40px;text-align:center;border-radius:15px;max-width:500px;margin:20px auto;">
-      <p style="color:#555;">Cargando expediente...</p>
-    </div>
-  `;
-  modal.style.display = 'flex';
+  const w = window.open('', '_blank');
+  if (!w) {
+    alert('Permite las ventanas emergentes para ver la boleta.');
+    return;
+  }
+  w.document.write('<html><head><title>Boleta Global</title></head><body style="font-family:sans-serif;text-align:center;padding:60px;color:#666;">Cargando boleta...</body></html>');
 
   try {
-    const [historialDoc, usuarioDoc] = await Promise.all([
-      db.collection('historialAcademico').doc(alumnoId).get(),
-      db.collection('usuarios').doc(alumnoId).get()
-    ]);
-
-    const alumno = usuarioDoc.exists ? usuarioDoc.data() : {};
-    const historial = historialDoc.exists ? historialDoc.data() : null;
-
-    if (!historial) {
-      contenido.innerHTML = `
-        <div style="background:white;padding:30px;border-radius:15px;max-width:500px;margin:20px auto;">
-          <p style="color:#999;text-align:center;padding:20px 0;">No hay historial académico para este alumno.<br>Ejecuta "Crear Historial Académico" desde el panel Admin.</p>
-          <button onclick="cerrarModal()" style="width:100%;padding:10px;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-top:8px;">Cerrar</button>
-        </div>
-      `;
+    // 1. Obtener datos del alumno
+    const usuarioDoc = await db.collection('usuarios').doc(alumnoId).get();
+    if (!usuarioDoc.exists) {
+      w.document.body.innerHTML = '<p style="color:red;text-align:center;padding:40px;">Alumno no encontrado.</p>';
       return;
     }
+    const alumno = usuarioDoc.data();
+    const carreraId = alumno.carreraId;
 
-    const materias = historial.materias || [];
-    const conCalificacion = materias.filter(m => m.calificacion > 0);
-    const aprobadas = conCalificacion.filter(m => m.calificacion >= 6).length;
-    const reprobadas = conCalificacion.filter(m => m.calificacion < 6).length;
-    const sinCaptura = materias.length - conCalificacion.length;
+    // 2. Paralelo: todas las materias de la carrera + calificaciones del alumno + nombre de carrera
+    const [materiasSnap, calSnap, carreraDoc] = await Promise.all([
+      db.collection('materias').where('carreraId', '==', carreraId).where('activo', '==', true).get(),
+      db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
+      db.collection('carreras').doc(carreraId).get()
+    ]);
 
-    const nombre = historial.alumnoNombre || alumno.nombre || '-';
-    const matricula = historial.matricula || alumno.matricula || '-';
-    const carreraNombre = historial.carreraNombre || historial.carreraId || '-';
-    const periodo = historial.periodoActual || alumno.periodo || '-';
-    const semestre = alumno.semestreActual || '-';
+    const carreraNombre = carreraDoc.exists ? (carreraDoc.data().nombre || carreraId) : carreraId;
 
-    let html = `
-      <div style="background:white;padding:30px;border-radius:15px;max-width:780px;margin:20px auto;max-height:88vh;overflow-y:auto;">
+    // Mapa de calificaciones por materiaId
+    const calMap = {};
+    calSnap.docs.forEach(doc => {
+      const c = doc.data();
+      if (c.materiaId) calMap[c.materiaId] = c;
+    });
 
-        <!-- Encabezado -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
-          <div>
-            <h3 style="margin:0 0 6px;color:#6A2135;font-size:1.2rem;">${nombre}</h3>
-            <p style="margin:0;color:#555;font-size:0.9rem;">
-              Matrícula: <strong>${matricula}</strong> &nbsp;|&nbsp; Carrera: <strong>${carreraNombre}</strong>
-            </p>
-            <p style="margin:4px 0 0;color:#555;font-size:0.9rem;">
-              Periodo: <strong>${periodo}</strong> &nbsp;|&nbsp; Semestre: <strong>${semestre}</strong>
-              ${alumno.pasante ? '&nbsp;|&nbsp; <span style="color:#e65100;font-weight:700;">PASANTE</span>' : ''}
-            </p>
-          </div>
-          <button onclick="cerrarModal()"
-            style="padding:8px 18px;background:#eee;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;">
-            ✕ Cerrar
-          </button>
-        </div>
+    // Agrupar materias por periodo (número de semestre dentro de la carrera)
+    const porPeriodo = {};
+    materiasSnap.docs.forEach(doc => {
+      const m = { id: doc.id, ...doc.data() };
+      const per = m.periodo || 0;
+      if (!porPeriodo[per]) porPeriodo[per] = [];
+      porPeriodo[per].push(m);
+    });
+    const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
 
-        <!-- Resumen chips -->
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
-          <span style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;border-radius:20px;font-size:0.85rem;font-weight:600;">${aprobadas} aprobadas</span>
-          <span style="background:#ffebee;color:#c62828;padding:6px 14px;border-radius:20px;font-size:0.85rem;font-weight:600;">${reprobadas} reprobadas</span>
-          <span style="background:#fff3e0;color:#e65100;padding:6px 14px;border-radius:20px;font-size:0.85rem;font-weight:600;">${sinCaptura} sin captura</span>
-          <span style="background:#f3f4f6;color:#555;padding:6px 14px;border-radius:20px;font-size:0.85rem;font-weight:600;">${materias.length} total</span>
-        </div>
-    `;
-
-    if (materias.length) {
-      html += `
-        <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
-          <thead>
-            <tr style="background:#6A2135;color:white;">
-              <th style="padding:10px 12px;text-align:center;width:40px;">#</th>
-              <th style="padding:10px 12px;text-align:left;">Materia</th>
-              <th style="padding:10px 12px;text-align:center;width:110px;">Calificación</th>
-              <th style="padding:10px 12px;text-align:center;width:120px;">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
-
-      materias.forEach((m, i) => {
-        const cal = m.calificacion ?? 0;
-        const sinCap = cal === 0;
-        const aprobada = !sinCap && cal >= 6;
-        const bg = sinCap ? '' : (aprobada ? '#f0fdf4' : '#fff5f5');
-        const chipBg = sinCap ? '#f5f5f5' : (aprobada ? '#e8f5e9' : '#ffebee');
-        const chipColor = sinCap ? '#888' : (aprobada ? '#2e7d32' : '#c62828');
-        const chipTxt = sinCap ? 'Sin captura' : (aprobada ? 'Aprobada' : 'Reprobada');
-
-        html += `
-          <tr style="border-bottom:1px solid #eee;background:${bg};">
-            <td style="padding:10px 12px;text-align:center;color:#bbb;">${i + 1}</td>
-            <td style="padding:10px 12px;">${m.materiaNombre || '-'}</td>
-            <td style="padding:10px 12px;text-align:center;font-weight:700;font-size:1rem;color:${chipColor};">
-              ${sinCap ? '—' : cal}
-            </td>
-            <td style="padding:10px 12px;text-align:center;">
-              <span style="background:${chipBg};color:${chipColor};padding:4px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">
-                ${chipTxt}
-              </span>
-            </td>
-          </tr>
-        `;
-      });
-
-      html += '</tbody></table></div>';
-    } else {
-      html += `
-        <p style="color:#999;text-align:center;padding:30px 0;">
-          Este alumno no tiene materias en su historial.<br>
-          Ejecuta "Crear Historial Académico" desde Admin para poblar los datos.
-        </p>
-      `;
+    // Contadores para chips de resumen
+    let total = 0, aprobadas = 0, reprobadas = 0, sinCaptura = 0;
+    for (const mats of Object.values(porPeriodo)) {
+      for (const m of mats) {
+        const rawCal = calMap[m.id]?.promedio ?? null;
+        total++;
+        if (rawCal === null) sinCaptura++;
+        else if (rawCal === 'NP' || Number(rawCal) < 6) reprobadas++;
+        else aprobadas++;
+      }
     }
 
-    html += `
-        <button onclick="cerrarModal()"
-          style="width:100%;padding:12px;background:linear-gradient(135deg,#6A2135,#9c2f50);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-top:20px;">
-          Cerrar
-        </button>
-      </div>
-    `;
+    const pasanteStr = alumno.pasante
+      ? '<span style="display:inline-block;background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:12px;font-size:0.8rem;font-weight:700;margin-left:8px;">PASANTE</span>'
+      : '';
 
-    contenido.innerHTML = html;
+    // Construir HTML completo para la nueva ventana
+    let html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boleta Global — ${alumno.nombre || ''}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:#f5f5f5; padding:20px; }
+    .container { max-width:920px; margin:0 auto; }
+    .encabezado { background:linear-gradient(135deg,#6A2135,#8B2E45); color:white; padding:20px 24px; border-radius:12px; margin-bottom:18px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .encabezado h1 { font-size:1.3rem; margin-bottom:5px; }
+    .encabezado p { font-size:0.88rem; opacity:0.9; margin-top:3px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+    .chip { padding:5px 14px; border-radius:20px; font-size:0.82rem; font-weight:600; }
+    .periodo-titulo { margin:22px 0 8px; color:#6A2135; border-bottom:2px solid #6A2135; padding-bottom:6px; font-size:0.95rem; font-weight:700; }
+    table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:4px; }
+    th { background:#6A2135; color:white; padding:9px 12px; text-align:left; font-size:0.85rem; }
+    td { padding:8px 12px; border-bottom:1px solid #f0f0f0; font-size:0.87rem; }
+    tr:last-child td { border-bottom:none; }
+    .estado { padding:3px 9px; border-radius:10px; font-size:0.78rem; font-weight:600; white-space:nowrap; }
+    .btn-cerrar { background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.7); padding:7px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap; }
+    .btn-cerrar:hover { background:rgba(255,255,255,0.35); }
+    @media print { .btn-cerrar { display:none; } body { background:white; padding:0; } }
+    @media (max-width:600px) { body { padding:10px; } th,td { padding:7px 8px; font-size:0.8rem; } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="encabezado">
+    <div>
+      <h1>${alumno.nombre || '-'}${pasanteStr}</h1>
+      <p>Matrícula: <strong>${alumno.matricula || '-'}</strong> &nbsp;|&nbsp; Carrera: <strong>${carreraNombre}</strong></p>
+      <p>Periodo Actual: <strong>${alumno.periodo || '-'}</strong></p>
+    </div>
+    <button class="btn-cerrar" onclick="window.close()">✕ Cerrar</button>
+  </div>
+  <div class="chips">
+    <span class="chip" style="background:#e8f5e9;color:#2e7d32;">${aprobadas} aprobadas</span>
+    <span class="chip" style="background:#ffebee;color:#c62828;">${reprobadas} reprobadas</span>
+    <span class="chip" style="background:#fff3e0;color:#e65100;">${sinCaptura} sin captura</span>
+    <span class="chip" style="background:#f3f4f6;color:#555;">${total} total</span>
+  </div>
+`;
+
+    if (periodoKeys.length === 0) {
+      html += '<p style="color:#999;text-align:center;padding:40px;">Esta carrera no tiene materias registradas.</p>';
+    }
+
+    periodoKeys.forEach(perNum => {
+      const mats = [...porPeriodo[perNum]].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+      html += `<div class="periodo-titulo">Semestre ${perNum}</div>
+<table>
+  <thead><tr>
+    <th style="width:36px;text-align:center;">#</th>
+    <th>Materia</th>
+    <th style="text-align:center;width:110px;">Calificación</th>
+    <th style="text-align:center;width:120px;">Estado</th>
+  </tr></thead>
+  <tbody>`;
+
+      mats.forEach((m, i) => {
+        const rawCal = calMap[m.id]?.promedio ?? null;
+        const sinCap = rawCal === null;
+        const esNP = rawCal === 'NP';
+        const calNum = (!sinCap && !esNP) ? Number(rawCal) : null;
+        const aprobada = calNum !== null && calNum >= 6;
+
+        const rowBg = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
+        const chipBg = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
+        const chipColor = sinCap ? '#888' : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
+        const chipTxt = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
+        const calStr = sinCap ? '—' : String(rawCal);
+
+        html += `<tr style="background:${rowBg};">
+    <td style="text-align:center;color:#bbb;">${i + 1}</td>
+    <td>${m.nombre || '-'}</td>
+    <td style="text-align:center;font-weight:700;color:${chipColor};">${calStr}</td>
+    <td style="text-align:center;"><span class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span></td>
+  </tr>`;
+      });
+
+      html += '</tbody></table>';
+    });
+
+    html += '</div></body></html>';
+
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
 
   } catch (error) {
     console.error('Error en verBoletaGlobalAlumno:', error);
-    contenido.innerHTML = `
-      <div style="background:white;padding:30px;border-radius:15px;max-width:500px;margin:20px auto;">
-        <h3 style="color:#d32f2f;text-align:center;margin:0 0 16px;">Error</h3>
-        <div style="background:#ffebee;border-left:4px solid #f44336;padding:15px;border-radius:4px;margin-bottom:16px;">
-          <p style="margin:0;color:#c62828;">${error.message}</p>
-        </div>
-        <button onclick="cerrarModal()" style="width:100%;padding:10px;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Cerrar</button>
-      </div>
-    `;
+    try {
+      w.document.open();
+      w.document.write(`<html><body style="font-family:sans-serif;padding:40px;"><h2 style="color:red;">Error</h2><p>${error.message}</p><button onclick="window.close()">Cerrar</button></body></html>`);
+      w.document.close();
+    } catch (_) {}
   }
 }

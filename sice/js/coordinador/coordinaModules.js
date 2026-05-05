@@ -60,7 +60,7 @@ async function mostrarSeccion(seccion) {
                 cargarReporteProfesores();
                 break;
             case 'boletaGlobal':
-                inicializarBoletaGlobal();
+                inicializarBoletaGlobal(usuarioActual?.carreraId || null);
                 break;
             case 'herramientas':
                 // No precarga — botones bajo demanda

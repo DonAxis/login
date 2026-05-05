@@ -17,14 +17,16 @@
       background: white;
       border-radius: 15px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-      overflow: hidden;
+      overflow: visible;
     }
 
     .header {
       background: linear-gradient(135deg, #6A2135 0%, #4a1625 100%);
       color: white;
-      padding: 30px;
+      padding: 20px 24px;
       text-align: center;
+      border-radius: 15px 15px 0 0;
+      overflow: hidden;
     }
 
     .header h1 {
@@ -310,16 +312,36 @@
     }
 
     @media (max-width: 768px) {
+      body { padding: 8px; }
+
+      .header { padding: 14px 16px; }
+
       .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        padding: 16px;
+        gap: 12px;
       }
+
+      .stat-card { padding: 14px; }
+      .stat-card .numero { font-size: 1.8rem; }
+
+      .content { padding: 16px; }
 
       .menu-carreras {
         grid-template-columns: 1fr;
+        gap: 12px;
       }
 
       .grupos-grid {
         grid-template-columns: repeat(2, 1fr);
       }
+
+      table { font-size: 0.82rem; }
+      th, td { padding: 8px 10px; }
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .grupos-grid { grid-template-columns: 1fr 1fr; }
     }
   

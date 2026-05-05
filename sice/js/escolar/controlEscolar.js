@@ -57,18 +57,17 @@ async function inicializar() {
 
   try {
     await cargarPeriodoActual();
-    await Promise.all([
-      cargarCarreras(),
-      cargarAlumnos(),
-      cargarMaterias()
-    ]);
+  } catch (e) { console.error('Error periodo:', e); }
 
-    actualizarEstadisticas();
-    mostrarCarreras();
+  try {
+    await cargarCarreras();
+  } catch (e) { console.error('Error carreras:', e); }
 
-  } catch (error) {
-    console.error('Error al inicializar:', error);
-  }
+  // Alumnos y materias no bloquean el render de carreras
+  await Promise.allSettled([cargarAlumnos(), cargarMaterias()]);
+
+  actualizarEstadisticas();
+  mostrarCarreras();
 }
 
 async function cargarPeriodoActual() {
@@ -1752,6 +1751,15 @@ function mostrarPanelEscolar(panel) {
     if (btn) btn.classList.toggle('activo', p === panel);
   });
 
+  if (panel === 'alumnos') {
+    // Resetear navegación interna para que menuCarreras siempre sea visible al regresar
+    const mc = document.getElementById('menuCarreras');
+    if (mc) mc.removeAttribute('style');
+    document.getElementById('gruposContainer')?.classList.remove('active');
+    document.getElementById('listaContainer')?.classList.remove('active');
+    carreraSeleccionada = null;
+    grupoSeleccionado = null;
+  }
   if (panel === 'aprobar') _poblarCarrerasAprobar();
   if (panel === 'boletaGlobal') inicializarBoletaGlobal();
 }

@@ -72,18 +72,18 @@ async function crearHistorialAcademicoInicial() {
       configMap[carreraId] = doc.exists ? (doc.data().periodo || '') : '';
     }));
 
-    // ── 4. Leer calificaciones y agrupar por alumnoId ──────────────────────
-    // calificaciones tiene las del periodo actual; identifica qué materias cursó cada alumno
-    setProgreso(40, 'Leyendo calificaciones...');
-    const calificacionesSnap = await db.collection('calificaciones').get();
-    const calPorAlumno = {};
-    calificacionesSnap.docs.forEach(doc => {
-      const c = doc.data();
-      if (!c.alumnoId || !c.materiaId) return;
-      if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = [];
-      calPorAlumno[c.alumnoId].push({
-        materiaId: c.materiaId,
-        materiaNombre: c.materiaNombre || '',
+    // ── 4. Leer TODAS las materias y agrupar por carreraId ────────────────
+    // Se usan las materias activas de la carrera (no solo las del periodo actual)
+    setProgreso(40, 'Leyendo materias por carrera...');
+    const materiasSnap = await db.collection('materias').get();
+    const materiasPorCarrera = {};
+    materiasSnap.docs.forEach(doc => {
+      const m = doc.data();
+      if (!m.carreraId) return;
+      if (!materiasPorCarrera[m.carreraId]) materiasPorCarrera[m.carreraId] = [];
+      materiasPorCarrera[m.carreraId].push({
+        materiaId: doc.id,
+        materiaNombre: m.nombre || '',
         calificacion: 0   // placeholder — carga real pendiente
       });
     });
@@ -107,7 +107,7 @@ async function crearHistorialAcademicoInicial() {
         carreraId: carreraId,
         carreraNombre: carrerasMap[carreraId] || '',
         periodoActual: configMap[carreraId] || '',
-        materias: calPorAlumno[alumnoDoc.id] || [],
+        materias: materiasPorCarrera[carreraId] || [],
         periodos: [],
         fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -128,7 +128,10 @@ async function crearHistorialAcademicoInicial() {
 
     setProgreso(100, 'Completado');
 
-    const sinCalificaciones = alumnosSnap.docs.filter(d => !calPorAlumno[d.id]).length;
+    const sinMaterias = alumnosSnap.docs.filter(d => {
+      const cid = d.data().carreraId;
+      return !materiasPorCarrera[cid] || materiasPorCarrera[cid].length === 0;
+    }).length;
 
     setTimeout(() => {
       setModal(`
@@ -139,18 +142,17 @@ async function crearHistorialAcademicoInicial() {
               <span>Alumnos procesados:</span><strong style="color:#4caf50;">${totalAlumnos}</strong>
             </div>
             <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:8px;">
-              <span>Con materias (calificaciones):</span><strong>${totalAlumnos - sinCalificaciones}</strong>
+              <span>Materias totales leídas:</span><strong>${materiasSnap.size}</strong>
             </div>
             <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:8px;">
-              <span>Sin materias aún:</span><strong style="color:#e65100;">${sinCalificaciones}</strong>
+              <span>Carreras con materias:</span><strong>${Object.keys(materiasPorCarrera).length}</strong>
             </div>
             <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;">
-              <span>Registros calificaciones leídos:</span><strong>${calificacionesSnap.size}</strong>
+              <span>Alumnos sin materias en carrera:</span><strong style="color:#e65100;">${sinMaterias}</strong>
             </div>
           </div>
           <p style="color:#666;font-size:0.85rem;margin-bottom:20px;">
-            Calificaciones inicializadas en 0. Los alumnos sin materias
-            aún no tienen calificaciones registradas en el sistema.
+            Todas las materias de cada carrera incluidas. Calificaciones en 0 (pendiente de carga real).
           </p>
           <button onclick="cerrarModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#1b5e20,#2e7d32);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
             Cerrar
