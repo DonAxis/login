@@ -162,6 +162,15 @@ function _optsCalificacion(rawCal) {
   }).join('');
 }
 
+// Opciones de acreditación: ORD / ETS / EXT — nombres coinciden con PDF (m.acr)
+function _optsAcreditacion(rawAcr) {
+  const vals = [['', '-'], ['ORD','ORD'], ['ETS','ETS'], ['EXT','EXT']];
+  return vals.map(([v, lbl]) => {
+    const sel = (!rawAcr && v === '') || rawAcr === v ? ' selected' : '';
+    return `<option value="${v}"${sel}>${lbl}</option>`;
+  }).join('');
+}
+
 // Abre nueva ventana con todas las materias de la carrera + calificaciones del alumno
 async function verBoletaGlobalAlumno(alumnoId) {
   const w = window.open('', '_blank');
@@ -303,6 +312,8 @@ async function verBoletaGlobalAlumno(alumnoId) {
     <th>Materia</th>
     <th style="text-align:center;width:110px;">Calificación</th>
     <th style="text-align:center;width:120px;">Estado</th>
+    <th style="text-align:center;width:90px;">Acreditación</th>
+    <th style="text-align:center;width:95px;">Periodo</th>
   </tr></thead>
   <tbody>`;
 
@@ -317,19 +328,25 @@ async function verBoletaGlobalAlumno(alumnoId) {
     <td>${m.nombre}</td>
     <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
     <td style="text-align:center;"><span class="estado" style="background:#e3f2fd;color:#1565c0;">Cursando</span></td>
+    <td style="text-align:center;color:#bbb;">-</td>
+    <td style="text-align:center;color:#bbb;">-</td>
   </tr>`;
 
         } else if (esPasadoPer) {
           // ── Semestre pasado: select editable (estilo calificaciones panel) ─
-          const sinCap   = rawCal === null;
-          const esNP     = rawCal === 'NP';
-          const calNum   = (!sinCap && !esNP) ? Number(rawCal) : null;
-          const aprobada = calNum !== null && calNum >= 6;
-          const rowBg    = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
-          const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
-          const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
-          const chipTxt  = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
-          const optsHtml = _optsCalificacion(rawCal);
+          const sinCap    = rawCal === null;
+          const esNP      = rawCal === 'NP';
+          const calNum    = (!sinCap && !esNP) ? Number(rawCal) : null;
+          const aprobada  = calNum !== null && calNum >= 6;
+          const rowBg     = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
+          const chipBg    = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
+          const chipColor = sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
+          const chipTxt   = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
+          const optsHtml  = _optsCalificacion(rawCal);
+          // acr y periodoAcademico: mismos nombres que usa el PDF (m.acr, m.periodoAcademico)
+          const rawAcr    = calMap[m.id]?.acreditacion || null;
+          const rawPer    = calMap[m.id]?.periodoAcademico || '';
+          const optsAcrHtml = _optsAcreditacion(rawAcr);
           html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
@@ -341,6 +358,16 @@ async function verBoletaGlobalAlumno(alumnoId) {
     </td>
     <td style="text-align:center;">
       <span id="chip_${m.id}" class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span>
+    </td>
+    <td style="text-align:center;">
+      <select id="acr_${m.id}"
+        style="width:72px;padding:6px;border:2px solid #ddd;border-radius:5px;text-align:center;font-size:0.95rem;font-weight:bold;cursor:pointer;">
+        ${optsAcrHtml}
+      </select>
+    </td>
+    <td style="text-align:center;">
+      <input id="per_${m.id}" type="text" value="${rawPer}" placeholder="2025-1"
+        style="width:80px;padding:6px;border:2px solid #ddd;border-radius:5px;text-align:center;font-size:0.85rem;" />
     </td>
   </tr>`;
 
@@ -360,6 +387,8 @@ async function verBoletaGlobalAlumno(alumnoId) {
     <td>${m.nombre}</td>
     <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
     <td style="text-align:center;"><span class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span></td>
+    <td style="text-align:center;color:#bbb;">-</td>
+    <td style="text-align:center;color:#bbb;">-</td>
   </tr>`;
         }
       });
@@ -388,7 +417,15 @@ function guardarTodosCambios() {
   if (!btn) return;
   const cambios = [];
   document.querySelectorAll('select[id^="cal_"]').forEach(function(sel) {
-    cambios.push({ mid: sel.id.slice(4), val: sel.value });
+    const mid = sel.id.slice(4);
+    const acrSel   = document.getElementById('acr_' + mid);
+    const perInput = document.getElementById('per_' + mid);
+    cambios.push({
+      mid: mid,
+      val: sel.value,
+      acr: acrSel   ? acrSel.value           : '',
+      per: perInput ? perInput.value.trim()   : ''
+    });
   });
   if (!cambios.length) return;
   if (!window.opener || window.opener.closed) {
@@ -634,27 +671,58 @@ async function descargarBoletaGlobalPDF(alumnoId) {
 }
 
 // ── Guarda todas las calificaciones editadas en batch desde la ventana hija
+// Actualiza calificaciones/{alumnoId}_{mid} Y historialAcademico/{alumnoId}.materias[]
+// para que el PDF (descargarBoletaGlobalPDF) lea acr, periodoAcademico y calificacion correctos.
 window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
   try {
-    const batch = db.batch();
+    // Precalcular promedio por mid
+    const promedioMap = {};
     for (const { mid, val } of cambios) {
-      let promedio;
-      if (!val) {
-        promedio = null;
-      } else if (val.toUpperCase() === 'NP') {
-        promedio = 'NP';
-      } else {
+      if (!val) { promedioMap[mid] = null; }
+      else if (val.toUpperCase() === 'NP') { promedioMap[mid] = 'NP'; }
+      else {
         const num = parseInt(val, 10);
         if (isNaN(num) || num < 0 || num > 10) throw new Error('Calificación inválida: ' + val);
-        promedio = num;
+        promedioMap[mid] = num;
       }
+    }
+    const cambioMap = Object.fromEntries(cambios.map(c => [c.mid, c]));
+
+    // 1. Actualizar calificaciones en batch
+    const batch = db.batch();
+    for (const { mid, acr, per } of cambios) {
       batch.set(
         db.collection('calificaciones').doc(`${alumnoId}_${mid}`),
-        { promedio, fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp() },
+        {
+          promedio:           promedioMap[mid],
+          acreditacion:       acr  || null,
+          periodoAcademico:   per  || null,
+          fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        },
         { merge: true }
       );
     }
     await batch.commit();
+
+    // 2. Actualizar historialAcademico.materias[] para que el PDF los lea
+    const histRef = db.collection('historialAcademico').doc(alumnoId);
+    const histDoc = await histRef.get();
+    if (histDoc.exists) {
+      const materias = (histDoc.data().materias || []).map(function(m) {
+        const c = cambioMap[m.materiaId];
+        if (!c) return m;
+        return Object.assign({}, m, {
+          calificacion:    promedioMap[m.materiaId],
+          acr:             c.acr  || null,
+          periodoAcademico: c.per || null
+        });
+      });
+      await histRef.update({
+        materias:           materias,
+        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
     callback(true, null);
   } catch (e) {
     callback(false, e.message);
