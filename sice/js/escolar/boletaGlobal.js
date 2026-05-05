@@ -119,7 +119,6 @@ async function buscarAlumnoBoletaGlobal() {
 
 // ── Cache sessionStorage de materias por carreraId ───────────────────────────
 // Evita releer la colección materias en cada boleta de la misma carrera.
-// Las materias son datos estáticos dentro de una sesión de trabajo.
 const _CACHE_KEY_MATERIAS = 'boleta_materias_v2_';
 
 async function _obtenerMateriasCarrera(carreraId) {
@@ -181,6 +180,8 @@ async function verBoletaGlobalAlumno(alumnoId) {
       _escribirError(w, 'El alumno no tiene carrera asignada.');
       return;
     }
+    // Periodo actual del alumno (número de semestre, e.g. 3)
+    const alumnoPerActual = Number(alumno.periodo) || 0;
 
     // 2. Materias (con cache sessionStorage) + calificaciones en paralelo
     const [{ carreraNombre, porPeriodo }, calSnap] = await Promise.all([
@@ -197,13 +198,16 @@ async function verBoletaGlobalAlumno(alumnoId) {
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
 
-    // Contadores resumen
-    let total = 0, aprobadas = 0, reprobadas = 0, sinCaptura = 0;
-    for (const mats of Object.values(porPeriodo)) {
+    // Contadores resumen — periodo actual siempre cuenta como "cursando"
+    let total = 0, aprobadas = 0, reprobadas = 0, sinCaptura = 0, cursando = 0;
+    for (const [perKey, mats] of Object.entries(porPeriodo)) {
+      const pn = Number(perKey);
+      const esActPer = alumnoPerActual > 0 && pn === alumnoPerActual;
       for (const m of mats) {
         const rawCal = calMap[m.id]?.promedio ?? null;
         total++;
-        if (rawCal === null) sinCaptura++;
+        if (esActPer) cursando++;
+        else if (rawCal === null) sinCaptura++;
         else if (rawCal === 'NP' || Number(rawCal) < 6) reprobadas++;
         else aprobadas++;
       }
@@ -228,7 +232,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
     .encabezado p { font-size:0.87rem; opacity:0.9; margin-top:3px; }
     .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
     .chip { padding:5px 14px; border-radius:20px; font-size:0.82rem; font-weight:600; }
-    .sec-titulo { margin:20px 0 7px; color:#6A2135; border-bottom:2px solid #6A2135; padding-bottom:5px; font-size:0.95rem; font-weight:700; }
+    .sec-titulo { margin:20px 0 7px; color:#6A2135; border-bottom:2px solid #6A2135; padding-bottom:5px; font-size:0.95rem; font-weight:700; display:flex; align-items:center; gap:8px; }
     table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,0.08); margin-bottom:4px; }
     th { background:#6A2135; color:white; padding:9px 11px; text-align:left; font-size:0.84rem; }
     td { padding:8px 11px; border-bottom:1px solid #f0f0f0; font-size:0.85rem; }
@@ -236,6 +240,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
     .estado { padding:3px 9px; border-radius:10px; font-size:0.76rem; font-weight:600; white-space:nowrap; }
     .btn-cerrar { background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.6); padding:7px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap; }
     .btn-cerrar:hover { background:rgba(255,255,255,0.35); }
+    input[type=text] { font-family:inherit; }
     @media print { .btn-cerrar { display:none; } body { background:white; padding:0; } }
     @media (max-width:600px) { body { padding:10px; } th,td { padding:6px 8px; font-size:0.8rem; } }
   </style>
@@ -253,6 +258,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
   <div class="chips">
     <span class="chip" style="background:#e8f5e9;color:#2e7d32;">${aprobadas} aprobadas</span>
     <span class="chip" style="background:#ffebee;color:#c62828;">${reprobadas} reprobadas</span>
+    <span class="chip" style="background:#e3f2fd;color:#1565c0;">${cursando} cursando</span>
     <span class="chip" style="background:#fff3e0;color:#e65100;">${sinCaptura} sin captura</span>
     <span class="chip" style="background:#f3f4f6;color:#555;">${total} total</span>
   </div>
@@ -263,42 +269,125 @@ async function verBoletaGlobalAlumno(alumnoId) {
     }
 
     periodoKeys.forEach(perNum => {
-      const mats = porPeriodo[perNum]; // ya ordenadas por nombre en _obtenerMateriasCarrera
-      html += `<div class="sec-titulo">Semestre ${perNum}</div>
+      const mats = porPeriodo[perNum];
+      const esActualPer = alumnoPerActual > 0 && perNum === alumnoPerActual;
+      const esPasadoPer = alumnoPerActual > 0 && perNum < alumnoPerActual;
+
+      const perLabel = esActualPer
+        ? `Semestre ${perNum} <span style="background:#e3f2fd;color:#1565c0;padding:1px 9px;border-radius:10px;font-size:0.72rem;font-weight:700;">ACTUAL</span>`
+        : `Semestre ${perNum}`;
+      const estadoThW = esPasadoPer ? '190px' : '120px';
+
+      html += `<div class="sec-titulo">${perLabel}</div>
 <table>
   <thead><tr>
     <th style="width:34px;text-align:center;">#</th>
     <th>Materia</th>
     <th style="text-align:center;width:110px;">Calificación</th>
-    <th style="text-align:center;width:120px;">Estado</th>
+    <th style="text-align:center;width:${estadoThW};">Estado</th>
   </tr></thead>
   <tbody>`;
 
       mats.forEach((m, i) => {
         const rawCal = calMap[m.id]?.promedio ?? null;
-        const sinCap = rawCal === null;
-        const esNP   = rawCal === 'NP';
-        const calNum = (!sinCap && !esNP) ? Number(rawCal) : null;
-        const aprobada = calNum !== null && calNum >= 6;
 
-        const rowBg    = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
-        const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
-        const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
-        const chipTxt  = sinCap ? 'Sin captura': (esNP ? 'NP'  : (aprobada ? 'Aprobada' : 'Reprobada'));
-        const calStr   = sinCap ? '—' : String(rawCal);
+        if (esActualPer) {
+          // ── Semestre actual: "Cursando", solo lectura ──────────────────────
+          const calStr = rawCal === null ? '—' : String(rawCal);
+          html += `<tr>
+    <td style="text-align:center;color:#bbb;">${i + 1}</td>
+    <td>${m.nombre}</td>
+    <td style="text-align:center;font-weight:700;color:#1565c0;">${calStr}</td>
+    <td style="text-align:center;"><span class="estado" style="background:#e3f2fd;color:#1565c0;">Cursando</span></td>
+  </tr>`;
 
-        html += `<tr style="background:${rowBg};">
+        } else if (esPasadoPer) {
+          // ── Semestre pasado: editable ──────────────────────────────────────
+          const sinCap  = rawCal === null;
+          const esNP    = rawCal === 'NP';
+          const calNum  = (!sinCap && !esNP) ? Number(rawCal) : null;
+          const aprobada = calNum !== null && calNum >= 6;
+          const rowBg    = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
+          const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
+          const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
+          const chipTxt  = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
+          const calStr   = sinCap ? '' : String(rawCal);
+          html += `<tr style="background:${rowBg};">
+    <td style="text-align:center;color:#bbb;">${i + 1}</td>
+    <td>${m.nombre}</td>
+    <td style="text-align:center;">
+      <input id="cal_${m.id}" type="text" value="${calStr}" placeholder="—"
+        style="width:55px;text-align:center;border:1px solid #ccc;border-radius:4px;padding:2px 4px;font-weight:700;font-size:0.88rem;" />
+    </td>
+    <td style="text-align:center;">
+      <span id="chip_${m.id}" class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span>
+      <button onclick="guardarCal('${m.id}')"
+        style="margin-left:5px;padding:3px 8px;background:#5c6bc0;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.75rem;vertical-align:middle;">
+        Guardar
+      </button>
+    </td>
+  </tr>`;
+
+        } else {
+          // ── Semestre futuro o sin periodo definido: solo lectura normal ────
+          const sinCap  = rawCal === null;
+          const esNP    = rawCal === 'NP';
+          const calNum  = (!sinCap && !esNP) ? Number(rawCal) : null;
+          const aprobada = calNum !== null && calNum >= 6;
+          const rowBg    = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
+          const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
+          const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
+          const chipTxt  = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
+          const calStr   = sinCap ? '—' : String(rawCal);
+          html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
     <td style="text-align:center;font-weight:700;color:${chipColor};">${calStr}</td>
     <td style="text-align:center;"><span class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span></td>
   </tr>`;
+        }
       });
 
       html += '</tbody></table>';
     });
 
-    html += '</div></body></html>';
+    html += `</div>
+<script>
+const _AID = '${alumnoId}';
+function guardarCal(mid) {
+  const input = document.getElementById('cal_' + mid);
+  const btn = event.currentTarget;
+  const val = (input ? input.value : '').trim();
+  if (!window.opener || window.opener.closed) { alert('La ventana principal se cerró. Cierra esta boleta y ábrela de nuevo.'); return; }
+  btn.disabled = true;
+  const origTxt = btn.textContent;
+  btn.textContent = '...';
+  window.opener.guardarCalBoleta(_AID, mid, val, function(ok, err) {
+    btn.disabled = false;
+    if (ok) {
+      btn.textContent = '✓'; btn.style.background = '#2e7d32';
+      const chip = document.getElementById('chip_' + mid);
+      if (chip) {
+        const u = val.toUpperCase();
+        if (!val || u === '—') {
+          chip.style.background='#f5f5f5'; chip.style.color='#888'; chip.textContent='Sin captura';
+        } else if (u === 'NP') {
+          chip.style.background='#fff3e0'; chip.style.color='#e65100'; chip.textContent='NP';
+        } else {
+          const n = parseFloat(val);
+          if (!isNaN(n) && n >= 6) { chip.style.background='#e8f5e9'; chip.style.color='#2e7d32'; chip.textContent='Aprobada'; }
+          else { chip.style.background='#ffebee'; chip.style.color='#c62828'; chip.textContent='Reprobada'; }
+        }
+      }
+    } else {
+      btn.textContent = origTxt; btn.style.background = '#c62828';
+      setTimeout(function(){ btn.style.background='#5c6bc0'; }, 2500);
+      alert('Error al guardar: ' + err);
+    }
+  });
+}
+<\/script>
+</body></html>`;
 
     w.document.open();
     w.document.write(html);
@@ -317,3 +406,27 @@ function _escribirError(w, msg) {
     w.document.close();
   } catch (_) {}
 }
+
+// Llamado desde la ventana hija via window.opener.guardarCalBoleta(...)
+window.guardarCalBoleta = async function(alumnoId, materiaId, valor, callback) {
+  try {
+    let promedio;
+    if (!valor || valor === '—') {
+      promedio = null;
+    } else if (valor.toUpperCase() === 'NP') {
+      promedio = 'NP';
+    } else {
+      const num = Number(valor);
+      if (isNaN(num) || num < 0 || num > 10) throw new Error('Calificación inválida (debe ser 0–10 o NP)');
+      promedio = num;
+    }
+    const docId = `${alumnoId}_${materiaId}`;
+    await db.collection('calificaciones').doc(docId).set(
+      { promedio, fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+    callback(true, null);
+  } catch (e) {
+    callback(false, e.message);
+  }
+};
