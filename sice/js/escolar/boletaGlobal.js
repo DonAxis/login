@@ -632,7 +632,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       columnStyles: {
         0: { halign: 'center', cellWidth: 5 },
         1: { halign: 'left' },
-        2: { halign: 'center', cellWidth: 7 },
+        2: { halign: 'center', cellWidth: 8 },
         3: { halign: 'center', cellWidth: 10 },
         4: { halign: 'center', cellWidth: 15 }
       }
