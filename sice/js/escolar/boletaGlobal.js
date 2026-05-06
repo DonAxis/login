@@ -581,21 +581,31 @@ async function descargarBoletaGlobalPDF(alumnoId) {
         counter++;
         const calNum = parseFloat(m.calificacion);
         if (!isNaN(calNum)) { totalSuma += calNum; totalCount++; }
-        const subtitulo = [m.periodoAcademico || '', formatCal(m.calificacion)]
-          .filter(Boolean).join('  ');
         target.push([
           counter.toString(),
-          (m.materiaNombre || '-') + (subtitulo ? '\n' + subtitulo : ''),
-          m.acr || 'ORD',
-          '',
-          ''
+          m.materiaNombre    || '-',
+          m.acr              || 'ORD',
+          m.periodoAcademico || '',
+          formatCal(m.calificacion)
         ]);
       });
+      return 1 + porPeriodo[periodo].length;
     }
 
     for (let i = 0; i < periodos.length; i += 2) {
-      agregarFilasNivel(periodos[i], leftRows);
-      if (periodos[i + 1]) agregarFilasNivel(periodos[i + 1], rightRows);
+      const pL = periodos[i];
+      const pR = periodos[i + 1];
+
+      const lLen = agregarFilasNivel(pL, leftRows);
+      const rLen = pR ? agregarFilasNivel(pR, rightRows) : 0;
+
+      const diff = lLen - rLen;
+      const VACIA = ['', '', '', '', ''];
+      if (diff > 0) {
+        for (let j = 0; j < diff; j++) rightRows.push(VACIA);
+      } else if (diff < 0) {
+        for (let j = 0; j < -diff; j++) leftRows.push(VACIA);
+      }
     }
 
     const tableComun = {
@@ -612,8 +622,8 @@ async function descargarBoletaGlobalPDF(alumnoId) {
         0: { halign: 'center', cellWidth: 5 },
         1: { halign: 'left' },
         2: { halign: 'center', cellWidth: 8 },
-        3: { halign: 'center', cellWidth: 9 },
-        4: { halign: 'center', cellWidth: 12 }
+        3: { halign: 'center', cellWidth: 14 },
+        4: { halign: 'center', cellWidth: 21 }
       }
     };
 
