@@ -424,6 +424,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     html += `</div>
 <script>
 const _AID = '${alumnoId}';
+const _PERIODO_ACTUAL = ${alumnoPerActual};
 
 function _actualizarChip(chip, val) {
   if (!val) {
@@ -477,7 +478,7 @@ function guardarTodosCambios() {
 
 function descargarPDF() {
   if (window.opener && typeof window.opener.descargarBoletaGlobalPDF === 'function') {
-    window.opener.descargarBoletaGlobalPDF(_AID);
+    window.opener.descargarBoletaGlobalPDF(_AID, _PERIODO_ACTUAL);
   } else {
     alert('No se puede generar el PDF desde esta ventana. Ábrela de nuevo desde el historial.');
   }
@@ -506,7 +507,7 @@ function _escribirError(w, msg) {
 // ── PDF Boleta Global ─────────────────────────────────────────────────────────
 // Lee de historialAcademico. Layout 2 columnas: periodos impares izquierda,
 // pares derecha. Se llama desde el popup via window.opener.
-async function descargarBoletaGlobalPDF(alumnoId) {
+async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
   try {
     if (typeof window.jspdf === 'undefined') {
       alert('Error: jsPDF no está cargado. Recarga la página.');
@@ -596,7 +597,7 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       target.push([{ content: label, colSpan: 5, styles: nivelStyle }]);
       porPeriodo[periodo].forEach(m => {
         counter++;
-        const cursando = m.estado === 'cursando';
+        const cursando = periodoActual > 0 && Number(m.periodo) === periodoActual;
         const calNum = parseFloat(m.calificacion);
         if (!cursando && !isNaN(calNum)) { totalSuma += calNum; totalCount++; }
         target.push([
@@ -661,8 +662,8 @@ async function descargarBoletaGlobalPDF(alumnoId) {
         const lineY = data.row.y + data.row.height;
         data.doc.setDrawColor(0, 0, 0);
         data.doc.setLineWidth(0.3);
-        data.doc.line(data.table.startX, lineY,
-                      data.table.startX + data.table.width, lineY);
+        const x1 = data.settings.margin.left;
+        data.doc.line(x1, lineY, x1 + data.table.width, lineY);
       };
     }
 
