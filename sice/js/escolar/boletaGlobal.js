@@ -590,7 +590,8 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     const rightRows = [];
 
     const nivelStyle = { halign: 'center', fontStyle: 'bold',
-                         fillColor: [255, 255, 255], textColor: [0, 0, 0] };
+                         fillColor: [255, 255, 255], textColor: [0, 0, 0],
+                         cellPadding: { top: 4, bottom: 0.7, left: 1, right: 1 } };
 
     function agregarFilasNivel(periodo, target) {
       const label = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
@@ -635,7 +636,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     };
 
     // Hook: dibuja línea vino arriba y abajo de cada encabezado PRIMER/SEGUNDO/... NIVEL
-    const VINO = [108, 29, 69];
+    const VINO = [0, 0, 0];
     function hookNivel(data) {
       if (data.section !== 'body') return;
       const raw = data.cell.raw;
