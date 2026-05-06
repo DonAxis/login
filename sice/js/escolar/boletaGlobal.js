@@ -634,37 +634,18 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       }
     };
 
-    // Pre-calcular en qué filas del body va una línea horizontal:
-    // — justo después del encabezado de NIVEL (= arriba de la 1ª materia)
-    // — justo después de la última materia de cada NIVEL (= abajo de la última)
-    function nivelBounds(rows) {
-      const set = new Set();
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i];
-        const esHeader = Array.isArray(r) && r.length === 1 && r[0] && r[0].colSpan === 5;
-        if (esHeader) {
-          set.add(i); // línea al fondo del encabezado NIVEL
-        } else {
-          const sig = rows[i + 1];
-          const sigEsHeader = sig && Array.isArray(sig) && sig.length === 1 && sig[0] && sig[0].colSpan === 5;
-          if (sigEsHeader || i === rows.length - 1) set.add(i); // línea al fondo de la última materia
-        }
-      }
-      return set;
-    }
-
-    const leftBounds  = nivelBounds(leftRows);
-    const rightBounds = nivelBounds(rightRows);
-
-    function hookNivel(bounds) {
-      return function(data) {
-        if (data.section !== 'body' || !bounds.has(data.row.index)) return;
-        const lineY = data.row.y + data.row.height;
-        data.doc.setDrawColor(0, 0, 0);
-        data.doc.setLineWidth(0.3);
-        const x1 = data.settings.margin.left;
-        data.doc.line(x1, lineY, x1 + data.table.width, lineY);
-      };
+    // Hook: dibuja línea vino arriba y abajo de cada encabezado PRIMER/SEGUNDO/... NIVEL
+    const VINO = [108, 29, 69];
+    function hookNivel(data) {
+      if (data.section !== 'body') return;
+      const raw = data.cell.raw;
+      if (!raw || typeof raw !== 'object' || raw.colSpan !== 5) return;
+      const x1 = data.cell.x;
+      const x2 = x1 + data.cell.width;
+      data.doc.setDrawColor(VINO[0], VINO[1], VINO[2]);
+      data.doc.setLineWidth(0.4);
+      data.doc.line(x1, data.cell.y,                    x2, data.cell.y);
+      data.doc.line(x1, data.cell.y + data.cell.height, x2, data.cell.y + data.cell.height);
     }
 
     const HEAD   = [['#', 'MATERIA', 'ACR', 'PERIODO', 'CALIFICACION']];
@@ -673,10 +654,10 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     doc.autoTable({ ...tableComun, startY,
       margin: { left: 20, right: col2X, bottom: 20 },
       head: HEAD, body: leftRows,
-      didDrawRow: hookNivel(leftBounds)
+      didDrawCell: hookNivel
     });
     const leftFinalY = doc.lastAutoTable.finalY;
-    doc.setDrawColor(0, 0, 0);
+    doc.setDrawColor(VINO[0], VINO[1], VINO[2]);
     doc.setLineWidth(0.4);
     doc.line(20,    startY,     pageWidth - col2X, startY);
     doc.line(20,    leftFinalY, pageWidth - col2X, leftFinalY);
@@ -684,10 +665,10 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     doc.autoTable({ ...tableComun, startY,
       margin: { left: col2X, right: 20, bottom: 20 },
       head: HEAD, body: rightRows,
-      didDrawRow: hookNivel(rightBounds)
+      didDrawCell: hookNivel
     });
     const rightFinalY = doc.lastAutoTable.finalY;
-    doc.setDrawColor(0, 0, 0);
+    doc.setDrawColor(VINO[0], VINO[1], VINO[2]);
     doc.setLineWidth(0.4);
     doc.line(col2X, startY,      pageWidth - 20, startY);
     doc.line(col2X, rightFinalY, pageWidth - 20, rightFinalY);
