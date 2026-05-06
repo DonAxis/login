@@ -118,7 +118,7 @@ async function buscarAlumnoBoletaGlobal() {
 }
 
 // ── Cache sessionStorage de materias por carreraId ───────────────────────────
-const _CACHE_KEY_MATERIAS = 'boleta_materias_v2_';
+const _CACHE_KEY_MATERIAS = 'boleta_materias_v3_';
 
 async function _obtenerMateriasCarrera(carreraId) {
   const key = _CACHE_KEY_MATERIAS + carreraId;
@@ -132,7 +132,9 @@ async function _obtenerMateriasCarrera(carreraId) {
     db.collection('carreras').doc(carreraId).get()
   ]);
 
-  const carreraNombre = carreraDoc.exists ? (carreraDoc.data().nombre || carreraId) : carreraId;
+  const carreraData  = carreraDoc.exists ? carreraDoc.data() : {};
+  const carreraNombre = carreraData.nombre || carreraId;
+  const periodosAnio  = Number(carreraData.periodosAnio) || 2;
 
   const porPeriodo = {};
   materiasSnap.docs.forEach(doc => {
@@ -147,7 +149,7 @@ async function _obtenerMateriasCarrera(carreraId) {
     arr.sort((a, b) => a.nombre.localeCompare(b.nombre))
   );
 
-  const resultado = { carreraNombre, porPeriodo };
+  const resultado = { carreraNombre, porPeriodo, periodosAnio };
   try { sessionStorage.setItem(key, JSON.stringify(resultado)); } catch (_) {}
   return resultado;
 }
@@ -189,7 +191,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
 
     const alumnoPerActual = Number(alumno.periodo) || 0;
 
-    const [{ carreraNombre, porPeriodo }, calSnap] = await Promise.all([
+    const [{ carreraNombre, porPeriodo, periodosAnio }, calSnap] = await Promise.all([
       _obtenerMateriasCarrera(carreraId),
       db.collection('calificaciones').where('alumnoId', '==', alumnoId).get()
     ]);
@@ -202,6 +204,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
     const hayPeriodosPasados = alumnoPerActual > 0 && periodoKeys.some(pk => pk < alumnoPerActual);
+    const labelPer = periodosAnio === 3 ? 'Cuatrimestre' : periodosAnio === 4 ? 'Trimestre' : 'Semestre';
 
     // Contadores resumen
     let total = 0, aprobadas = 0, reprobadas = 0, sinCaptura = 0, cursando = 0;
@@ -240,7 +243,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Boleta Global — ${alumno.nombre || ''}</title>
+  <title>Boleta Global — ${alumno.nombre || ''} (${carreraNombre})</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI',Tahoma,sans-serif; background:#f5f5f5; padding:20px; }
@@ -302,8 +305,8 @@ async function verBoletaGlobalAlumno(alumnoId) {
       const esPasadoPer = alumnoPerActual > 0 && perNum < alumnoPerActual;
 
       const perLabel = esActualPer
-        ? `Semestre ${perNum} <span style="background:#e3f2fd;color:#1565c0;padding:1px 9px;border-radius:10px;font-size:0.72rem;font-weight:700;">ACTUAL</span>`
-        : `Semestre ${perNum}`;
+        ? `${labelPer} ${perNum} <span style="background:#e3f2fd;color:#1565c0;padding:1px 9px;border-radius:10px;font-size:0.72rem;font-weight:700;">ACTUAL</span>`
+        : `${labelPer} ${perNum}`;
 
       html += `<div class="sec-titulo">${perLabel}</div>
 <table>
@@ -619,11 +622,11 @@ async function descargarBoletaGlobalPDF(alumnoId) {
         cellPadding: { top: 0.7, bottom: 0.7, left: 1, right: 1 }
       },
       columnStyles: {
-        0: { halign: 'center', cellWidth: 7 },
+        0: { halign: 'center', cellWidth: 5 },
         1: { halign: 'left' },
         2: { halign: 'center', cellWidth: 8 },
-        3: { halign: 'center', cellWidth: 12 },
-        4: { halign: 'center', cellWidth: 19 }   // 19mm para que "CALIFICACION" no parta
+        3: { halign: 'center', cellWidth: 14 },
+        4: { halign: 'center', cellWidth: 21 }
       }
     };
 

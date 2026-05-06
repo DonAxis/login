@@ -481,50 +481,103 @@ async function archivarCalificaciones(carreraId, periodoActual) {
   }
 }
 
-// Escribe/actualiza historialAcademico/{alumnoId} con las materias del periodo terminado
+// Calificación final efectiva del alumno en una materia:
+// ETS tiene prioridad, luego EXT, luego la ordinaria (promedio).
+function _calificacionFinal(cal) {
+  if (cal.ets !== null && cal.ets !== undefined)              return { calificacion: cal.ets,            acr: 'ETS' };
+  if (cal.extraordinario !== null && cal.extraordinario !== undefined) return { calificacion: cal.extraordinario, acr: 'EXT' };
+  const prom = cal.promedio ?? null;
+  return { calificacion: prom, acr: prom !== null ? 'ORD' : null };
+}
+
+// Escribe/actualiza historialAcademico/{alumnoId}:
+//   · periodos[]  → arrayUnion con el registro histórico completo del periodo
+//   · materias[]  → actualiza calificacion + acr + periodoAcademico de las materias
+//                   del semestre que termina, para que el PDF las lea correctamente
 async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, alumnoDataMap) {
   try {
-    const porAlumno = {};
+    // Agrupar calificaciones por alumnoId → { materiaId: calData }
+    const calPorAlumno = {};
     for (const calDoc of calsDocs) {
       const c = calDoc.data();
-      if (!porAlumno[c.alumnoId]) porAlumno[c.alumnoId] = [];
-      porAlumno[c.alumnoId].push(c);
+      if (!c.alumnoId) continue;
+      if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = {};
+      calPorAlumno[c.alumnoId][c.materiaId] = c;
     }
+
+    const alumnoIds = Object.keys(calPorAlumno);
+    if (!alumnoIds.length) return;
+
+    // Leer historialAcademico actual de todos los alumnos en paralelo
+    // (necesario para actualizar el array materias sin perder entradas de otros semestres)
+    const histSnaps = await Promise.all(
+      alumnoIds.map(id => db.collection('historialAcademico').doc(id).get())
+    );
+    const histMap = Object.fromEntries(histSnaps.map(s => [s.id, s]));
 
     let batch = db.batch();
     let batchCount = 0;
 
-    for (const [alumnoId, materias] of Object.entries(porAlumno)) {
-      const info = alumnoDataMap[alumnoId] || {};
+    for (const alumnoId of alumnoIds) {
+      const info       = alumnoDataMap[alumnoId] || {};
+      const calsAlumno = calPorAlumno[alumnoId];          // { materiaId: calData }
+      const semActual  = info.semestreActual || null;      // semestre que acaba de terminar
+
+      // ── Registro histórico completo del periodo (para array periodos[]) ──
       const periodoEntry = {
-        periodo: periodoActual,
-        semestre: info.semestreActual || null,
-        materias: materias.map(m => ({
-          materiaId: m.materiaId || '',
-          materiaNombre: m.materiaNombre || '',
-          materiaCodigo: m.materiaCodigo || '',
-          parciales: m.parciales || {},
-          faltas: m.faltas || {},
-          promedio: m.promedio ?? null,
-          extraordinario: m.extraordinario ?? null,
-          ets: m.ets ?? null,
-          profesorId: m.profesorId || '',
-          profesorNombre: m.profesorNombre || '',
-          calificacionId: `${m.alumnoId}_${m.materiaId}`
+        periodo:  periodoActual,
+        semestre: semActual,
+        materias: Object.values(calsAlumno).map(m => ({
+          materiaId:       m.materiaId       || '',
+          materiaNombre:   m.materiaNombre   || '',
+          materiaCodigo:   m.materiaCodigo   || '',
+          parciales:       m.parciales       || {},
+          faltas:          m.faltas          || {},
+          promedio:        m.promedio        ?? null,
+          extraordinario:  m.extraordinario  ?? null,
+          ets:             m.ets             ?? null,
+          profesorId:      m.profesorId      || '',
+          profesorNombre:  m.profesorNombre  || '',
+          calificacionId:  `${alumnoId}_${m.materiaId}`
         }))
       };
 
-      const ref = db.collection('historialAcademico').doc(alumnoId);
-      batch.set(ref, {
-        alumnoId,
-        alumnoNombre: info.nombre || materias[0].alumnoNombre || '',
-        matricula: info.matricula || '',
-        carreraId,
-        periodos: firebase.firestore.FieldValue.arrayUnion(periodoEntry),
-        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      // ── Actualizar materias[] con la calificación final + acr + periodoAcademico ──
+      // Coincide con los campos que lee el PDF: m.calificacion, m.acr, m.periodoAcademico
+      const histSnap = histMap[alumnoId];
+      let materiasActualizadas = null;
 
+      if (histSnap && histSnap.exists && semActual !== null) {
+        const materiasExistentes = histSnap.data().materias || [];
+        let cambiado = false;
+        materiasActualizadas = materiasExistentes.map(mat => {
+          if (mat.periodo !== semActual) return mat; // semestre diferente — no tocar
+          const cal = calsAlumno[mat.materiaId];
+          if (!cal) return mat;                       // materia sin calificación registrada
+          const { calificacion, acr } = _calificacionFinal(cal);
+          cambiado = true;
+          return Object.assign({}, mat, {
+            calificacion,
+            acr,
+            periodoAcademico: periodoActual
+          });
+        });
+        if (!cambiado) materiasActualizadas = null;
+      }
+
+      const writeData = {
+        alumnoId,
+        alumnoNombre: info.nombre || Object.values(calsAlumno)[0]?.alumnoNombre || '',
+        matricula:    info.matricula || '',
+        carreraId,
+        periodos:     firebase.firestore.FieldValue.arrayUnion(periodoEntry),
+        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if (materiasActualizadas !== null) writeData.materias = materiasActualizadas;
+
+      batch.set(db.collection('historialAcademico').doc(alumnoId), writeData, { merge: true });
       batchCount++;
+
       if (batchCount === 499) {
         await batch.commit();
         batch = db.batch();
@@ -533,8 +586,8 @@ async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, 
     }
 
     if (batchCount > 0) await batch.commit();
+    console.log(`historialAcademico actualizado para ${alumnoIds.length} alumnos`);
 
-    console.log(`historialAcademico actualizado para ${Object.keys(porAlumno).length} alumnos`);
   } catch (error) {
     console.error('Error al actualizar historialAcademico:', error);
     throw error;
