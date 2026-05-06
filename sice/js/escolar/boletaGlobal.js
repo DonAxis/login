@@ -538,6 +538,9 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       if (!porPeriodo[p]) porPeriodo[p] = [];
       porPeriodo[p].push(m);
     });
+    Object.values(porPeriodo).forEach(arr =>
+      arr.sort((a, b) => (a.materiaNombre || '').localeCompare(b.materiaNombre || '', 'es'))
+    );
     const periodos = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
 
     const { jsPDF } = window.jspdf;
@@ -591,7 +594,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
 
     const nivelStyle = { halign: 'center', fontStyle: 'bold',
                          fillColor: [255, 255, 255], textColor: [0, 0, 0],
-                         cellPadding: { top: 4, bottom: 0.7, left: 1, right: 1 } };
+                         cellPadding: { top: 3, bottom: 0.3, left: 1, right: 1 } };
 
     function agregarFilasNivel(periodo, target) {
       const label = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
@@ -624,18 +627,18 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       },
       styles: {
         fontSize: 7,
-        cellPadding: { top: 0.7, bottom: 0.7, left: 1, right: 1 }
+        cellPadding: { top: 0.3, bottom: 0.3, left: 1, right: 1 }
       },
       columnStyles: {
         0: { halign: 'center', cellWidth: 5 },
         1: { halign: 'left' },
-        2: { halign: 'center', cellWidth: 8 },
-        3: { halign: 'center', cellWidth: 14 },
-        4: { halign: 'center', cellWidth: 21 }
+        2: { halign: 'center', cellWidth: 7 },
+        3: { halign: 'center', cellWidth: 10 },
+        4: { halign: 'center', cellWidth: 15 }
       }
     };
 
-    // Hook: dibuja línea vino arriba y abajo de cada encabezado PRIMER/SEGUNDO/... NIVEL
+    // Hook: dibuja línea negra arriba y abajo de cada encabezado PRIMER/SEGUNDO/... NIVEL
     const VINO = [0, 0, 0];
     function hookNivel(data) {
       if (data.section !== 'body') return;
@@ -649,7 +652,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       data.doc.line(x1, data.cell.y + data.cell.height, x2, data.cell.y + data.cell.height);
     }
 
-    const HEAD   = [['#', 'MATERIA', 'ACR', 'PERIODO', 'CALIFICACION']];
+    const HEAD   = [['#', 'MATERIA', 'ACR', 'CICLO', 'CAL.']];
     const startY = y;
 
     doc.autoTable({ ...tableComun, startY,
