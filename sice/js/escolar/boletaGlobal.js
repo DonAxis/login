@@ -589,27 +589,15 @@ async function descargarBoletaGlobalPDF(alumnoId) {
           formatCal(m.calificacion)
         ]);
       });
-      return 1 + porPeriodo[periodo].length;
     }
 
     for (let i = 0; i < periodos.length; i += 2) {
-      const pL = periodos[i];
-      const pR = periodos[i + 1];
-
-      const lLen = agregarFilasNivel(pL, leftRows);
-      const rLen = pR ? agregarFilasNivel(pR, rightRows) : 0;
-
-      const diff = lLen - rLen;
-      const VACIA = ['', '', '', '', ''];
-      if (diff > 0) {
-        for (let j = 0; j < diff; j++) rightRows.push(VACIA);
-      } else if (diff < 0) {
-        for (let j = 0; j < -diff; j++) leftRows.push(VACIA);
-      }
+      agregarFilasNivel(periodos[i], leftRows);
+      if (periodos[i + 1]) agregarFilasNivel(periodos[i + 1], rightRows);
     }
 
     const tableComun = {
-      theme: 'grid',
+      theme: 'plain',
       headStyles: {
         fillColor: [108, 29, 69], textColor: 255,
         fontStyle: 'bold', halign: 'center', fontSize: 7
@@ -635,12 +623,20 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       head: HEAD, body: leftRows
     });
     const leftFinalY = doc.lastAutoTable.finalY;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.4);
+    doc.line(20,      startY,    pageWidth - col2X, startY);
+    doc.line(20,      leftFinalY, pageWidth - col2X, leftFinalY);
 
     doc.autoTable({ ...tableComun, startY,
       margin: { left: col2X, right: 20, bottom: 20 },
       head: HEAD, body: rightRows
     });
     const rightFinalY = doc.lastAutoTable.finalY;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.4);
+    doc.line(col2X,   startY,     pageWidth - 20, startY);
+    doc.line(col2X,   rightFinalY, pageWidth - 20, rightFinalY);
 
     y = Math.max(leftFinalY, rightFinalY) + 8;
 
