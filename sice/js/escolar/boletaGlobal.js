@@ -5,9 +5,12 @@
 let _boletaCarrerasCache = null;
 let _alumnosBGCache = null;       // alumnos cargados de Firestore (filtrado en cliente)
 let _alumnosBGCacheCarrera = null; // carreraId del último batch cargado
+let _bgSoloLectura = false;       // true = controlEscolar (sin edición de calificaciones)
 
 // carreraFija: si se pasa (desde coordinador), oculta el select y lo fija a esa carrera
-async function inicializarBoletaGlobal(carreraFija = null) {
+// soloLectura: true = controlEscolar (sin edición, mismo PDF)
+async function inicializarBoletaGlobal(carreraFija = null, soloLectura = false) {
+  _bgSoloLectura = soloLectura;
   const select = document.getElementById('boletagCarrera');
   if (!select) return;
 
@@ -109,7 +112,7 @@ async function buscarAlumnoBoletaGlobal() {
         <td style="padding:10px 12px;">${carrerasRef[a.carreraId] || a.carreraId || '-'}</td>
         <td style="padding:10px 12px;text-align:center;">${a.periodo || '-'}</td>
         <td style="padding:10px 12px;text-align:center;">
-          <button onclick="verBoletaGlobalAlumno('${a.id}')"
+          <button onclick="verBoletaGlobalAlumno('${a.id}',${_bgSoloLectura})"
             style="padding:6px 16px;background:linear-gradient(135deg,#6A2135,#9c2f50);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem;">
             Ver Boleta
           </button>
@@ -179,7 +182,8 @@ function _optsAcreditacion(rawAcr) {
 }
 
 // Abre nueva ventana con todas las materias de la carrera + calificaciones del alumno
-async function verBoletaGlobalAlumno(alumnoId) {
+// soloLectura: true = controlEscolar (sin selects editables, sin botón guardar)
+async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
   const w = window.open('', '_blank');
   if (!w) {
     alert('Activa las ventanas emergentes para ver la boleta.');
@@ -231,7 +235,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
       : '';
 
     // ── Botones de acción (estilo calificaciones panel) ──────────────────────
-    const btnGuardar = hayPeriodosPasados ? `
+    const btnGuardar = (hayPeriodosPasados && !soloLectura) ? `
       <button id="btnGuardar" onclick="guardarTodosCambios()"
         style="padding:12px 24px;background:linear-gradient(135deg,#216A32 0%,#21596A 100%);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;">
         Guardar Cambios
@@ -341,7 +345,6 @@ async function verBoletaGlobalAlumno(alumnoId) {
   </tr>`;
 
         } else if (esPasadoPer) {
-          // ── Semestre pasado: select editable (estilo calificaciones panel) ─
           const sinCap    = rawCal === null;
           const esNP      = rawCal === 'NP';
           const calNum    = (!sinCap && !esNP) ? Number(rawCal) : null;
@@ -350,12 +353,25 @@ async function verBoletaGlobalAlumno(alumnoId) {
           const chipBg    = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
           const chipColor = sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
           const chipTxt   = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
-          const optsHtml  = _optsCalificacion(rawCal);
-          // acr y periodoAcademico: mismos nombres que usa el PDF (m.acr, m.periodoAcademico)
           const rawAcr    = calMap[m.id]?.acreditacion || null;
           const rawPer    = calMap[m.id]?.periodoAcademico || '';
-          const optsAcrHtml = _optsAcreditacion(rawAcr);
-          html += `<tr style="background:${rowBg};">
+
+          if (soloLectura) {
+            // ── Solo lectura (controlEscolar): igual que futuro pero muestra acr/periodo ─
+            const calStr = sinCap ? '-' : String(rawCal);
+            html += `<tr style="background:${rowBg};">
+    <td style="text-align:center;color:#bbb;">${i + 1}</td>
+    <td>${m.nombre}</td>
+    <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
+    <td style="text-align:center;"><span class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span></td>
+    <td style="text-align:center;color:#555;">${rawAcr || '-'}</td>
+    <td style="text-align:center;color:#555;">${rawPer || '-'}</td>
+  </tr>`;
+          } else {
+            // ── Editable (coordinador): selects de calificación, acr y periodo ─
+            const optsHtml    = _optsCalificacion(rawCal);
+            const optsAcrHtml = _optsAcreditacion(rawAcr);
+            html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
     <td style="text-align:center;">
@@ -378,6 +394,7 @@ async function verBoletaGlobalAlumno(alumnoId) {
         style="width:80px;padding:6px;border:2px solid #ddd;border-radius:5px;text-align:center;font-size:0.85rem;" />
     </td>
   </tr>`;
+          }
 
         } else {
           // ── Semestre futuro o sin periodo definido: solo lectura normal ────
@@ -579,14 +596,15 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       target.push([{ content: label, colSpan: 5, styles: nivelStyle }]);
       porPeriodo[periodo].forEach(m => {
         counter++;
+        const cursando = m.estado === 'cursando';
         const calNum = parseFloat(m.calificacion);
-        if (!isNaN(calNum)) { totalSuma += calNum; totalCount++; }
+        if (!cursando && !isNaN(calNum)) { totalSuma += calNum; totalCount++; }
         target.push([
           counter.toString(),
           m.materiaNombre    || '-',
           m.acr              || 'ORD',
           m.periodoAcademico || '',
-          formatCal(m.calificacion)
+          cursando ? 'en curso' : formatCal(m.calificacion)
         ]);
       });
     }
