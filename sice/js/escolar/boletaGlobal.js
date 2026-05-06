@@ -3,6 +3,8 @@
 // IDs HTML esperados: boletagCarrera, boletagBusqueda, boletagResultados
 
 let _boletaCarrerasCache = null;
+let _alumnosBGCache = null;       // alumnos cargados de Firestore (filtrado en cliente)
+let _alumnosBGCacheCarrera = null; // carreraId del último batch cargado
 
 // carreraFija: si se pasa (desde coordinador), oculta el select y lo fija a esa carrera
 async function inicializarBoletaGlobal(carreraFija = null) {
@@ -41,80 +43,83 @@ async function inicializarBoletaGlobal(carreraFija = null) {
 
 async function buscarAlumnoBoletaGlobal() {
   const selCarrera = document.getElementById('boletagCarrera');
-  const carreraId = selCarrera?.dataset.fija || selCarrera?.value || '';
-  const busqueda = (document.getElementById('boletagBusqueda')?.value || '').trim().toLowerCase();
+  const carreraId  = selCarrera?.dataset.fija || selCarrera?.value || '';
+  const busqueda   = (document.getElementById('boletagBusqueda')?.value || '').trim().toLowerCase();
   const contenedor = document.getElementById('boletagResultados');
   if (!contenedor) return;
 
-  contenedor.innerHTML = '<p style="color:#666;padding:16px;text-align:center;">Buscando...</p>';
-
-  try {
-    let query = db.collection('usuarios')
-      .where('rol', '==', 'alumno')
-      .where('activo', '==', true);
-    if (carreraId) query = query.where('carreraId', '==', carreraId);
-
-    const snap = await query.get();
-    let alumnos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    if (busqueda) {
-      alumnos = alumnos.filter(a =>
-        (a.nombre || '').toLowerCase().includes(busqueda) ||
-        (a.matricula || '').toLowerCase().includes(busqueda)
-      );
-    }
-
-    alumnos.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
-
-    if (!alumnos.length) {
-      contenedor.innerHTML = '<p style="color:#999;padding:20px;text-align:center;">Sin resultados.</p>';
+  // ── Solo va a Firestore cuando la carrera cambia o no hay cache ──────────
+  if (_alumnosBGCache === null || _alumnosBGCacheCarrera !== carreraId) {
+    contenedor.innerHTML = '<p style="color:#666;padding:16px;text-align:center;">Cargando alumnos...</p>';
+    try {
+      let q = db.collection('usuarios')
+        .where('rol', '==', 'alumno')
+        .where('activo', '==', true);
+      if (carreraId) q = q.where('carreraId', '==', carreraId);
+      const snap = await q.get();
+      _alumnosBGCache        = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      _alumnosBGCacheCarrera = carreraId;
+    } catch (error) {
+      console.error('Error en buscarAlumnoBoletaGlobal:', error);
+      contenedor.innerHTML = `<p style="color:#c00;padding:12px;">Error: ${error.message}</p>`;
       return;
     }
-
-    const carrerasRef = _boletaCarrerasCache
-      ? Object.fromEntries(_boletaCarrerasCache.map(c => [c.id, c.nombre]))
-      : {};
-
-    let html = `
-      <p style="color:#666;font-size:0.85rem;margin-bottom:10px;">${alumnos.length} alumno(s) encontrado(s)</p>
-      <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
-        <thead>
-          <tr style="background:#6A2135;color:white;">
-            <th style="padding:10px 12px;text-align:left;">Nombre</th>
-            <th style="padding:10px 12px;text-align:left;">Matrícula</th>
-            <th style="padding:10px 12px;text-align:left;">Carrera</th>
-            <th style="padding:10px 12px;text-align:center;">Periodo Actual</th>
-            <th style="padding:10px 12px;text-align:center;">Acción</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    alumnos.forEach(a => {
-      html += `
-        <tr style="border-bottom:1px solid #eee;">
-          <td style="padding:10px 12px;">${a.nombre || '-'}</td>
-          <td style="padding:10px 12px;">${a.matricula || '-'}</td>
-          <td style="padding:10px 12px;">${carrerasRef[a.carreraId] || a.carreraId || '-'}</td>
-          <td style="padding:10px 12px;text-align:center;">${a.periodo || '-'}</td>
-          <td style="padding:10px 12px;text-align:center;">
-            <button onclick="verBoletaGlobalAlumno('${a.id}')"
-              style="padding:6px 16px;background:linear-gradient(135deg,#6A2135,#9c2f50);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem;">
-              Ver Boleta
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-
-    html += '</tbody></table></div>';
-    contenedor.innerHTML = html;
-
-  } catch (error) {
-    console.error('Error en buscarAlumnoBoletaGlobal:', error);
-    contenedor.innerHTML = `<p style="color:#c00;padding:12px;">Error: ${error.message}</p>`;
   }
+
+  // ── Filtrar en memoria, cero lecturas adicionales ────────────────────────
+  let alumnos = _alumnosBGCache;
+  if (busqueda) {
+    alumnos = alumnos.filter(a =>
+      (a.nombre || '').toLowerCase().includes(busqueda) ||
+      (a.matricula || '').toLowerCase().includes(busqueda)
+    );
+  }
+  alumnos = [...alumnos].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+  if (!alumnos.length) {
+    contenedor.innerHTML = '<p style="color:#999;padding:20px;text-align:center;">Sin resultados.</p>';
+    return;
+  }
+
+  const carrerasRef = _boletaCarrerasCache
+    ? Object.fromEntries(_boletaCarrerasCache.map(c => [c.id, c.nombre]))
+    : {};
+
+  let html = `
+    <p style="color:#666;font-size:0.85rem;margin-bottom:10px;">${alumnos.length} alumno(s) encontrado(s)</p>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+      <thead>
+        <tr style="background:#6A2135;color:white;">
+          <th style="padding:10px 12px;text-align:left;">Nombre</th>
+          <th style="padding:10px 12px;text-align:left;">Matrícula</th>
+          <th style="padding:10px 12px;text-align:left;">Carrera</th>
+          <th style="padding:10px 12px;text-align:center;">Periodo Actual</th>
+          <th style="padding:10px 12px;text-align:center;">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  alumnos.forEach(a => {
+    html += `
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:10px 12px;">${a.nombre || '-'}</td>
+        <td style="padding:10px 12px;">${a.matricula || '-'}</td>
+        <td style="padding:10px 12px;">${carrerasRef[a.carreraId] || a.carreraId || '-'}</td>
+        <td style="padding:10px 12px;text-align:center;">${a.periodo || '-'}</td>
+        <td style="padding:10px 12px;text-align:center;">
+          <button onclick="verBoletaGlobalAlumno('${a.id}')"
+            style="padding:6px 16px;background:linear-gradient(135deg,#6A2135,#9c2f50);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem;">
+            Ver Boleta
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += '</tbody></table></div>';
+  contenedor.innerHTML = html;
 }
 
 // ── Cache sessionStorage de materias por carreraId ───────────────────────────
@@ -491,17 +496,14 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       return;
     }
 
-    const snap = await db.collection('historialAcademico')
-      .where('alumnoId', '==', alumnoId)
-      .limit(1)
-      .get();
+    const histDoc = await db.collection('historialAcademico').doc(alumnoId).get();
 
-    if (snap.empty) {
+    if (!histDoc.exists) {
       alert('No se encontró historial académico para este alumno.\nVerifica que el historial haya sido generado.');
       return;
     }
 
-    const data          = snap.docs[0].data();
+    const data          = histDoc.data();
     const alumnoNombre  = data.alumnoNombre  || '-';
     const matricula     = data.matricula     || '-';
     const carreraNombre = data.carreraNombre || '-';
@@ -565,10 +567,6 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       return n + ' (' + (CAL_PALABRAS[n] || String(n)) + ')';
     }
 
-    // Construir filas de ambas columnas con numeración global secuencial.
-    // Se procesan en pares (nivel impar → izquierda, par → derecha) y se
-    // agregan filas vacías al lado más corto para alinear los encabezados
-    // de NIVEL entre columnas.
     let counter = 0, totalSuma = 0, totalCount = 0;
     const leftRows  = [];
     const rightRows = [];
@@ -583,32 +581,22 @@ async function descargarBoletaGlobalPDF(alumnoId) {
         counter++;
         const calNum = parseFloat(m.calificacion);
         if (!isNaN(calNum)) { totalSuma += calNum; totalCount++; }
+        const subtitulo = [m.periodoAcademico || '', formatCal(m.calificacion)]
+          .filter(Boolean).join('  ');
         target.push([
           counter.toString(),
-          m.materiaNombre    || '-',
-          m.acr              || 'ORD',
-          m.periodoAcademico || '',
-          formatCal(m.calificacion)
+          { content: (m.materiaNombre || '-') + (subtitulo ? '\n' + subtitulo : ''),
+            styles: { valign: 'middle' } },
+          m.acr || 'ORD',
+          '',
+          ''
         ]);
       });
-      return 1 + porPeriodo[periodo].length; // filas añadidas (header + datos)
     }
 
     for (let i = 0; i < periodos.length; i += 2) {
-      const pL = periodos[i];
-      const pR = periodos[i + 1];
-
-      const lLen = agregarFilasNivel(pL, leftRows);
-      const rLen = pR ? agregarFilasNivel(pR, rightRows) : 0;
-
-      // Rellenar el lado más corto con filas vacías para alinear el próximo NIVEL
-      const diff = lLen - rLen;
-      const VACIA = ['', '', '', '', ''];
-      if (diff > 0) {
-        for (let j = 0; j < diff; j++) rightRows.push(VACIA);
-      } else if (diff < 0) {
-        for (let j = 0; j < -diff; j++) leftRows.push(VACIA);
-      }
+      agregarFilasNivel(periodos[i], leftRows);
+      if (periodos[i + 1]) agregarFilasNivel(periodos[i + 1], rightRows);
     }
 
     const tableComun = {
@@ -692,11 +680,15 @@ window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
     const cambioMap = Object.fromEntries(cambios.map(c => [c.mid, c]));
 
     // 1. Actualizar calificaciones en batch
+    // alumnoId y materiaId siempre se incluyen para que la query
+    // where('alumnoId','==',x) encuentre docs creados desde aquí.
     const batch = db.batch();
     for (const { mid, acr, per } of cambios) {
       batch.set(
         db.collection('calificaciones').doc(`${alumnoId}_${mid}`),
         {
+          alumnoId:           alumnoId,
+          materiaId:          mid,
           promedio:           promedioMap[mid],
           acreditacion:       acr  || null,
           periodoAcademico:   per  || null,
