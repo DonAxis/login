@@ -615,28 +615,63 @@ async function descargarBoletaGlobalPDF(alumnoId) {
       }
     };
 
+    // Pre-calcular en qué filas del body va una línea horizontal:
+    // — justo después del encabezado de NIVEL (= arriba de la 1ª materia)
+    // — justo después de la última materia de cada NIVEL (= abajo de la última)
+    function nivelBounds(rows) {
+      const set = new Set();
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const esHeader = Array.isArray(r) && r.length === 1 && r[0] && r[0].colSpan === 5;
+        if (esHeader) {
+          set.add(i); // línea al fondo del encabezado NIVEL
+        } else {
+          const sig = rows[i + 1];
+          const sigEsHeader = sig && Array.isArray(sig) && sig.length === 1 && sig[0] && sig[0].colSpan === 5;
+          if (sigEsHeader || i === rows.length - 1) set.add(i); // línea al fondo de la última materia
+        }
+      }
+      return set;
+    }
+
+    const leftBounds  = nivelBounds(leftRows);
+    const rightBounds = nivelBounds(rightRows);
+
+    function hookNivel(bounds) {
+      return function(data) {
+        if (data.section !== 'body' || !bounds.has(data.row.index)) return;
+        const lineY = data.row.y + data.row.height;
+        data.doc.setDrawColor(0, 0, 0);
+        data.doc.setLineWidth(0.3);
+        data.doc.line(data.table.startX, lineY,
+                      data.table.startX + data.table.width, lineY);
+      };
+    }
+
     const HEAD   = [['#', 'MATERIA', 'ACR', 'PERIODO', 'CALIFICACION']];
     const startY = y;
 
     doc.autoTable({ ...tableComun, startY,
       margin: { left: 20, right: col2X, bottom: 20 },
-      head: HEAD, body: leftRows
+      head: HEAD, body: leftRows,
+      didDrawRow: hookNivel(leftBounds)
     });
     const leftFinalY = doc.lastAutoTable.finalY;
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.4);
-    doc.line(20,      startY,    pageWidth - col2X, startY);
-    doc.line(20,      leftFinalY, pageWidth - col2X, leftFinalY);
+    doc.line(20,    startY,     pageWidth - col2X, startY);
+    doc.line(20,    leftFinalY, pageWidth - col2X, leftFinalY);
 
     doc.autoTable({ ...tableComun, startY,
       margin: { left: col2X, right: 20, bottom: 20 },
-      head: HEAD, body: rightRows
+      head: HEAD, body: rightRows,
+      didDrawRow: hookNivel(rightBounds)
     });
     const rightFinalY = doc.lastAutoTable.finalY;
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.4);
-    doc.line(col2X,   startY,     pageWidth - 20, startY);
-    doc.line(col2X,   rightFinalY, pageWidth - 20, rightFinalY);
+    doc.line(col2X, startY,      pageWidth - 20, startY);
+    doc.line(col2X, rightFinalY, pageWidth - 20, rightFinalY);
 
     y = Math.max(leftFinalY, rightFinalY) + 8;
 
