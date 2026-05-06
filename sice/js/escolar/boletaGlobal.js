@@ -585,8 +585,7 @@ async function descargarBoletaGlobalPDF(alumnoId) {
           .filter(Boolean).join('  ');
         target.push([
           counter.toString(),
-          { content: (m.materiaNombre || '-') + (subtitulo ? '\n' + subtitulo : ''),
-            styles: { valign: 'middle' } },
+          (m.materiaNombre || '-') + (subtitulo ? '\n' + subtitulo : ''),
           m.acr || 'ORD',
           '',
           ''
@@ -613,8 +612,8 @@ async function descargarBoletaGlobalPDF(alumnoId) {
         0: { halign: 'center', cellWidth: 5 },
         1: { halign: 'left' },
         2: { halign: 'center', cellWidth: 8 },
-        3: { halign: 'center', cellWidth: 14 },
-        4: { halign: 'center', cellWidth: 21 }
+        3: { halign: 'center', cellWidth: 9 },
+        4: { halign: 'center', cellWidth: 12 }
       }
     };
 
