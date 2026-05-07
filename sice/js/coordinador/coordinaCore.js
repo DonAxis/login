@@ -278,8 +278,14 @@ async function cargarCarrerasCoordinador() {
                 throw new Error('Carrera asignada no encontrada');
             }
         } else {
-            // Sin carreras asignadas
-            console.error('Coordinador sin carreras asignadas');
+            // Sin carreras — si tiene academia asignada, redirigir allá
+            const tieneAcademias = (usuarioActual.academias && usuarioActual.academias.length > 0) ||
+                                   (usuarioActual.tieneAcademia && usuarioActual.academiaId);
+            if (tieneAcademias) {
+                window.location.href = './controlAcademia.html';
+                return;
+            }
+            console.error('Coordinador sin carreras ni academia asignadas');
             alert(
                 'SIN CARRERAS ASIGNADAS\n\n' +
                 'No tienes carreras asignadas en este momento.\n\n' +
