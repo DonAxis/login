@@ -69,8 +69,9 @@ auth.onAuthStateChanged(async (user) => {
   try {
     const userDocData = await obtenerUsuarioConCache(user.uid);
 
-    if (!userDocData || userDocData.rol !== 'coordinador') {
-      alert('Solo coordinadores pueden acceder');
+    const rolesPermitidos = ['coordinador', 'coordinadorAcademia'];
+    if (!userDocData || !rolesPermitidos.includes(userDocData.rol)) {
+      alert('Acceso no autorizado');
       window.location.href = '../../index.html';
       return;
     }
@@ -83,12 +84,20 @@ auth.onAuthStateChanged(async (user) => {
 
     if (!tieneAcademiaUnica && !tieneAcademias) {
       alert('Tu usuario no tiene una academia asignada.\nContacta al administrador.');
-      window.location.href = './controlCoordinador.html';
+      window.location.href = '../../index.html';
       return;
     }
 
     document.getElementById('userName').textContent = usuarioActual.nombre;
-    document.getElementById('userRol').textContent = `Coordinador de ${usuarioActual.carreraId}`;
+    // Ocultar botón "Mi Carrera" si no tiene carreras asignadas
+    const tieneCarreras = usuarioActual.carreras && usuarioActual.carreras.length > 0;
+    if (!tieneCarreras) {
+      const btnMiCarrera = document.getElementById('btnMiCarrera');
+      if (btnMiCarrera) btnMiCarrera.style.display = 'none';
+    }
+    document.getElementById('userRol').textContent = usuarioActual.carreraId
+      ? `Coordinador de ${usuarioActual.carreraId}`
+      : 'Coordinador de Academia';
 
     if (tieneAcademias) {
       const nombres = usuarioActual.academias.map(a => a.academiaNombre).join(', ');
@@ -593,6 +602,12 @@ async function verActaCalificaciones(asignacionId, materiaNombre, codigoGrupo) {
 
 function volverCoordinador() {
   window.location.href = './controlCoordinador.html';
+}
+
+async function cerrarSesion() {
+  await firebase.auth().signOut();
+  sessionStorage.clear();
+  window.location.href = '../../index.html';
 }
 
 // ============================================================================
