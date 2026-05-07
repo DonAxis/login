@@ -860,12 +860,7 @@ async function guardarAsignacionCarreras() {
       }
     });
 
-    if (carrerasAsignadas.length === 0) {
-      alert('Debes seleccionar al menos una carrera');
-      return;
-    }
-
-    const carreraActual = carrerasAsignadas[0].carreraId;
+    const carreraActual = carrerasAsignadas.length > 0 ? carrerasAsignadas[0].carreraId : null;
     
     // Procesar academias asignadas
     const academiasAsignadas = [];
