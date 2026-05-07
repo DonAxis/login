@@ -85,7 +85,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
       const p2Num = (p2Raw !== null && p2Raw !== 'NP') ? Number(p2Raw) : p2Raw;
       const p3Num = (p3Raw !== null && p3Raw !== 'NP') ? Number(p3Raw) : p3Raw;
       const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalInforme);
-      const final = calNum === null ? '-' : (calNum === 'NP' ? 'NP' : calNum.toFixed(1));
+      const final = calNum === null ? '-' : (calNum === 'NP' ? 'NP' : String(redondearCalificacion(calNum)));
 
       const f1 = cal.faltas?.falta1 ?? '-';
       const f2 = cal.faltas?.falta2 ?? '-';
@@ -99,8 +99,8 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
         p2: String(p2), f2: String(f2),
         p3: String(p3), f3: String(f3),
         final: String(final),
-        extra: (p1Raw === 'NP' || p2Raw === 'NP') ? 'NP' : (cal.extraordinario != null ? String(cal.extraordinario) : ''),
-        ets: cal.ets != null ? String(cal.ets) : ''
+        extra: (p1Raw === 'NP' || p2Raw === 'NP') ? 'NP' : (cal.extraordinario != null ? String(redondearCalificacion(cal.extraordinario)) : ''),
+        ets: cal.ets != null ? String(redondearCalificacion(cal.ets)) : ''
       });
     }
 

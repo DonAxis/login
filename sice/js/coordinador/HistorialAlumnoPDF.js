@@ -259,8 +259,9 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
         if (calNum === 'NP') {
           promedio = 'NP';
         } else if (calNum !== null) {
-          promedio = calNum.toFixed(1);
-          sumaPromedios += calNum;
+          const calRed = redondearCalificacion(calNum);
+          promedio = String(calRed);
+          sumaPromedios += calRed;
           countPromedios++;
         }
 

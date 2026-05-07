@@ -103,3 +103,18 @@ async function obtenerEsMaestria(carreraId) {
     return false;
   }
 }
+
+/**
+ * Redondea una calificación final (no parcial).
+ * < 6  → Math.floor  (5.9 → 5, 5.5 → 5)
+ * >= 6 → Math.round  (6.5 → 7, 6.4 → 6)
+ * @param {number|string|'NP'|null} cal
+ * @returns {number|'NP'|null}
+ */
+function redondearCalificacion(cal) {
+  if (cal === null || cal === undefined || cal === 'NP') return cal;
+  const n = Number(cal);
+  if (isNaN(n)) return cal;
+  if (n < 6) return Math.floor(n);
+  return Math.round(n);
+}

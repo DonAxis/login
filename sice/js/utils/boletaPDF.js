@@ -257,8 +257,9 @@ async function generarPDFBoletaActual() {
         sumaCalificaciones += 5.0;
         countCalificaciones++;
       } else if (calNum !== null) {
-        calTexto = calNum.toFixed(1);
-        sumaCalificaciones += calNum;
+        const calRed = redondearCalificacion(calNum);
+        calTexto = String(calRed);
+        sumaCalificaciones += calRed;
         countCalificaciones++;
       }
 

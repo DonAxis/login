@@ -330,7 +330,7 @@ function renderizarMaterias(materias, tieneEF = false) {
   materias.forEach(materia => {
     const toN = v => (v !== '-' && v !== null && v !== undefined) ? (v === 'NP' ? 'NP' : parseFloat(v)) : null;
     const calNum = calcularCalificacion(toN(materia.parcial1), toN(materia.parcial2), toN(materia.parcial3), tieneEF);
-    const promedio = calNum === null ? '-' : (calNum === 'NP' ? 'NP' : calNum.toFixed(1));
+    const promedio = calNum === null ? '-' : (calNum === 'NP' ? 'NP' : String(redondearCalificacion(calNum)));
 
     html += `
       <tr style="border-bottom: 1px solid #eee;">
@@ -351,10 +351,10 @@ function renderizarMaterias(materias, tieneEF = false) {
           ${promedio}
         </td>
         <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.1rem; font-weight: bold; color: ${materia.extraordinario !== null ? '#4caf50' : '#999'};">
-          ${materia.extraordinario !== null ? materia.extraordinario : '-'}
+          ${materia.extraordinario !== null ? redondearCalificacion(materia.extraordinario) : '-'}
         </td>
         ${!tieneEF ? `<td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.1rem; font-weight: bold; color: ${materia.ets !== null ? '#4caf50' : '#999'};">
-          ${materia.ets !== null ? materia.ets : '-'}
+          ${materia.ets !== null ? redondearCalificacion(materia.ets) : '-'}
         </td>` : ''}
       </tr>
     `;

@@ -484,7 +484,7 @@ function generarTablaCalificaciones() {
     const calificacion = esMaestriaActual
       ? (cal.parcial1 !== null && cal.parcial1 !== undefined ? cal.parcial1 : null)
       : calcularCalificacion(cal.parcial1, cal.parcial2, cal.parcial3, tieneExamenFinalActual);
-    const calTexto = calificacion === null ? '-' : (calificacion === 'NP' ? 'NP' : (typeof calificacion === 'number' ? calificacion.toFixed(1) : calificacion));
+    const calTexto = calificacion === null ? '-' : (calificacion === 'NP' ? 'NP' : String(redondearCalificacion(calificacion)));
 
     // Color de la calificación
     let colorCal = '#666';
@@ -825,14 +825,14 @@ async function guardarCalificacionesProfe() {
       console.log('     Faltas:', nuevasFaltas);
 
       // Calcular calificación usando la función centralizada
-      const promedio = esMaestriaActual
+      const promedio = redondearCalificacion(esMaestriaActual
         ? nuevosParciales.parcial1
         : calcularCalificacion(
             nuevosParciales.parcial1,
             nuevosParciales.parcial2,
             nuevosParciales.parcial3,
             tieneExamenFinalActual
-          );
+          ));
 
       console.log('  -> Calificación calculada:', promedio);
       
@@ -1137,11 +1137,11 @@ function generarSeccionExtraordinarios(asignacion, alumnos, tieneEFExtra = false
           ${alumno.nombre}${badgeEspecial}
         </td>
         <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${alumno.matricula || 'N/A'}</td>
-        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #dc3545; font-weight: bold;">${alumno.promedio === 'NP' ? 'NP' : alumno.promedio.toFixed(1)}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #dc3545; font-weight: bold;">${alumno.promedio === 'NP' ? 'NP' : String(redondearCalificacion(alumno.promedio))}</td>
 
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff8e1;">
           ${alumno.extraordinario !== null && alumno.extraordinario !== undefined
-            ? `<span style="font-weight: bold; color: #4caf50;">${alumno.extraordinario}</span>`
+            ? `<span style="font-weight: bold; color: #4caf50;">${redondearCalificacion(alumno.extraordinario)}</span>`
             : `<select id="ext_${idx}" data-alumno-id="${alumno.id}" data-materia-id="${asignacion.materiaId}" data-tipo="ext"
                        style="width: 70px; padding: 6px; border: 2px solid #ff9800; border-radius: 6px; text-align: center; font-weight: bold;">
                 <option value="">-</option>
@@ -1153,7 +1153,7 @@ function generarSeccionExtraordinarios(asignacion, alumnos, tieneEFExtra = false
         ${!tieneEFExtra ? `
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fce4ec;">
           ${alumno.ets !== null && alumno.ets !== undefined
-            ? `<span style="font-weight: bold; color: #4caf50;">${alumno.ets}</span>`
+            ? `<span style="font-weight: bold; color: #4caf50;">${redondearCalificacion(alumno.ets)}</span>`
             : `<select id="ets_${idx}" data-alumno-id="${alumno.id}" data-materia-id="${asignacion.materiaId}" data-tipo="ets"
                        style="width: 70px; padding: 6px; border: 2px solid #dc3545; border-radius: 6px; text-align: center; font-weight: bold;">
                 <option value="">-</option>
@@ -1219,9 +1219,9 @@ async function guardarExtraordinarios() {
       };
 
       if (tipo === 'ext') {
-        updateData.extraordinario = parseFloat(valor);
+        updateData.extraordinario = redondearCalificacion(parseFloat(valor));
       } else if (tipo === 'ets') {
-        updateData.ets = parseFloat(valor);
+        updateData.ets = redondearCalificacion(parseFloat(valor));
       }
 
       await db.collection('calificaciones').doc(docId).set(updateData, { merge: true });

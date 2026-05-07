@@ -3607,7 +3607,7 @@ function generarTablaCalificaciones() {
         const calNum = esMaestriaCoord ? p1Num : calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalCoord);
         let calTexto = '-';
         if (calNum === 'NP') calTexto = 'NP';
-        else if (calNum !== null) calTexto = typeof calNum === 'number' ? calNum.toFixed(1) : String(calNum);
+        else if (calNum !== null) calTexto = String(redondearCalificacion(calNum));
 
         // Celdas intermedias según tipo de carrera
         if (esMaestriaCoord) {
@@ -3753,7 +3753,7 @@ function calcularPromedioAlumno(alumno) {
     const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalCoord);
     if (calNum === null) return '-';
     if (calNum === 'NP') return 'NP';
-    return calNum.toFixed(1);
+    return String(redondearCalificacion(calNum));
 }
 
 // Guardar todas las calificaciones
@@ -3821,7 +3821,7 @@ async function guardarTodasCalificacionesCoord() {
                 falta3 = tieneExamenFinalCoord ? null : ((f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3)));
 
                 const toNum = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
-                promedio = calcularCalificacion(toNum(parcial1), toNum(parcial2), toNum(parcial3), tieneExamenFinalCoord);
+                promedio = redondearCalificacion(calcularCalificacion(toNum(parcial1), toNum(parcial2), toNum(parcial3), tieneExamenFinalCoord));
             }
 
             // Extraordinario — guardar si existe el dropdown (aplica a todas las carreras)
@@ -3829,7 +3829,7 @@ async function guardarTodasCalificacionesCoord() {
             const extraEl = document.getElementById(`calif_${i}_extraordinario`);
             if (extraEl) {
                 const extraVal = extraEl.value;
-                extraordinarioGuardar = extraVal === '' ? null : parseFloat(extraVal);
+                extraordinarioGuardar = extraVal === '' ? null : redondearCalificacion(parseFloat(extraVal));
             }
 
             const updateData = {
@@ -3984,8 +3984,8 @@ async function guardarExtraordinarios(alumnoId, materiaId) {
     const inputExt = document.getElementById('inputExtraordinario');
     const inputEts = document.getElementById('inputETS');
     
-    const extraordinario = inputExt.value === '' ? null : parseFloat(inputExt.value);
-    const ets = inputEts.value === '' ? null : parseFloat(inputEts.value);
+    const extraordinario = inputExt.value === '' ? null : redondearCalificacion(parseFloat(inputExt.value));
+    const ets = inputEts.value === '' ? null : redondearCalificacion(parseFloat(inputEts.value));
     
     // Validar
     if (extraordinario !== null && (extraordinario < 0 || extraordinario > 10)) {

@@ -387,7 +387,7 @@ async function historialActualAlumnos() {
           prom = 'NP';
         } else {
           const vals = [p1, p2, p3].filter(v => v !== '-' && v !== null && v !== undefined).map(Number).filter(n => !isNaN(n));
-          if (vals.length > 0) prom = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+          if (vals.length > 0) prom = String(redondearCalificacion(vals.reduce((a, b) => a + b, 0) / vals.length));
         }
         const color = prom === '-' ? '#666' : parseFloat(prom) >= 8 ? '#4caf50' : parseFloat(prom) >= 6 ? '#ff9800' : '#f44336';
         html += `<td style="text-align:center; font-size:0.85rem;">
@@ -504,7 +504,7 @@ async function historialActualMaterias() {
           prom = 'NP';
         } else {
           const vals = [p1, p2, p3].filter(v => v !== '-' && v !== null && v !== undefined).map(Number).filter(n => !isNaN(n));
-          if (vals.length > 0) prom = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+          if (vals.length > 0) prom = String(redondearCalificacion(vals.reduce((a, b) => a + b, 0) / vals.length));
         }
         const color = prom === '-' ? '#333' : parseFloat(prom) >= 8 ? '#4caf50' : parseFloat(prom) >= 6 ? '#ff9800' : '#f44336';
         html += `<tr>
@@ -733,10 +733,10 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
           .filter(c => !isNaN(c));
         
         if (cals.length > 0) {
-          promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
+          promedio = String(redondearCalificacion(cals.reduce((a, b) => a + b, 0) / cals.length));
         }
       }
-      
+
       // Color del promedio
       let colorPromedio = '#333';
       if (promedio !== '-') {
@@ -1186,7 +1186,7 @@ async function verDetalleAlumnoEspecial(alumnoId, nombreAlumno) {
         .filter(c => !isNaN(c));
       
       if (cals.length > 0) {
-        inscripcion.promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
+        inscripcion.promedio = String(redondearCalificacion(cals.reduce((a, b) => a + b, 0) / cals.length));
       } else if (inscripcion.parcial1 === 'NP' || inscripcion.parcial2 === 'NP' || inscripcion.parcial3 === 'NP') {
         inscripcion.promedio = 'NP';
       } else {

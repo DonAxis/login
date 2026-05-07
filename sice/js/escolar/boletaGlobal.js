@@ -334,7 +334,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
 
         if (esActualPer) {
           // ── Semestre actual: "Cursando", solo lectura ──────────────────────
-          const calStr = rawCal === null ? '-' : String(rawCal);
+          const calStr = rawCal === null ? '-' : String(redondearCalificacion(rawCal));
           html += `<tr>
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
@@ -358,7 +358,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
 
           if (soloLectura) {
             // ── Solo lectura (controlEscolar): igual que futuro pero muestra acr/periodo ─
-            const calStr = sinCap ? '-' : String(rawCal);
+            const calStr = sinCap ? '-' : String(redondearCalificacion(rawCal));
             html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
@@ -369,7 +369,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
   </tr>`;
           } else {
             // ── Editable (coordinador): selects de calificación, acr y periodo ─
-            const optsHtml    = _optsCalificacion(rawCal);
+            const optsHtml    = _optsCalificacion(redondearCalificacion(rawCal));
             const optsAcrHtml = _optsAcreditacion(rawAcr);
             html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
@@ -406,7 +406,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
           const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
           const chipTxt  = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
-          const calStr   = sinCap ? '-' : String(rawCal);
+          const calStr   = sinCap ? '-' : String(redondearCalificacion(rawCal));
           html += `<tr style="background:${rowBg};">
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
@@ -583,8 +583,8 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     function formatCal(cal) {
       if (cal === null || cal === undefined) return '-';
       if (String(cal).toUpperCase() === 'NP') return 'NP';
-      const n = parseInt(cal, 10);
-      if (isNaN(n)) return String(cal);
+      const n = redondearCalificacion(cal);
+      if (n === null || n === undefined || isNaN(Number(n))) return String(cal);
       return n + ' (' + (CAL_PALABRAS[n] || String(n)) + ')';
     }
 
@@ -602,7 +602,8 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       porPeriodo[periodo].forEach(m => {
         counter++;
         const cursando = periodoActual > 0 && Number(m.periodo) === periodoActual;
-        const calNum = parseFloat(m.calificacion);
+        const calRed = redondearCalificacion(m.calificacion);
+        const calNum = (calRed !== null && calRed !== undefined && calRed !== 'NP') ? Number(calRed) : NaN;
         if (!cursando && !isNaN(calNum)) { totalSuma += calNum; totalCount++; }
         target.push([
           counter.toString(),

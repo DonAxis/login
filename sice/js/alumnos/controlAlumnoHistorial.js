@@ -101,15 +101,15 @@ async function verHistorialCompleto() {
           const tieneNP = p1 === 'NP' || p2 === 'NP' || p3 === 'NP';
           
           if (tieneNP) {
-            promedio = '5.0';
+            promedio = '5';
           } else {
             const cals = [p1, p2, p3]
               .filter(c => c !== '-' && c !== null && c !== undefined)
               .map(c => parseFloat(c))
               .filter(c => !isNaN(c));
-            
+
             if (cals.length > 0) {
-              promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
+              promedio = String(redondearCalificacion(cals.reduce((a, b) => a + b, 0) / cals.length));
             }
           }
           

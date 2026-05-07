@@ -208,7 +208,7 @@
         const vals = [p1, p2, p3]
           .filter(v => v !== '-' && v != null && v !== '')
           .map(Number).filter(n => !isNaN(n));
-        if (vals.length > 0) prom = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+        if (vals.length > 0) prom = String(redondearCalificacion(vals.reduce((a, b) => a + b, 0) / vals.length));
       }
       const color = prom === '-' ? '#333' : parseFloat(prom) >= 8 ? '#4caf50' : parseFloat(prom) >= 6 ? '#ff9800' : '#f44336';
       return { p1, p2, p3, prom, color };
