@@ -3838,6 +3838,11 @@ async function guardarTodasCalificacionesCoord() {
                 extraordinarioGuardar = extraVal === '' ? null : redondearCalificacion(parseFloat(extraVal));
             }
 
+            // Si hay extraordinario capturado, es la calificación definitiva (pisa NP u otra)
+            if (extraordinarioGuardar !== null && extraordinarioGuardar !== undefined) {
+                promedio = extraordinarioGuardar;
+            }
+
             const updateData = {
                 alumnoId: alumno.id,
                 alumnoNombre: alumno.nombre,
