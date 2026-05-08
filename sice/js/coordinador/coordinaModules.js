@@ -6415,7 +6415,8 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
                 periodo: cal.periodo || 'N/A',
                 parcial1: cal.parciales?.parcial1 ?? '-',
                 parcial2: cal.parciales?.parcial2 ?? '-',
-                parcial3: cal.parciales?.parcial3 ?? '-'
+                parcial3: cal.parciales?.parcial3 ?? '-',
+                extraordinario: cal.extraordinario ?? null
             };
         }
 
@@ -6473,7 +6474,12 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
             const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalHistorial);
             let promedio = '-';
             if (calNum === 'NP') promedio = 'NP';
-            else if (calNum !== null) promedio = calNum.toFixed(1);
+            else if (calNum !== null) promedio = String(redondearCalificacion(calNum));
+
+            // Extraordinario tiene prioridad sobre el promedio calculado
+            if (materia.extraordinario !== null && materia.extraordinario !== undefined) {
+                promedio = String(redondearCalificacion(materia.extraordinario));
+            }
 
             // Color del promedio
             let colorPromedio = '#667eea';

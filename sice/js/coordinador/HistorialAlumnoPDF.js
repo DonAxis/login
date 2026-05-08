@@ -66,7 +66,8 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
         periodo: cal.periodo || 'N/A',
         parcial1: cal.parciales?.parcial1 ?? '-',
         parcial2: cal.parciales?.parcial2 ?? '-',
-        parcial3: cal.parciales?.parcial3 ?? '-'
+        parcial3: cal.parciales?.parcial3 ?? '-',
+        extraordinario: cal.extraordinario ?? null
       };
     }
     
@@ -261,7 +262,15 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
         } else if (calNum !== null) {
           const calRed = redondearCalificacion(calNum);
           promedio = String(calRed);
-          sumaPromedios += calRed;
+        }
+
+        // Extraordinario tiene prioridad sobre el promedio calculado
+        if (materia.extraordinario !== null && materia.extraordinario !== undefined) {
+          promedio = String(redondearCalificacion(materia.extraordinario));
+        }
+
+        if (promedio !== '-' && promedio !== 'NP') {
+          sumaPromedios += parseFloat(promedio);
           countPromedios++;
         }
 
