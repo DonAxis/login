@@ -664,10 +664,11 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
         if (alumno) {
           alumnosEnMateria.push({
             ...alumno,
-            parcial1: cal.parciales?.parcial1 ?? '-',
-            parcial2: cal.parciales?.parcial2 ?? '-',
-            parcial3: cal.parciales?.parcial3 ?? '-',
-            periodo: cal.periodo
+            parcial1:       cal.parciales?.parcial1 ?? '-',
+            parcial2:       cal.parciales?.parcial2 ?? '-',
+            parcial3:       cal.parciales?.parcial3 ?? '-',
+            extraordinario: cal.extraordinario ?? null,
+            periodo:        cal.periodo
           });
         }
       }
@@ -731,19 +732,26 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
           .filter(c => c !== '-' && c !== null && c !== undefined && c !== '')
           .map(c => parseFloat(c))
           .filter(c => !isNaN(c));
-        
+
         if (cals.length > 0) {
           promedio = String(redondearCalificacion(cals.reduce((a, b) => a + b, 0) / cals.length));
         }
       }
 
+      // Extraordinario tiene prioridad sobre el promedio calculado
+      if (alumno.extraordinario !== null && alumno.extraordinario !== undefined) {
+        promedio = String(redondearCalificacion(alumno.extraordinario));
+      }
+
       // Color del promedio
       let colorPromedio = '#333';
-      if (promedio !== '-') {
+      if (promedio !== '-' && promedio !== 'NP') {
         const prom = parseFloat(promedio);
         if (prom >= 8) colorPromedio = '#4caf50';
         else if (prom >= 6) colorPromedio = '#ff9800';
         else colorPromedio = '#f44336';
+      } else if (promedio === 'NP') {
+        colorPromedio = '#f44336';
       }
       
       html += `
