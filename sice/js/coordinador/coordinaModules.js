@@ -3630,10 +3630,16 @@ function generarTablaCalificaciones() {
 
         let celdaP3, celdaExtra = '';
         if (tieneExamenFinalCoord) {
+            const tieneNP_parciales = p1 === 'NP' || p2 === 'NP';
             const p1n = (p1 !== null && p1 !== undefined && p1 !== 'NP') ? parseFloat(p1) : null;
             const p2n = (p2 !== null && p2 !== undefined && p2 !== 'NP') ? parseFloat(p2) : null;
             const avg12 = (p1n !== null && p2n !== null) ? (p1n + p2n) / 2 : null;
-            if (avg12 === null) {
+            if (tieneNP_parciales) {
+                // NP en parcial → sin derecho a examen final, pero puede ir a extraordinario
+                celdaP3  = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #dc3545; font-size: 0.85rem;">Sin derecho</td>`;
+                celdaExtra = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${generarDropdownCalif(index, 'extraordinario', alumno.calificaciones.extraordinario)}</td>`;
+            } else if (avg12 === null) {
+                // Calificaciones aún no capturadas
                 celdaP3  = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #999;">-</td>`;
                 celdaExtra = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #999;">-</td>`;
             } else if (avg12 >= 7.5) {

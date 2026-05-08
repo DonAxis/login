@@ -1762,7 +1762,7 @@ function mostrarPanelEscolar(panel) {
   }
   if (panel === 'aprobar') _poblarCarrerasAprobar();
   if (panel === 'boletaGlobal') {
-    inicializarBoletaGlobal(null, true);
+    inicializarBoletaGlobal();
     buscarAlumnoBoletaGlobal();
   }
 }
