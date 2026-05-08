@@ -3609,6 +3609,12 @@ function generarTablaCalificaciones() {
         if (calNum === 'NP') calTexto = 'NP';
         else if (calNum !== null) calTexto = String(redondearCalificacion(calNum));
 
+        // Si hay extraordinario guardado, es la calificación definitiva (pisa NP u otro valor)
+        const extraGuardado = alumno.calificaciones.extraordinario;
+        if (extraGuardado !== null && extraGuardado !== undefined) {
+            calTexto = String(redondearCalificacion(extraGuardado));
+        }
+
         // Celdas intermedias según tipo de carrera
         if (esMaestriaCoord) {
             const celdaCalMaestria = `
