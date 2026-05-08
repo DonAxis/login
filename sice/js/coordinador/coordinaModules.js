@@ -3711,6 +3711,18 @@ function generarTablaCalificaciones() {
     `;
 
     container.innerHTML = html;
+
+    // Rastrear cambios de extraordinario en memoria (más confiable que getElementById en el save)
+    alumnosCalifMateria.forEach((alumno, idx) => {
+        const el = document.getElementById(`calif_${idx}_extraordinario`);
+        alumno._hasExtraDropdown = !!el;
+        if (el) {
+            el.addEventListener('change', () => {
+                const v = el.value;
+                alumno.calificaciones.extraordinario = v === '' ? null : (v === 'NP' ? 'NP' : parseInt(v));
+            });
+        }
+    });
 }
 
 // Generar dropdown de calificación
@@ -3836,12 +3848,17 @@ async function guardarTodasCalificacionesCoord() {
                 promedio = redondearCalificacion(calcularCalificacion(toNum(parcial1), toNum(parcial2), toNum(parcial3), tieneExamenFinalCoord));
             }
 
-            // Extraordinario — guardar si existe el dropdown (aplica a todas las carreras)
+            // Extraordinario — leer desde memoria (onchange mantiene alumno.calificaciones.extraordinario actualizado)
             let extraordinarioGuardar = undefined; // undefined = no tocar (merge)
-            const extraEl = document.getElementById(`calif_${i}_extraordinario`);
-            if (extraEl) {
-                const extraVal = extraEl.value;
-                extraordinarioGuardar = extraVal === '' ? null : redondearCalificacion(parseFloat(extraVal));
+            if (alumno._hasExtraDropdown) {
+                const extraVal = alumno.calificaciones.extraordinario;
+                if (extraVal === null || extraVal === undefined) {
+                    extraordinarioGuardar = null;
+                } else if (extraVal === 'NP') {
+                    extraordinarioGuardar = 'NP';
+                } else {
+                    extraordinarioGuardar = redondearCalificacion(parseFloat(extraVal));
+                }
             }
 
             // Si hay extraordinario capturado, es la calificación definitiva (pisa NP u otra)
