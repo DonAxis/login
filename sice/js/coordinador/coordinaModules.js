@@ -6446,6 +6446,7 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
                 <th style="padding: 12px; border: 1px solid #ddd;">Parcial 2</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">${tieneExamenFinalHistorial ? 'Examen Final' : 'Parcial 3'}</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Calificación</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Extra.</th>
               </tr>
             </thead>
             <tbody>
@@ -6509,6 +6510,9 @@ async function verDetalleHistorial(alumnoId, nombreAlumno) {
           </td>
           <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 1.1rem; background: #f8f9fa; color: ${colorPromedio};">
             ${promedio}
+          </td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #e65100;">
+            ${materia.extraordinario !== null && materia.extraordinario !== undefined ? redondearCalificacion(materia.extraordinario) : '-'}
           </td>
         </tr>
       `;

@@ -274,27 +274,31 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
           countPromedios++;
         }
 
+        const extraStr = (materia.extraordinario !== null && materia.extraordinario !== undefined)
+          ? String(redondearCalificacion(materia.extraordinario)) : '-';
+
         tableData.push([
           materia.materiaNombre,
           p1Raw !== null && p1Raw !== undefined ? String(p1Raw) : '-',
           p2Raw !== null && p2Raw !== undefined ? String(p2Raw) : '-',
           p3Raw !== null && p3Raw !== undefined ? String(p3Raw) : '-',
-          promedio
+          promedio,
+          extraStr
         ]);
       });
-      
+
       // Promedio del periodo
-      const promedioPeriodo = countPromedios > 0 
-        ? (sumaPromedios / countPromedios).toFixed(1) 
+      const promedioPeriodo = countPromedios > 0
+        ? (sumaPromedios / countPromedios).toFixed(1)
         : '-';
-      
+
       // Generar tabla
       doc.autoTable({
         startY: y,
         head: [[
           'Materia', 'P1', 'P2',
           tieneExamenFinalPDF ? 'Examen Final' : 'P3',
-          'Calificación'
+          'Calificación', 'Extra.'
         ]],
         body: tableData,
         theme: 'grid',
@@ -310,11 +314,12 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
           cellPadding: 2
         },
         columnStyles: {
-          0: { halign: 'left', cellWidth: 90 },
-          1: { halign: 'center', cellWidth: 20 },
-          2: { halign: 'center', cellWidth: 20 },
+          0: { halign: 'left', cellWidth: 82 },
+          1: { halign: 'center', cellWidth: 18 },
+          2: { halign: 'center', cellWidth: 18 },
           3: { halign: 'center', cellWidth: 20 },
-          4: { halign: 'center', cellWidth: 30, fontStyle: 'bold' }
+          4: { halign: 'center', cellWidth: 25, fontStyle: 'bold' },
+          5: { halign: 'center', cellWidth: 17, fontStyle: 'bold' }
         }
       });
       
