@@ -69,22 +69,22 @@ async function generarPDFBoletaActual() {
         let parcial1 = '-';
         let parcial2 = '-';
         let parcial3 = '-';
-        
+        let extraordinario = null;
+
         if (calDoc.exists) {
           const data = calDoc.data();
           parcial1 = data.parciales?.parcial1 ?? '-';
           parcial2 = data.parciales?.parcial2 ?? '-';
           parcial3 = data.parciales?.parcial3 ?? '-';
+          extraordinario = data.extraordinario ?? null;
         }
-        
+
         materias.push({
           nombre: inscripcion.materiaNombre,
           codigo: inscripcion.materiaCodigo || '',
           profesor: inscripcion.profesorNombre || 'Sin asignar',
           periodo: inscripcion.periodo,
-          parcial1: parcial1,
-          parcial2: parcial2,
-          parcial3: parcial3
+          parcial1, parcial2, parcial3, extraordinario
         });
       }
       
@@ -120,22 +120,22 @@ async function generarPDFBoletaActual() {
         let parcial1 = '-';
         let parcial2 = '-';
         let parcial3 = '-';
-        
+        let extraordinario = null;
+
         if (calDoc.exists) {
           const data = calDoc.data();
           parcial1 = data.parciales?.parcial1 ?? '-';
           parcial2 = data.parciales?.parcial2 ?? '-';
           parcial3 = data.parciales?.parcial3 ?? '-';
+          extraordinario = data.extraordinario ?? null;
         }
-        
+
         materias.push({
           nombre: materia.materiaNombre,
           codigo: materia.materiaCodigo,
           profesor: materia.profesorNombre,
           periodo: materia.periodo,
-          parcial1: parcial1,
-          parcial2: parcial2,
-          parcial3: parcial3
+          parcial1, parcial2, parcial3, extraordinario
         });
       }
     }
@@ -252,7 +252,13 @@ async function generarPDFBoletaActual() {
       );
 
       let calTexto = '-';
-      if (calNum === 'NP') {
+      // Extraordinario tiene prioridad sobre el promedio calculado
+      if (materia.extraordinario !== null && materia.extraordinario !== undefined) {
+        const extraRed = redondearCalificacion(materia.extraordinario);
+        calTexto = String(extraRed);
+        sumaCalificaciones += extraRed;
+        countCalificaciones++;
+      } else if (calNum === 'NP') {
         calTexto = 'NP';
         sumaCalificaciones += 5.0;
         countCalificaciones++;
@@ -266,24 +272,19 @@ async function generarPDFBoletaActual() {
       const p1Txt = p1Raw !== null && p1Raw !== undefined ? p1Raw.toString() : '-';
       const p2Txt = p2Raw !== null && p2Raw !== undefined ? p2Raw.toString() : '-';
       const p3Txt = p3Raw !== null && p3Raw !== undefined ? p3Raw.toString() : '-';
+      const extraTxt = (materia.extraordinario !== null && materia.extraordinario !== undefined)
+        ? String(redondearCalificacion(materia.extraordinario)) : '-';
 
-      if (tieneExamenFinalCarrera) {
-        tableData.push([
-          `${materia.nombre}\n${materia.profesor}`,
-          p1Txt, p2Txt, p3Txt, calTexto
-        ]);
-      } else {
-        tableData.push([
-          `${materia.nombre}\n${materia.profesor}`,
-          p1Txt, p2Txt, p3Txt, calTexto
-        ]);
-      }
+      tableData.push([
+        `${materia.nombre}\n${materia.profesor}`,
+        p1Txt, p2Txt, p3Txt, calTexto, extraTxt
+      ]);
     });
 
     // Encabezado de columnas según tipo de carrera
     const colHeaders = tieneExamenFinalCarrera
-      ? ['Materia / Profesor', 'P1', 'P2', 'Examen Final', 'Calificación']
-      : ['Materia / Profesor', 'P1', 'P2', 'P3', 'Calificación'];
+      ? ['Materia / Profesor', 'P1', 'P2', 'Examen Final', 'Calificación', 'Extra.']
+      : ['Materia / Profesor', 'P1', 'P2', 'P3', 'Calificación', 'Extra.'];
 
     // Generar tabla
     doc.autoTable({
@@ -303,11 +304,12 @@ async function generarPDFBoletaActual() {
         cellPadding: 2
       },
       columnStyles: {
-        0: { halign: 'left', cellWidth: 90 },
-        1: { halign: 'center', cellWidth: 20 },
-        2: { halign: 'center', cellWidth: 20 },
-        3: { halign: 'center', cellWidth: 20 },
-        4: { halign: 'center', cellWidth: 30, fontStyle: 'bold' }
+        0: { halign: 'left', cellWidth: 82 },
+        1: { halign: 'center', cellWidth: 18 },
+        2: { halign: 'center', cellWidth: 18 },
+        3: { halign: 'center', cellWidth: 18 },
+        4: { halign: 'center', cellWidth: 25, fontStyle: 'bold' },
+        5: { halign: 'center', cellWidth: 17, fontStyle: 'bold' }
       }
     });
 
