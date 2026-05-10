@@ -2139,3 +2139,83 @@ function mostrarMensajePrefecto(texto, tipo) {
     el.style.background = '#d1ecf1'; el.style.color = '#0c5460'; el.style.border = '2px solid #bee5eb';
   }
 }
+
+// ===== CREAR ADMINISTRACIÓN (solo lectura) =====
+
+function mostrarModalAdministracion() {
+  document.getElementById('modalAdministracion').style.display = 'flex';
+}
+
+function cerrarModalAdministracion() {
+  document.getElementById('modalAdministracion').style.display = 'none';
+  document.getElementById('formAdministracion').reset();
+  const msg = document.getElementById('mensajeAdministracion');
+  if (msg) msg.style.display = 'none';
+}
+
+async function crearAdministracion(event) {
+  event.preventDefault();
+
+  const nombre   = document.getElementById('nombreAdministracion').value.trim();
+  const email    = document.getElementById('emailAdministracion').value.trim().toLowerCase();
+  const password = document.getElementById('passAdministracion').value;
+
+  if (!nombre || !email) {
+    mostrarMensajeAdministracion('Todos los campos son obligatorios', 'error');
+    return;
+  }
+  if (password.length < 6) {
+    mostrarMensajeAdministracion('La contraseña debe tener al menos 6 caracteres', 'error');
+    return;
+  }
+
+  try {
+    mostrarMensajeAdministracion('Creando usuario...', 'info');
+
+    const secondaryApp  = firebase.initializeApp(firebaseConfig, 'SecondaryAdministracion');
+    const secondaryAuth = secondaryApp.auth();
+
+    const credential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+    const newUid     = credential.user.uid;
+
+    await db.collection('usuarios').doc(newUid).set({
+      nombre:        nombre,
+      email:         email,
+      rol:           'administracion',
+      activo:        true,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    await secondaryAuth.signOut();
+    await secondaryApp.delete();
+
+    mostrarMensajeAdministracion(
+      `Usuario creado exitosamente\n\nNombre: ${nombre}\nEmail: ${email}\nPassword: ${password}\n\nYa puede iniciar sesión en sice/index.html`,
+      'success'
+    );
+
+    document.getElementById('formAdministracion').reset();
+    setTimeout(() => cerrarModalAdministracion(), 4000);
+
+  } catch (error) {
+    let msg = 'Error: ';
+    if (error.code === 'auth/email-already-in-use') msg += 'Este email ya está registrado';
+    else if (error.code === 'auth/invalid-email')   msg += 'Email inválido';
+    else msg += error.message;
+    mostrarMensajeAdministracion(msg, 'error');
+  }
+}
+
+function mostrarMensajeAdministracion(texto, tipo) {
+  const el = document.getElementById('mensajeAdministracion');
+  if (!el) return;
+  el.textContent = texto;
+  el.style.display = 'block';
+  if (tipo === 'success') {
+    el.style.background = '#d4edda'; el.style.color = '#155724'; el.style.border = '2px solid #c3e6cb';
+  } else if (tipo === 'error') {
+    el.style.background = '#f8d7da'; el.style.color = '#721c24'; el.style.border = '2px solid #f5c6cb';
+  } else {
+    el.style.background = '#d1ecf1'; el.style.color = '#0c5460'; el.style.border = '2px solid #bee5eb';
+  }
+}
