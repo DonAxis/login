@@ -220,8 +220,8 @@ async function mostrarInformacionAlumno(desdeCache = false) {
   // Cargar materias y calificaciones
   await cargarMateriasYCalificaciones();
 
-  // Cargar URL del horario (solo si no viene del caché)
-  if (!desdeCache) await cargarUrlHorario();
+  // Cargar URL del horario — siempre re-verifica si el caché no tenía URL
+  if (!desdeCache || !horarioUrlCache) await cargarUrlHorario();
   actualizarBotonHorario();
 
   // Guardar en sessionStorage para consultas repetidas (0 lecturas Firebase)
