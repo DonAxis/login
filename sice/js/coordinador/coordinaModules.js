@@ -3888,6 +3888,31 @@ async function guardarTodasCalificacionesCoord() {
             // merge: true para no borrar ets u otros campos
             await db.collection('calificaciones').doc(docId).set(updateData, { merge: true });
 
+            await registrarCambioCalificacion({
+                docId,
+                alumnoId:      alumno.id,
+                alumnoNombre:  alumno.nombre,
+                materiaId:     asignacionCalifActual.materiaId,
+                materiaNombre: asignacionCalifActual.materiaNombre,
+                carreraId:     asignacionCalifActual.carreraId || null,
+                periodo:       asignacionCalifActual.periodo,
+                antes: {
+                    parciales:      existingData.parciales      || {},
+                    faltas:         existingData.faltas          || {},
+                    promedio:       existingData.promedio        ?? null,
+                    extraordinario: existingData.extraordinario  ?? null
+                },
+                despues: {
+                    parciales:      { parcial1, parcial2, parcial3 },
+                    faltas:         { falta1, falta2, falta3 },
+                    promedio:       updateData.promedio,
+                    extraordinario: updateData.extraordinario !== undefined
+                                      ? updateData.extraordinario
+                                      : (existingData.extraordinario ?? null)
+                },
+                usuario: usuarioActual
+            });
+
             guardadas++;
         }
 

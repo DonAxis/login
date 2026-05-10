@@ -118,3 +118,45 @@ function redondearCalificacion(cal) {
   if (n < 6) return Math.floor(n);
   return Math.round(n);
 }
+
+/**
+ * Registra un cambio de calificación en historialCalificaciones (tipo: 'cambio').
+ * Se distingue de los registros de archivo de fin de periodo (tipo: 'archivo').
+ * Falla silenciosamente para no interrumpir el flujo principal.
+ *
+ * @param {object} opts
+ * @param {string} opts.docId           — ID del doc en calificaciones ({alumnoId}_{materiaId})
+ * @param {string} opts.alumnoId
+ * @param {string} opts.alumnoNombre
+ * @param {string} opts.materiaId
+ * @param {string} opts.materiaNombre
+ * @param {string|null} opts.carreraId
+ * @param {string|null} opts.periodo
+ * @param {object} opts.antes           — snapshot de campos antes del cambio
+ * @param {object} opts.despues         — snapshot de campos después del cambio
+ * @param {object} opts.usuario         — { uid, nombre, rol }
+ */
+async function registrarCambioCalificacion({
+  docId, alumnoId, alumnoNombre, materiaId, materiaNombre,
+  carreraId, periodo, antes, despues, usuario
+}) {
+  try {
+    await db.collection('registroCambios').add({
+      calificacionDocId: docId,
+      alumnoId,
+      alumnoNombre,
+      materiaId,
+      materiaNombre,
+      carreraId:         carreraId  || null,
+      periodo:           periodo    || null,
+      cambiadoPor:       usuario.uid,
+      cambiadoPorNombre: usuario.nombre,
+      cambiadoPorRol:    usuario.rol,
+      fechaCambio:       firebase.firestore.FieldValue.serverTimestamp(),
+      antes,
+      despues
+    });
+  } catch (e) {
+    console.warn('registrarCambioCalificacion error:', e.message);
+  }
+}

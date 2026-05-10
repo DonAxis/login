@@ -854,7 +854,30 @@ async function guardarCalificacionesProfe() {
           actualizadoPor: usuarioActual.uid,
           fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
         });
-        
+
+        await registrarCambioCalificacion({
+          docId,
+          alumnoId:      alumno.id,
+          alumnoNombre:  alumno.nombre,
+          materiaId:     asignacionActual.materiaId,
+          materiaNombre: asignacionActual.materiaNombre,
+          carreraId:     asignacionActual.carreraId || null,
+          periodo:       asignacionActual.periodo,
+          antes: {
+            parciales:      datosActuales.parciales,
+            faltas:         datosActuales.faltas,
+            promedio:       calDoc.exists ? (calDoc.data()?.promedio        ?? null) : null,
+            extraordinario: calDoc.exists ? (calDoc.data()?.extraordinario  ?? null) : null
+          },
+          despues: {
+            parciales:      nuevosParciales,
+            faltas:         nuevasFaltas,
+            promedio:       promedio,
+            extraordinario: calDoc.exists ? (calDoc.data()?.extraordinario  ?? null) : null
+          },
+          usuario: usuarioActual
+        });
+
         guardadas++;
         console.log('  ✓ Guardado correctamente');
         
@@ -1224,7 +1247,32 @@ async function guardarExtraordinarios() {
         updateData.ets = redondearCalificacion(parseFloat(valor));
       }
 
+      const extDocAntes = await db.collection('calificaciones').doc(docId).get();
+      const extDatosAntes = extDocAntes.exists ? extDocAntes.data() : {};
+
       await db.collection('calificaciones').doc(docId).set(updateData, { merge: true });
+
+      await registrarCambioCalificacion({
+        docId,
+        alumnoId,
+        alumnoNombre:  extDatosAntes.alumnoNombre  || alumnoId,
+        materiaId:     extDatosAntes.materiaId     || elem.dataset.materiaId,
+        materiaNombre: extDatosAntes.materiaNombre || elem.dataset.materiaId,
+        carreraId:     extDatosAntes.carreraId     || null,
+        periodo:       extDatosAntes.periodo       || null,
+        antes: {
+          extraordinario: extDatosAntes.extraordinario ?? null,
+          ets:            extDatosAntes.ets            ?? null,
+          promedio:       extDatosAntes.promedio       ?? null
+        },
+        despues: {
+          extraordinario: updateData.extraordinario !== undefined ? updateData.extraordinario : (extDatosAntes.extraordinario ?? null),
+          ets:            updateData.ets            !== undefined ? updateData.ets            : (extDatosAntes.ets            ?? null),
+          promedio:       extDatosAntes.promedio ?? null
+        },
+        usuario: usuarioActual
+      });
+
       guardadas++;
     }
     

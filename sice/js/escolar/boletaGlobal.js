@@ -724,6 +724,15 @@ window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
     }
     const cambioMap = Object.fromEntries(cambios.map(c => [c.mid, c]));
 
+    // Leer docs actuales en paralelo (para auditoría de cambios)
+    const snapAntes = await Promise.all(
+      cambios.map(({ mid }) => db.collection('calificaciones').doc(`${alumnoId}_${mid}`).get())
+    );
+    const datosAntes = {};
+    snapAntes.forEach((snap, i) => {
+      datosAntes[cambios[i].mid] = snap.exists ? snap.data() : {};
+    });
+
     // 1. Actualizar calificaciones en batch
     // alumnoId y materiaId siempre se incluyen para que la query
     // where('alumnoId','==',x) encuentre docs creados desde aquí.
@@ -743,6 +752,35 @@ window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
       );
     }
     await batch.commit();
+
+    // Registrar cambios en auditoría
+    const usuarioBoleta = typeof usuarioActual !== 'undefined'
+      ? usuarioActual
+      : { uid: 'desconocido', nombre: 'Sistema', rol: 'sistema' };
+    for (const { mid, acr, per } of cambios) {
+      const docId = `${alumnoId}_${mid}`;
+      const ant = datosAntes[mid];
+      await registrarCambioCalificacion({
+        docId,
+        alumnoId,
+        alumnoNombre:  ant.alumnoNombre  || alumnoId,
+        materiaId:     mid,
+        materiaNombre: ant.materiaNombre || mid,
+        carreraId:     ant.carreraId     || null,
+        periodo:       ant.periodo       || null,
+        antes: {
+          promedio:       ant.promedio       ?? null,
+          acreditacion:   ant.acreditacion   ?? null,
+          periodoAcademico: ant.periodoAcademico ?? null
+        },
+        despues: {
+          promedio:       promedioMap[mid],
+          acreditacion:   acr || null,
+          periodoAcademico: per || null
+        },
+        usuario: usuarioBoleta
+      });
+    }
 
     // 2. Actualizar historialAcademico.materias[] para que el PDF los lea
     const histRef = db.collection('historialAcademico').doc(alumnoId);
