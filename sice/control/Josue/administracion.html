@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración — SICE ILB</title>
+  <link rel="stylesheet" href="../../css/common/botones2.css">
+  <style>
+    .user-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 14px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .badge-ro {
+      display: inline-block;
+      background: rgba(255, 152, 0, 0.25);
+      border: 1px solid rgba(255, 152, 0, 0.5);
+      color: #ffcc80;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      margin-top: 5px;
+    }
+    .btn-cerrar {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+    .btn-cerrar:hover { background: rgba(255, 255, 255, 0.25); }
+    .portal-card small {
+      display: block;
+      font-size: 0.78rem;
+      opacity: 0.7;
+      margin-top: 6px;
+      font-weight: 400;
+    }
+    .portal-subtitle {
+      opacity: 0.7;
+      font-size: 0.9rem;
+      margin: -10px 0 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="main-wrapper">
+    <header class="index-header">
+      <h1>Panel de Administración</h1>
+      <h2 class="sice">SiCE</h2>
+    </header>
+
+    <div class="user-bar">
+      <div>
+        <strong id="userName">Cargando...</strong>
+        <div><span class="badge-ro">SOLO LECTURA</span></div>
+      </div>
+      <button class="btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+
+    <div class="portal-grid">
+      <a href="./coordinador.html" class="portal-card">
+        <div class="icon">🎓</div>
+        <span>Coordinador</span>
+        <small>Materias, grupos y actas por carrera</small>
+      </a>
+      <a href="./escolar.html" class="portal-card">
+        <div class="icon">📋</div>
+        <span>Control Escolar</span>
+        <small>Alumnos, grupos e inscripciones</small>
+      </a>
+      <a href="./academia.html" class="portal-card">
+        <div class="icon">📐</div>
+        <span>Academia</span>
+        <small>Materias transversales y actas</small>
+      </a>
+      <a href="./profesor.html" class="portal-card">
+        <div class="icon">👨‍🏫</div>
+        <span>Profesor</span>
+        <small>Grupos activos y calificaciones</small>
+      </a>
+    </div>
+
+    <p class="portal-subtitle">Selecciona un módulo para consultar la información</p>
+
+    <footer class="index-footer">
+      <div class="footer-logos">
+        <img src="../../assets/ilb.png" alt="Logo ILB" class="logo-ilb">
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="../../js/utils/firebase.js"></script>
+  <script>
+    firebase.auth().onAuthStateChanged(async (user) => {
+      if (!user) { window.location.href = '../../index.html'; return; }
+      try {
+        const u = await obtenerUsuarioConCache(user.uid);
+        if (!u || u.rol !== 'administracion') {
+          alert('Acceso no autorizado');
+          await firebase.auth().signOut();
+          window.location.href = '../../index.html';
+          return;
+        }
+        document.getElementById('userName').textContent = u.nombre;
+      } catch (e) {
+        console.error(e);
+        window.location.href = '../../index.html';
+      }
+    });
+
+    async function cerrarSesion() {
+      await firebase.auth().signOut();
+      sessionStorage.clear();
+      window.location.href = '../../index.html';
+    }
+  </script>
+</body>
+</html>

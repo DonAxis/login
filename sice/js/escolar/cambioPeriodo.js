@@ -285,6 +285,20 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
       await batchDel.commit();
     }
     
+    // 4.5 LIMPIAR HORARIOS DEL PERIODO (quedan obsoletos al cambiar periodo)
+    try {
+      const horariosSnap = await db.collection('horarios')
+        .where('carreraId', '==', carreraId)
+        .get();
+      if (!horariosSnap.empty) {
+        const batchH = db.batch();
+        horariosSnap.forEach(doc => batchH.delete(doc.ref));
+        await batchH.commit();
+      }
+    } catch (e) {
+      console.warn('No se pudieron limpiar horarios:', e);
+    }
+
     // 5. ACTUALIZAR CONFIGURACION DEL PERIODO (10%)
     progressBar.style.width = '95%';
     progressText.textContent = 'Actualizando configuración...';

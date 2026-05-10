@@ -6648,4 +6648,129 @@ async function eliminarAlumnoDesdeEdicion(alumnoId) {
     }
 }
 
+// =====================================================
+// MÓDULO HORARIOS — Cloudinary + Firestore
+// =====================================================
+const CLOUDINARY_CLOUD = 'diaki2vi2';
+const CLOUDINARY_PRESET = 'ilb_horarios';
+
+async function mostrarModalHorario() {
+    document.getElementById('tituloModal').textContent = 'Horarios de Grupo';
+    document.getElementById('contenidoModal').innerHTML = '<p style="text-align:center;color:#666;padding:20px;">Cargando grupos...</p>';
+    document.getElementById('modalGenerico').style.display = 'flex';
+
+    try {
+        const snap = await db.collection('profesorMaterias')
+            .where('carreraId', '==', usuarioActual.carreraId)
+            .where('activa', '==', true)
+            .get();
+
+        const gruposMap = {};
+        snap.forEach(doc => {
+            const d = doc.data();
+            if (d.codigoGrupo) gruposMap[d.codigoGrupo] = d.turnoNombre || '';
+        });
+
+        const grupos = Object.keys(gruposMap).sort();
+
+        if (grupos.length === 0) {
+            document.getElementById('contenidoModal').innerHTML =
+                '<p style="color:#999;text-align:center;padding:20px;">No hay grupos activos en este periodo.</p>';
+            return;
+        }
+
+        const horarioDocs = await Promise.all(
+            grupos.map(cg => db.collection('horarios').doc(cg).get())
+        );
+
+        let html = '<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
+        grupos.forEach((cg, i) => {
+            const doc = horarioDocs[i];
+            const tieneHorario = doc.exists;
+            const turno = gruposMap[cg] ? ` <small style="color:#888;">(${gruposMap[cg]})</small>` : '';
+            const badge = tieneHorario
+                ? '<span style="font-size:0.75rem;background:#e8f5e9;color:#388e3c;padding:2px 10px;border-radius:12px;margin-left:8px;">&#10003; Cargado</span>'
+                : '<span style="font-size:0.75rem;background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:12px;margin-left:8px;">Sin horario</span>';
+            const btnVer = tieneHorario
+                ? `<button onclick="verHorarioCoord('${doc.data().url}')" style="background:#1976d2;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;">Ver</button>`
+                : '';
+            html += `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;">
+                <div><strong>${cg}</strong>${turno}${badge}</div>
+                <div style="display:flex;gap:8px;">
+                    ${btnVer}
+                    <button onclick="subirHorarioGrupo('${cg}')" style="background:#6A2135;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">${tieneHorario ? 'Reemplazar' : 'Subir imagen'}</button>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+
+        document.getElementById('contenidoModal').innerHTML = html;
+    } catch (error) {
+        console.error('Error al cargar grupos para horario:', error);
+        document.getElementById('contenidoModal').innerHTML = '<p style="color:red;padding:20px;">Error al cargar grupos.</p>';
+    }
+}
+
+function verHorarioCoord(url) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+    overlay.innerHTML = `<img src="${url}" style="max-width:95vw;max-height:92vh;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.6);">
+        <div style="position:absolute;top:16px;right:20px;color:white;font-size:1.5rem;cursor:pointer;" onclick="this.parentElement.remove()">&#x2715;</div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+}
+
+async function subirHorarioGrupo(codigoGrupo) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp';
+    input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('La imagen es muy grande. Máximo 5 MB.');
+            return;
+        }
+
+        try {
+            document.getElementById('contenidoModal').innerHTML =
+                `<div style="text-align:center;padding:40px;">
+                    <div style="font-size:1.1rem;font-weight:600;margin-bottom:12px;">Subiendo horario del grupo ${codigoGrupo}...</div>
+                    <div style="color:#666;font-size:0.9rem;">Por favor espera</div>
+                </div>`;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', CLOUDINARY_PRESET);
+            formData.append('folder', 'ilb_horarios');
+
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) throw new Error(`Cloudinary error ${res.status}`);
+            const data = await res.json();
+
+            await db.collection('horarios').doc(codigoGrupo).set({
+                url: data.secure_url,
+                codigoGrupo,
+                carreraId: usuarioActual.carreraId,
+                subidoPor: usuarioActual.uid,
+                fechaSubida: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            alert(`Horario del grupo ${codigoGrupo} guardado correctamente.`);
+            mostrarModalHorario();
+        } catch (error) {
+            console.error('Error al subir horario:', error);
+            alert('Error al subir el horario. Intenta de nuevo.');
+            mostrarModalHorario();
+        }
+    };
+    input.click();
+}
+
 console.log('modules.js cargado');

@@ -217,7 +217,7 @@ input:focus {
 
 .btn-horario {
   background: #e0e0e0;
-  color: #21596A;
+  color: #999;
   padding: 12px 30px;
   border-radius: 10px;
   border: none;
@@ -225,6 +225,17 @@ input:focus {
   font-weight: 600;
   margin-top: 20px;
   display: inline-block;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-horario:not(:disabled) {
+  background: #21596A;
+  color: white;
+  cursor: pointer;
+}
+
+.btn-horario:not(:disabled):hover {
+  background: #1a4757;
 }
 
 /* Estilos para móvil */

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profesor — Administración SICE</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f8; color: #333; min-height: 100vh; }
+    .header {
+      background: linear-gradient(135deg, #6A2135 0%, #3a121d 100%);
+      color: white;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header h1 { font-size: 1.25rem; margin-bottom: 2px; }
+    .badge-ro {
+      display: inline-block;
+      background: rgba(255,152,0,0.25);
+      color: #ffcc80;
+      border: 1px solid rgba(255,152,0,0.4);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+    }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .user-name { font-size: 0.85rem; opacity: 0.85; }
+    .btn-back {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.25); }
+    .content { max-width: 1100px; margin: 24px auto; padding: 0 20px 40px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .card h2 { font-size: 1.05rem; color: #6A2135; margin-bottom: 14px; font-weight: 600; }
+    input[type="text"] {
+      padding: 9px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      width: 100%;
+      max-width: 380px;
+    }
+    input:focus { outline: none; border-color: #6A2135; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead th { background: #6A2135; color: white; padding: 10px 12px; text-align: left; font-weight: 600; }
+    tbody td { padding: 9px 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+    tbody tr:hover { background: #fdf5f6; }
+    tbody tr:last-child td { border-bottom: none; }
+    .btn-ver {
+      background: #6A2135;
+      color: white;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .btn-ver:hover { background: #4a1525; }
+    .btn-volver {
+      background: #eee;
+      color: #555;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+    .btn-volver:hover { background: #ddd; }
+    .sin-datos { text-align: center; padding: 30px; color: #999; }
+    .prom-aprobado { color: #2e7d32; font-weight: 600; }
+    .prom-reprobado { color: #c62828; font-weight: 600; }
+    .prom-np { color: #e65100; font-weight: 600; }
+    .prof-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .prof-card:hover { background: #fdf5f6; }
+    .prof-card:last-child { border-bottom: none; }
+    .prof-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #6A2135;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .prof-info { flex: 1; }
+    .prof-info strong { font-size: 0.95rem; }
+    .prof-info small { font-size: 0.8rem; color: #888; display: block; margin-top: 1px; }
+    .prof-arrow { color: #ccc; font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Profesores</h1>
+      <span class="badge-ro">Solo lectura</span>
+    </div>
+    <div class="header-right">
+      <span class="user-name" id="userName"></span>
+      <button class="btn-back" onclick="window.location.href='./administracion.html'">← Inicio</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Lista de profesores -->
+    <div id="seccionProfesores">
+      <div class="card">
+        <h2>Selecciona un profesor</h2>
+        <input type="text" id="buscadorProf" placeholder="Buscar por nombre..." oninput="filtrarProfesores()" style="margin-bottom:16px;">
+        <div id="listaProfesores"><p style="color:#999;">Cargando...</p></div>
+      </div>
+    </div>
+
+    <!-- Materias del profesor -->
+    <div id="seccionMaterias" style="display:none;">
+      <div class="card">
+        <button class="btn-volver" onclick="volverAProfesores()">← Profesores</button>
+        <h2 id="tituloProfesor" style="display:inline; margin-left:12px;"></h2>
+        <div id="listaMaterias" style="margin-top:16px;"></div>
+      </div>
+    </div>
+
+    <!-- Acta de calificaciones -->
+    <div id="seccionActa" style="display:none;">
+      <div class="card">
+        <button class="btn-volver" onclick="volverAMaterias()">← Materias</button>
+        <h2 id="tituloActa" style="display:inline; margin-left:12px;"></h2>
+        <div id="contenidoActa" style="margin-top:16px;"><p style="color:#999;">Cargando...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="../../js/utils/firebase.js"></script>
+  <script>
+    let profesoresData = [];
+    let asignacionesProfesor = [];
+    let profesorActualId = null;
+
+    firebase.auth().onAuthStateChanged(async (user) => {
+      if (!user) { window.location.href = '../../index.html'; return; }
+      try {
+        const u = await obtenerUsuarioConCache(user.uid);
+        if (!u || u.rol !== 'administracion') {
+          await firebase.auth().signOut();
+          window.location.href = '../../index.html';
+          return;
+        }
+        document.getElementById('userName').textContent = u.nombre;
+        await cargarProfesores();
+      } catch (e) {
+        console.error(e);
+        window.location.href = '../../index.html';
+      }
+    });
+
+    async function cargarProfesores() {
+      const snap = await db.collection('usuarios').where('rol', '==', 'profesor').get();
+      profesoresData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      profesoresData.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+      renderProfesores(profesoresData);
+    }
+
+    function filtrarProfesores() {
+      const q = document.getElementById('buscadorProf').value.toLowerCase().trim();
+      if (!q) { renderProfesores(profesoresData); return; }
+      renderProfesores(profesoresData.filter(p => (p.nombre || '').toLowerCase().includes(q)));
+    }
+
+    function renderProfesores(lista) {
+      if (lista.length === 0) {
+        document.getElementById('listaProfesores').innerHTML = '<p class="sin-datos">No se encontraron profesores.</p>';
+        return;
+      }
+      let html = '';
+      lista.forEach(p => {
+        const inicial = (p.nombre || '?').charAt(0).toUpperCase();
+        const carrera = p.carreraId ? `Carrera: ${p.carreraId}` : 'Sin carrera asignada';
+        html += `<div class="prof-card" onclick="verMateriasProfesor('${p.id}', '${(p.nombre || '').replace(/'/g, "\\'")}')">
+          <div class="prof-avatar">${inicial}</div>
+          <div class="prof-info">
+            <strong>${p.nombre || '-'}</strong>
+            <small>${p.email || ''} &nbsp;·&nbsp; ${carrera}</small>
+          </div>
+          <span class="prof-arrow">›</span>
+        </div>`;
+      });
+      document.getElementById('listaProfesores').innerHTML = html;
+    }
+
+    async function verMateriasProfesor(profesorId, profesorNombre) {
+      profesorActualId = profesorId;
+      document.getElementById('seccionProfesores').style.display = 'none';
+      document.getElementById('seccionActa').style.display = 'none';
+      document.getElementById('seccionMaterias').style.display = 'block';
+      document.getElementById('tituloProfesor').textContent = profesorNombre;
+      document.getElementById('listaMaterias').innerHTML = '<p style="color:#999;">Cargando...</p>';
+
+      const snap = await db.collection('profesorMaterias')
+        .where('profesorId', '==', profesorId)
+        .where('activa', '==', true)
+        .get();
+
+      asignacionesProfesor = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      if (asignacionesProfesor.length === 0) {
+        document.getElementById('listaMaterias').innerHTML =
+          '<p class="sin-datos">Este profesor no tiene materias activas actualmente.</p>';
+        return;
+      }
+
+      asignacionesProfesor.sort((a, b) => (a.materiaNombre || '').localeCompare(b.materiaNombre || ''));
+
+      let html = `<div style="overflow-x:auto;"><table>
+        <thead><tr>
+          <th>Materia</th><th>Carrera</th><th>Grupo</th><th>Turno</th><th>Periodo</th><th></th>
+        </tr></thead><tbody>`;
+      asignacionesProfesor.forEach(m => {
+        const safe = s => (s || '').replace(/'/g, "\\'");
+        html += `<tr>
+          <td>${m.materiaNombre || '-'}</td>
+          <td>${m.carreraId || '-'}</td>
+          <td>${m.codigoGrupo || '-'}</td>
+          <td>${turnoNombre(m.turno)}</td>
+          <td>${m.periodo || '-'}</td>
+          <td><button class="btn-ver"
+            onclick="verActa('${safe(m.id)}','${safe(m.materiaNombre)}','${safe(m.codigoGrupo)}')">
+            Ver Acta
+          </button></td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('listaMaterias').innerHTML = html;
+    }
+
+    function volverAProfesores() {
+      document.getElementById('seccionMaterias').style.display = 'none';
+      document.getElementById('seccionActa').style.display = 'none';
+      document.getElementById('seccionProfesores').style.display = 'block';
+    }
+
+    function volverAMaterias() {
+      document.getElementById('seccionActa').style.display = 'none';
+      document.getElementById('seccionMaterias').style.display = 'block';
+    }
+
+    async function verActa(asignacionId, materiaNombre, codigoGrupo) {
+      document.getElementById('seccionMaterias').style.display = 'none';
+      document.getElementById('seccionActa').style.display = 'block';
+      document.getElementById('tituloActa').textContent = `${materiaNombre} — Grupo ${codigoGrupo}`;
+      const container = document.getElementById('contenidoActa');
+      container.innerHTML = '<p style="color:#999;">Cargando calificaciones...</p>';
+
+      try {
+        const asigDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+        if (!asigDoc.exists) {
+          container.innerHTML = '<p style="color:red;">Asignación no encontrada.</p>';
+          return;
+        }
+        const asig = asigDoc.data();
+
+        const [alumnosSnap, inscSnap] = await Promise.all([
+          db.collection('usuarios')
+            .where('rol', '==', 'alumno')
+            .where('codigoGrupo', '==', asig.codigoGrupo)
+            .where('activo', '==', true)
+            .get(),
+          db.collection('inscripcionesEspeciales')
+            .where('asignacionId', '==', asignacionId)
+            .get()
+        ]);
+
+        const alumnosMap = new Map();
+        alumnosSnap.forEach(doc => {
+          const a = doc.data();
+          alumnosMap.set(doc.id, { id: doc.id, nombre: a.nombre || '-', matricula: a.matricula || '-', esEspecial: false });
+        });
+
+        const especIds = [];
+        inscSnap.forEach(doc => {
+          const d = doc.data();
+          if (d.alumnoId && !alumnosMap.has(d.alumnoId)) especIds.push(d.alumnoId);
+        });
+        if (especIds.length > 0) {
+          const especDocs = await Promise.all(especIds.map(id => db.collection('usuarios').doc(id).get()));
+          especDocs.forEach(doc => {
+            if (doc.exists) {
+              const a = doc.data();
+              alumnosMap.set(doc.id, { id: doc.id, nombre: a.nombre || '-', matricula: a.matricula || '-', esEspecial: true });
+            }
+          });
+        }
+
+        if (alumnosMap.size === 0) {
+          container.innerHTML = `<p class="sin-datos">No hay alumnos en el grupo <strong>${asig.codigoGrupo}</strong>.</p>`;
+          return;
+        }
+
+        const califSnap = await db.collection('calificaciones')
+          .where('profesorId', '==', asig.profesorId)
+          .where('codigoGrupo', '==', asig.codigoGrupo)
+          .get();
+
+        const califMap = new Map();
+        califSnap.forEach(doc => {
+          const c = doc.data();
+          const p = c.parciales || {};
+          const f = c.faltas || {};
+          califMap.set(c.alumnoId, {
+            p1: p.parcial1 ?? null, p2: p.parcial2 ?? null, p3: p.parcial3 ?? null,
+            promedio: c.promedio ?? null,
+            extraordinario: c.extraordinario ?? null,
+            ets: c.ets ?? null,
+            faltas: (f.falta1 || 0) + (f.falta2 || 0) + (f.falta3 || 0)
+          });
+        });
+
+        const alumnos = Array.from(alumnosMap.values()).map(a => ({
+          ...a, ...(califMap.get(a.id) || { p1: null, p2: null, p3: null, promedio: null, extraordinario: null, ets: null, faltas: 0 })
+        })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        const fmt = v => (v !== null && v !== undefined) ? v : '-';
+        const clsProm = p => {
+          if (p === null || p === undefined) return '';
+          if (p === 'NP') return 'prom-np';
+          return p >= 6 ? 'prom-aprobado' : 'prom-reprobado';
+        };
+
+        let html = `<div style="overflow-x:auto;"><table>
+          <thead><tr>
+            <th>Alumno</th><th>Matrícula</th><th>P1</th><th>P2</th><th>P3</th>
+            <th>Promedio</th><th>Extra</th><th>ETS</th><th>Faltas</th>
+          </tr></thead><tbody>`;
+        alumnos.forEach(a => {
+          html += `<tr>
+            <td>${a.nombre}${a.esEspecial ? ' <span style="color:#ff6f00;font-size:0.8em;" title="Inscripción especial">★</span>' : ''}</td>
+            <td>${a.matricula}</td>
+            <td>${fmt(a.p1)}</td><td>${fmt(a.p2)}</td><td>${fmt(a.p3)}</td>
+            <td class="${clsProm(a.promedio)}">${fmt(a.promedio)}</td>
+            <td>${fmt(a.extraordinario)}</td><td>${fmt(a.ets)}</td><td>${a.faltas}</td>
+          </tr>`;
+        });
+        html += `</tbody></table></div>
+        <p style="margin-top:10px;font-size:0.82rem;color:#888;">
+          ${alumnos.length} alumno(s) &nbsp;|&nbsp; Grupo: ${asig.codigoGrupo} &nbsp;|&nbsp; Profesor: ${asig.profesorNombre || '-'}
+          ${inscSnap.size > 0 ? ' &nbsp;|&nbsp; ★ = Inscripción especial' : ''}
+        </p>`;
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `<p style="color:red;">Error: ${e.message}</p>`;
+      }
+    }
+
+    function turnoNombre(t) {
+      return { 1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino' }[t] || '-';
+    }
+  </script>
+</body>
+</html>

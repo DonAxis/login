@@ -64,7 +64,7 @@
         </div>
 
         <button onclick="nuevaConsulta()" class="btn-nuevo">Nueva Consulta</button>
-        <button class="btn-horario" title="Próximamente">Ver Horario (Próximamente)</button>
+        <button id="btnVerHorario" class="btn-horario" onclick="verHorario()" title="Próximamente" disabled>Ver Horario</button>
       </div>
       <br>
 
@@ -92,6 +92,7 @@
     let alumnoActual = null;
     let materiasCache = null;
     let carreraNombreCache = null;
+    let horarioUrlCache = null;
 
 // Detectar si hay sesión activa
 firebase.auth().onAuthStateChanged((user) => {
@@ -128,13 +129,15 @@ async function consultarAlumno(event) {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       try {
-        const { alumno, materias, carreraNombre, timestamp } = JSON.parse(cached);
+        const { alumno, materias, carreraNombre, horarioUrl, timestamp } = JSON.parse(cached);
         const TTL = 30 * 60 * 1000; // 30 minutos
         if (Date.now() - timestamp < TTL && alumno.email === email) {
           alumnoActual = alumno;
           materiasCache = materias;
           carreraNombreCache = carreraNombre;
-          await mostrarInformacionAlumno();
+          horarioUrlCache = horarioUrl || null;
+          await mostrarInformacionAlumno(true);
+          actualizarBotonHorario();
           btnConsultar.disabled = false;
           btnConsultar.textContent = 'Consultar';
           return;
@@ -180,7 +183,7 @@ async function consultarAlumno(event) {
   }
 }
 
-async function mostrarInformacionAlumno() {
+async function mostrarInformacionAlumno(desdeCache = false) {
   // Mostrar nombre
   document.getElementById('nombreAlumno').textContent = alumnoActual.nombre;
   document.getElementById('infoMatricula').textContent = alumnoActual.matricula;
@@ -217,6 +220,10 @@ async function mostrarInformacionAlumno() {
   // Cargar materias y calificaciones
   await cargarMateriasYCalificaciones();
 
+  // Cargar URL del horario (solo si no viene del caché)
+  if (!desdeCache) await cargarUrlHorario();
+  actualizarBotonHorario();
+
   // Guardar en sessionStorage para consultas repetidas (0 lecturas Firebase)
   if (alumnoActual && materiasCache) {
     const cacheKey = `consulta_${alumnoActual.matricula}`;
@@ -224,6 +231,7 @@ async function mostrarInformacionAlumno() {
       alumno: alumnoActual,
       materias: materiasCache,
       carreraNombre: carreraNombreCache,
+      horarioUrl: horarioUrlCache,
       timestamp: Date.now()
     }));
   }
@@ -373,6 +381,43 @@ function renderizarMaterias(materias, tieneEF = false) {
   container.innerHTML = html;
 }
 
+async function cargarUrlHorario() {
+  if (!alumnoActual || !alumnoActual.codigoGrupo) return;
+  try {
+    const doc = await db.collection('horarios').doc(alumnoActual.codigoGrupo).get();
+    horarioUrlCache = doc.exists ? doc.data().url : null;
+  } catch (e) {
+    horarioUrlCache = null;
+  }
+}
+
+function actualizarBotonHorario() {
+  const btn = document.getElementById('btnVerHorario');
+  if (!btn) return;
+  if (horarioUrlCache) {
+    btn.disabled = false;
+    btn.title = 'Ver horario de tu grupo';
+    btn.style.opacity = '1';
+  } else {
+    btn.disabled = true;
+    btn.title = 'Horario no disponible aún';
+    btn.style.opacity = '0.5';
+  }
+}
+
+function verHorario() {
+  if (!horarioUrlCache) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+  overlay.innerHTML = `
+    <div style="position:relative;max-width:95vw;max-height:95vh;">
+      <img src="${horarioUrlCache}" style="max-width:95vw;max-height:90vh;border-radius:8px;display:block;">
+      <div style="position:absolute;top:-36px;right:0;color:white;font-size:1.5rem;cursor:pointer;padding:4px 8px;" onclick="this.closest('[style*=fixed]').remove()">&#x2715;</div>
+    </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
 function nuevaConsulta() {
   document.getElementById('loginCard').style.display = 'block';
   document.getElementById('resultado').style.display = 'none';
@@ -382,6 +427,7 @@ function nuevaConsulta() {
   alumnoActual = null;
   materiasCache = null;
   carreraNombreCache = null;
+  horarioUrlCache = null;
 }
   </script>
   
