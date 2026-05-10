@@ -142,6 +142,7 @@ async function cargarCarreras() {
 async function cargarMateriasAcademia() {
   try {
     let academiaIds = [];
+
     if (usuarioActual.academias && usuarioActual.academias.length > 0) {
       academiaIds = usuarioActual.academias.map(a => a.academiaId);
     } else if (usuarioActual.academiaId) {

@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supervisor — SICE ILB</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; color: #222; }
+
+    /* ── Header ── */
+    .sv-header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+    .sv-header h1 { font-size: 1.15rem; font-weight: 700; }
+    .sv-header .sub { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-top: 2px; }
+    .sv-header .right { text-align: right; }
+    .sv-header .right p { font-size: 0.83rem; color: rgba(255,255,255,0.72); margin: 2px 0; }
+    .badge-ro {
+      display: inline-block;
+      background: #ff6f00;
+      color: white;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .btn-logout {
+      background: rgba(255,255,255,0.12);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      transition: background 0.2s;
+      vertical-align: middle;
+    }
+    .btn-logout:hover { background: rgba(255,255,255,0.22); }
+
+    /* ── Nav tabs ── */
+    .sv-nav {
+      background: #16213e;
+      display: flex;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      overflow-x: auto;
+    }
+    .sv-tab {
+      padding: 11px 22px;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.88rem;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .sv-tab:hover { color: rgba(255,255,255,0.82); }
+    .sv-tab.active { color: white; border-bottom-color: #ff6f00; }
+
+    /* ── Content ── */
+    .sv-main { max-width: 1200px; margin: 22px auto; padding: 0 16px; }
+    .sv-section { display: none; }
+    .sv-section.active { display: block; }
+
+    /* ── Cards ── */
+    .sv-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px 22px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .sv-card h2 { color: #1a1a2e; font-size: 1rem; margin-bottom: 14px; font-weight: 700; }
+
+    /* ── Select row ── */
+    .sv-sel-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .sv-sel-row label { font-weight: 600; color: #555; font-size: 0.88rem; white-space: nowrap; }
+    .sv-select {
+      padding: 8px 12px;
+      border: 2px solid #ddd;
+      border-radius: 7px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      min-width: 200px;
+      transition: border-color 0.2s;
+      background: white;
+    }
+    .sv-select:focus { outline: none; border-color: #1a1a2e; }
+    .sv-select:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── Tables ── */
+    .sv-table-wrap { overflow-x: auto; margin-top: 12px; border-radius: 8px; border: 1px solid #eee; }
+    .sv-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    .sv-table th {
+      background: #1a1a2e;
+      color: white;
+      padding: 10px 13px;
+      text-align: left;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .sv-table td { padding: 9px 13px; border-bottom: 1px solid #f0f0f0; }
+    .sv-table tbody tr:last-child td { border-bottom: none; }
+    .sv-table tbody tr:hover td { background: #f5f7ff; }
+    .sv-table tbody tr.sv-row-link { cursor: pointer; }
+    .sv-table tbody tr.sv-row-link:hover td { background: #eef0ff; }
+
+    /* ── Chips ── */
+    .chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.73rem;
+      font-weight: 700;
+    }
+    .chip-green  { background: #e8f5e9; color: #2e7d32; }
+    .chip-red    { background: #ffebee; color: #c62828; }
+    .chip-orange { background: #fff3e0; color: #e65100; }
+    .chip-blue   { background: #e3f2fd; color: #1565c0; }
+    .chip-gray   { background: #f5f5f5; color: #757575; }
+
+    /* ── Back button ── */
+    .sv-back {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: #eee; border: none; padding: 7px 13px;
+      border-radius: 7px; cursor: pointer; font-weight: 600;
+      font-size: 0.85rem; margin-bottom: 14px; transition: background 0.2s;
+    }
+    .sv-back:hover { background: #ddd; }
+
+    /* ── Loading / empty ── */
+    .sv-loading {
+      text-align: center; padding: 36px; color: #aaa; font-size: 0.9rem;
+    }
+    .sv-loading::after {
+      content: ''; display: block; width: 28px; height: 28px;
+      border: 3px solid #e0e0e0; border-top-color: #1a1a2e;
+      border-radius: 50%; animation: svSpin 0.7s linear infinite;
+      margin: 10px auto 0;
+    }
+    @keyframes svSpin { to { transform: rotate(360deg); } }
+    .sv-empty { text-align: center; padding: 36px; color: #bbb; font-size: 0.9rem; }
+    .sv-error { padding: 16px; color: #c62828; font-size: 0.88rem; }
+
+    /* ── Detalle alumno ── */
+    .sv-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .sv-detail-item { background: #f5f7ff; padding: 10px 14px; border-radius: 8px; }
+    .sv-detail-item .lbl { font-size: 0.72rem; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .sv-detail-item .val { font-size: 0.92rem; color: #222; font-weight: 600; margin-top: 3px; word-break: break-word; }
+
+    /* ── Academia cards ── */
+    .academia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 10px; }
+    .academia-card {
+      border: 2px solid #e0e0e0; border-radius: 10px; padding: 16px 18px;
+      cursor: pointer; transition: all 0.2s; background: white;
+    }
+    .academia-card:hover { border-color: #1a1a2e; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .academia-card h3 { color: #1a1a2e; font-size: 0.95rem; margin-bottom: 5px; }
+    .academia-card p { color: #888; font-size: 0.8rem; }
+
+    /* ── Cal colores ── */
+    .cal-ap  { color: #2e7d32; font-weight: 700; }
+    .cal-rep { color: #c62828; font-weight: 700; }
+    .cal-np  { color: #e65100; font-weight: 700; }
+    .cal-null { color: #ccc; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="sv-header">
+    <div>
+      <h1>Panel Supervisor — SICE ILB</h1>
+      <div class="sub">Instituto ILB · ilbcontrol.mx</div>
+    </div>
+    <div class="right">
+      <p><strong id="svNombre">Cargando...</strong></p>
+      <p id="svEmail"></p>
+      <div style="margin-top: 8px;">
+        <span class="badge-ro">SOLO LECTURA</span>
+        <button class="btn-logout" onclick="svCerrarSesion()">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVEGACIÓN -->
+  <nav class="sv-nav">
+    <div class="sv-tab active"  onclick="svTab('coordinador', this)">Coordinador</div>
+    <div class="sv-tab"         onclick="svTab('profesores',  this)">Profesores</div>
+    <div class="sv-tab"         onclick="svTab('escolar',     this)">Control Escolar</div>
+    <div class="sv-tab"         onclick="svTab('academia',    this)">Academia</div>
+  </nav>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <div class="sv-main">
+
+    <!-- ══════════════════════════════════════════════════════
+         TAB: COORDINADOR
+    ══════════════════════════════════════════════════════ -->
+    <div id="secCoordinador" class="sv-section active">
+
+      <!-- Selector de carrera -->
+      <div class="sv-card">
+        <h2>Materias y Calificaciones por Carrera</h2>
+        <div class="sv-sel-row">
+          <label for="selCarrera">Carrera:</label>
+          <select id="selCarrera" class="sv-select" onchange="coordCarreraChange()">
+            <option value="">— Selecciona una carrera —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Lista de materias del coordinador -->
+      <div id="coordMaterias" class="sv-card" style="display:none;">
+        <button class="sv-back" onclick="coordVolver()">← Volver</button>
+        <h2 id="coordMateriasTitle">Materias</h2>
+        <p style="color:#999;font-size:0.82rem;margin-bottom:8px;">
+          Clic en una fila para ver calificaciones del grupo
+        </p>
+        <div class="sv-table-wrap">
+          <table class="sv-table">
+            <thead>
+              <tr>
+                <th>Materia</th>
+                <th>Código</th>
+                <th>Profesor</th>
+                <th>Grupo</th>
+                <th>Turno</th>
+                <th>Período</th>
+              </tr>
+            </thead>
+            <tbody id="coordMateriasBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Calificaciones del grupo (coordinador) -->
+      <div id="coordCalif" class="sv-card" style="display:none;">
+        <button class="sv-back" onclick="coordVolverAMaterias()">← Volver a materias</button>
+        <h2 id="coordCalifTitle">Calificaciones</h2>
+        <div id="coordCalifContent"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         TAB: PROFESORES
+    ══════════════════════════════════════════════════════ -->
+    <div id="secProfesores" class="sv-section">
+
+      <div class="sv-card">
+        <h2>Materias por Profesor</h2>
+        <div class="sv-sel-row">
+          <label for="selProfesor">Profesor:</label>
+          <select id="selProfesor" class="sv-select" onchange="profChange()">
+            <option value="">— Selecciona un profesor —</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="profMaterias" class="sv-card" style="display:none;">
+        <button class="sv-back" onclick="profVolver()">← Volver</button>
+        <h2 id="profMateriasTitle">Materias asignadas</h2>
+        <div class="sv-table-wrap">
+          <table class="sv-table">
+            <thead>
+              <tr>
+                <th>Materia</th>
+                <th>Carrera</th>
+                <th>Grupo</th>
+                <th>Turno</th>
+                <th>Período</th>
+              </tr>
+            </thead>
+            <tbody id="profMateriasBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="profCalif" class="sv-card" style="display:none;">
+        <button class="sv-back" onclick="profVolverAMaterias()">← Volver a materias</button>
+        <h2 id="profCalifTitle">Calificaciones</h2>
+        <div id="profCalifContent"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         TAB: CONTROL ESCOLAR
+    ══════════════════════════════════════════════════════ -->
+    <div id="secEscolar" class="sv-section">
+
+      <div class="sv-card">
+        <h2>Alumnos por Grupo</h2>
+        <div class="sv-sel-row">
+          <label for="selCarreraEsc">Carrera:</label>
+          <select id="selCarreraEsc" class="sv-select" onchange="escCarreraChange()">
+            <option value="">— Selecciona una carrera —</option>
+          </select>
+          <label for="selGrupo">Grupo:</label>
+          <select id="selGrupo" class="sv-select" onchange="escGrupoChange()" disabled>
+            <option value="">— Primero elige carrera —</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="escAlumnos" class="sv-card" style="display:none;">
+        <h2 id="escAlumnosTitle">Alumnos</h2>
+        <div class="sv-table-wrap">
+          <table class="sv-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Matrícula</th>
+                <th>Email</th>
+                <th>Período</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="escAlumnosBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="escAlumnoDetalle" class="sv-card" style="display:none;">
+        <button class="sv-back" onclick="escVolverAlumnos()">← Volver al grupo</button>
+        <h2 id="escAlumnoNombre"></h2>
+        <div id="escAlumnoContent"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         TAB: ACADEMIA
+    ══════════════════════════════════════════════════════ -->
+    <div id="secAcademia" class="sv-section">
+
+      <div id="acadListCard" class="sv-card">
+        <h2>Academias</h2>
+        <div id="acadGrid" class="academia-grid">
+          <div class="sv-loading"></div>
+        </div>
+      </div>
+
+      <div id="acadDetalle" class="sv-card" style="display:none;">
+        <button class="sv-back" onclick="acadVolver()">← Volver a academias</button>
+        <h2 id="acadNombre"></h2>
+        <p style="color:#999;font-size:0.82rem;margin-bottom:10px;">
+          Materias autorizadas · asignaciones activas
+        </p>
+        <div class="sv-table-wrap">
+          <table class="sv-table">
+            <thead>
+              <tr>
+                <th>Materia</th>
+                <th>Carrera</th>
+                <th>Profesor</th>
+                <th>Grupo</th>
+                <th>Período</th>
+              </tr>
+            </thead>
+            <tbody id="acadMateriasBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /sv-main -->
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="../../js/utils/firebase.js"></script>
+  <script>
+    // ════════════════════════════════════════════════════════════
+    // ESTADO
+    // ════════════════════════════════════════════════════════════
+    let svUsuario       = null;
+    let svCarreras      = [];   // todas las carreras
+    let svProfesores    = [];   // todos los profesores
+    let svAcademias     = [];   // todas las academias
+
+    let coordMaterias   = [];   // profesorMaterias de la carrera seleccionada
+    let profMaterias    = [];   // profesorMaterias del profesor seleccionado
+    let escAlumnos      = [];   // alumnos del grupo seleccionado
+    let escAlumnoSel    = null; // alumno actualmente en detalle
+
+    const TURNOS = { 1:'Matutino', 2:'Vespertino', 3:'Nocturno', 4:'Sabatino' };
+
+    function turno(t) { return TURNOS[parseInt(t)] || (t ? `Turno ${t}` : '—'); }
+    function val(v)   { return (v === null || v === undefined || v === '') ? '—' : v; }
+
+    function calClass(c) {
+      if (c === null || c === undefined || c === '') return 'cal-null';
+      if (c === 'NP') return 'cal-np';
+      return parseFloat(c) < 6 ? 'cal-rep' : 'cal-ap';
+    }
+
+    function carreraNombre(id) {
+      const c = svCarreras.find(x => x.id === id);
+      return c ? c.nombre : (id || '—');
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // AUTENTICACIÓN — solo rol 'administracion'
+    // ════════════════════════════════════════════════════════════
+    firebase.auth().onAuthStateChanged(async (user) => {
+      if (!user) { window.location.href = '../../index.html'; return; }
+      try {
+        const u = await obtenerUsuarioConCache(user.uid);
+        if (!u || u.rol !== 'administracion') {
+          alert('Acceso no autorizado');
+          await firebase.auth().signOut();
+          window.location.href = '../../index.html';
+          return;
+        }
+        svUsuario = u;
+        document.getElementById('svNombre').textContent = u.nombre;
+        document.getElementById('svEmail').textContent  = user.email;
+        await svInit();
+      } catch (e) {
+        console.error('Auth supervisor:', e);
+        alert('Error al verificar sesión');
+        window.location.href = '../../index.html';
+      }
+    });
+
+    async function svCerrarSesion() {
+      if (!confirm('¿Cerrar sesión?')) return;
+      await firebase.auth().signOut();
+      sessionStorage.clear();
+      window.location.href = 'https://ilbcontrol.mx/sice';
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // INIT — carga base (carreras, profesores, academias en paralelo)
+    // ════════════════════════════════════════════════════════════
+    async function svInit() {
+      try {
+        const [carSnap, profSnap] = await Promise.all([
+          db.collection('carreras').get(),
+          db.collection('usuarios').where('rol', '==', 'profesor').get()
+        ]);
+
+        svCarreras  = carSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+                              .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
+        svProfesores = profSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+                               .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
+
+        poblarSelect('selCarrera',    svCarreras,   'nombre', '— Selecciona una carrera —');
+        poblarSelect('selCarreraEsc', svCarreras,   'nombre', '— Selecciona una carrera —');
+        poblarSelect('selProfesor',   svProfesores, 'nombre', '— Selecciona un profesor —');
+
+        await acadCargar();
+      } catch (e) {
+        console.error('svInit error:', e);
+      }
+    }
+
+    function poblarSelect(id, items, campo, placeholder) {
+      const el = document.getElementById(id);
+      el.innerHTML = `<option value="">${placeholder}</option>` +
+        items.map(x => `<option value="${x.id}">${x[campo] || x.id}</option>`).join('');
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // NAVEGACIÓN DE TABS
+    // ════════════════════════════════════════════════════════════
+    function svTab(nombre, elTab) {
+      document.querySelectorAll('.sv-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.sv-tab').forEach(t => t.classList.remove('active'));
+      const secId = 'sec' + nombre.charAt(0).toUpperCase() + nombre.slice(1);
+      document.getElementById(secId).classList.add('active');
+      elTab.classList.add('active');
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // CALIFICACIONES — renderizado compartido
+    // ════════════════════════════════════════════════════════════
+    async function renderCalificaciones(containerId, asig) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '<div class="sv-loading"></div>';
+      try {
+        const snap = await db.collection('calificaciones')
+          .where('codigoGrupo', '==', asig.codigoGrupo)
+          .where('materiaId',   '==', asig.materiaId)
+          .get();
+
+        if (snap.empty) {
+          container.innerHTML = '<div class="sv-empty">Sin calificaciones capturadas para este grupo</div>';
+          return;
+        }
+
+        const alumnos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                               .sort((a,b) => (a.alumnoNombre||'').localeCompare(b.alumnoNombre||''));
+
+        const tieneEF = alumnos.some(a => {
+          const p3 = a.parciales && a.parciales.parcial3;
+          return p3 !== null && p3 !== undefined;
+        });
+
+        const thP3 = tieneEF
+          ? '<th style="background:#bf360c;">Exam. Final</th>'
+          : '<th>P3</th>';
+
+        const filas = alumnos.map(a => {
+          const p = a.parciales || {};
+          const f = a.faltas    || {};
+          const prom = a.promedio;
+          return `
+            <tr>
+              <td>${a.alumnoNombre || '—'}</td>
+              <td>${val(p.parcial1)}</td>
+              <td style="color:#aaa;font-size:0.8rem;">${val(f.falta1)}</td>
+              <td>${val(p.parcial2)}</td>
+              <td style="color:#aaa;font-size:0.8rem;">${val(f.falta2)}</td>
+              <td>${val(p.parcial3)}</td>
+              <td class="${calClass(prom)}"><strong>${val(prom)}</strong></td>
+              <td>${val(a.extraordinario)}</td>
+              <td>${val(a.ets)}</td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `
+          <div class="sv-table-wrap">
+            <table class="sv-table">
+              <thead>
+                <tr>
+                  <th>Alumno</th>
+                  <th>P1</th><th style="background:#2a2a40;">F1</th>
+                  <th>P2</th><th style="background:#2a2a40;">F2</th>
+                  ${thP3}
+                  <th>Promedio</th>
+                  <th>Ext.</th>
+                  <th>ETS</th>
+                </tr>
+              </thead>
+              <tbody>${filas}</tbody>
+            </table>
+          </div>
+          <p style="color:#bbb;font-size:0.78rem;margin-top:8px;">
+            ${alumnos.length} alumno(s) · Período: ${asig.periodo || '—'}
+          </p>`;
+      } catch (e) {
+        container.innerHTML = `<div class="sv-error">Error al cargar calificaciones: ${e.message}</div>`;
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TAB COORDINADOR
+    // ════════════════════════════════════════════════════════════
+    async function coordCarreraChange() {
+      const carreraId = document.getElementById('selCarrera').value;
+      document.getElementById('coordMaterias').style.display = 'none';
+      document.getElementById('coordCalif').style.display    = 'none';
+      if (!carreraId) return;
+
+      const nombre = carreraNombre(carreraId);
+      document.getElementById('coordMateriasTitle').textContent = `Materias activas — ${nombre}`;
+      document.getElementById('coordMaterias').style.display = 'block';
+      document.getElementById('coordMateriasBody').innerHTML =
+        '<tr><td colspan="6"><div class="sv-loading"></div></td></tr>';
+
+      try {
+        const snap = await db.collection('profesorMaterias')
+          .where('carreraId', '==', carreraId)
+          .where('activa', '==', true)
+          .get();
+
+        coordMaterias = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                                 .sort((a,b) => (a.materiaNombre||'').localeCompare(b.materiaNombre||''));
+
+        if (coordMaterias.length === 0) {
+          document.getElementById('coordMateriasBody').innerHTML =
+            '<tr><td colspan="6"><div class="sv-empty">Sin materias activas en esta carrera</div></td></tr>';
+          return;
+        }
+
+        document.getElementById('coordMateriasBody').innerHTML = coordMaterias.map((m, i) => `
+          <tr class="sv-row-link" onclick="coordVerCalif(${i})">
+            <td><strong>${m.materiaNombre || '—'}</strong></td>
+            <td style="color:#888;font-size:0.8rem;">${m.materiaCodigo || '—'}</td>
+            <td>${m.profesorNombre || '—'}</td>
+            <td>${m.codigoGrupo || '—'}</td>
+            <td>${turno(m.turno)}</td>
+            <td>${m.periodo || '—'}</td>
+          </tr>`).join('');
+      } catch (e) {
+        document.getElementById('coordMateriasBody').innerHTML =
+          `<tr><td colspan="6"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+
+    async function coordVerCalif(i) {
+      const asig = coordMaterias[i];
+      document.getElementById('coordMaterias').style.display = 'none';
+      document.getElementById('coordCalif').style.display    = 'block';
+      document.getElementById('coordCalifTitle').textContent =
+        `${asig.materiaNombre} — ${asig.codigoGrupo} (${asig.profesorNombre || 'Sin profesor'})`;
+      await renderCalificaciones('coordCalifContent', asig);
+    }
+
+    function coordVolver() {
+      document.getElementById('coordMaterias').style.display = 'none';
+      document.getElementById('coordCalif').style.display    = 'none';
+      document.getElementById('selCarrera').value = '';
+    }
+
+    function coordVolverAMaterias() {
+      document.getElementById('coordCalif').style.display    = 'none';
+      document.getElementById('coordMaterias').style.display = 'block';
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TAB PROFESORES
+    // ════════════════════════════════════════════════════════════
+    async function profChange() {
+      const profId = document.getElementById('selProfesor').value;
+      document.getElementById('profMaterias').style.display = 'none';
+      document.getElementById('profCalif').style.display    = 'none';
+      if (!profId) return;
+
+      const prof = svProfesores.find(p => p.id === profId);
+      document.getElementById('profMateriasTitle').textContent =
+        `Materias de ${prof ? prof.nombre : '—'}`;
+      document.getElementById('profMaterias').style.display = 'block';
+      document.getElementById('profMateriasBody').innerHTML =
+        '<tr><td colspan="5"><div class="sv-loading"></div></td></tr>';
+
+      try {
+        const snap = await db.collection('profesorMaterias')
+          .where('profesorId', '==', profId)
+          .where('activa', '==', true)
+          .get();
+
+        profMaterias = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                                .sort((a,b) => (a.materiaNombre||'').localeCompare(b.materiaNombre||''));
+
+        if (profMaterias.length === 0) {
+          document.getElementById('profMateriasBody').innerHTML =
+            '<tr><td colspan="5"><div class="sv-empty">Sin materias activas asignadas</div></td></tr>';
+          return;
+        }
+
+        document.getElementById('profMateriasBody').innerHTML = profMaterias.map((m, i) => `
+          <tr class="sv-row-link" onclick="profVerCalif(${i})">
+            <td><strong>${m.materiaNombre || '—'}</strong></td>
+            <td>${carreraNombre(m.carreraId)}</td>
+            <td>${m.codigoGrupo || '—'}</td>
+            <td>${turno(m.turno)}</td>
+            <td>${m.periodo || '—'}</td>
+          </tr>`).join('');
+      } catch (e) {
+        document.getElementById('profMateriasBody').innerHTML =
+          `<tr><td colspan="5"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+
+    async function profVerCalif(i) {
+      const asig = profMaterias[i];
+      document.getElementById('profMaterias').style.display = 'none';
+      document.getElementById('profCalif').style.display    = 'block';
+      document.getElementById('profCalifTitle').textContent =
+        `${asig.materiaNombre} — ${asig.codigoGrupo}`;
+      await renderCalificaciones('profCalifContent', asig);
+    }
+
+    function profVolver() {
+      document.getElementById('profMaterias').style.display = 'none';
+      document.getElementById('profCalif').style.display    = 'none';
+      document.getElementById('selProfesor').value = '';
+    }
+
+    function profVolverAMaterias() {
+      document.getElementById('profCalif').style.display    = 'none';
+      document.getElementById('profMaterias').style.display = 'block';
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TAB CONTROL ESCOLAR
+    // ════════════════════════════════════════════════════════════
+    async function escCarreraChange() {
+      const carreraId = document.getElementById('selCarreraEsc').value;
+      const selGrupo  = document.getElementById('selGrupo');
+      document.getElementById('escAlumnos').style.display      = 'none';
+      document.getElementById('escAlumnoDetalle').style.display = 'none';
+      selGrupo.disabled = true;
+      selGrupo.innerHTML = '<option value="">— Cargando grupos... —</option>';
+
+      if (!carreraId) {
+        selGrupo.innerHTML = '<option value="">— Primero elige carrera —</option>';
+        return;
+      }
+
+      try {
+        const snap = await db.collection('grupos')
+          .where('carreraId', '==', carreraId)
+          .where('activo', '==', true)
+          .get();
+
+        const grupos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                               .sort((a,b) => (a.semestre||0)-(b.semestre||0)
+                                           || (a.codigoGrupo||'').localeCompare(b.codigoGrupo||''));
+
+        if (grupos.length === 0) {
+          selGrupo.innerHTML = '<option value="">Sin grupos activos</option>';
+          return;
+        }
+
+        selGrupo.innerHTML = '<option value="">— Selecciona un grupo —</option>' +
+          grupos.map(g => {
+            const codigoCompleto = `${carreraId}-${g.codigoGrupo}`;
+            const label = `${g.nombre || g.codigoGrupo} · Sem. ${g.semestre || '?'} · ${turno(g.turno)}`;
+            return `<option value="${codigoCompleto}">${label}</option>`;
+          }).join('');
+        selGrupo.disabled = false;
+      } catch (e) {
+        selGrupo.innerHTML = `<option value="">Error: ${e.message}</option>`;
+      }
+    }
+
+    async function escGrupoChange() {
+      const codigoCompleto = document.getElementById('selGrupo').value;
+      document.getElementById('escAlumnos').style.display      = 'none';
+      document.getElementById('escAlumnoDetalle').style.display = 'none';
+      if (!codigoCompleto) return;
+
+      document.getElementById('escAlumnosTitle').textContent = `Alumnos — ${codigoCompleto}`;
+      document.getElementById('escAlumnos').style.display    = 'block';
+      document.getElementById('escAlumnosBody').innerHTML    =
+        '<tr><td colspan="6"><div class="sv-loading"></div></td></tr>';
+
+      try {
+        const snap = await db.collection('usuarios')
+          .where('codigoGrupo', '==', codigoCompleto)
+          .where('rol', '==', 'alumno')
+          .get();
+
+        escAlumnos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                              .sort((a,b) => {
+                                const oa = parseInt(a.orden || '99');
+                                const ob = parseInt(b.orden || '99');
+                                return oa - ob || (a.nombre||'').localeCompare(b.nombre||'');
+                              });
+
+        if (escAlumnos.length === 0) {
+          document.getElementById('escAlumnosBody').innerHTML =
+            '<tr><td colspan="6"><div class="sv-empty">Sin alumnos en este grupo</div></td></tr>';
+          return;
+        }
+
+        document.getElementById('escAlumnosBody').innerHTML = escAlumnos.map((a, i) => {
+          const activo = a.activo !== false;
+          return `
+            <tr class="sv-row-link" onclick="escVerAlumno(${i})">
+              <td style="color:#aaa;">${a.orden || (i+1)}</td>
+              <td><strong>${a.nombre || '—'}</strong></td>
+              <td style="color:#666;">${a.matricula || '—'}</td>
+              <td style="color:#999;font-size:0.8rem;">${a.email || '—'}</td>
+              <td>${a.periodo || '—'}</td>
+              <td>
+                <span class="chip ${activo ? 'chip-green' : 'chip-red'}">
+                  ${activo ? 'Activo' : 'Inactivo'}
+                </span>
+                ${a.tipoAlumno === 'especial'
+                  ? '<span class="chip chip-orange" style="margin-left:4px;">Especial</span>'
+                  : ''}
+              </td>
+            </tr>`;
+        }).join('');
+      } catch (e) {
+        document.getElementById('escAlumnosBody').innerHTML =
+          `<tr><td colspan="6"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+
+    function escVerAlumno(i) {
+      escAlumnoSel = escAlumnos[i];
+      document.getElementById('escAlumnos').style.display       = 'none';
+      document.getElementById('escAlumnoDetalle').style.display = 'block';
+
+      const a = escAlumnoSel;
+      const tutor    = a.tutor || {};
+      const activo   = a.activo !== false;
+      const carNom   = carreraNombre(a.carreraId);
+      const telTutor = tutor.telefono ? `+52 ${tutor.telefono}` : '—';
+
+      document.getElementById('escAlumnoNombre').textContent = a.nombre || '—';
+      document.getElementById('escAlumnoContent').innerHTML = `
+        <div class="sv-detail-grid">
+          <div class="sv-detail-item"><div class="lbl">Matrícula</div><div class="val">${a.matricula || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Email</div><div class="val">${a.email || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Carrera</div><div class="val">${carNom}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Grupo</div><div class="val">${a.codigoGrupo || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Período / Semestre</div><div class="val">${a.periodo || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Turno</div><div class="val">${turno(parseInt(a.turno))}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Generación</div><div class="val">${a.generacion || a.periodoIngreso || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Orden en grupo</div><div class="val">${a.orden || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Estado</div><div class="val">
+            <span class="chip ${activo ? 'chip-green' : 'chip-red'}">${activo ? 'Activo' : 'Inactivo'}</span>
+            ${a.tipoAlumno === 'especial' ? '<span class="chip chip-orange" style="margin-left:4px;">Especial</span>' : ''}
+            ${a.graduado ? '<span class="chip chip-blue" style="margin-left:4px;">Graduado</span>' : ''}
+          </div></div>
+          <div class="sv-detail-item"><div class="lbl">Tutor</div><div class="val">${tutor.nombre || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Teléfono tutor</div><div class="val">${telTutor}</div></div>
+        </div>`;
+    }
+
+    function escVolverAlumnos() {
+      document.getElementById('escAlumnoDetalle').style.display = 'none';
+      document.getElementById('escAlumnos').style.display       = 'block';
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TAB ACADEMIA
+    // ════════════════════════════════════════════════════════════
+    async function acadCargar() {
+      const grid = document.getElementById('acadGrid');
+      try {
+        const snap = await db.collection('academias').get();
+        svAcademias = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                              .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
+
+        if (svAcademias.length === 0) {
+          grid.innerHTML = '<div class="sv-empty">Sin academias registradas</div>';
+          return;
+        }
+
+        grid.innerHTML = svAcademias.map((a, i) => `
+          <div class="academia-card" onclick="acadVerDetalle(${i})">
+            <h3>${a.nombre || '—'}</h3>
+            <p>${(a.materiasAutorizadas || []).length} materia(s) autorizada(s)</p>
+            ${a.descripcion ? `<p style="margin-top:5px;color:#bbb;">${a.descripcion}</p>` : ''}
+          </div>`).join('');
+      } catch (e) {
+        grid.innerHTML = `<div class="sv-error">Error: ${e.message}</div>`;
+      }
+    }
+
+    async function acadVerDetalle(i) {
+      const academia = svAcademias[i];
+      document.getElementById('acadListCard').style.display  = 'none';
+      document.getElementById('acadDetalle').style.display   = 'block';
+      document.getElementById('acadNombre').textContent       = academia.nombre || '—';
+
+      const tbody = document.getElementById('acadMateriasBody');
+      tbody.innerHTML = '<tr><td colspan="5"><div class="sv-loading"></div></td></tr>';
+
+      const matAut = academia.materiasAutorizadas || [];
+      if (matAut.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin materias autorizadas</div></td></tr>';
+        return;
+      }
+
+      try {
+        const BATCH = 30;
+        const asignaciones = [];
+        for (let j = 0; j < matAut.length; j += BATCH) {
+          const lote = matAut.slice(j, j + BATCH);
+          const snap = await db.collection('profesorMaterias')
+            .where('materiaId', 'in', lote)
+            .where('activa', '==', true)
+            .get();
+          snap.forEach(d => asignaciones.push({ id: d.id, ...d.data() }));
+        }
+
+        asignaciones.sort((a,b) => (a.materiaNombre||'').localeCompare(b.materiaNombre||''));
+
+        if (asignaciones.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin asignaciones activas actualmente</div></td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = asignaciones.map(a => `
+          <tr>
+            <td><strong>${a.materiaNombre || '—'}</strong></td>
+            <td>${carreraNombre(a.carreraId)}</td>
+            <td>${a.profesorNombre || '—'}</td>
+            <td>${a.codigoGrupo || '—'}</td>
+            <td>${a.periodo || '—'}</td>
+          </tr>`).join('');
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+
+    function acadVolver() {
+      document.getElementById('acadDetalle').style.display  = 'none';
+      document.getElementById('acadListCard').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

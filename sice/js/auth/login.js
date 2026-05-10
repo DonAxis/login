@@ -139,7 +139,7 @@ async function redirigirSegunRol(rol) {
       window.location.href = 'https://ilbcontrol.mx/sice/control/coordinador/controlAcademia.html';
       break;
     case 'administracion':
-      window.location.href = 'https://ilbcontrol.mx/sice/control/Josue/administracion.html';
+      window.location.href = 'https://ilbcontrol.mx/sice/control/controlSupervisor/controlSupervisor.html';
       break;
     case 'prefecto':
       window.location.href = 'https://ilbcontrol.mx/sice/control/prefecto/controlPrefecto.html';

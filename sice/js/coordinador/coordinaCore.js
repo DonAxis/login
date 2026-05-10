@@ -218,6 +218,19 @@ async function cargarCarrerasCoordinador() {
 
         console.log('Cargando carreras del coordinador...');
 
+        // Admin: cargar TODAS las carreras activas
+        if (usuarioActual.rol === 'admin') {
+            const snap = await db.collection('carreras').get();
+            carrerasDisponibles = snap.docs.map(d => ({ id: d.id, color: d.data().color || '#43a047', ...d.data() }));
+            carrerasDisponibles.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+            if (carrerasDisponibles.length > 1) mostrarSelectorCarreras();
+            if (carrerasDisponibles.length > 0) {
+                const primera = carrerasDisponibles[0];
+                await establecerCarreraActual(primera.id, primera.color || '#43a047');
+            }
+            return;
+        }
+
         // Verificar si tiene múltiples carreras (SISTEMA NUEVO)
         if (usuarioActual.carreras && Array.isArray(usuarioActual.carreras) && usuarioActual.carreras.length > 0) {
             // SISTEMA NUEVO: Múltiples carreras
@@ -577,7 +590,7 @@ auth.onAuthStateChanged(async (user) => {
         if (nombreElem) nombreElem.textContent = usuarioActual.nombre;
         if (emailElem) emailElem.textContent = user.email;
 
-        // Mostrar opción de carreras solo para admin
+        // Mostrar opción de carreras para admin
         if (usuarioActual.rol === 'admin') {
             const menuCarreras = document.getElementById('menuCarreras');
             if (menuCarreras) menuCarreras.style.display = 'block';
@@ -585,7 +598,7 @@ auth.onAuthStateChanged(async (user) => {
 
         // Cargar carrera
         if (usuarioActual.rol === 'admin') {
-            if (carreraNombreDisplay) carreraNombreDisplay.textContent = 'ADMINISTRADOR - TODAS LAS CARRERAS';
+            if (carreraNombreDisplay) carreraNombreDisplay.textContent = 'TODAS LAS CARRERAS';
         } else if (usuarioActual.carreraId) {
             try {
                 const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();

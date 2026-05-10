@@ -41,22 +41,22 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 
     usuarioActual = userData;
-    
+
     console.log('Usuario autenticado:', usuarioActual.nombre);
-    
+
     // Actualizar UI
     document.getElementById('userName').textContent = usuarioActual.nombre;
     document.getElementById('userEmail').textContent = user.email;
     document.getElementById('profesorInfo').textContent = `Bienvenido(a), ${usuarioActual.nombre}`;
-    
+
     // Cargar carreras
     await cargarInfoCarreras();
-    
+
     // Mostrar botón de volver si es coordinador
     if (usuarioActual.rol === 'coordinador') {
       document.getElementById('btnVolverCoord').style.display = 'inline-block';
     }
-    
+
     // Mostrar menú principal al iniciar
     document.getElementById('menuMaterias').style.display = 'grid';
 
@@ -1064,7 +1064,7 @@ async function verExtraordinarios() {
       `;
     } else {
       html += `
-        <button onclick="guardarExtraordinarios()" 
+        <button onclick="guardarExtraordinarios()"
                 style="background: linear-gradient(135deg, #dc3545 0%, #c62828 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block;">
           Guardar Extraordinarios
         </button>
@@ -1351,6 +1351,7 @@ async function cerrarSesion() {
     }
   }
 }
+
 
 // ============================================================================
 // SECCIÓN 9: UTILIDADES
