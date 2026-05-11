@@ -6694,12 +6694,16 @@ async function mostrarModalHorario() {
             const btnVer = tieneHorario
                 ? `<button onclick="verHorarioCoord('${doc.data().url}')" style="background:#1976d2;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;">Ver</button>`
                 : '';
+            const btnBorrar = tieneHorario
+                ? `<button onclick="borrarHorarioGrupo('${cg}')" style="background:#b71c1c;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.85rem;">Borrar</button>`
+                : '';
             html += `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;">
                 <div><strong>${cg}</strong>${turno}${badge}</div>
                 <div style="display:flex;gap:8px;">
                     ${btnVer}
                     <button onclick="subirHorarioGrupo('${cg}')" style="background:#6A2135;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">${tieneHorario ? 'Reemplazar' : 'Subir imagen'}</button>
+                    ${btnBorrar}
                 </div>
             </div>`;
         });
@@ -6771,6 +6775,17 @@ async function subirHorarioGrupo(codigoGrupo) {
         }
     };
     input.click();
+}
+
+async function borrarHorarioGrupo(codigoGrupo) {
+    if (!confirm(`¿Borrar el horario del grupo ${codigoGrupo}?\nEl botón quedará deshabilitado para los alumnos.`)) return;
+    try {
+        await db.collection('horarios').doc(codigoGrupo).delete();
+        mostrarModalHorario();
+    } catch (error) {
+        console.error('Error al borrar horario:', error);
+        alert('Error al borrar el horario. Intenta de nuevo.');
+    }
 }
 
 console.log('modules.js cargado');

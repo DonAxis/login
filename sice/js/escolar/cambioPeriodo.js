@@ -111,12 +111,15 @@ async function mostrarCambioPeriodo(carreraId, periodoActual) {
         <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
           <strong>Acciones al cambiar periodo:</strong>
           <ul style="margin: 10px 0; padding-left: 20px;">
-            <li>Los alumnos avanzarán al siguiente semestre (Ej: 1101-MAT → 1201-MAT)</li>
-            <li>Los alumnos sin grupo disponible se mostrarán como "Alumno inactivo académico"</li>
-            <li>Se archivarán los grupos actuales en el historial</li>
-            <li>Las asignaciones de profesores se desactivarán</li>
-            <li>Las calificaciones se guardarán en el historial general</li>
+            <li>Se archivará 1 registro por grupo con todas las materias y profesores del periodo</li>
+            <li>Las asignaciones de profesores se eliminarán (armar grupos desde cero)</li>
+            <li>Las calificaciones se guardarán en el historial y en el historial académico de cada alumno</li>
+            <li>Las materias dejarán de mostrarse como "Cursando" en Boleta Global</li>
           </ul>
+        </div>
+        <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+          <strong>Avance de alumnos — manual:</strong>
+          <p style="margin: 5px 0 0 0;">Los alumnos <strong>no avanzan automáticamente</strong>. Después del cambio de periodo, ve a "Gestionar Alumnos" y avanza o desactiva cada alumno individualmente.</p>
         </div>
         
         <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
@@ -166,11 +169,11 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     `A: ${nuevoPeriodo}\n` +
     `Tipo: ${nombrePeriodo} (${periodosAnio} periodos por año)\n\n` +
     `Esta acción:\n` +
-    `- Avanzará todos los alumnos al siguiente semestre (o a pasante si terminaron la carrera)\n` +
-    `- Archivará grupos en historial\n` +
+    `- Archivará los grupos del periodo con sus asignaciones de profesores\n` +
     `- Eliminará asignaciones de profesores (armar grupos desde cero)\n` +
     `- Guardará calificaciones en historial y actualizará historial académico\n\n` +
-    `Los alumnos sin grupo disponible se mostrarán como "Alumno inactivo académico"\n\n` +
+    `Los alumnos NO avanzan automáticamente.\n` +
+    `Avanza a cada alumno manualmente desde "Gestionar Alumnos".\n\n` +
     `¿Continuar?`
   );
   
@@ -192,21 +195,20 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
     
-    let alumnosAvanzados = 0;
     let gruposArchivados = 0;
     let asignacionesDesactivadas = 0;
     let calificacionesArchivadas = 0;
-    
-    // 1. ARCHIVAR GRUPOS ACTUALES (10%)
-    progressBar.style.width = '10%';
+
+    // 1. ARCHIVAR GRUPOS (15%)
+    progressBar.style.width = '15%';
     progressText.textContent = 'Archivando grupos...';
-    
+
     await archivarGrupos(carreraId, periodoActual);
     gruposArchivados = await contarGruposArchivados(carreraId, periodoActual);
-    
-    // 2. PROCESAR ALUMNOS (55%)
-    progressBar.style.width = '20%';
-    progressText.textContent = 'Procesando alumnos...';
+
+    // 2. CARGAR ALUMNOS para historialAcademico (sin avanzarlos)
+    progressBar.style.width = '25%';
+    progressText.textContent = 'Cargando datos de alumnos...';
 
     const alumnosSnap = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
@@ -214,54 +216,21 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
       .where('activo', '==', true)
       .get();
 
-    // Mapa para paso 3.5: alumnoId → { nombre, matricula, semestreActual }
     const alumnoDataMap = {};
     alumnosSnap.docs.forEach(doc => {
       const a = doc.data();
       alumnoDataMap[doc.id] = { nombre: a.nombre, matricula: a.matricula, semestreActual: a.semestreActual };
     });
 
-    const alumnosDocs = alumnosSnap.docs;
-    const totalAlumnos = alumnosDocs.length;
-    let procesados = 0;
-
-    for (let i = 0; i < alumnosDocs.length; i += 499) {
-      const lote = alumnosDocs.slice(i, i + 499);
-      const batchAlumnos = db.batch();
-      for (const alumnoDoc of lote) {
-        const alumno = alumnoDoc.data();
-        const semestreActual = alumno.semestreActual || 1;
-        const nuevoSemestre = semestreActual + 1;
-        const esPasante = nuevoSemestre > numeroPeriodos;
-        const nuevoCodigoGrupo = esPasante
-          ? `${carreraId}-PASANTE`
-          : calcularNuevoCodigoGrupo(alumno.codigoGrupo, nuevoSemestre);
-        const updateData = {
-          semestreActual: nuevoSemestre,
-          codigoGrupo: nuevoCodigoGrupo,
-          periodo: nuevoPeriodo,
-          ultimoCambio: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        if (esPasante) updateData.pasante = true;
-        batchAlumnos.update(alumnoDoc.ref, updateData);
-        alumnosAvanzados++;
-      }
-      await batchAlumnos.commit();
-      procesados += lote.length;
-      const progreso = 20 + (procesados / totalAlumnos) * 35;
-      progressBar.style.width = `${progreso}%`;
-      progressText.textContent = `Procesando alumnos... ${procesados}/${totalAlumnos}`;
-    }
-    
-    // 3. ARCHIVAR CALIFICACIONES
-    progressBar.style.width = '58%';
+    // 3. ARCHIVAR CALIFICACIONES (50%)
+    progressBar.style.width = '50%';
     progressText.textContent = 'Archivando calificaciones...';
 
     const resultCals = await archivarCalificaciones(carreraId, periodoActual);
     calificacionesArchivadas = resultCals.contador;
 
-    // 3.5 ACTUALIZAR HISTORIAL ACADÉMICO
-    progressBar.style.width = '68%';
+    // 3.5 ACTUALIZAR HISTORIAL ACADÉMICO (incluye periodoAcademico en materias[])
+    progressBar.style.width = '70%';
     progressText.textContent = 'Actualizando historial académico...';
 
     await actualizarHistorialAcademico(carreraId, periodoActual, resultCals.docs, alumnoDataMap);
@@ -332,10 +301,6 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
             <h4 style="margin: 0 0 15px 0; color: #2e7d32;">Resumen de acciones:</h4>
             <div style="display: grid; gap: 10px;">
               <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 4px;">
-                <span>Alumnos avanzados:</span>
-                <strong style="color: #4caf50;">${alumnosAvanzados}</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 4px;">
                 <span>Grupos archivados:</span>
                 <strong>${gruposArchivados}</strong>
               </div>
@@ -344,17 +309,17 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
                 <strong>${calificacionesArchivadas}</strong>
               </div>
               <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 4px;">
-                <span>Asignaciones eliminadas:</span>
+                <span>Asignaciones de profesores eliminadas:</span>
                 <strong>${asignacionesDesactivadas}</strong>
               </div>
             </div>
           </div>
-          
-          <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-            <strong>Nota:</strong>
+
+          <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+            <strong>Siguiente paso — Alumnos:</strong>
             <p style="margin: 5px 0 0 0;">
-              Los alumnos sin grupo disponible para el siguiente semestre se mostrarán como "Alumno inactivo académico" en la lista.
-              <br>Puedes crearles un grupo y luego editarlos para asignárselo, o desactivarlos manualmente si lo prefieres.
+              Los alumnos <strong>no avanzan automáticamente</strong>. Ve a "Gestionar Alumnos"
+              y usa el botón <em>Avanzar Periodo</em> o <em>Desactivar</em> en cada alumno.
             </p>
           </div>
           
@@ -397,53 +362,86 @@ function calcularNuevoCodigoGrupo(codigoGrupoActual, nuevoSemestre) {
   return `${carrera}-${nuevoSemestreStr}${grupoNum}`;
 }
 
-// Archivar grupos del periodo que termina
+// Archivar grupos del periodo que termina.
+// Crea 1 documento en historialGrupos por codigoGrupo con todas las materias y profesores
+// que tuvieron asignación ese periodo (fuente: profesorMaterias).
+// También marca los documentos de grupos como activo:false.
 async function archivarGrupos(carreraId, periodoActual) {
   try {
-    const gruposSnap = await db.collection('grupos')
-      .where('carreraId', '==', carreraId)
-      .where('activo', '==', true)
-      .get();
-    
-    const batch = db.batch();
-    
-    for (const grupoDoc of gruposSnap.docs) {
-      const grupo = grupoDoc.data();
-      
-      // Crear documento en historial
-      const historialRef = db.collection('historialGrupos').doc();
-      batch.set(historialRef, {
-        ...grupo,
-        grupoOriginalId: grupoDoc.id,
-        periodoArchivado: periodoActual,
+    const [pmSnap, gruposSnap] = await Promise.all([
+      db.collection('profesorMaterias')
+        .where('carreraId', '==', carreraId)
+        .where('periodo', '==', periodoActual)
+        .get(),
+      db.collection('grupos')
+        .where('carreraId', '==', carreraId)
+        .where('activo', '==', true)
+        .get()
+    ]);
+
+    // Agrupar asignaciones por codigoGrupo
+    const byGrupo = {};
+    pmSnap.docs.forEach(doc => {
+      const pm = doc.data();
+      const cg = pm.codigoGrupo;
+      if (!cg) return;
+      if (!byGrupo[cg]) {
+        byGrupo[cg] = { turno: pm.turno || null, turnoNombre: pm.turnoNombre || '', materias: [] };
+      }
+      byGrupo[cg].materias.push({
+        materiaId:     pm.materiaId     || '',
+        materiaNombre: pm.materiaNombre || '',
+        materiaCodigo: pm.materiaCodigo || '',
+        profesorId:    pm.profesorId    || '',
+        profesorNombre: pm.profesorNombre || ''
+      });
+    });
+
+    let batch = db.batch();
+    let batchCount = 0;
+
+    // 1 documento por codigoGrupo con todas las materias/profesores
+    for (const [codigoGrupo, data] of Object.entries(byGrupo)) {
+      const histRef = db.collection('historialGrupos').doc();
+      batch.set(histRef, {
+        codigoGrupo,
+        carreraId,
+        periodoAcademico: periodoActual,
+        turno:       data.turno,
+        turnoNombre: data.turnoNombre,
+        materias:    data.materias,
         fechaArchivado: firebase.firestore.FieldValue.serverTimestamp()
       });
-      
-      // Marcar grupo como archivado
-      batch.update(grupoDoc.ref, {
+      batchCount++;
+      if (batchCount === 499) { await batch.commit(); batch = db.batch(); batchCount = 0; }
+    }
+
+    // Marcar grupos como archivados
+    gruposSnap.docs.forEach(doc => {
+      batch.update(doc.ref, {
         activo: false,
         archivado: true,
         fechaArchivado: firebase.firestore.FieldValue.serverTimestamp()
       });
-    }
-    
-    await batch.commit();
-    console.log(`Grupos archivados: ${gruposSnap.size}`);
-    
+      batchCount++;
+    });
+
+    if (batchCount > 0) await batch.commit();
+    console.log(`Grupos archivados: ${Object.keys(byGrupo).length} grupos, ${pmSnap.size} asignaciones`);
+
   } catch (error) {
     console.error('Error al archivar grupos:', error);
     throw error;
   }
 }
 
-// Contar grupos archivados
+// Contar grupos archivados en el periodo
 async function contarGruposArchivados(carreraId, periodo) {
   try {
     const snap = await db.collection('historialGrupos')
       .where('carreraId', '==', carreraId)
-      .where('periodoArchivado', '==', periodo)
+      .where('periodoAcademico', '==', periodo)
       .get();
-    
     return snap.size;
   } catch (error) {
     console.error('Error al contar grupos archivados:', error);

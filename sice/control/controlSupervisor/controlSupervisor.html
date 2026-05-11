@@ -6,419 +6,407 @@
   <title>Supervisor — SICE ILB</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; color: #222; }
+    body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #6A2135 0%, #3a121d 100%) fixed; min-height: 100vh; color: #222; }
 
-    /* ── Header ── */
-    .sv-header {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: white;
-      padding: 14px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-    }
+    .sv-header { background: rgba(0,0,0,0.38); backdrop-filter: blur(8px); color: white; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 14px rgba(0,0,0,0.5); }
     .sv-header h1 { font-size: 1.15rem; font-weight: 700; }
-    .sv-header .sub { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-top: 2px; }
+    .sv-header .sub { font-size: 0.78rem; color: rgba(255,255,255,0.55); margin-top: 3px; }
     .sv-header .right { text-align: right; }
-    .sv-header .right p { font-size: 0.83rem; color: rgba(255,255,255,0.72); margin: 2px 0; }
-    .badge-ro {
-      display: inline-block;
-      background: #ff6f00;
-      color: white;
-      padding: 2px 10px;
-      border-radius: 20px;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-    .btn-logout {
-      background: rgba(255,255,255,0.12);
-      color: white;
-      border: 1px solid rgba(255,255,255,0.25);
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.82rem;
-      transition: background 0.2s;
-      vertical-align: middle;
-    }
+    .sv-header .right p { font-size: 0.83rem; color: rgba(255,255,255,0.75); margin: 2px 0; }
+    .badge-ro { display: inline-block; background: #ff8f00; color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; letter-spacing: 1px; margin-right: 8px; vertical-align: middle; }
+    .btn-logout { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.82rem; transition: background 0.2s; vertical-align: middle; }
     .btn-logout:hover { background: rgba(255,255,255,0.22); }
 
-    /* ── Nav tabs ── */
-    .sv-nav {
-      background: #16213e;
-      display: flex;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      overflow-x: auto;
-    }
-    .sv-tab {
-      padding: 11px 22px;
-      color: rgba(255,255,255,0.5);
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.88rem;
-      border-bottom: 3px solid transparent;
-      white-space: nowrap;
-      transition: all 0.2s;
-      user-select: none;
-    }
-    .sv-tab:hover { color: rgba(255,255,255,0.82); }
-    .sv-tab.active { color: white; border-bottom-color: #ff6f00; }
+    .sv-nav { background: rgba(0,0,0,0.22); backdrop-filter: blur(6px); display: flex; border-top: 1px solid rgba(255,255,255,0.08); overflow-x: auto; }
+    .sv-tab { padding: 11px 22px; color: rgba(255,255,255,0.55); cursor: pointer; font-weight: 600; font-size: 0.88rem; border-bottom: 3px solid transparent; white-space: nowrap; transition: all 0.2s; user-select: none; }
+    .sv-tab:hover { color: rgba(255,255,255,0.85); }
+    .sv-tab.active { color: white; border-bottom-color: #ffb74d; }
 
-    /* ── Content ── */
-    .sv-main { max-width: 1200px; margin: 22px auto; padding: 0 16px; }
+    .sv-main { max-width: 1200px; margin: 22px auto; padding: 0 16px 40px; }
     .sv-section { display: none; }
     .sv-section.active { display: block; }
 
-    /* ── Cards ── */
-    .sv-card {
-      background: white;
-      border-radius: 10px;
-      padding: 20px 22px;
-      margin-bottom: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    }
-    .sv-card h2 { color: #1a1a2e; font-size: 1rem; margin-bottom: 14px; font-weight: 700; }
+    .sv-card { background: white; border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
+    .sv-card h2 { color: #6A2135; font-size: 1rem; margin-bottom: 14px; font-weight: 700; }
 
-    /* ── Select row ── */
+    .sv-menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .sv-menu-card { background: linear-gradient(135deg, #6A2135 0%, #3a121d 100%); color: white; border-radius: 12px; padding: 22px 18px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; box-shadow: 0 4px 14px rgba(106,33,53,0.35); }
+    .sv-menu-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(106,33,53,0.5); }
+    .sv-menu-card h3 { font-size: 1rem; margin-bottom: 6px; }
+    .sv-menu-card p { font-size: 0.8rem; color: rgba(255,255,255,0.7); line-height: 1.4; }
+
     .sv-sel-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .sv-sel-row label { font-weight: 600; color: #555; font-size: 0.88rem; white-space: nowrap; }
-    .sv-select {
-      padding: 8px 12px;
-      border: 2px solid #ddd;
-      border-radius: 7px;
-      font-size: 0.88rem;
-      cursor: pointer;
-      min-width: 200px;
-      transition: border-color 0.2s;
-      background: white;
-    }
-    .sv-select:focus { outline: none; border-color: #1a1a2e; }
+    .sv-select { padding: 8px 12px; border: 2px solid #ddd; border-radius: 7px; font-size: 0.88rem; cursor: pointer; min-width: 200px; background: white; transition: border-color 0.2s; }
+    .sv-select:focus { outline: none; border-color: #6A2135; }
     .sv-select:disabled { opacity: 0.5; cursor: default; }
 
-    /* ── Tables ── */
     .sv-table-wrap { overflow-x: auto; margin-top: 12px; border-radius: 8px; border: 1px solid #eee; }
     .sv-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-    .sv-table th {
-      background: #1a1a2e;
-      color: white;
-      padding: 10px 13px;
-      text-align: left;
-      font-weight: 600;
-      white-space: nowrap;
-    }
+    .sv-table th { background: #6A2135; color: white; padding: 10px 13px; text-align: left; font-weight: 600; white-space: nowrap; }
     .sv-table td { padding: 9px 13px; border-bottom: 1px solid #f0f0f0; }
     .sv-table tbody tr:last-child td { border-bottom: none; }
-    .sv-table tbody tr:hover td { background: #f5f7ff; }
+    .sv-table tbody tr:hover td { background: #fdf5f7; }
     .sv-table tbody tr.sv-row-link { cursor: pointer; }
-    .sv-table tbody tr.sv-row-link:hover td { background: #eef0ff; }
+    .sv-table tbody tr.sv-row-link:hover td { background: #fceef1; }
 
-    /* ── Chips ── */
-    .chip {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 0.73rem;
-      font-weight: 700;
-    }
+    .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.73rem; font-weight: 700; }
     .chip-green  { background: #e8f5e9; color: #2e7d32; }
     .chip-red    { background: #ffebee; color: #c62828; }
     .chip-orange { background: #fff3e0; color: #e65100; }
     .chip-blue   { background: #e3f2fd; color: #1565c0; }
     .chip-gray   { background: #f5f5f5; color: #757575; }
 
-    /* ── Back button ── */
-    .sv-back {
-      display: inline-flex; align-items: center; gap: 5px;
-      background: #eee; border: none; padding: 7px 13px;
-      border-radius: 7px; cursor: pointer; font-weight: 600;
-      font-size: 0.85rem; margin-bottom: 14px; transition: background 0.2s;
-    }
-    .sv-back:hover { background: #ddd; }
+    .sv-back { display: inline-flex; align-items: center; gap: 5px; background: #f5e6ea; color: #6A2135; border: none; padding: 7px 14px; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 0.85rem; margin-bottom: 14px; transition: background 0.2s; }
+    .sv-back:hover { background: #ead4da; }
 
-    /* ── Loading / empty ── */
-    .sv-loading {
-      text-align: center; padding: 36px; color: #aaa; font-size: 0.9rem;
-    }
-    .sv-loading::after {
-      content: ''; display: block; width: 28px; height: 28px;
-      border: 3px solid #e0e0e0; border-top-color: #1a1a2e;
-      border-radius: 50%; animation: svSpin 0.7s linear infinite;
-      margin: 10px auto 0;
-    }
+    .sv-loading { text-align: center; padding: 36px; color: #aaa; font-size: 0.9rem; }
+    .sv-loading::after { content: ''; display: block; width: 28px; height: 28px; border: 3px solid #e0e0e0; border-top-color: #6A2135; border-radius: 50%; animation: svSpin 0.7s linear infinite; margin: 10px auto 0; }
     @keyframes svSpin { to { transform: rotate(360deg); } }
     .sv-empty { text-align: center; padding: 36px; color: #bbb; font-size: 0.9rem; }
     .sv-error { padding: 16px; color: #c62828; font-size: 0.88rem; }
 
-    /* ── Detalle alumno ── */
-    .sv-detail-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .sv-detail-item { background: #f5f7ff; padding: 10px 14px; border-radius: 8px; }
+    .sv-detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+    .sv-detail-item { background: #fdf5f7; padding: 10px 14px; border-radius: 8px; }
     .sv-detail-item .lbl { font-size: 0.72rem; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
     .sv-detail-item .val { font-size: 0.92rem; color: #222; font-weight: 600; margin-top: 3px; word-break: break-word; }
 
-    /* ── Academia cards ── */
-    .academia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 10px; }
-    .academia-card {
-      border: 2px solid #e0e0e0; border-radius: 10px; padding: 16px 18px;
-      cursor: pointer; transition: all 0.2s; background: white;
-    }
-    .academia-card:hover { border-color: #1a1a2e; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .academia-card h3 { color: #1a1a2e; font-size: 0.95rem; margin-bottom: 5px; }
-    .academia-card p { color: #888; font-size: 0.8rem; }
+    .prof-mat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 12px; }
+    .prof-mat-card { border: 2px solid #e8d0d6; border-radius: 10px; padding: 16px 18px; cursor: pointer; transition: all 0.2s; background: white; }
+    .prof-mat-card:hover { border-color: #6A2135; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(106,33,53,0.15); }
+    .prof-mat-card h3 { color: #6A2135; font-size: 0.95rem; margin-bottom: 6px; }
+    .prof-mat-card p { color: #888; font-size: 0.8rem; line-height: 1.4; }
 
-    /* ── Cal colores ── */
+    .sv-stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .sv-stat-card { background: white; border-radius: 10px; padding: 16px 18px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.14); }
+    .sv-stat-card .num { font-size: 1.8rem; font-weight: 700; color: #6A2135; }
+    .sv-stat-card .lab { font-size: 0.78rem; color: #888; margin-top: 4px; font-weight: 600; text-transform: uppercase; }
+
+    .sv-search { width: 100%; padding: 9px 14px; border: 2px solid #ddd; border-radius: 8px; font-size: 0.9rem; margin-bottom: 14px; }
+    .sv-search:focus { outline: none; border-color: #6A2135; }
+
     .cal-ap  { color: #2e7d32; font-weight: 700; }
     .cal-rep { color: #c62828; font-weight: 700; }
     .cal-np  { color: #e65100; font-weight: 700; }
     .cal-null { color: #ccc; }
+
+    .alum-cascade { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+    .alum-cascade > div { display: flex; flex-direction: column; gap: 4px; }
+    .alum-cascade label { font-weight: 600; color: #555; font-size: 0.88rem; }
   </style>
 </head>
 <body>
 
-  <!-- HEADER -->
   <div class="sv-header">
     <div>
       <h1>Panel Supervisor — SICE ILB</h1>
-      <div class="sub">Instituto ILB · ilbcontrol.mx</div>
+      <div class="sub">Instituto ILB · ilbcontrol.mx · Solo Lectura</div>
     </div>
     <div class="right">
       <p><strong id="svNombre">Cargando...</strong></p>
-      <p id="svEmail"></p>
-      <div style="margin-top: 8px;">
+      <p id="svEmail" style="font-size:0.78rem;"></p>
+      <div style="margin-top:8px;">
         <span class="badge-ro">SOLO LECTURA</span>
         <button class="btn-logout" onclick="svCerrarSesion()">Cerrar sesión</button>
       </div>
     </div>
   </div>
 
-  <!-- NAVEGACIÓN -->
   <nav class="sv-nav">
-    <div class="sv-tab active"  onclick="svTab('coordinador', this)">Coordinador</div>
-    <div class="sv-tab"         onclick="svTab('profesores',  this)">Profesores</div>
-    <div class="sv-tab"         onclick="svTab('escolar',     this)">Control Escolar</div>
-    <div class="sv-tab"         onclick="svTab('academia',    this)">Academia</div>
+    <div class="sv-tab active" onclick="svTab('coordinador',this)">Coordinador</div>
+    <div class="sv-tab"        onclick="svTab('escolar',this)">Control Escolar</div>
+    <div class="sv-tab"        onclick="svTab('profesor',this)">Profesor</div>
+    <div class="sv-tab"        onclick="svTab('alumno',this)">Alumno</div>
+    <div class="sv-tab"        onclick="svTab('academia',this)">Academia</div>
   </nav>
 
-  <!-- CONTENIDO PRINCIPAL -->
   <div class="sv-main">
 
-    <!-- ══════════════════════════════════════════════════════
-         TAB: COORDINADOR
-    ══════════════════════════════════════════════════════ -->
+    <!-- ═══ TAB: COORDINADOR ═══ -->
     <div id="secCoordinador" class="sv-section active">
 
-      <!-- Selector de carrera -->
-      <div class="sv-card">
-        <h2>Materias y Calificaciones por Carrera</h2>
-        <div class="sv-sel-row">
-          <label for="selCarrera">Carrera:</label>
-          <select id="selCarrera" class="sv-select" onchange="coordCarreraChange()">
-            <option value="">— Selecciona una carrera —</option>
-          </select>
+      <div id="coordMenuCard" class="sv-card">
+        <h2>Vista Coordinador</h2>
+        <div class="sv-menu-grid">
+          <div class="sv-menu-card" onclick="coordMostrar('materias')"><h3>Materias</h3><p>Materias activas por carrera y calificaciones del grupo.</p></div>
+          <div class="sv-menu-card" onclick="coordMostrar('profesores')"><h3>Profesores</h3><p>Lista de profesores y sus materias asignadas.</p></div>
+          <div class="sv-menu-card" onclick="coordMostrar('alumnos')"><h3>Alumnos</h3><p>Alumnos por carrera y grupo con sus datos.</p></div>
+          <div class="sv-menu-card" onclick="coordMostrar('grupos')"><h3>Grupos</h3><p>Lista de grupos activos por carrera.</p></div>
         </div>
       </div>
 
-      <!-- Lista de materias del coordinador -->
-      <div id="coordMaterias" class="sv-card" style="display:none;">
-        <button class="sv-back" onclick="coordVolver()">← Volver</button>
-        <h2 id="coordMateriasTitle">Materias</h2>
-        <p style="color:#999;font-size:0.82rem;margin-bottom:8px;">
-          Clic en una fila para ver calificaciones del grupo
-        </p>
-        <div class="sv-table-wrap">
-          <table class="sv-table">
-            <thead>
-              <tr>
-                <th>Materia</th>
-                <th>Código</th>
-                <th>Profesor</th>
-                <th>Grupo</th>
-                <th>Turno</th>
-                <th>Período</th>
-              </tr>
-            </thead>
-            <tbody id="coordMateriasBody"></tbody>
-          </table>
+      <!-- Sub: Materias -->
+      <div id="coordSecMaterias" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="coordMenu()">← Menú</button>
+          <h2>Materias Activas</h2>
+          <div class="sv-sel-row">
+            <label>Carrera:</label>
+            <select id="coordSelCarrera" class="sv-select" onchange="coordCarreraChange()"><option value="">— Selecciona carrera —</option></select>
+          </div>
+        </div>
+        <div id="coordMateriasCard" class="sv-card" style="display:none;">
+          <h2 id="coordMateriasTitle">Materias</h2>
+          <p style="color:#999;font-size:0.82rem;margin-bottom:10px;">Clic en fila para ver calificaciones del grupo</p>
+          <div class="sv-table-wrap">
+            <table class="sv-table">
+              <thead><tr><th>Materia</th><th>Código</th><th>Profesor</th><th>Grupo</th><th>Turno</th><th>Período</th></tr></thead>
+              <tbody id="coordMateriasBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="coordCalifCard" class="sv-card" style="display:none;">
+          <button class="sv-back" onclick="coordVolverMaterias()">← Materias</button>
+          <h2 id="coordCalifTitle">Calificaciones</h2>
+          <div id="coordCalifContent"></div>
         </div>
       </div>
 
-      <!-- Calificaciones del grupo (coordinador) -->
-      <div id="coordCalif" class="sv-card" style="display:none;">
-        <button class="sv-back" onclick="coordVolverAMaterias()">← Volver a materias</button>
-        <h2 id="coordCalifTitle">Calificaciones</h2>
-        <div id="coordCalifContent"></div>
+      <!-- Sub: Profesores -->
+      <div id="coordSecProfesores" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="coordMenu()">← Menú</button>
+          <h2>Profesores</h2>
+          <div class="sv-sel-row">
+            <label>Profesor:</label>
+            <select id="coordSelProfesor" class="sv-select" onchange="coordProfChange()"><option value="">— Selecciona profesor —</option></select>
+          </div>
+        </div>
+        <div id="coordProfMatCard" class="sv-card" style="display:none;">
+          <button class="sv-back" onclick="coordProfVolver()">← Profesores</button>
+          <h2 id="coordProfTitle">Materias del Profesor</h2>
+          <div class="sv-table-wrap">
+            <table class="sv-table">
+              <thead><tr><th>Materia</th><th>Carrera</th><th>Grupo</th><th>Turno</th><th>Período</th></tr></thead>
+              <tbody id="coordProfBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="coordProfCalifCard" class="sv-card" style="display:none;">
+          <button class="sv-back" onclick="coordProfVolverMat()">← Materias</button>
+          <h2 id="coordProfCalifTitle">Calificaciones</h2>
+          <div id="coordProfCalifContent"></div>
+        </div>
+      </div>
+
+      <!-- Sub: Alumnos -->
+      <div id="coordSecAlumnos" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="coordMenu()">← Menú</button>
+          <h2>Alumnos por Grupo</h2>
+          <div class="sv-sel-row">
+            <label>Carrera:</label>
+            <select id="coordSelCarreraAlum" class="sv-select" onchange="coordAlumCarreraChange()"><option value="">— Selecciona carrera —</option></select>
+            <label>Grupo:</label>
+            <select id="coordSelGrupoAlum" class="sv-select" onchange="coordAlumGrupoChange()" disabled><option value="">— Primero elige carrera —</option></select>
+          </div>
+        </div>
+        <div id="coordAlumListCard" class="sv-card" style="display:none;">
+          <h2 id="coordAlumListTitle">Alumnos</h2>
+          <div class="sv-table-wrap">
+            <table class="sv-table">
+              <thead><tr><th>#</th><th>Nombre</th><th>Matrícula</th><th>Estado</th></tr></thead>
+              <tbody id="coordAlumBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="coordAlumDetalleCard" class="sv-card" style="display:none;">
+          <button class="sv-back" onclick="coordAlumVolverLista()">← Alumnos</button>
+          <h2 id="coordAlumDetNombre">Alumno</h2>
+          <div id="coordAlumDetContent"></div>
+        </div>
+      </div>
+
+      <!-- Sub: Grupos -->
+      <div id="coordSecGrupos" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="coordMenu()">← Menú</button>
+          <h2>Grupos</h2>
+          <div class="sv-sel-row">
+            <label>Carrera:</label>
+            <select id="coordSelCarreraGrupos" class="sv-select" onchange="coordGruposCarreraChange()"><option value="">— Selecciona carrera —</option></select>
+          </div>
+        </div>
+        <div id="coordGruposCard" class="sv-card" style="display:none;">
+          <h2 id="coordGruposTitle">Grupos</h2>
+          <div class="sv-table-wrap">
+            <table class="sv-table">
+              <thead><tr><th>Nombre</th><th>Código Completo</th><th>Semestre</th><th>Turno</th><th>Estado</th></tr></thead>
+              <tbody id="coordGruposBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════
-         TAB: PROFESORES
-    ══════════════════════════════════════════════════════ -->
-    <div id="secProfesores" class="sv-section">
+    <!-- ═══ TAB: CONTROL ESCOLAR ═══ -->
+    <div id="secEscolar" class="sv-section">
+      <div id="escStats" class="sv-stats-row"></div>
 
+      <div id="escMenuCard" class="sv-card">
+        <h2>Vista Control Escolar</h2>
+        <div class="sv-menu-grid">
+          <div class="sv-menu-card" onclick="escMostrar('alumnos')"><h3>Alumnos</h3><p>Buscar alumnos y ver sus datos personales.</p></div>
+          <div class="sv-menu-card" onclick="escMostrar('grupos')"><h3>Grupos</h3><p>Alumnos por carrera y grupo.</p></div>
+          <div class="sv-menu-card" onclick="escMostrar('especiales')"><h3>Inscripciones Especiales</h3><p>Alumnos inscritos en materias fuera de su grupo.</p></div>
+        </div>
+      </div>
+
+      <!-- Sub: Alumnos (buscar) -->
+      <div id="escSecAlumnos" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="escMenu()">← Menú</button>
+          <h2>Buscar Alumnos</h2>
+          <input type="text" id="escBuscador" class="sv-search" placeholder="Buscar por nombre o matrícula..." oninput="escFiltrar()">
+          <div id="escAlumnosContent"><div class="sv-loading"></div></div>
+        </div>
+        <div id="escAlumDetalleCard" class="sv-card" style="display:none;">
+          <button class="sv-back" onclick="escVolverBusqueda()">← Alumnos</button>
+          <h2 id="escAlumDetNombre">Alumno</h2>
+          <div id="escAlumDetContent"></div>
+        </div>
+      </div>
+
+      <!-- Sub: Grupos escolar -->
+      <div id="escSecGrupos" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="escMenu()">← Menú</button>
+          <h2>Alumnos por Grupo</h2>
+          <div class="sv-sel-row">
+            <label>Carrera:</label>
+            <select id="escSelCarrera" class="sv-select" onchange="escGrupoCarreraChange()"><option value="">— Selecciona carrera —</option></select>
+            <label>Grupo:</label>
+            <select id="escSelGrupo" class="sv-select" onchange="escGrupoChange()" disabled><option value="">— Primero elige carrera —</option></select>
+          </div>
+        </div>
+        <div id="escGrupoAlumnosCard" class="sv-card" style="display:none;">
+          <h2 id="escGrupoAlumnosTitle">Alumnos</h2>
+          <div class="sv-table-wrap">
+            <table class="sv-table">
+              <thead><tr><th>#</th><th>Nombre</th><th>Matrícula</th><th>Email</th><th>Estado</th></tr></thead>
+              <tbody id="escGrupoAlumnosBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub: Especiales -->
+      <div id="escSecEspeciales" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="escMenu()">← Menú</button>
+          <h2>Inscripciones Especiales</h2>
+          <div id="escEspecialesContent"><div class="sv-loading"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: PROFESOR ═══ -->
+    <div id="secProfesor" class="sv-section">
       <div class="sv-card">
-        <h2>Materias por Profesor</h2>
+        <h2>Vista Profesor</h2>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:16px;">Selecciona un profesor para ver su panel tal como él lo ve.</p>
         <div class="sv-sel-row">
-          <label for="selProfesor">Profesor:</label>
-          <select id="selProfesor" class="sv-select" onchange="profChange()">
-            <option value="">— Selecciona un profesor —</option>
-          </select>
+          <label>Profesor:</label>
+          <select id="profSelProfesor" class="sv-select" onchange="profCargar()"><option value="">— Selecciona un profesor —</option></select>
         </div>
       </div>
-
-      <div id="profMaterias" class="sv-card" style="display:none;">
-        <button class="sv-back" onclick="profVolver()">← Volver</button>
-        <h2 id="profMateriasTitle">Materias asignadas</h2>
-        <div class="sv-table-wrap">
-          <table class="sv-table">
-            <thead>
-              <tr>
-                <th>Materia</th>
-                <th>Carrera</th>
-                <th>Grupo</th>
-                <th>Turno</th>
-                <th>Período</th>
-              </tr>
-            </thead>
-            <tbody id="profMateriasBody"></tbody>
-          </table>
-        </div>
+      <div id="profMenuCards" class="sv-card" style="display:none;">
+        <h2 id="profNombreHeader">Materias</h2>
+        <p style="color:#999;font-size:0.82rem;margin-bottom:12px;">Clic en una materia para ver calificaciones</p>
+        <div id="profMatGrid" class="prof-mat-grid"></div>
       </div>
-
-      <div id="profCalif" class="sv-card" style="display:none;">
-        <button class="sv-back" onclick="profVolverAMaterias()">← Volver a materias</button>
+      <div id="profCalifCard" class="sv-card" style="display:none;">
+        <button class="sv-back" onclick="profVolverMaterias()">← Materias</button>
         <h2 id="profCalifTitle">Calificaciones</h2>
         <div id="profCalifContent"></div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════
-         TAB: CONTROL ESCOLAR
-    ══════════════════════════════════════════════════════ -->
-    <div id="secEscolar" class="sv-section">
-
+    <!-- ═══ TAB: ALUMNO ═══ -->
+    <div id="secAlumno" class="sv-section">
       <div class="sv-card">
-        <h2>Alumnos por Grupo</h2>
-        <div class="sv-sel-row">
-          <label for="selCarreraEsc">Carrera:</label>
-          <select id="selCarreraEsc" class="sv-select" onchange="escCarreraChange()">
-            <option value="">— Selecciona una carrera —</option>
-          </select>
-          <label for="selGrupo">Grupo:</label>
-          <select id="selGrupo" class="sv-select" onchange="escGrupoChange()" disabled>
-            <option value="">— Primero elige carrera —</option>
-          </select>
+        <h2>Vista Alumno — Boleta</h2>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:16px;">Selecciona un alumno para ver sus calificaciones.</p>
+        <div class="alum-cascade">
+          <div>
+            <label>Carrera</label>
+            <select id="alumSelCarrera" class="sv-select" onchange="alumCarreraChange()"><option value="">— Selecciona carrera —</option></select>
+          </div>
+          <div>
+            <label>Grupo</label>
+            <select id="alumSelGrupo" class="sv-select" onchange="alumGrupoChange()" disabled><option value="">— Primero elige carrera —</option></select>
+          </div>
+          <div>
+            <label>Alumno</label>
+            <select id="alumSelAlumno" class="sv-select" onchange="alumAlumnoChange()" disabled><option value="">— Primero elige grupo —</option></select>
+          </div>
         </div>
       </div>
-
-      <div id="escAlumnos" class="sv-card" style="display:none;">
-        <h2 id="escAlumnosTitle">Alumnos</h2>
-        <div class="sv-table-wrap">
-          <table class="sv-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Nombre</th>
-                <th>Matrícula</th>
-                <th>Email</th>
-                <th>Período</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody id="escAlumnosBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="escAlumnoDetalle" class="sv-card" style="display:none;">
-        <button class="sv-back" onclick="escVolverAlumnos()">← Volver al grupo</button>
-        <h2 id="escAlumnoNombre"></h2>
-        <div id="escAlumnoContent"></div>
+      <div id="alumBoletaCard" class="sv-card" style="display:none;">
+        <h2 id="alumBoletaNombre">Boleta</h2>
+        <p id="alumBoletaInfo" style="color:#888;font-size:0.85rem;margin-bottom:14px;"></p>
+        <div id="alumBoletaContent"></div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════
-         TAB: ACADEMIA
-    ══════════════════════════════════════════════════════ -->
+    <!-- ═══ TAB: ACADEMIA ═══ -->
     <div id="secAcademia" class="sv-section">
-
       <div id="acadListCard" class="sv-card">
         <h2>Academias</h2>
-        <div id="acadGrid" class="academia-grid">
+        <div id="acadGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:10px;">
           <div class="sv-loading"></div>
         </div>
       </div>
-
       <div id="acadDetalle" class="sv-card" style="display:none;">
-        <button class="sv-back" onclick="acadVolver()">← Volver a academias</button>
+        <button class="sv-back" onclick="acadVolver()">← Academias</button>
         <h2 id="acadNombre"></h2>
-        <p style="color:#999;font-size:0.82rem;margin-bottom:10px;">
-          Materias autorizadas · asignaciones activas
-        </p>
+        <p style="color:#999;font-size:0.82rem;margin-bottom:10px;">Materias autorizadas · asignaciones activas</p>
         <div class="sv-table-wrap">
           <table class="sv-table">
-            <thead>
-              <tr>
-                <th>Materia</th>
-                <th>Carrera</th>
-                <th>Profesor</th>
-                <th>Grupo</th>
-                <th>Período</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Materia</th><th>Carrera</th><th>Profesor</th><th>Grupo</th><th>Período</th></tr></thead>
             <tbody id="acadMateriasBody"></tbody>
           </table>
         </div>
       </div>
     </div>
 
-  </div><!-- /sv-main -->
+  </div>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script src="../../js/utils/firebase.js"></script>
   <script>
-    // ════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════
     // ESTADO
-    // ════════════════════════════════════════════════════════════
-    let svUsuario       = null;
-    let svCarreras      = [];   // todas las carreras
-    let svProfesores    = [];   // todos los profesores
-    let svAcademias     = [];   // todas las academias
+    // ══════════════════════════════════════════════════════════
+    let svUsuario        = null;
+    let svCarreras       = [];
+    let svProfesores     = [];
+    let svAcademias      = [];
+    let escTodosAlumnos  = [];
+    let coordMateriasData = [];
+    let coordProfData     = [];
+    let coordAlumnos      = [];
+    let profMateriasData  = [];
+    let alumAlumnos       = [];
 
-    let coordMaterias   = [];   // profesorMaterias de la carrera seleccionada
-    let profMaterias    = [];   // profesorMaterias del profesor seleccionado
-    let escAlumnos      = [];   // alumnos del grupo seleccionado
-    let escAlumnoSel    = null; // alumno actualmente en detalle
-
-    const TURNOS = { 1:'Matutino', 2:'Vespertino', 3:'Nocturno', 4:'Sabatino' };
-
-    function turno(t) { return TURNOS[parseInt(t)] || (t ? `Turno ${t}` : '—'); }
-    function val(v)   { return (v === null || v === undefined || v === '') ? '—' : v; }
-
+    const TURNOS = {1:'Matutino', 2:'Vespertino', 3:'Nocturno', 4:'Sabatino'};
+    function turno(t)    { return TURNOS[parseInt(t)] || (t ? `T${t}` : '—'); }
+    function val(v)      { return (v === null || v === undefined || v === '') ? '—' : v; }
     function calClass(c) {
       if (c === null || c === undefined || c === '') return 'cal-null';
       if (c === 'NP') return 'cal-np';
       return parseFloat(c) < 6 ? 'cal-rep' : 'cal-ap';
     }
-
-    function carreraNombre(id) {
+    function carreraNom(id) {
       const c = svCarreras.find(x => x.id === id);
       return c ? c.nombre : (id || '—');
     }
 
-    // ════════════════════════════════════════════════════════════
-    // AUTENTICACIÓN — solo rol 'administracion'
-    // ════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════
+    // AUTH
+    // ══════════════════════════════════════════════════════════
     firebase.auth().onAuthStateChanged(async (user) => {
       if (!user) { window.location.href = '../../index.html'; return; }
       try {
@@ -433,9 +421,8 @@
         document.getElementById('svNombre').textContent = u.nombre;
         document.getElementById('svEmail').textContent  = user.email;
         await svInit();
-      } catch (e) {
+      } catch(e) {
         console.error('Auth supervisor:', e);
-        alert('Error al verificar sesión');
         window.location.href = '../../index.html';
       }
     });
@@ -447,458 +434,582 @@
       window.location.href = 'https://ilbcontrol.mx/sice';
     }
 
-    // ════════════════════════════════════════════════════════════
-    // INIT — carga base (carreras, profesores, academias en paralelo)
-    // ════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════
+    // INIT
+    // ══════════════════════════════════════════════════════════
     async function svInit() {
-      try {
-        const [carSnap, profSnap] = await Promise.all([
-          db.collection('carreras').get(),
-          db.collection('usuarios').where('rol', '==', 'profesor').get()
-        ]);
+      const [carSnap, profSnap] = await Promise.all([
+        db.collection('carreras').get(),
+        db.collection('usuarios').where('rol','==','profesor').get()
+      ]);
+      svCarreras   = carSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+      svProfesores = profSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
 
-        svCarreras  = carSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-                              .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
-        svProfesores = profSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-                               .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
+      const optsCarrera = '<option value="">— Selecciona carrera —</option>' +
+        svCarreras.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+      ['coordSelCarrera','coordSelCarreraAlum','coordSelCarreraGrupos','escSelCarrera','alumSelCarrera']
+        .forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = optsCarrera; });
 
-        poblarSelect('selCarrera',    svCarreras,   'nombre', '— Selecciona una carrera —');
-        poblarSelect('selCarreraEsc', svCarreras,   'nombre', '— Selecciona una carrera —');
-        poblarSelect('selProfesor',   svProfesores, 'nombre', '— Selecciona un profesor —');
+      const optsProf = '<option value="">— Selecciona profesor —</option>' +
+        svProfesores.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+      ['coordSelProfesor','profSelProfesor']
+        .forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = optsProf; });
 
-        await acadCargar();
-      } catch (e) {
-        console.error('svInit error:', e);
-      }
+      await Promise.all([acadCargar(), escCargarStats()]);
     }
 
-    function poblarSelect(id, items, campo, placeholder) {
-      const el = document.getElementById(id);
-      el.innerHTML = `<option value="">${placeholder}</option>` +
-        items.map(x => `<option value="${x.id}">${x[campo] || x.id}</option>`).join('');
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // NAVEGACIÓN DE TABS
-    // ════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════
+    // TAB NAVIGATION
+    // ══════════════════════════════════════════════════════════
     function svTab(nombre, elTab) {
-      document.querySelectorAll('.sv-section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.sv-tab').forEach(t => t.classList.remove('active'));
-      const secId = 'sec' + nombre.charAt(0).toUpperCase() + nombre.slice(1);
-      document.getElementById(secId).classList.add('active');
+      document.querySelectorAll('.sv-section').forEach(s=>s.classList.remove('active'));
+      document.querySelectorAll('.sv-tab').forEach(t=>t.classList.remove('active'));
+      document.getElementById('sec' + nombre.charAt(0).toUpperCase() + nombre.slice(1)).classList.add('active');
       elTab.classList.add('active');
     }
 
-    // ════════════════════════════════════════════════════════════
-    // CALIFICACIONES — renderizado compartido
-    // ════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════
+    // CALIFICACIONES — render compartido
+    // ══════════════════════════════════════════════════════════
     async function renderCalificaciones(containerId, asig) {
       const container = document.getElementById(containerId);
       container.innerHTML = '<div class="sv-loading"></div>';
       try {
         const snap = await db.collection('calificaciones')
-          .where('codigoGrupo', '==', asig.codigoGrupo)
-          .where('materiaId',   '==', asig.materiaId)
-          .get();
-
-        if (snap.empty) {
-          container.innerHTML = '<div class="sv-empty">Sin calificaciones capturadas para este grupo</div>';
-          return;
-        }
-
-        const alumnos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-                               .sort((a,b) => (a.alumnoNombre||'').localeCompare(b.alumnoNombre||''));
-
-        const tieneEF = alumnos.some(a => {
-          const p3 = a.parciales && a.parciales.parcial3;
-          return p3 !== null && p3 !== undefined;
-        });
-
-        const thP3 = tieneEF
-          ? '<th style="background:#bf360c;">Exam. Final</th>'
-          : '<th>P3</th>';
-
+          .where('codigoGrupo','==',asig.codigoGrupo)
+          .where('materiaId','==',asig.materiaId).get();
+        if (snap.empty) { container.innerHTML = '<div class="sv-empty">Sin calificaciones capturadas</div>'; return; }
+        const alumnos = snap.docs.map(d=>({id:d.id,...d.data()}))
+          .sort((a,b)=>(a.alumnoNombre||'').localeCompare(b.alumnoNombre||''));
+        const tieneEF = alumnos.some(a => a.parciales && a.parciales.parcial3 !== null && a.parciales.parcial3 !== undefined);
+        const thP3 = tieneEF ? '<th style="background:#8b2635;">Exam.Final</th>' : '<th>P3</th>';
         const filas = alumnos.map(a => {
-          const p = a.parciales || {};
-          const f = a.faltas    || {};
-          const prom = a.promedio;
-          return `
-            <tr>
-              <td>${a.alumnoNombre || '—'}</td>
-              <td>${val(p.parcial1)}</td>
-              <td style="color:#aaa;font-size:0.8rem;">${val(f.falta1)}</td>
-              <td>${val(p.parcial2)}</td>
-              <td style="color:#aaa;font-size:0.8rem;">${val(f.falta2)}</td>
-              <td>${val(p.parcial3)}</td>
-              <td class="${calClass(prom)}"><strong>${val(prom)}</strong></td>
-              <td>${val(a.extraordinario)}</td>
-              <td>${val(a.ets)}</td>
-            </tr>`;
+          const p = a.parciales||{}, f = a.faltas||{};
+          return `<tr>
+            <td>${a.alumnoNombre||'—'}</td>
+            <td>${val(p.parcial1)}</td><td style="color:#bbb;font-size:0.8rem;">${val(f.falta1)}</td>
+            <td>${val(p.parcial2)}</td><td style="color:#bbb;font-size:0.8rem;">${val(f.falta2)}</td>
+            <td>${val(p.parcial3)}</td>
+            <td class="${calClass(a.promedio)}"><strong>${val(a.promedio)}</strong></td>
+            <td>${val(a.extraordinario)}</td><td>${val(a.ets)}</td>
+          </tr>`;
         }).join('');
-
         container.innerHTML = `
           <div class="sv-table-wrap">
             <table class="sv-table">
-              <thead>
-                <tr>
-                  <th>Alumno</th>
-                  <th>P1</th><th style="background:#2a2a40;">F1</th>
-                  <th>P2</th><th style="background:#2a2a40;">F2</th>
-                  ${thP3}
-                  <th>Promedio</th>
-                  <th>Ext.</th>
-                  <th>ETS</th>
-                </tr>
-              </thead>
+              <thead><tr>
+                <th>Alumno</th>
+                <th>P1</th><th style="background:#8b1a26;font-size:0.78rem;">F1</th>
+                <th>P2</th><th style="background:#8b1a26;font-size:0.78rem;">F2</th>
+                ${thP3}<th>Promedio</th><th>Ext.</th><th>ETS</th>
+              </tr></thead>
               <tbody>${filas}</tbody>
             </table>
           </div>
-          <p style="color:#bbb;font-size:0.78rem;margin-top:8px;">
-            ${alumnos.length} alumno(s) · Período: ${asig.periodo || '—'}
-          </p>`;
-      } catch (e) {
-        container.innerHTML = `<div class="sv-error">Error al cargar calificaciones: ${e.message}</div>`;
+          <p style="color:#bbb;font-size:0.78rem;margin-top:8px;">${alumnos.length} alumno(s) · ${asig.periodo||'—'}</p>`;
+      } catch(e) {
+        container.innerHTML = `<div class="sv-error">Error: ${e.message}</div>`;
       }
     }
 
-    // ════════════════════════════════════════════════════════════
-    // TAB COORDINADOR
-    // ════════════════════════════════════════════════════════════
-    async function coordCarreraChange() {
-      const carreraId = document.getElementById('selCarrera').value;
-      document.getElementById('coordMaterias').style.display = 'none';
-      document.getElementById('coordCalif').style.display    = 'none';
-      if (!carreraId) return;
-
-      const nombre = carreraNombre(carreraId);
-      document.getElementById('coordMateriasTitle').textContent = `Materias activas — ${nombre}`;
-      document.getElementById('coordMaterias').style.display = 'block';
-      document.getElementById('coordMateriasBody').innerHTML =
-        '<tr><td colspan="6"><div class="sv-loading"></div></td></tr>';
-
-      try {
-        const snap = await db.collection('profesorMaterias')
-          .where('carreraId', '==', carreraId)
-          .where('activa', '==', true)
-          .get();
-
-        coordMaterias = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-                                 .sort((a,b) => (a.materiaNombre||'').localeCompare(b.materiaNombre||''));
-
-        if (coordMaterias.length === 0) {
-          document.getElementById('coordMateriasBody').innerHTML =
-            '<tr><td colspan="6"><div class="sv-empty">Sin materias activas en esta carrera</div></td></tr>';
-          return;
-        }
-
-        document.getElementById('coordMateriasBody').innerHTML = coordMaterias.map((m, i) => `
-          <tr class="sv-row-link" onclick="coordVerCalif(${i})">
-            <td><strong>${m.materiaNombre || '—'}</strong></td>
-            <td style="color:#888;font-size:0.8rem;">${m.materiaCodigo || '—'}</td>
-            <td>${m.profesorNombre || '—'}</td>
-            <td>${m.codigoGrupo || '—'}</td>
-            <td>${turno(m.turno)}</td>
-            <td>${m.periodo || '—'}</td>
-          </tr>`).join('');
-      } catch (e) {
-        document.getElementById('coordMateriasBody').innerHTML =
-          `<tr><td colspan="6"><div class="sv-error">${e.message}</div></td></tr>`;
-      }
-    }
-
-    async function coordVerCalif(i) {
-      const asig = coordMaterias[i];
-      document.getElementById('coordMaterias').style.display = 'none';
-      document.getElementById('coordCalif').style.display    = 'block';
-      document.getElementById('coordCalifTitle').textContent =
-        `${asig.materiaNombre} — ${asig.codigoGrupo} (${asig.profesorNombre || 'Sin profesor'})`;
-      await renderCalificaciones('coordCalifContent', asig);
-    }
-
-    function coordVolver() {
-      document.getElementById('coordMaterias').style.display = 'none';
-      document.getElementById('coordCalif').style.display    = 'none';
-      document.getElementById('selCarrera').value = '';
-    }
-
-    function coordVolverAMaterias() {
-      document.getElementById('coordCalif').style.display    = 'none';
-      document.getElementById('coordMaterias').style.display = 'block';
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // TAB PROFESORES
-    // ════════════════════════════════════════════════════════════
-    async function profChange() {
-      const profId = document.getElementById('selProfesor').value;
-      document.getElementById('profMaterias').style.display = 'none';
-      document.getElementById('profCalif').style.display    = 'none';
-      if (!profId) return;
-
-      const prof = svProfesores.find(p => p.id === profId);
-      document.getElementById('profMateriasTitle').textContent =
-        `Materias de ${prof ? prof.nombre : '—'}`;
-      document.getElementById('profMaterias').style.display = 'block';
-      document.getElementById('profMateriasBody').innerHTML =
-        '<tr><td colspan="5"><div class="sv-loading"></div></td></tr>';
-
-      try {
-        const snap = await db.collection('profesorMaterias')
-          .where('profesorId', '==', profId)
-          .where('activa', '==', true)
-          .get();
-
-        profMaterias = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-                                .sort((a,b) => (a.materiaNombre||'').localeCompare(b.materiaNombre||''));
-
-        if (profMaterias.length === 0) {
-          document.getElementById('profMateriasBody').innerHTML =
-            '<tr><td colspan="5"><div class="sv-empty">Sin materias activas asignadas</div></td></tr>';
-          return;
-        }
-
-        document.getElementById('profMateriasBody').innerHTML = profMaterias.map((m, i) => `
-          <tr class="sv-row-link" onclick="profVerCalif(${i})">
-            <td><strong>${m.materiaNombre || '—'}</strong></td>
-            <td>${carreraNombre(m.carreraId)}</td>
-            <td>${m.codigoGrupo || '—'}</td>
-            <td>${turno(m.turno)}</td>
-            <td>${m.periodo || '—'}</td>
-          </tr>`).join('');
-      } catch (e) {
-        document.getElementById('profMateriasBody').innerHTML =
-          `<tr><td colspan="5"><div class="sv-error">${e.message}</div></td></tr>`;
-      }
-    }
-
-    async function profVerCalif(i) {
-      const asig = profMaterias[i];
-      document.getElementById('profMaterias').style.display = 'none';
-      document.getElementById('profCalif').style.display    = 'block';
-      document.getElementById('profCalifTitle').textContent =
-        `${asig.materiaNombre} — ${asig.codigoGrupo}`;
-      await renderCalificaciones('profCalifContent', asig);
-    }
-
-    function profVolver() {
-      document.getElementById('profMaterias').style.display = 'none';
-      document.getElementById('profCalif').style.display    = 'none';
-      document.getElementById('selProfesor').value = '';
-    }
-
-    function profVolverAMaterias() {
-      document.getElementById('profCalif').style.display    = 'none';
-      document.getElementById('profMaterias').style.display = 'block';
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // TAB CONTROL ESCOLAR
-    // ════════════════════════════════════════════════════════════
-    async function escCarreraChange() {
-      const carreraId = document.getElementById('selCarreraEsc').value;
-      const selGrupo  = document.getElementById('selGrupo');
-      document.getElementById('escAlumnos').style.display      = 'none';
-      document.getElementById('escAlumnoDetalle').style.display = 'none';
-      selGrupo.disabled = true;
-      selGrupo.innerHTML = '<option value="">— Cargando grupos... —</option>';
-
-      if (!carreraId) {
-        selGrupo.innerHTML = '<option value="">— Primero elige carrera —</option>';
-        return;
-      }
-
-      try {
-        const snap = await db.collection('grupos')
-          .where('carreraId', '==', carreraId)
-          .where('activo', '==', true)
-          .get();
-
-        const grupos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-                               .sort((a,b) => (a.semestre||0)-(b.semestre||0)
-                                           || (a.codigoGrupo||'').localeCompare(b.codigoGrupo||''));
-
-        if (grupos.length === 0) {
-          selGrupo.innerHTML = '<option value="">Sin grupos activos</option>';
-          return;
-        }
-
-        selGrupo.innerHTML = '<option value="">— Selecciona un grupo —</option>' +
-          grupos.map(g => {
-            const codigoCompleto = `${carreraId}-${g.codigoGrupo}`;
-            const label = `${g.nombre || g.codigoGrupo} · Sem. ${g.semestre || '?'} · ${turno(g.turno)}`;
-            return `<option value="${codigoCompleto}">${label}</option>`;
-          }).join('');
-        selGrupo.disabled = false;
-      } catch (e) {
-        selGrupo.innerHTML = `<option value="">Error: ${e.message}</option>`;
-      }
-    }
-
-    async function escGrupoChange() {
-      const codigoCompleto = document.getElementById('selGrupo').value;
-      document.getElementById('escAlumnos').style.display      = 'none';
-      document.getElementById('escAlumnoDetalle').style.display = 'none';
-      if (!codigoCompleto) return;
-
-      document.getElementById('escAlumnosTitle').textContent = `Alumnos — ${codigoCompleto}`;
-      document.getElementById('escAlumnos').style.display    = 'block';
-      document.getElementById('escAlumnosBody').innerHTML    =
-        '<tr><td colspan="6"><div class="sv-loading"></div></td></tr>';
-
-      try {
-        const snap = await db.collection('usuarios')
-          .where('codigoGrupo', '==', codigoCompleto)
-          .where('rol', '==', 'alumno')
-          .get();
-
-        escAlumnos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-                              .sort((a,b) => {
-                                const oa = parseInt(a.orden || '99');
-                                const ob = parseInt(b.orden || '99');
-                                return oa - ob || (a.nombre||'').localeCompare(b.nombre||'');
-                              });
-
-        if (escAlumnos.length === 0) {
-          document.getElementById('escAlumnosBody').innerHTML =
-            '<tr><td colspan="6"><div class="sv-empty">Sin alumnos en este grupo</div></td></tr>';
-          return;
-        }
-
-        document.getElementById('escAlumnosBody').innerHTML = escAlumnos.map((a, i) => {
-          const activo = a.activo !== false;
-          return `
-            <tr class="sv-row-link" onclick="escVerAlumno(${i})">
-              <td style="color:#aaa;">${a.orden || (i+1)}</td>
-              <td><strong>${a.nombre || '—'}</strong></td>
-              <td style="color:#666;">${a.matricula || '—'}</td>
-              <td style="color:#999;font-size:0.8rem;">${a.email || '—'}</td>
-              <td>${a.periodo || '—'}</td>
-              <td>
-                <span class="chip ${activo ? 'chip-green' : 'chip-red'}">
-                  ${activo ? 'Activo' : 'Inactivo'}
-                </span>
-                ${a.tipoAlumno === 'especial'
-                  ? '<span class="chip chip-orange" style="margin-left:4px;">Especial</span>'
-                  : ''}
-              </td>
-            </tr>`;
-        }).join('');
-      } catch (e) {
-        document.getElementById('escAlumnosBody').innerHTML =
-          `<tr><td colspan="6"><div class="sv-error">${e.message}</div></td></tr>`;
-      }
-    }
-
-    function escVerAlumno(i) {
-      escAlumnoSel = escAlumnos[i];
-      document.getElementById('escAlumnos').style.display       = 'none';
-      document.getElementById('escAlumnoDetalle').style.display = 'block';
-
-      const a = escAlumnoSel;
-      const tutor    = a.tutor || {};
-      const activo   = a.activo !== false;
-      const carNom   = carreraNombre(a.carreraId);
-      const telTutor = tutor.telefono ? `+52 ${tutor.telefono}` : '—';
-
-      document.getElementById('escAlumnoNombre').textContent = a.nombre || '—';
-      document.getElementById('escAlumnoContent').innerHTML = `
+    // ══════════════════════════════════════════════════════════
+    // DETALLE ALUMNO — render compartido
+    // ══════════════════════════════════════════════════════════
+    function renderDetalleAlumno(a, titleId, contentId) {
+      document.getElementById(titleId).textContent = a.nombre||'—';
+      const tutor = a.tutor||{}, activo = a.activo!==false;
+      document.getElementById(contentId).innerHTML = `
         <div class="sv-detail-grid">
-          <div class="sv-detail-item"><div class="lbl">Matrícula</div><div class="val">${a.matricula || '—'}</div></div>
-          <div class="sv-detail-item"><div class="lbl">Email</div><div class="val">${a.email || '—'}</div></div>
-          <div class="sv-detail-item"><div class="lbl">Carrera</div><div class="val">${carNom}</div></div>
-          <div class="sv-detail-item"><div class="lbl">Grupo</div><div class="val">${a.codigoGrupo || '—'}</div></div>
-          <div class="sv-detail-item"><div class="lbl">Período / Semestre</div><div class="val">${a.periodo || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Matrícula</div><div class="val">${a.matricula||'—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Email</div><div class="val">${a.email||'—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Carrera</div><div class="val">${carreraNom(a.carreraId)}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Grupo</div><div class="val">${a.codigoGrupo||'—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Semestre</div><div class="val">${a.periodo||'—'}</div></div>
           <div class="sv-detail-item"><div class="lbl">Turno</div><div class="val">${turno(parseInt(a.turno))}</div></div>
-          <div class="sv-detail-item"><div class="lbl">Generación</div><div class="val">${a.generacion || a.periodoIngreso || '—'}</div></div>
-          <div class="sv-detail-item"><div class="lbl">Orden en grupo</div><div class="val">${a.orden || '—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Generación</div><div class="val">${a.generacion||a.periodoIngreso||'—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Orden</div><div class="val">${a.orden||'—'}</div></div>
           <div class="sv-detail-item"><div class="lbl">Estado</div><div class="val">
-            <span class="chip ${activo ? 'chip-green' : 'chip-red'}">${activo ? 'Activo' : 'Inactivo'}</span>
-            ${a.tipoAlumno === 'especial' ? '<span class="chip chip-orange" style="margin-left:4px;">Especial</span>' : ''}
-            ${a.graduado ? '<span class="chip chip-blue" style="margin-left:4px;">Graduado</span>' : ''}
+            <span class="chip ${activo?'chip-green':'chip-red'}">${activo?'Activo':'Inactivo'}</span>
+            ${a.tipoAlumno==='especial'?'<span class="chip chip-orange" style="margin-left:4px;">Especial</span>':''}
+            ${a.graduado?'<span class="chip chip-blue" style="margin-left:4px;">Graduado</span>':''}
           </div></div>
-          <div class="sv-detail-item"><div class="lbl">Tutor</div><div class="val">${tutor.nombre || '—'}</div></div>
-          <div class="sv-detail-item"><div class="lbl">Teléfono tutor</div><div class="val">${telTutor}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Tutor</div><div class="val">${tutor.nombre||'—'}</div></div>
+          <div class="sv-detail-item"><div class="lbl">Tel. Tutor</div><div class="val">${tutor.telefono?`+52 ${tutor.telefono}`:'—'}</div></div>
         </div>`;
     }
 
-    function escVolverAlumnos() {
-      document.getElementById('escAlumnoDetalle').style.display = 'none';
-      document.getElementById('escAlumnos').style.display       = 'block';
+    // ══════════════════════════════════════════════════════════
+    // TAB COORDINADOR
+    // ══════════════════════════════════════════════════════════
+    function coordMenu() {
+      ['coordSecMaterias','coordSecProfesores','coordSecAlumnos','coordSecGrupos']
+        .forEach(id=>document.getElementById(id).style.display='none');
+      document.getElementById('coordMenuCard').style.display = 'block';
+    }
+    function coordMostrar(sub) {
+      document.getElementById('coordMenuCard').style.display = 'none';
+      ['coordSecMaterias','coordSecProfesores','coordSecAlumnos','coordSecGrupos']
+        .forEach(id=>document.getElementById(id).style.display='none');
+      const map = {materias:'coordSecMaterias',profesores:'coordSecProfesores',alumnos:'coordSecAlumnos',grupos:'coordSecGrupos'};
+      document.getElementById(map[sub]).style.display = 'block';
     }
 
-    // ════════════════════════════════════════════════════════════
+    // Materias
+    async function coordCarreraChange() {
+      const carreraId = document.getElementById('coordSelCarrera').value;
+      document.getElementById('coordMateriasCard').style.display = 'none';
+      document.getElementById('coordCalifCard').style.display = 'none';
+      if (!carreraId) return;
+      document.getElementById('coordMateriasTitle').textContent = `Materias — ${carreraNom(carreraId)}`;
+      document.getElementById('coordMateriasCard').style.display = 'block';
+      document.getElementById('coordMateriasBody').innerHTML = '<tr><td colspan="6"><div class="sv-loading"></div></td></tr>';
+      try {
+        const snap = await db.collection('profesorMaterias').where('carreraId','==',carreraId).where('activa','==',true).get();
+        coordMateriasData = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.materiaNombre||'').localeCompare(b.materiaNombre||''));
+        if (!coordMateriasData.length) {
+          document.getElementById('coordMateriasBody').innerHTML = '<tr><td colspan="6"><div class="sv-empty">Sin materias activas</div></td></tr>';
+          return;
+        }
+        document.getElementById('coordMateriasBody').innerHTML = coordMateriasData.map((m,i)=>`
+          <tr class="sv-row-link" onclick="coordVerCalif(${i})">
+            <td><strong>${m.materiaNombre||'—'}</strong></td>
+            <td style="color:#888;">${m.materiaCodigo||'—'}</td>
+            <td>${m.profesorNombre||'—'}</td>
+            <td>${m.codigoGrupo||'—'}</td>
+            <td>${turno(m.turno)}</td>
+            <td>${m.periodo||'—'}</td>
+          </tr>`).join('');
+      } catch(e) {
+        document.getElementById('coordMateriasBody').innerHTML = `<tr><td colspan="6"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+    async function coordVerCalif(i) {
+      const asig = coordMateriasData[i];
+      document.getElementById('coordMateriasCard').style.display = 'none';
+      document.getElementById('coordCalifCard').style.display = 'block';
+      document.getElementById('coordCalifTitle').textContent = `${asig.materiaNombre} — ${asig.codigoGrupo}`;
+      await renderCalificaciones('coordCalifContent', asig);
+    }
+    function coordVolverMaterias() {
+      document.getElementById('coordCalifCard').style.display = 'none';
+      document.getElementById('coordMateriasCard').style.display = 'block';
+    }
+
+    // Profesores (coordinador)
+    async function coordProfChange() {
+      const profId = document.getElementById('coordSelProfesor').value;
+      document.getElementById('coordProfMatCard').style.display = 'none';
+      document.getElementById('coordProfCalifCard').style.display = 'none';
+      if (!profId) return;
+      const prof = svProfesores.find(p=>p.id===profId);
+      document.getElementById('coordProfTitle').textContent = `Materias de ${prof?prof.nombre:'—'}`;
+      document.getElementById('coordProfMatCard').style.display = 'block';
+      document.getElementById('coordProfBody').innerHTML = '<tr><td colspan="5"><div class="sv-loading"></div></td></tr>';
+      try {
+        const snap = await db.collection('profesorMaterias').where('profesorId','==',profId).where('activa','==',true).get();
+        coordProfData = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.materiaNombre||'').localeCompare(b.materiaNombre||''));
+        if (!coordProfData.length) {
+          document.getElementById('coordProfBody').innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin materias asignadas</div></td></tr>';
+          return;
+        }
+        document.getElementById('coordProfBody').innerHTML = coordProfData.map((m,i)=>`
+          <tr class="sv-row-link" onclick="coordProfVerCalif(${i})">
+            <td><strong>${m.materiaNombre||'—'}</strong></td>
+            <td>${carreraNom(m.carreraId)}</td>
+            <td>${m.codigoGrupo||'—'}</td>
+            <td>${turno(m.turno)}</td>
+            <td>${m.periodo||'—'}</td>
+          </tr>`).join('');
+      } catch(e) {
+        document.getElementById('coordProfBody').innerHTML = `<tr><td colspan="5"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+    async function coordProfVerCalif(i) {
+      const asig = coordProfData[i];
+      document.getElementById('coordProfMatCard').style.display = 'none';
+      document.getElementById('coordProfCalifCard').style.display = 'block';
+      document.getElementById('coordProfCalifTitle').textContent = `${asig.materiaNombre} — ${asig.codigoGrupo}`;
+      await renderCalificaciones('coordProfCalifContent', asig);
+    }
+    function coordProfVolver() { document.getElementById('coordProfMatCard').style.display = 'none'; document.getElementById('coordSelProfesor').value = ''; }
+    function coordProfVolverMat() { document.getElementById('coordProfCalifCard').style.display = 'none'; document.getElementById('coordProfMatCard').style.display = 'block'; }
+
+    // Alumnos (coordinador)
+    async function coordAlumCarreraChange() {
+      const carreraId = document.getElementById('coordSelCarreraAlum').value;
+      const sel = document.getElementById('coordSelGrupoAlum');
+      document.getElementById('coordAlumListCard').style.display = 'none';
+      document.getElementById('coordAlumDetalleCard').style.display = 'none';
+      sel.disabled = true; sel.innerHTML = '<option value="">— Cargando... —</option>';
+      if (!carreraId) { sel.innerHTML = '<option value="">— Primero elige carrera —</option>'; return; }
+      try {
+        const snap = await db.collection('grupos').where('carreraId','==',carreraId).where('activo','==',true).get();
+        const grupos = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.semestre||0)-(b.semestre||0));
+        sel.innerHTML = '<option value="">— Selecciona grupo —</option>' +
+          grupos.map(g=>`<option value="${carreraId}-${g.codigoGrupo}">${g.nombre||g.codigoGrupo} · Sem.${g.semestre||'?'} · ${turno(g.turno)}</option>`).join('');
+        sel.disabled = false;
+      } catch(e) { sel.innerHTML = `<option value="">Error: ${e.message}</option>`; }
+    }
+    async function coordAlumGrupoChange() {
+      const codigoCompleto = document.getElementById('coordSelGrupoAlum').value;
+      document.getElementById('coordAlumListCard').style.display = 'none';
+      document.getElementById('coordAlumDetalleCard').style.display = 'none';
+      if (!codigoCompleto) return;
+      document.getElementById('coordAlumListTitle').textContent = `Alumnos — ${codigoCompleto}`;
+      document.getElementById('coordAlumListCard').style.display = 'block';
+      document.getElementById('coordAlumBody').innerHTML = '<tr><td colspan="4"><div class="sv-loading"></div></td></tr>';
+      try {
+        const snap = await db.collection('usuarios').where('codigoGrupo','==',codigoCompleto).where('rol','==','alumno').get();
+        coordAlumnos = snap.docs.map(d=>({id:d.id,...d.data()}))
+          .sort((a,b)=>parseInt(a.orden||99)-parseInt(b.orden||99)||(a.nombre||'').localeCompare(b.nombre||''));
+        if (!coordAlumnos.length) {
+          document.getElementById('coordAlumBody').innerHTML = '<tr><td colspan="4"><div class="sv-empty">Sin alumnos en este grupo</div></td></tr>';
+          return;
+        }
+        document.getElementById('coordAlumBody').innerHTML = coordAlumnos.map((a,i)=>`
+          <tr class="sv-row-link" onclick="coordVerAlumno(${i})">
+            <td style="color:#aaa;">${a.orden||(i+1)}</td>
+            <td><strong>${a.nombre||'—'}</strong></td>
+            <td style="color:#666;">${a.matricula||'—'}</td>
+            <td><span class="chip ${a.activo!==false?'chip-green':'chip-red'}">${a.activo!==false?'Activo':'Inactivo'}</span></td>
+          </tr>`).join('');
+      } catch(e) {
+        document.getElementById('coordAlumBody').innerHTML = `<tr><td colspan="4"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+    function coordVerAlumno(i) {
+      document.getElementById('coordAlumListCard').style.display = 'none';
+      document.getElementById('coordAlumDetalleCard').style.display = 'block';
+      renderDetalleAlumno(coordAlumnos[i], 'coordAlumDetNombre', 'coordAlumDetContent');
+    }
+    function coordAlumVolverLista() {
+      document.getElementById('coordAlumDetalleCard').style.display = 'none';
+      document.getElementById('coordAlumListCard').style.display = 'block';
+    }
+
+    // Grupos (coordinador)
+    async function coordGruposCarreraChange() {
+      const carreraId = document.getElementById('coordSelCarreraGrupos').value;
+      document.getElementById('coordGruposCard').style.display = 'none';
+      if (!carreraId) return;
+      document.getElementById('coordGruposTitle').textContent = `Grupos — ${carreraNom(carreraId)}`;
+      document.getElementById('coordGruposCard').style.display = 'block';
+      document.getElementById('coordGruposBody').innerHTML = '<tr><td colspan="5"><div class="sv-loading"></div></td></tr>';
+      try {
+        const snap = await db.collection('grupos').where('carreraId','==',carreraId).get();
+        const grupos = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.semestre||0)-(b.semestre||0));
+        if (!grupos.length) {
+          document.getElementById('coordGruposBody').innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin grupos</div></td></tr>';
+          return;
+        }
+        document.getElementById('coordGruposBody').innerHTML = grupos.map(g=>`
+          <tr>
+            <td><strong>${g.nombre||'—'}</strong></td>
+            <td style="color:#888;">${carreraId}-${g.codigoGrupo}</td>
+            <td>${g.semestre||'—'}</td>
+            <td>${turno(g.turno)}</td>
+            <td><span class="chip ${g.activo?'chip-green':'chip-gray'}">${g.activo?'Activo':'Inactivo'}</span></td>
+          </tr>`).join('');
+      } catch(e) {
+        document.getElementById('coordGruposBody').innerHTML = `<tr><td colspan="5"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TAB CONTROL ESCOLAR
+    // ══════════════════════════════════════════════════════════
+    async function escCargarStats() {
+      try {
+        const [alumSnap, grupoSnap] = await Promise.all([
+          db.collection('usuarios').where('rol','==','alumno').get(),
+          db.collection('grupos').where('activo','==',true).get()
+        ]);
+        escTodosAlumnos = alumSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+        const activos = escTodosAlumnos.filter(a=>a.activo!==false).length;
+        document.getElementById('escStats').innerHTML = `
+          <div class="sv-stat-card"><div class="num">${escTodosAlumnos.length}</div><div class="lab">Alumnos Total</div></div>
+          <div class="sv-stat-card"><div class="num">${activos}</div><div class="lab">Activos</div></div>
+          <div class="sv-stat-card"><div class="num">${escTodosAlumnos.length-activos}</div><div class="lab">Inactivos</div></div>
+          <div class="sv-stat-card"><div class="num">${grupoSnap.size}</div><div class="lab">Grupos Activos</div></div>
+          <div class="sv-stat-card"><div class="num">${svProfesores.length}</div><div class="lab">Profesores</div></div>`;
+      } catch(e) { console.error('stats:', e); }
+    }
+
+    function escMenu() {
+      ['escSecAlumnos','escSecGrupos','escSecEspeciales'].forEach(id=>document.getElementById(id).style.display='none');
+      document.getElementById('escMenuCard').style.display = 'block';
+    }
+    function escMostrar(sub) {
+      document.getElementById('escMenuCard').style.display = 'none';
+      ['escSecAlumnos','escSecGrupos','escSecEspeciales'].forEach(id=>document.getElementById(id).style.display='none');
+      const map = {alumnos:'escSecAlumnos',grupos:'escSecGrupos',especiales:'escSecEspeciales'};
+      document.getElementById(map[sub]).style.display = 'block';
+      if (sub === 'alumnos') escRenderAlumnos(escTodosAlumnos);
+      if (sub === 'especiales') escCargarEspeciales();
+    }
+
+    function escRenderAlumnos(lista) {
+      if (!lista.length) { document.getElementById('escAlumnosContent').innerHTML = '<div class="sv-empty">Sin resultados</div>'; return; }
+      document.getElementById('escAlumnosContent').innerHTML = `
+        <div class="sv-table-wrap">
+          <table class="sv-table">
+            <thead><tr><th>Nombre</th><th>Matrícula</th><th>Grupo</th><th>Carrera</th><th>Estado</th></tr></thead>
+            <tbody>${lista.map(a=>`
+              <tr class="sv-row-link" onclick="escVerAlumnoDetalle(${escTodosAlumnos.indexOf(a)})">
+                <td><strong>${a.nombre||'—'}</strong></td>
+                <td style="color:#666;">${a.matricula||'—'}</td>
+                <td>${a.codigoGrupo||'—'}</td>
+                <td>${carreraNom(a.carreraId)}</td>
+                <td><span class="chip ${a.activo!==false?'chip-green':'chip-red'}">${a.activo!==false?'Activo':'Inactivo'}</span></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <p style="color:#bbb;font-size:0.78rem;margin-top:8px;">${lista.length} resultado(s)</p>`;
+    }
+    function escFiltrar() {
+      const q = document.getElementById('escBuscador').value.toLowerCase().trim();
+      escRenderAlumnos(q ? escTodosAlumnos.filter(a=>(a.nombre||'').toLowerCase().includes(q)||(a.matricula||'').toLowerCase().includes(q)) : escTodosAlumnos);
+    }
+    function escVerAlumnoDetalle(i) {
+      document.getElementById('escAlumDetalleCard').style.display = 'block';
+      renderDetalleAlumno(escTodosAlumnos[i], 'escAlumDetNombre', 'escAlumDetContent');
+      document.getElementById('escAlumDetalleCard').scrollIntoView({behavior:'smooth'});
+    }
+    function escVolverBusqueda() { document.getElementById('escAlumDetalleCard').style.display = 'none'; }
+
+    async function escGrupoCarreraChange() {
+      const carreraId = document.getElementById('escSelCarrera').value;
+      const sel = document.getElementById('escSelGrupo');
+      document.getElementById('escGrupoAlumnosCard').style.display = 'none';
+      sel.disabled = true; sel.innerHTML = '<option value="">— Cargando... —</option>';
+      if (!carreraId) { sel.innerHTML = '<option value="">— Primero elige carrera —</option>'; return; }
+      try {
+        const snap = await db.collection('grupos').where('carreraId','==',carreraId).where('activo','==',true).get();
+        const grupos = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.semestre||0)-(b.semestre||0));
+        sel.innerHTML = '<option value="">— Selecciona grupo —</option>' +
+          grupos.map(g=>`<option value="${carreraId}-${g.codigoGrupo}">${g.nombre||g.codigoGrupo} · Sem.${g.semestre||'?'} · ${turno(g.turno)}</option>`).join('');
+        sel.disabled = false;
+      } catch(e) { sel.innerHTML = `<option value="">Error: ${e.message}</option>`; }
+    }
+    async function escGrupoChange() {
+      const codigoCompleto = document.getElementById('escSelGrupo').value;
+      document.getElementById('escGrupoAlumnosCard').style.display = 'none';
+      if (!codigoCompleto) return;
+      document.getElementById('escGrupoAlumnosTitle').textContent = `Alumnos — ${codigoCompleto}`;
+      document.getElementById('escGrupoAlumnosCard').style.display = 'block';
+      document.getElementById('escGrupoAlumnosBody').innerHTML = '<tr><td colspan="5"><div class="sv-loading"></div></td></tr>';
+      try {
+        const snap = await db.collection('usuarios').where('codigoGrupo','==',codigoCompleto).where('rol','==','alumno').get();
+        const alumnos = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>parseInt(a.orden||99)-parseInt(b.orden||99));
+        if (!alumnos.length) {
+          document.getElementById('escGrupoAlumnosBody').innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin alumnos en este grupo</div></td></tr>';
+          return;
+        }
+        document.getElementById('escGrupoAlumnosBody').innerHTML = alumnos.map(a=>`
+          <tr>
+            <td>${a.orden||'—'}</td>
+            <td><strong>${a.nombre||'—'}</strong></td>
+            <td style="color:#666;">${a.matricula||'—'}</td>
+            <td style="color:#999;font-size:0.8rem;">${a.email||'—'}</td>
+            <td>
+              <span class="chip ${a.activo!==false?'chip-green':'chip-red'}">${a.activo!==false?'Activo':'Inactivo'}</span>
+              ${a.tipoAlumno==='especial'?'<span class="chip chip-orange" style="margin-left:4px;">Especial</span>':''}
+            </td>
+          </tr>`).join('');
+      } catch(e) {
+        document.getElementById('escGrupoAlumnosBody').innerHTML = `<tr><td colspan="5"><div class="sv-error">${e.message}</div></td></tr>`;
+      }
+    }
+    async function escCargarEspeciales() {
+      const container = document.getElementById('escEspecialesContent');
+      container.innerHTML = '<div class="sv-loading"></div>';
+      try {
+        const snap = await db.collection('inscripcionesEspeciales').where('activa','==',true).get();
+        if (snap.empty) { container.innerHTML = '<div class="sv-empty">Sin inscripciones especiales activas</div>'; return; }
+        const datos = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.alumnoNombre||'').localeCompare(b.alumnoNombre||''));
+        container.innerHTML = `
+          <div class="sv-table-wrap">
+            <table class="sv-table">
+              <thead><tr><th>Alumno</th><th>Materia</th><th>Profesor</th><th>Período</th></tr></thead>
+              <tbody>${datos.map(d=>`
+                <tr>
+                  <td>${d.alumnoNombre||d.alumnoId||'—'}</td>
+                  <td>${d.materiaNombre||'—'}</td>
+                  <td>${d.profesorNombre||'—'}</td>
+                  <td>${d.periodo||'—'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      } catch(e) { container.innerHTML = `<div class="sv-error">Error: ${e.message}</div>`; }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TAB PROFESOR
+    // ══════════════════════════════════════════════════════════
+    async function profCargar() {
+      const profId = document.getElementById('profSelProfesor').value;
+      document.getElementById('profMenuCards').style.display = 'none';
+      document.getElementById('profCalifCard').style.display = 'none';
+      if (!profId) return;
+      const prof = svProfesores.find(p=>p.id===profId);
+      document.getElementById('profNombreHeader').textContent = `Materias de ${prof?prof.nombre:'—'}`;
+      document.getElementById('profMenuCards').style.display = 'block';
+      document.getElementById('profMatGrid').innerHTML = '<div class="sv-loading"></div>';
+      try {
+        const snap = await db.collection('profesorMaterias').where('profesorId','==',profId).where('activa','==',true).get();
+        profMateriasData = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.materiaNombre||'').localeCompare(b.materiaNombre||''));
+        if (!profMateriasData.length) {
+          document.getElementById('profMatGrid').innerHTML = '<div class="sv-empty">Sin materias asignadas actualmente</div>';
+          return;
+        }
+        document.getElementById('profMatGrid').innerHTML = profMateriasData.map((m,i)=>`
+          <div class="prof-mat-card" onclick="profVerCalif(${i})">
+            <h3>${m.materiaNombre||'—'}</h3>
+            <p>Grupo: <strong>${m.codigoGrupo||'—'}</strong> · ${turno(m.turno)}</p>
+            <p>${carreraNom(m.carreraId)}</p>
+            <p style="margin-top:6px;color:#bbb;">Período: ${m.periodo||'—'}</p>
+          </div>`).join('');
+      } catch(e) {
+        document.getElementById('profMatGrid').innerHTML = `<div class="sv-error">Error: ${e.message}</div>`;
+      }
+    }
+    async function profVerCalif(i) {
+      const asig = profMateriasData[i];
+      document.getElementById('profMenuCards').style.display = 'none';
+      document.getElementById('profCalifCard').style.display = 'block';
+      document.getElementById('profCalifTitle').textContent = `${asig.materiaNombre} — ${asig.codigoGrupo}`;
+      await renderCalificaciones('profCalifContent', asig);
+    }
+    function profVolverMaterias() {
+      document.getElementById('profCalifCard').style.display = 'none';
+      document.getElementById('profMenuCards').style.display = 'block';
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TAB ALUMNO (boleta)
+    // ══════════════════════════════════════════════════════════
+    async function alumCarreraChange() {
+      const carreraId = document.getElementById('alumSelCarrera').value;
+      const selGrupo  = document.getElementById('alumSelGrupo');
+      const selAlumno = document.getElementById('alumSelAlumno');
+      document.getElementById('alumBoletaCard').style.display = 'none';
+      selGrupo.disabled = true;  selGrupo.innerHTML  = '<option value="">— Cargando... —</option>';
+      selAlumno.disabled = true; selAlumno.innerHTML = '<option value="">— Primero elige grupo —</option>';
+      if (!carreraId) { selGrupo.innerHTML = '<option value="">— Primero elige carrera —</option>'; return; }
+      try {
+        const snap = await db.collection('grupos').where('carreraId','==',carreraId).where('activo','==',true).get();
+        const grupos = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.semestre||0)-(b.semestre||0));
+        selGrupo.innerHTML = '<option value="">— Selecciona grupo —</option>' +
+          grupos.map(g=>`<option value="${carreraId}-${g.codigoGrupo}">${g.nombre||g.codigoGrupo} · Sem.${g.semestre||'?'}</option>`).join('');
+        selGrupo.disabled = false;
+      } catch(e) { selGrupo.innerHTML = `<option value="">Error: ${e.message}</option>`; }
+    }
+    async function alumGrupoChange() {
+      const codigoCompleto = document.getElementById('alumSelGrupo').value;
+      const selAlumno = document.getElementById('alumSelAlumno');
+      document.getElementById('alumBoletaCard').style.display = 'none';
+      selAlumno.disabled = true; selAlumno.innerHTML = '<option value="">— Cargando... —</option>';
+      if (!codigoCompleto) { selAlumno.innerHTML = '<option value="">— Primero elige grupo —</option>'; return; }
+      try {
+        const snap = await db.collection('usuarios').where('codigoGrupo','==',codigoCompleto).where('rol','==','alumno').get();
+        alumAlumnos = snap.docs.map(d=>({id:d.id,...d.data()}))
+          .sort((a,b)=>parseInt(a.orden||99)-parseInt(b.orden||99)||(a.nombre||'').localeCompare(b.nombre||''));
+        selAlumno.innerHTML = '<option value="">— Selecciona alumno —</option>' +
+          alumAlumnos.map((a,i)=>`<option value="${i}">${a.nombre||'—'} (${a.matricula||'—'})</option>`).join('');
+        selAlumno.disabled = false;
+      } catch(e) { selAlumno.innerHTML = `<option value="">Error: ${e.message}</option>`; }
+    }
+    async function alumAlumnoChange() {
+      const idx = document.getElementById('alumSelAlumno').value;
+      document.getElementById('alumBoletaCard').style.display = 'none';
+      if (idx === '' || idx === null) return;
+      const alumno = alumAlumnos[parseInt(idx)];
+      document.getElementById('alumBoletaNombre').textContent = alumno.nombre||'—';
+      document.getElementById('alumBoletaInfo').textContent = `Matrícula: ${alumno.matricula||'—'} · ${carreraNom(alumno.carreraId)} · ${alumno.codigoGrupo||'—'}`;
+      document.getElementById('alumBoletaCard').style.display = 'block';
+      document.getElementById('alumBoletaContent').innerHTML = '<div class="sv-loading"></div>';
+      try {
+        const snap = await db.collection('calificaciones').where('alumnoId','==',alumno.id).get();
+        if (snap.empty) {
+          document.getElementById('alumBoletaContent').innerHTML = '<div class="sv-empty">Sin calificaciones registradas</div>';
+          return;
+        }
+        const cals = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.materiaNombre||'').localeCompare(b.materiaNombre||''));
+        const filas = cals.map(c => {
+          const p = c.parciales||{};
+          return `<tr>
+            <td><strong>${c.materiaNombre||'—'}</strong></td>
+            <td>${val(p.parcial1)}</td>
+            <td>${val(p.parcial2)}</td>
+            <td>${val(p.parcial3)}</td>
+            <td class="${calClass(c.promedio)}"><strong>${val(c.promedio)}</strong></td>
+            <td>${val(c.extraordinario)}</td>
+            <td>${val(c.ets)}</td>
+            <td style="color:#888;font-size:0.8rem;">${c.profesorNombre||'—'}</td>
+          </tr>`;
+        }).join('');
+        document.getElementById('alumBoletaContent').innerHTML = `
+          <div class="sv-table-wrap">
+            <table class="sv-table">
+              <thead><tr><th>Materia</th><th>P1</th><th>P2</th><th>P3/Final</th><th>Promedio</th><th>Ext.</th><th>ETS</th><th>Profesor</th></tr></thead>
+              <tbody>${filas}</tbody>
+            </table>
+          </div>
+          <p style="color:#bbb;font-size:0.78rem;margin-top:8px;">${cals.length} materia(s) con registro</p>`;
+      } catch(e) {
+        document.getElementById('alumBoletaContent').innerHTML = `<div class="sv-error">Error: ${e.message}</div>`;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════
     // TAB ACADEMIA
-    // ════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════
     async function acadCargar() {
       const grid = document.getElementById('acadGrid');
       try {
         const snap = await db.collection('academias').get();
-        svAcademias = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-                              .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
-
-        if (svAcademias.length === 0) {
-          grid.innerHTML = '<div class="sv-empty">Sin academias registradas</div>';
-          return;
-        }
-
-        grid.innerHTML = svAcademias.map((a, i) => `
-          <div class="academia-card" onclick="acadVerDetalle(${i})">
-            <h3>${a.nombre || '—'}</h3>
-            <p>${(a.materiasAutorizadas || []).length} materia(s) autorizada(s)</p>
-            ${a.descripcion ? `<p style="margin-top:5px;color:#bbb;">${a.descripcion}</p>` : ''}
+        svAcademias = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+        if (!svAcademias.length) { grid.innerHTML = '<div class="sv-empty">Sin academias registradas</div>'; return; }
+        grid.innerHTML = svAcademias.map((a,i)=>`
+          <div style="border:2px solid #e8d0d6;border-radius:10px;padding:16px 18px;cursor:pointer;background:white;transition:all 0.2s;"
+               onmouseover="this.style.borderColor='#6A2135';this.style.transform='translateY(-2px)'"
+               onmouseout="this.style.borderColor='#e8d0d6';this.style.transform=''"
+               onclick="acadVerDetalle(${i})">
+            <h3 style="color:#6A2135;font-size:0.95rem;margin-bottom:5px;">${a.nombre||'—'}</h3>
+            <p style="color:#888;font-size:0.8rem;">${(a.materiasAutorizadas||[]).length} materia(s) autorizada(s)</p>
+            ${a.descripcion?`<p style="color:#bbb;font-size:0.78rem;margin-top:4px;">${a.descripcion}</p>`:''}
           </div>`).join('');
-      } catch (e) {
-        grid.innerHTML = `<div class="sv-error">Error: ${e.message}</div>`;
-      }
+      } catch(e) { grid.innerHTML = `<div class="sv-error">Error: ${e.message}</div>`; }
     }
-
     async function acadVerDetalle(i) {
       const academia = svAcademias[i];
-      document.getElementById('acadListCard').style.display  = 'none';
-      document.getElementById('acadDetalle').style.display   = 'block';
-      document.getElementById('acadNombre').textContent       = academia.nombre || '—';
-
+      document.getElementById('acadListCard').style.display = 'none';
+      document.getElementById('acadDetalle').style.display  = 'block';
+      document.getElementById('acadNombre').textContent      = academia.nombre||'—';
       const tbody = document.getElementById('acadMateriasBody');
       tbody.innerHTML = '<tr><td colspan="5"><div class="sv-loading"></div></td></tr>';
-
-      const matAut = academia.materiasAutorizadas || [];
-      if (matAut.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin materias autorizadas</div></td></tr>';
-        return;
-      }
-
+      const matAut = academia.materiasAutorizadas||[];
+      if (!matAut.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin materias autorizadas</div></td></tr>'; return; }
       try {
-        const BATCH = 30;
-        const asignaciones = [];
+        const BATCH = 30, asigs = [];
         for (let j = 0; j < matAut.length; j += BATCH) {
-          const lote = matAut.slice(j, j + BATCH);
-          const snap = await db.collection('profesorMaterias')
-            .where('materiaId', 'in', lote)
-            .where('activa', '==', true)
-            .get();
-          snap.forEach(d => asignaciones.push({ id: d.id, ...d.data() }));
+          const snap = await db.collection('profesorMaterias').where('materiaId','in',matAut.slice(j,j+BATCH)).where('activa','==',true).get();
+          snap.forEach(d=>asigs.push({id:d.id,...d.data()}));
         }
-
-        asignaciones.sort((a,b) => (a.materiaNombre||'').localeCompare(b.materiaNombre||''));
-
-        if (asignaciones.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin asignaciones activas actualmente</div></td></tr>';
-          return;
-        }
-
-        tbody.innerHTML = asignaciones.map(a => `
+        asigs.sort((a,b)=>(a.materiaNombre||'').localeCompare(b.materiaNombre||''));
+        if (!asigs.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="sv-empty">Sin asignaciones activas</div></td></tr>'; return; }
+        tbody.innerHTML = asigs.map(a=>`
           <tr>
-            <td><strong>${a.materiaNombre || '—'}</strong></td>
-            <td>${carreraNombre(a.carreraId)}</td>
-            <td>${a.profesorNombre || '—'}</td>
-            <td>${a.codigoGrupo || '—'}</td>
-            <td>${a.periodo || '—'}</td>
+            <td><strong>${a.materiaNombre||'—'}</strong></td>
+            <td>${carreraNom(a.carreraId)}</td>
+            <td>${a.profesorNombre||'—'}</td>
+            <td>${a.codigoGrupo||'—'}</td>
+            <td>${a.periodo||'—'}</td>
           </tr>`).join('');
-      } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5"><div class="sv-error">${e.message}</div></td></tr>`;
-      }
+      } catch(e) { tbody.innerHTML = `<tr><td colspan="5"><div class="sv-error">${e.message}</div></td></tr>`; }
     }
-
     function acadVolver() {
       document.getElementById('acadDetalle').style.display  = 'none';
       document.getElementById('acadListCard').style.display = 'block';

@@ -198,11 +198,13 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     const carreraId = alumno.carreraId;
     if (!carreraId) { _escribirError(w, 'El alumno no tiene carrera asignada.'); return; }
 
-    const alumnoPerActual = Number(alumno.periodo) || 0;
+    // semestreActual: número de semestre dentro de la carrera (1, 2, 3...)
+    const alumnoSemActual = alumno.semestreActual || Number(alumno.periodo) || 0;
 
-    const [{ carreraNombre, porPeriodo, periodosAnio }, calSnap] = await Promise.all([
+    const [{ carreraNombre, porPeriodo, periodosAnio }, calSnap, histDoc] = await Promise.all([
       _obtenerMateriasCarrera(carreraId),
-      db.collection('calificaciones').where('alumnoId', '==', alumnoId).get()
+      db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
+      db.collection('historialAcademico').doc(alumnoId).get()
     ]);
 
     const calMap = {};
@@ -211,19 +213,36 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       if (c.materiaId) calMap[c.materiaId] = c;
     });
 
+    // histMap[materiaId] = periodoAcademico (string) o null (aún en curso)
+    // Fuente: historialAcademico.materias[]. Actualizado por cambioPeriodo al cerrar el periodo.
+    const histMap = {};
+    if (histDoc.exists) {
+      (histDoc.data().materias || []).forEach(m => {
+        if (m.materiaId) histMap[m.materiaId] = m.periodoAcademico ?? null;
+      });
+    }
+
+    // Una materia está "en curso" si: es el semestre actual del alumno Y aún no tiene periodoAcademico
+    const esCursandoMateria = (materiaId, perNum) =>
+      perNum === alumnoSemActual && !histMap[materiaId];
+
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
-    const hayPeriodosPasados = alumnoPerActual > 0 && periodoKeys.some(pk => pk < alumnoPerActual);
+    // Hay periodos editables si hay semestres anteriores al actual O si el semestre actual ya fue cerrado
+    const hayPeriodosPasados = alumnoSemActual > 0 && periodoKeys.some(pk => {
+      if (pk < alumnoSemActual) return true;
+      if (pk === alumnoSemActual) return (porPeriodo[pk] || []).some(m => histMap[m.id]);
+      return false;
+    });
     const labelPer = periodosAnio === 3 ? 'Cuatrimestre' : periodosAnio === 4 ? 'Trimestre' : 'Semestre';
 
     // Contadores resumen
     let total = 0, aprobadas = 0, reprobadas = 0, sinCaptura = 0, cursando = 0;
     for (const [perKey, mats] of Object.entries(porPeriodo)) {
       const pn = Number(perKey);
-      const esActPer = alumnoPerActual > 0 && pn === alumnoPerActual;
       for (const m of mats) {
         const rawCal = calMap[m.id]?.promedio ?? null;
         total++;
-        if (esActPer) cursando++;
+        if (esCursandoMateria(m.id, pn)) cursando++;
         else if (rawCal === null) sinCaptura++;
         else if (rawCal === 'NP' || Number(rawCal) < 6) reprobadas++;
         else aprobadas++;
@@ -310,8 +329,8 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
 
     periodoKeys.forEach(perNum => {
       const mats = porPeriodo[perNum];
-      const esActualPer = alumnoPerActual > 0 && perNum === alumnoPerActual;
-      const esPasadoPer = alumnoPerActual > 0 && perNum < alumnoPerActual;
+      // El label "ACTUAL" se muestra para el semestre actual del alumno
+      const esActualPer = alumnoSemActual > 0 && perNum === alumnoSemActual;
 
       const perLabel = esActualPer
         ? `${labelPer} ${perNum} <span style="background:#e3f2fd;color:#1565c0;padding:1px 9px;border-radius:10px;font-size:0.72rem;font-weight:700;">ACTUAL</span>`
@@ -331,9 +350,12 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
 
       mats.forEach((m, i) => {
         const rawCal = calMap[m.id]?.promedio ?? null;
+        const isCursando  = esCursandoMateria(m.id, perNum);
+        // Editable/readonly si: semestre anterior al actual, O semestre actual ya cerrado (periodoAcademico seteado)
+        const esPasadoMat = !isCursando && (perNum < alumnoSemActual || (perNum === alumnoSemActual && !!histMap[m.id]));
 
-        if (esActualPer) {
-          // ── Semestre actual: "Cursando", solo lectura ──────────────────────
+        if (isCursando) {
+          // ── En curso: chip "Cursando", solo lectura ────────────────────────
           const calStr = rawCal === null ? '-' : String(redondearCalificacion(rawCal));
           html += `<tr>
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
@@ -344,7 +366,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     <td style="text-align:center;color:#bbb;">-</td>
   </tr>`;
 
-        } else if (esPasadoPer) {
+        } else if (esPasadoMat) {
           const sinCap    = rawCal === null;
           const esNP      = rawCal === 'NP';
           const calNum    = (!sinCap && !esNP) ? Number(rawCal) : null;
@@ -424,7 +446,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     html += `</div>
 <script>
 const _AID = '${alumnoId}';
-const _PERIODO_ACTUAL = ${alumnoPerActual};
+const _PERIODO_ACTUAL = ${alumnoSemActual};
 
 function _actualizarChip(chip, val) {
   if (!val) {
@@ -601,7 +623,8 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       target.push([{ content: label, colSpan: 5, styles: nivelStyle }]);
       porPeriodo[periodo].forEach(m => {
         counter++;
-        const cursando = periodoActual > 0 && Number(m.periodo) === periodoActual;
+        // Cursando: el semestre coincide con el actual Y aún no tiene periodoAcademico (no cerrado)
+        const cursando = !m.periodoAcademico && periodoActual > 0 && Number(m.periodo) === periodoActual;
         const calRed = redondearCalificacion(m.calificacion);
         const calNum = (calRed !== null && calRed !== undefined && calRed !== 'NP') ? Number(calRed) : NaN;
         if (!cursando && !isNaN(calNum)) { totalSuma += calNum; totalCount++; }
