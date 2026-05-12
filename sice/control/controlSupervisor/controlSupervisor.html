@@ -645,10 +645,11 @@
     // INIT
     // ════════════════════════════════════════════════
     async function svInit() {
-      const [carSnap, profSnap, alumSnap] = await Promise.all([
+      const [carSnap, profSnap, alumSnap, grupoSnap] = await Promise.all([
         db.collection('carreras').get(),
         db.collection('usuarios').where('rol','==','profesor').get(),
-        db.collection('usuarios').where('rol','==','alumno').get()
+        db.collection('usuarios').where('rol','==','alumno').get(),
+        db.collection('grupos').get()
       ]);
       svCarreras   = carSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
       svProfesores = profSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
@@ -669,13 +670,13 @@
       document.getElementById('profSelProfesor').innerHTML  = optsProf;
 
       // Escolar stats
-      const activos = svTodosAlumnos.filter(a=>a.activo!==false).length;
-      const grupoSnap = await db.collection('grupos').where('activo','==',true).get();
+      const alumActivos  = svTodosAlumnos.filter(a=>a.activo!==false).length;
+      const gruposActivos = grupoSnap.docs.filter(d=>d.data().activo!==false).length;
       document.getElementById('escStats').innerHTML = `
         <div class="sv-stat-card"><div class="num">${svTodosAlumnos.length}</div><div class="lab">Total Alumnos</div></div>
-        <div class="sv-stat-card"><div class="num">${activos}</div><div class="lab">Activos</div></div>
-        <div class="sv-stat-card"><div class="num">${svTodosAlumnos.length-activos}</div><div class="lab">Inactivos</div></div>
-        <div class="sv-stat-card"><div class="num">${grupoSnap.size}</div><div class="lab">Grupos Activos</div></div>
+        <div class="sv-stat-card"><div class="num">${alumActivos}</div><div class="lab">Activos</div></div>
+        <div class="sv-stat-card"><div class="num">${svTodosAlumnos.length-alumActivos}</div><div class="lab">Inactivos</div></div>
+        <div class="sv-stat-card"><div class="num">${gruposActivos}</div><div class="lab">Grupos Activos</div></div>
         <div class="sv-stat-card"><div class="num">${svProfesores.length}</div><div class="lab">Profesores</div></div>`;
 
       // Escolar carrera cards
