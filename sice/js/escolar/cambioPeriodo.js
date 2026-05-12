@@ -239,12 +239,11 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     progressBar.style.width = '85%';
     progressText.textContent = 'Eliminando asignaciones del periodo...';
 
+    // Borrar TODAS las asignaciones de la carrera (sin filtro de periodo para no depender de índices)
     const asignacionesSnap = await db.collection('profesorMaterias')
       .where('carreraId', '==', carreraId)
-      .where('periodo', '==', periodoActual)
       .get();
 
-    // Borrar en lotes de 499
     for (let i = 0; i < asignacionesSnap.docs.length; i += 499) {
       const batchDel = db.batch();
       asignacionesSnap.docs.slice(i, i + 499).forEach(doc => {
@@ -503,9 +502,9 @@ function _calificacionFinal(cal) {
 }
 
 // Escribe/actualiza historialAcademico/{alumnoId}:
-//   · periodos[]  → arrayUnion con el registro histórico completo del periodo
-//   · materias[]  → actualiza calificacion + acr + periodoAcademico de las materias
-//                   del semestre que termina, para que el PDF las lea correctamente
+//   · materias[]  → cierra el semestre actual seteando periodoAcademico en TODAS las materias
+//                   del semestre que termina (con o sin calificación capturada)
+//   · periodos[]  → arrayUnion con el registro histórico del periodo (solo alumnos con calificaciones)
 async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, alumnoDataMap) {
   try {
     // Agrupar calificaciones por alumnoId → { materiaId: calData }
@@ -517,26 +516,27 @@ async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, 
       calPorAlumno[c.alumnoId][c.materiaId] = c;
     }
 
-    const alumnoIds = Object.keys(calPorAlumno);
+    // Procesar TODOS los alumnos de la carrera (no solo los que tienen calificaciones)
+    const alumnoIds = Object.keys(alumnoDataMap);
     if (!alumnoIds.length) return;
 
-    // Leer historialAcademico actual de todos los alumnos en paralelo
-    // (necesario para actualizar el array materias sin perder entradas de otros semestres)
+    // Leer historialAcademico de todos en paralelo
     const histSnaps = await Promise.all(
       alumnoIds.map(id => db.collection('historialAcademico').doc(id).get())
     );
-    const histMap = Object.fromEntries(histSnaps.map(s => [s.id, s]));
+    const histSnapMap = Object.fromEntries(histSnaps.map(s => [s.id, s]));
 
     let batch = db.batch();
     let batchCount = 0;
 
     for (const alumnoId of alumnoIds) {
       const info       = alumnoDataMap[alumnoId] || {};
-      const calsAlumno = calPorAlumno[alumnoId];          // { materiaId: calData }
-      const semActual  = info.semestreActual || null;      // semestre que acaba de terminar
+      const calsAlumno = calPorAlumno[alumnoId] || {};   // vacío si el alumno no tiene calificaciones
+      const semActual  = info.semestreActual || null;
+      const tieneCals  = Object.keys(calsAlumno).length > 0;
 
-      // ── Registro histórico completo del periodo (para array periodos[]) ──
-      const periodoEntry = {
+      // ── Registro histórico del periodo (solo si hay calificaciones registradas) ──
+      const periodoEntry = tieneCals ? {
         periodo:  periodoActual,
         semestre: semActual,
         materias: Object.values(calsAlumno).map(m => ({
@@ -552,44 +552,45 @@ async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, 
           profesorNombre:  m.profesorNombre  || '',
           calificacionId:  `${alumnoId}_${m.materiaId}`
         }))
-      };
+      } : null;
 
-      // ── Actualizar materias[] con la calificación final + acr + periodoAcademico ──
-      // Coincide con los campos que lee el PDF: m.calificacion, m.acr, m.periodoAcademico
-      const histSnap = histMap[alumnoId];
+      // ── Cerrar semestre en materias[]: poner periodoAcademico a TODAS las materias del semestre ──
+      // Esto hace que boleta global deje de mostrarlas como "Cursando"
+      const histSnap = histSnapMap[alumnoId];
       let materiasActualizadas = null;
 
       if (histSnap && histSnap.exists) {
         const materiasExistentes = histSnap.data().materias || [];
         let cambiado = false;
         materiasActualizadas = materiasExistentes.map(mat => {
-          // Si conocemos el semestre, solo actualizar materias de ese semestre.
-          // Si semestreActual no está seteado en el alumno, actualizar cualquier materia
-          // que tenga calificacion registrada y aún no tenga periodoAcademico.
+          // Si conocemos el semestre, solo cerrar materias de ese semestre
           if (semActual !== null && mat.periodo !== semActual) return mat;
-          if (mat.periodoAcademico) return mat; // ya tiene periodo asignado — no pisar
+          if (mat.periodoAcademico) return mat; // ya cerrada — no pisar
+          // Cerrar la materia: usar calificación si existe, mantener la actual si no
           const cal = calsAlumno[mat.materiaId];
-          if (!cal) return mat;                 // sin calificación registrada
-          const { calificacion, acr } = _calificacionFinal(cal);
+          if (cal) {
+            const { calificacion, acr } = _calificacionFinal(cal);
+            cambiado = true;
+            return Object.assign({}, mat, { calificacion, acr, periodoAcademico: periodoActual });
+          }
+          // Sin calificación: cerrar el periodo sin modificar cal/acr
           cambiado = true;
-          return Object.assign({}, mat, {
-            calificacion,
-            acr,
-            periodoAcademico: periodoActual
-          });
+          return Object.assign({}, mat, { periodoAcademico: periodoActual });
         });
         if (!cambiado) materiasActualizadas = null;
       }
 
+      if (!periodoEntry && !materiasActualizadas) continue;
+
       const writeData = {
         alumnoId,
-        alumnoNombre: info.nombre || Object.values(calsAlumno)[0]?.alumnoNombre || '',
+        alumnoNombre: info.nombre || '',
         matricula:    info.matricula || '',
         carreraId,
-        periodos:     firebase.firestore.FieldValue.arrayUnion(periodoEntry),
         fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
       };
-      if (materiasActualizadas !== null) writeData.materias = materiasActualizadas;
+      if (periodoEntry)           writeData.periodos = firebase.firestore.FieldValue.arrayUnion(periodoEntry);
+      if (materiasActualizadas)   writeData.materias = materiasActualizadas;
 
       batch.set(db.collection('historialAcademico').doc(alumnoId), writeData, { merge: true });
       batchCount++;
