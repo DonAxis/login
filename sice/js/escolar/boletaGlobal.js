@@ -219,14 +219,18 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     // Fuente: historialAcademico.materias[]. Actualizado por cambioPeriodo y por guardarBatchCalBoleta.
 
     const periodoActualCarrera = configDoc.exists ? configDoc.data().periodo : null;
+    // Si la carrera ya avanzó de periodo pero el alumno no fue avanzado aún → semestre cerrado
+    const periodoYaCerrado = !!(periodoActualCarrera && alumno.periodo && alumno.periodo !== periodoActualCarrera);
 
-    const histMap   = {};
-    const validaMap = {};
+    const histMap    = {};   // materiaId → periodoAcademico
+    const histCalMap = {};   // materiaId → { calificacion, acr } desde historialAcademico (fallback)
+    const validaMap  = {};
     if (histDoc.exists) {
       (histDoc.data().materias || []).forEach(m => {
         if (m.materiaId) {
-          histMap[m.materiaId]   = m.periodoAcademico ?? null;
-          validaMap[m.materiaId] = m.valida !== false; // default true
+          histMap[m.materiaId]    = m.periodoAcademico ?? null;
+          histCalMap[m.materiaId] = { calificacion: m.calificacion ?? null, acr: m.acr ?? null };
+          validaMap[m.materiaId]  = m.valida !== false;
         }
       });
     } else {
@@ -262,21 +266,38 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       }
     }
 
-    // Cursando: semestre actual del alumno, sin periodoAcademico en historial ni en calificaciones
+    // Cursando: semestre actual, periodo NO cerrado, sin periodoAcademico en ninguna fuente
     const esCursandoMateria = (materiaId, perNum) =>
       alumnoSemActual > 0 &&
       perNum === alumnoSemActual &&
+      !periodoYaCerrado &&
       !histMap[materiaId] &&
       !(calMap[materiaId]?.periodoAcademico);
 
+    // Calificación efectiva: ETS > extraordinario > promedio, con fallback a historialAcademico
+    const _efectiva = (materiaId) => {
+      const d = calMap[materiaId];
+      if (d) {
+        if (d.ets != null)            return { cal: d.ets,            acr: 'ETS' };
+        if (d.extraordinario != null) return { cal: d.extraordinario, acr: 'EXT' };
+        if (d.promedio != null)       return { cal: d.promedio,       acr: d.acreditacion || 'ORD' };
+        return { cal: null, acr: null };
+      }
+      const h = histCalMap[materiaId];
+      return h ? { cal: h.calificacion ?? null, acr: h.acr ?? null } : { cal: null, acr: null };
+    };
+
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
-    // Hay periodos editables si: hay semestres anteriores al actual, o el actual ya tiene periodoAcademico seteado
-    const hayPeriodosPasados = alumnoSemActual > 0 &&
+    // Hay periodos editables si: el semestre cerró (periodoYaCerrado), hay semestres anteriores,
+    // o alguna materia del semestre actual tiene periodoAcademico seteado
+    const hayPeriodosPasados = alumnoSemActual > 0 && (
+      periodoYaCerrado ||
       periodoKeys.some(pk => {
         if (pk < alumnoSemActual) return true;
         if (pk === alumnoSemActual) return (porPeriodo[pk] || []).some(m => histMap[m.id] || calMap[m.id]?.periodoAcademico);
         return false;
-      });
+      })
+    );
     const labelPer = periodosAnio === 3 ? 'Cuatrimestre' : periodosAnio === 4 ? 'Trimestre' : 'Semestre';
 
     // Contadores resumen
@@ -284,7 +305,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     for (const [perKey, mats] of Object.entries(porPeriodo)) {
       const pn = Number(perKey);
       for (const m of mats) {
-        const rawCal = calMap[m.id]?.promedio ?? null;
+        const { cal: rawCal } = _efectiva(m.id);
         total++;
         if (esCursandoMateria(m.id, pn)) cursando++;
         else if (rawCal === null) sinCaptura++;
@@ -394,12 +415,12 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
   <tbody>`;
 
       mats.forEach((m, i) => {
-        const rawCal = calMap[m.id]?.promedio ?? null;
+        const { cal: rawCal, acr: rawAcrEfectiva } = _efectiva(m.id);
         const isCursando  = esCursandoMateria(m.id, perNum);
-        // Editable si: semestre anterior, O semestre actual cerrado por cambio de periodo o periodoAcademico seteado
+        // Editable si: semestre anterior, O semestre actual cerrado
         const esPasadoMat = !isCursando && (
           perNum < alumnoSemActual ||
-          (perNum === alumnoSemActual && (!!histMap[m.id] || !!(calMap[m.id]?.periodoAcademico)))
+          (perNum === alumnoSemActual && (periodoYaCerrado || !!histMap[m.id] || !!(calMap[m.id]?.periodoAcademico)))
         );
 
         if (isCursando) {
@@ -424,8 +445,9 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           const chipBg    = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
           const chipColor = sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
           const chipTxt   = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
-          const rawAcr    = calMap[m.id]?.acreditacion || null;
-          const rawPer    = calMap[m.id]?.periodoAcademico || '';
+          const rawAcr    = rawAcrEfectiva || null;
+          // Periodo: desde calificaciones, si no desde historialAcademico (lo setea cambiarPeriodo)
+          const rawPer    = calMap[m.id]?.periodoAcademico || histMap[m.id] || '';
 
           const esValida  = validaMap[m.id] !== false;
           const chkStyle  = esValida ? '' : 'opacity:0.45;';
