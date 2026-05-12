@@ -133,6 +133,7 @@
     <div class="sv-tab"        onclick="svTab('escolar',this)">Control Escolar</div>
     <div class="sv-tab"        onclick="svTab('profesor',this)">Profesor</div>
     <div class="sv-tab"        onclick="svTab('alumno',this)">Alumno</div>
+    <div class="sv-tab"        onclick="svTab('prefecto',this);prefCargar()">Prefecto</div>
   </nav>
 
   <div class="sv-main">
@@ -406,6 +407,75 @@
       </div>
     </div>
 
+    <!-- ═══ TAB: PREFECTO ═══ -->
+    <div id="secPrefecto" class="sv-section">
+
+      <!-- Stats row -->
+      <div id="prefStats" class="sv-stats-row"></div>
+
+      <!-- Menú -->
+      <div id="prefMenuCard" class="sv-card">
+        <h2>Vista Prefecto</h2>
+        <div class="sv-menu-grid">
+          <div class="sv-menu-card" onclick="prefMostrar('activos')">
+            <h3>Reportes Activos</h3>
+            <p>Reportes abiertos con respuestas pendientes</p>
+          </div>
+          <div class="sv-menu-card" onclick="prefMostrar('faltantes')">
+            <h3>Faltantes de Reporte</h3>
+            <p>Profesores que aún no han respondido</p>
+          </div>
+          <div class="sv-menu-card" onclick="prefMostrar('archivo')">
+            <h3>Archivo</h3>
+            <p>Reportes cerrados / archivados</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reportes activos -->
+      <div id="prefSecActivos" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="prefMenu()">← Menú</button>
+          <h2>Reportes Activos</h2>
+          <input type="text" id="prefBusqActivos" class="sv-search" placeholder="Buscar por alumno o grupo..."
+            oninput="prefFiltrarActivos()" style="max-width:360px;">
+          <div id="prefActivosContent"><div class="sv-loading"></div></div>
+        </div>
+        <div id="prefDetalleCard" class="sv-card" style="display:none;">
+          <button class="sv-back" onclick="prefVolverActivos()">← Reportes</button>
+          <h2 id="prefDetNombre">Reporte</h2>
+          <p id="prefDetInfo" style="color:#888;font-size:0.85rem;margin-bottom:14px;"></p>
+          <div id="prefDetContent"></div>
+        </div>
+      </div>
+
+      <!-- Faltantes -->
+      <div id="prefSecFaltantes" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="prefMenu()">← Menú</button>
+          <h2>Profesores Pendientes de Respuesta</h2>
+          <p style="color:#666;font-size:0.85rem;margin-bottom:14px;">Profesores que tienen al menos un reporte sin responder.</p>
+          <div id="prefFaltantesContent"><div class="sv-loading"></div></div>
+        </div>
+      </div>
+
+      <!-- Archivo -->
+      <div id="prefSecArchivo" style="display:none;">
+        <div class="sv-card">
+          <button class="sv-back" onclick="prefMenu()">← Menú</button>
+          <h2>Reportes Archivados</h2>
+          <div id="prefArchivoContent"><div class="sv-loading"></div></div>
+        </div>
+        <div id="prefArchivoDetalleCard" class="sv-card" style="display:none;">
+          <button class="sv-back" onclick="document.getElementById('prefArchivoDetalleCard').style.display='none'">← Reportes</button>
+          <h2 id="prefArcDetNombre">Reporte</h2>
+          <p id="prefArcDetInfo" style="color:#888;font-size:0.85rem;margin-bottom:14px;"></p>
+          <div id="prefArcDetContent"></div>
+        </div>
+      </div>
+
+    </div>
+
     <!-- ═══ TAB: ALUMNO ═══ -->
     <div id="secAlumno" class="sv-section">
       <div class="sv-card">
@@ -670,12 +740,13 @@
     // ════════════════════════════════════════════════
     function coordCambiarCarrera() {
       svCarreraFiltro = document.getElementById('coordSelCarreraFiltro').value;
-      // If currently showing Materias, reload
       if (document.getElementById('coordSecMaterias').style.display !== 'none') coordCargarMaterias();
       if (document.getElementById('coordSecAlumnos').style.display !== 'none')  coordCargarAlumnos();
       if (document.getElementById('coordSecArmarGrupos').style.display !== 'none') coordCargarArmarGrupos();
       if (document.getElementById('coordSecCalificaciones').style.display !== 'none') coordCargarSelectMaterias();
       if (document.getElementById('coordSecReporte').style.display !== 'none') coordCargarReporte();
+      if (document.getElementById('coordSecProfesores').style.display !== 'none') coordActualizarSelectProfesor();
+      if (document.getElementById('coordSecBoleta').style.display !== 'none')    coordIniciarBoleta();
     }
 
     function coordMenu() {
@@ -697,14 +768,15 @@
         reporte:'coordSecReporte', boleta:'coordSecBoleta'
       };
       document.getElementById(map[sub]).style.display='block';
-      if (sub==='materias')      coordCargarMaterias();
-      if (sub==='alumnos')       coordCargarAlumnos();
-      if (sub==='armarGrupos')   coordCargarArmarGrupos();
-      if (sub==='inscripciones') coordCargarInscripciones();
+      if (sub==='materias')       coordCargarMaterias();
+      if (sub==='profesores')     coordActualizarSelectProfesor();
+      if (sub==='alumnos')        coordCargarAlumnos();
+      if (sub==='armarGrupos')    coordCargarArmarGrupos();
+      if (sub==='inscripciones')  coordCargarInscripciones();
       if (sub==='calificaciones') coordCargarSelectMaterias();
-      if (sub==='periodos')      coordCargarPeriodos();
-      if (sub==='reporte')       coordCargarReporte();
-      if (sub==='boleta')        coordIniciarBoleta();
+      if (sub==='periodos')       coordCargarPeriodos();
+      if (sub==='reporte')        coordCargarReporte();
+      if (sub==='boleta')         coordIniciarBoleta();
     }
 
     // 1. Materias
@@ -773,6 +845,29 @@
     }
     function coordProfVolver()    { document.getElementById('coordProfMatCard').style.display='none'; document.getElementById('coordSelProfesor').value=''; }
     function coordProfVolverMat() { document.getElementById('coordProfCalifCard').style.display='none'; document.getElementById('coordProfMatCard').style.display='block'; }
+
+    async function coordActualizarSelectProfesor() {
+      document.getElementById('coordProfMatCard').style.display='none';
+      document.getElementById('coordProfCalifCard').style.display='none';
+      const sel = document.getElementById('coordSelProfesor');
+      if (!svCarreraFiltro) {
+        sel.innerHTML = '<option value="">— Selecciona profesor —</option>' +
+          svProfesores.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+        return;
+      }
+      sel.innerHTML = '<option value="">— Cargando... —</option>';
+      try {
+        const snap = await db.collection('profesorMaterias')
+          .where('carreraId','==',svCarreraFiltro).where('activa','==',true).get();
+        const profIds = [...new Set(snap.docs.map(d=>d.data().profesorId).filter(Boolean))];
+        const profs = svProfesores.filter(p=>profIds.includes(p.id));
+        sel.innerHTML = '<option value="">— Selecciona profesor —</option>' +
+          (profs.length ? profs : svProfesores).map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+      } catch(e) {
+        sel.innerHTML = '<option value="">— Selecciona profesor —</option>' +
+          svProfesores.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+      }
+    }
 
     // 3. Gestionar Alumnos
     function coordCargarAlumnos() {
@@ -1212,6 +1307,168 @@
         b.className='sv-filtro-btn'+(b.textContent===v||(v==='todos'&&b.textContent==='Todos')?' sv-filtro-btn-activo':'');
       });
       alumAplicarFiltros();
+    }
+
+    // ════════════════════════════════════════════════
+    // PREFECTO
+    // ════════════════════════════════════════════════
+    let prefReportesActivos  = [];
+    let prefReportesArchivo  = [];
+    let prefCargado          = false;
+
+    async function prefCargar() {
+      if (prefCargado) return;
+      prefCargado = true;
+      document.getElementById('prefStats').innerHTML = '<div class="sv-loading"></div>';
+      try {
+        const snap = await db.collection('reportesPrefecto').get();
+        const todos = snap.docs.map(d=>({id:d.id,...d.data()}));
+        prefReportesActivos = todos.filter(r=>!r.archivado).sort((a,b)=>((b.fechaSolicitud||'') > (a.fechaSolicitud||''))?1:-1);
+        prefReportesArchivo = todos.filter(r=>r.archivado).sort((a,b)=>((b.fechaSolicitud||'') > (a.fechaSolicitud||''))?1:-1);
+
+        const totalPend = prefReportesActivos.reduce((acc,r)=>acc+(r.profesoresPendientes||[]).length, 0);
+        document.getElementById('prefStats').innerHTML = `
+          <div class="sv-stat-card"><div class="num">${prefReportesActivos.length}</div><div class="lab">Reportes Activos</div></div>
+          <div class="sv-stat-card"><div class="num">${totalPend}</div><div class="lab">Resp. Pendientes</div></div>
+          <div class="sv-stat-card"><div class="num">${prefReportesArchivo.length}</div><div class="lab">Archivados</div></div>`;
+      } catch(e) {
+        document.getElementById('prefStats').innerHTML = `<div class="sv-error">Error: ${e.message}</div>`;
+      }
+    }
+
+    function prefMenu() {
+      ['prefSecActivos','prefSecFaltantes','prefSecArchivo'].forEach(id=>document.getElementById(id).style.display='none');
+      document.getElementById('prefMenuCard').style.display='block';
+    }
+
+    function prefMostrar(sub) {
+      document.getElementById('prefMenuCard').style.display='none';
+      ['prefSecActivos','prefSecFaltantes','prefSecArchivo'].forEach(id=>document.getElementById(id).style.display='none');
+      if (sub==='activos')   { document.getElementById('prefSecActivos').style.display='block';   prefRenderActivos(prefReportesActivos); }
+      if (sub==='faltantes') { document.getElementById('prefSecFaltantes').style.display='block'; prefRenderFaltantes(); }
+      if (sub==='archivo')   { document.getElementById('prefSecArchivo').style.display='block';   prefRenderArchivo(); }
+    }
+
+    function prefFecha(s) {
+      if (!s) return '—';
+      try { return new Date(s).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); } catch(e) { return s; }
+    }
+
+    function prefRenderTablaReportes(lista, contenedorId, onClickFn) {
+      const c = document.getElementById(contenedorId);
+      if (!lista.length) { c.innerHTML='<div class="sv-empty">Sin reportes</div>'; return; }
+      c.innerHTML = `<div class="sv-table-wrap"><table class="sv-table">
+        <thead><tr><th>Alumno</th><th>Grupo</th><th>Prefecto</th><th>Fecha</th><th>Pendientes</th><th>Respondieron</th></tr></thead>
+        <tbody>${lista.map((r,i)=>{
+          const pend   = (r.profesoresPendientes||[]).length;
+          const profs  = Object.values(r.profesores||{});
+          const resp   = profs.filter(p=>p.respuesta).length;
+          return `<tr class="sv-row-link" onclick="${onClickFn}(${i})">
+            <td><strong>${r.alumnoNombre||'—'}</strong></td>
+            <td>${r.codigoGrupo||'—'}</td>
+            <td>${r.prefectoNombre||'—'}</td>
+            <td style="color:#888;font-size:0.8rem;">${prefFecha(r.fechaSolicitud)}</td>
+            <td>${pend>0?`<span class="chip chip-red">${pend} pendiente${pend>1?'s':''}</span>`:'<span class="chip chip-green">Completo</span>'}</td>
+            <td><span class="chip chip-blue">${resp}</span></td>
+          </tr>`;
+        }).join('')}</tbody></table></div>
+        <p style="color:#bbb;font-size:0.78rem;margin-top:8px;">${lista.length} reporte(s)</p>`;
+    }
+
+    let prefActivosBase = [];
+    function prefRenderActivos(lista) {
+      prefActivosBase = lista;
+      document.getElementById('prefBusqActivos').value = '';
+      document.getElementById('prefDetalleCard').style.display = 'none';
+      prefRenderTablaReportes(lista, 'prefActivosContent', 'prefVerDetalle');
+    }
+    function prefFiltrarActivos() {
+      const q = (document.getElementById('prefBusqActivos').value||'').toLowerCase().trim();
+      const lista = q ? prefActivosBase.filter(r=>(r.alumnoNombre||'').toLowerCase().includes(q)||(r.codigoGrupo||'').toLowerCase().includes(q)) : prefActivosBase;
+      prefRenderTablaReportes(lista, 'prefActivosContent', 'prefVerDetalle');
+    }
+    function prefVolverActivos() {
+      document.getElementById('prefDetalleCard').style.display='none';
+    }
+
+    function prefVerDetalle(i) {
+      const r = prefActivosBase[i];
+      document.getElementById('prefDetNombre').textContent = r.alumnoNombre||'—';
+      document.getElementById('prefDetInfo').textContent   = `Grupo: ${r.codigoGrupo||'—'} · Prefecto: ${r.prefectoNombre||'—'} · Fecha: ${prefFecha(r.fechaSolicitud)}`;
+      const profs  = Object.entries(r.profesores||{});
+      const filas  = profs.map(([uid,p])=>{
+        const respondio = p.respuesta ? true : false;
+        return `<tr>
+          <td><strong>${p.nombre||uid}</strong></td>
+          <td>${respondio
+            ? `<span class="chip chip-green">Respondió</span>`
+            : `<span class="chip chip-red">Pendiente</span>`}</td>
+          <td style="font-size:0.85rem;color:#444;">${p.respuesta||'<em style="color:#bbb;">Sin respuesta</em>'}</td>
+          <td style="color:#888;font-size:0.78rem;">${p.fecha?prefFecha(p.fecha):'—'}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('prefDetContent').innerHTML = filas.length
+        ? `<div class="sv-table-wrap"><table class="sv-table">
+            <thead><tr><th>Profesor</th><th>Estado</th><th>Observación</th><th>Fecha</th></tr></thead>
+            <tbody>${filas}</tbody></table></div>`
+        : '<div class="sv-empty">Sin profesores asignados</div>';
+      document.getElementById('prefDetalleCard').style.display='block';
+      document.getElementById('prefDetalleCard').scrollIntoView({behavior:'smooth'});
+    }
+
+    function prefRenderFaltantes() {
+      const c = document.getElementById('prefFaltantesContent');
+      const pendMap = {};
+      prefReportesActivos.forEach(r=>{
+        (r.profesoresPendientes||[]).forEach(uid=>{
+          if (!pendMap[uid]) pendMap[uid]={ nombre:'', reportes:[] };
+          pendMap[uid].reportes.push(r);
+          // Try to get name from profesores map
+          const nom = r.profesores&&r.profesores[uid] ? r.profesores[uid].nombre : '';
+          if (nom) pendMap[uid].nombre = nom;
+        });
+      });
+      const entries = Object.entries(pendMap);
+      if (!entries.length) { c.innerHTML='<div class="sv-empty" style="color:#2e7d32;">✓ Sin profesores pendientes</div>'; return; }
+      // Sort by count descending
+      entries.sort((a,b)=>b[1].reportes.length-a[1].reportes.length);
+      const filas = entries.map(([uid,info])=>{
+        const _pf  = svProfesores.find(p=>p.id===uid);
+        const nom  = info.nombre || (_pf ? _pf.nombre : uid);
+        return `<tr>
+          <td><strong>${nom}</strong></td>
+          <td><span class="chip chip-red">${info.reportes.length} reporte${info.reportes.length>1?'s':''} pendiente${info.reportes.length>1?'s':''}</span></td>
+          <td style="font-size:0.82rem;color:#888;">${info.reportes.map(r=>`${r.alumnoNombre||'?'} (${r.codigoGrupo||'?'})`).join(', ')}</td>
+        </tr>`;
+      }).join('');
+      c.innerHTML = `<div class="sv-table-wrap"><table class="sv-table">
+        <thead><tr><th>Profesor</th><th>Pendientes</th><th>Alumnos</th></tr></thead>
+        <tbody>${filas}</tbody></table></div>
+        <p style="color:#bbb;font-size:0.78rem;margin-top:8px;">${entries.length} profesor(es) con respuestas pendientes</p>`;
+    }
+
+    function prefRenderArchivo() {
+      document.getElementById('prefArchivoDetalleCard').style.display='none';
+      prefRenderTablaReportes(prefReportesArchivo, 'prefArchivoContent', 'prefVerDetalleArchivo');
+    }
+    function prefVerDetalleArchivo(i) {
+      const r = prefReportesArchivo[i];
+      document.getElementById('prefArcDetNombre').textContent = r.alumnoNombre||'—';
+      document.getElementById('prefArcDetInfo').textContent   = `Grupo: ${r.codigoGrupo||'—'} · Prefecto: ${r.prefectoNombre||'—'} · Fecha: ${prefFecha(r.fechaSolicitud)}`;
+      const profs = Object.entries(r.profesores||{});
+      const filas = profs.map(([uid,p])=>`<tr>
+        <td><strong>${p.nombre||uid}</strong></td>
+        <td>${p.respuesta?'<span class="chip chip-green">Respondió</span>':'<span class="chip chip-gray">Sin respuesta</span>'}</td>
+        <td style="font-size:0.85rem;color:#444;">${p.respuesta||'<em style="color:#bbb;">—</em>'}</td>
+        <td style="color:#888;font-size:0.78rem;">${p.fecha?prefFecha(p.fecha):'—'}</td>
+      </tr>`).join('');
+      document.getElementById('prefArcDetContent').innerHTML = filas.length
+        ? `<div class="sv-table-wrap"><table class="sv-table">
+            <thead><tr><th>Profesor</th><th>Estado</th><th>Observación</th><th>Fecha</th></tr></thead>
+            <tbody>${filas}</tbody></table></div>`
+        : '<div class="sv-empty">Sin profesores asignados</div>';
+      document.getElementById('prefArchivoDetalleCard').style.display='block';
+      document.getElementById('prefArchivoDetalleCard').scrollIntoView({behavior:'smooth'});
     }
   </script>
 </body>
