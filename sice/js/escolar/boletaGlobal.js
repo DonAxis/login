@@ -213,12 +213,17 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       if (c.materiaId) calMap[c.materiaId] = c;
     });
 
-    // histMap[materiaId] = periodoAcademico (string) o null (aún en curso)
-    // Fuente: historialAcademico.materias[]. Actualizado por cambioPeriodo al cerrar el periodo.
-    const histMap = {};
+    // histMap[materiaId]   = periodoAcademico (string) o null (aún en curso)
+    // validaMap[materiaId] = boolean — false si la materia está marcada como no válida para PDF
+    // Fuente: historialAcademico.materias[]. Actualizado por cambioPeriodo y por guardarBatchCalBoleta.
+    const histMap   = {};
+    const validaMap = {};
     if (histDoc.exists) {
       (histDoc.data().materias || []).forEach(m => {
-        if (m.materiaId) histMap[m.materiaId] = m.periodoAcademico ?? null;
+        if (m.materiaId) {
+          histMap[m.materiaId]   = m.periodoAcademico ?? null;
+          validaMap[m.materiaId] = m.valida !== false; // default true
+        }
       });
     }
 
@@ -254,10 +259,10 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       : '';
 
     // ── Botones de acción (estilo calificaciones panel) ──────────────────────
-    const btnGuardar = (hayPeriodosPasados && !soloLectura) ? `
+    const btnGuardar = hayPeriodosPasados ? `
       <button id="btnGuardar" onclick="guardarTodosCambios()"
         style="padding:12px 24px;background:linear-gradient(135deg,#216A32 0%,#21596A 100%);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;">
-        Guardar Cambios
+        ${soloLectura ? 'Guardar Validez' : 'Guardar Cambios'}
       </button>` : '';
 
     const btnPDF = `
@@ -339,6 +344,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       html += `<div class="sec-titulo">${perLabel}</div>
 <table>
   <thead><tr style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);">
+    <th style="width:54px;text-align:center;" title="Marcar/desmarcar para incluir en PDF">Válida</th>
     <th style="width:34px;text-align:center;">#</th>
     <th>Materia</th>
     <th style="text-align:center;width:110px;">Calificación</th>
@@ -358,6 +364,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           // ── En curso: chip "Cursando", solo lectura ────────────────────────
           const calStr = rawCal === null ? '-' : String(redondearCalificacion(rawCal));
           html += `<tr>
+    <td style="text-align:center;color:#bbb;">-</td>
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
     <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
@@ -378,10 +385,17 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           const rawAcr    = calMap[m.id]?.acreditacion || null;
           const rawPer    = calMap[m.id]?.periodoAcademico || '';
 
+          const esValida  = validaMap[m.id] !== false;
+          const chkStyle  = esValida ? '' : 'opacity:0.45;';
+          const chkHtml   = `<input type="checkbox" id="chk_${m.id}" ${esValida ? 'checked' : ''}
+            style="width:16px;height:16px;cursor:pointer;accent-color:#216A32;"
+            onchange="document.getElementById('row_${m.id}').style.opacity=this.checked?'1':'0.45'">`;
+
           if (soloLectura) {
-            // ── Solo lectura (controlEscolar): igual que futuro pero muestra acr/periodo ─
+            // ── Solo lectura (controlEscolar): calificaciones fijas, checkbox válida editable ─
             const calStr = sinCap ? '-' : String(redondearCalificacion(rawCal));
-            html += `<tr style="background:${rowBg};">
+            html += `<tr id="row_${m.id}" style="background:${rowBg};${chkStyle}">
+    <td style="text-align:center;">${chkHtml}</td>
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
     <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
@@ -390,10 +404,11 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     <td style="text-align:center;color:#555;">${rawPer || '-'}</td>
   </tr>`;
           } else {
-            // ── Editable (coordinador): selects de calificación, acr y periodo ─
+            // ── Editable (coordinador): selects de calificación, acr y periodo + checkbox válida ─
             const optsHtml    = _optsCalificacion(redondearCalificacion(rawCal));
             const optsAcrHtml = _optsAcreditacion(rawAcr);
-            html += `<tr style="background:${rowBg};">
+            html += `<tr id="row_${m.id}" style="background:${rowBg};${chkStyle}">
+    <td style="text-align:center;">${chkHtml}</td>
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
     <td style="text-align:center;">
@@ -419,7 +434,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           }
 
         } else {
-          // ── Semestre futuro o sin periodo definido: solo lectura normal ────
+          // ── Semestre futuro o sin periodo definido: solo lectura, sin checkbox ────
           const sinCap   = rawCal === null;
           const esNP     = rawCal === 'NP';
           const calNum   = (!sinCap && !esNP) ? Number(rawCal) : null;
@@ -430,6 +445,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           const chipTxt  = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
           const calStr   = sinCap ? '-' : String(redondearCalificacion(rawCal));
           html += `<tr style="background:${rowBg};">
+    <td style="text-align:center;color:#bbb;">-</td>
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
     <td>${m.nombre}</td>
     <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
@@ -464,15 +480,22 @@ function guardarTodosCambios() {
   const btn = document.getElementById('btnGuardar');
   if (!btn) return;
   const cambios = [];
-  document.querySelectorAll('select[id^="cal_"]').forEach(function(sel) {
-    const mid = sel.id.slice(4);
+  // Recolectar todos los mid con algún control editable (grades o validez)
+  const mids = new Set();
+  document.querySelectorAll('[id^="cal_"],[id^="chk_"]').forEach(function(el) {
+    mids.add(el.id.slice(4));
+  });
+  mids.forEach(function(mid) {
+    const calSel   = document.getElementById('cal_' + mid);
     const acrSel   = document.getElementById('acr_' + mid);
     const perInput = document.getElementById('per_' + mid);
+    const chkInput = document.getElementById('chk_' + mid);
     cambios.push({
-      mid: mid,
-      val: sel.value,
-      acr: acrSel   ? acrSel.value           : '',
-      per: perInput ? perInput.value.trim()   : ''
+      mid:    mid,
+      val:    calSel   ? calSel.value         : undefined,
+      acr:    acrSel   ? acrSel.value         : undefined,
+      per:    perInput ? perInput.value.trim() : undefined,
+      valida: chkInput ? chkInput.checked      : true
     });
   });
   if (!cambios.length) return;
@@ -622,6 +645,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       const label = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
       target.push([{ content: label, colSpan: 5, styles: nivelStyle }]);
       porPeriodo[periodo].forEach(m => {
+        if (m.valida === false) return; // materia marcada como no válida — excluir del PDF
         counter++;
         // Cursando: el semestre coincide con el actual Y aún no tiene periodoAcademico (no cerrado)
         const cursando = !m.periodoAcademico && periodoActual > 0 && Number(m.periodo) === periodoActual;
@@ -734,9 +758,10 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
 // para que el PDF (descargarBoletaGlobalPDF) lea acr, periodoAcademico y calificacion correctos.
 window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
   try {
-    // Precalcular promedio por mid
+    // Precalcular promedio solo para cambios que incluyen calificación
     const promedioMap = {};
     for (const { mid, val } of cambios) {
+      if (val === undefined) continue; // solo validez, sin cambio de calificación
       if (!val) { promedioMap[mid] = null; }
       else if (val.toUpperCase() === 'NP') { promedioMap[mid] = 'NP'; }
       else {
@@ -757,22 +782,20 @@ window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
     });
 
     // 1. Actualizar calificaciones en batch
-    // alumnoId y materiaId siempre se incluyen para que la query
-    // where('alumnoId','==',x) encuentre docs creados desde aquí.
     const batch = db.batch();
-    for (const { mid, acr, per } of cambios) {
-      batch.set(
-        db.collection('calificaciones').doc(`${alumnoId}_${mid}`),
-        {
-          alumnoId:           alumnoId,
-          materiaId:          mid,
-          promedio:           promedioMap[mid],
-          acreditacion:       acr  || null,
-          periodoAcademico:   per  || null,
-          fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-        },
-        { merge: true }
-      );
+    for (const { mid, val, acr, per, valida } of cambios) {
+      const fields = {
+        alumnoId:           alumnoId,
+        materiaId:          mid,
+        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if (val !== undefined) {
+        fields.promedio        = promedioMap[mid];
+        fields.acreditacion    = acr || null;
+        fields.periodoAcademico = per || null;
+      }
+      if (valida !== undefined) fields.valida = valida !== false;
+      batch.set(db.collection('calificaciones').doc(`${alumnoId}_${mid}`), fields, { merge: true });
     }
     await batch.commit();
 
@@ -780,7 +803,9 @@ window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
     const usuarioBoleta = typeof usuarioActual !== 'undefined'
       ? usuarioActual
       : { uid: 'desconocido', nombre: 'Sistema', rol: 'sistema' };
-    for (const { mid, acr, per } of cambios) {
+    // Solo registrar auditoría para cambios que incluyen calificación
+    for (const { mid, val, acr, per } of cambios) {
+      if (val === undefined) continue;
       const docId = `${alumnoId}_${mid}`;
       const ant = datosAntes[mid];
       await registrarCambioCalificacion({
@@ -805,18 +830,21 @@ window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
       });
     }
 
-    // 2. Actualizar historialAcademico.materias[] para que el PDF los lea
+    // 2. Actualizar historialAcademico.materias[] (calificacion, acr, periodoAcademico, valida)
     const histRef = db.collection('historialAcademico').doc(alumnoId);
     const histDoc = await histRef.get();
     if (histDoc.exists) {
       const materias = (histDoc.data().materias || []).map(function(m) {
         const c = cambioMap[m.materiaId];
         if (!c) return m;
-        return Object.assign({}, m, {
-          calificacion:    promedioMap[m.materiaId],
-          acr:             c.acr  || null,
-          periodoAcademico: c.per || null
-        });
+        const updated = Object.assign({}, m);
+        if (c.val !== undefined) {
+          updated.calificacion     = promedioMap[m.materiaId];
+          updated.acr              = c.acr || null;
+          updated.periodoAcademico = c.per || null;
+        }
+        if (c.valida !== undefined) updated.valida = c.valida !== false;
+        return updated;
       });
       await histRef.update({
         materias:           materias,

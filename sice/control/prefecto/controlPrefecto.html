@@ -233,6 +233,13 @@
       <h3>Ver Informes</h3>
       <p>Consultar reportes enviados y respuestas de profesores</p>
     </div>
+    <div class="card-prefecto" onclick="mostrarPendientes()" style="position:relative;">
+      <h3>Pendientes por Profesor</h3>
+      <p>Ver qué profesores no han respondido y a qué alumnos</p>
+      <span id="badgePendientes" style="display:none; position:absolute; top:12px; right:12px;
+            background:#f57c00; color:white; border-radius:50%; width:24px; height:24px;
+            font-size:0.78rem; font-weight:700; line-height:24px; text-align:center;"></span>
+    </div>
     <div class="card-prefecto" onclick="mostrarArchivo()">
       <h3>Archivo</h3>
       <p>Reportes cerrados y archivados</p>
@@ -324,6 +331,19 @@
     </div>
     <div id="listaArchivo">
       <div class="msg-info">Cargando archivo...</div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN: PENDIENTES POR PROFESOR -->
+  <div id="seccionPendientes" class="seccion">
+    <div class="seccion-header">
+      <h2>Pendientes por Profesor</h2>
+    </div>
+    <p style="color:#666; font-size:0.88rem; margin: 0 0 16px 0;">
+      Profesores con reportes activos que aún no han respondido.
+    </p>
+    <div id="listaPendientes">
+      <div class="msg-info">Cargando...</div>
     </div>
   </div>
 

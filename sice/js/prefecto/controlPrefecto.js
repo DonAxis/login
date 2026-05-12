@@ -68,15 +68,36 @@ function mostrarMenu() {
   ocultarTodasSecciones();
   document.getElementById('menuPrefecto').style.display = 'grid';
   document.getElementById('btnVolver').style.display    = 'none';
+  actualizarBadgePendientes();
+}
+
+async function actualizarBadgePendientes() {
+  try {
+    const snap = await db.collection('reportesPrefecto').get();
+    const profsPendientes = new Set();
+    snap.docs.forEach(d => {
+      const r = d.data();
+      if (!r.archivado) (r.profesoresPendientes || []).forEach(uid => profsPendientes.add(uid));
+    });
+    const badge = document.getElementById('badgePendientes');
+    if (!badge) return;
+    if (profsPendientes.size > 0) {
+      badge.textContent   = profsPendientes.size;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch (_) { /* silencioso */ }
 }
 
 function ocultarTodasSecciones() {
-  document.getElementById('menuPrefecto').style.display    = 'none';
-  document.getElementById('seccionSolicitar').style.display = 'none';
-  document.getElementById('seccionInformes').style.display  = 'none';
-  document.getElementById('seccionDetalle').style.display   = 'none';
-  document.getElementById('seccionArchivo').style.display   = 'none';
-  document.getElementById('btnVolver').style.display        = 'inline-block';
+  document.getElementById('menuPrefecto').style.display      = 'none';
+  document.getElementById('seccionSolicitar').style.display  = 'none';
+  document.getElementById('seccionInformes').style.display   = 'none';
+  document.getElementById('seccionDetalle').style.display    = 'none';
+  document.getElementById('seccionArchivo').style.display    = 'none';
+  document.getElementById('seccionPendientes').style.display = 'none';
+  document.getElementById('btnVolver').style.display         = 'inline-block';
 }
 
 // ============================================================================
@@ -616,6 +637,109 @@ async function enviarWhatsApp() {
 
   } catch (e) {
     mostrarMsgWhatsapp('Error al obtener datos del tutor: ' + e.message, 'error');
+  }
+}
+
+// ============================================================================
+// SECCIÓN: PENDIENTES POR PROFESOR
+// ============================================================================
+
+async function mostrarPendientes() {
+  ocultarTodasSecciones();
+  document.getElementById('seccionPendientes').style.display = 'block';
+
+  const cont = document.getElementById('listaPendientes');
+  cont.innerHTML = '<div class="msg-info">Cargando...</div>';
+
+  try {
+    const snap = await db.collection('reportesPrefecto').get();
+    const activos = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => !r.archivado && (r.profesoresPendientes || []).length > 0);
+
+    if (!activos.length) {
+      cont.innerHTML = `
+        <div style="text-align:center; padding:48px 20px; color:#2e7d32;">
+          <div style="font-size:2.5rem; margin-bottom:10px;">✓</div>
+          <div style="font-weight:700; font-size:1.1rem;">Sin pendientes</div>
+          <div style="color:#666; font-size:0.88rem; margin-top:6px;">
+            Todos los profesores han respondido los reportes activos.
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    // Agrupar por profesor
+    const porProfesor = {};
+    activos.forEach(r => {
+      (r.profesoresPendientes || []).forEach(uid => {
+        if (!porProfesor[uid]) {
+          porProfesor[uid] = {
+            nombre: r.profesores?.[uid]?.nombre || 'Profesor sin nombre',
+            alumnos: []
+          };
+        }
+        porProfesor[uid].alumnos.push({
+          nombre:      r.alumnoNombre,
+          codigoGrupo: r.codigoGrupo,
+          reporteId:   r.id,
+          fecha:       r.fechaSolicitud
+        });
+      });
+    });
+
+    const sorted = Object.values(porProfesor)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    cont.innerHTML = sorted.map(prof => {
+      const count = prof.alumnos.length;
+      const filas = prof.alumnos.map(a => {
+        const fecha = new Date(a.fecha).toLocaleDateString('es-MX', {
+          day: '2-digit', month: 'short', year: 'numeric'
+        });
+        return `
+          <div onclick="verDetalleReporte('${a.reporteId}')"
+               style="display:flex; justify-content:space-between; align-items:center;
+                      padding:11px 14px; background:#fff; border-radius:8px;
+                      border:2px solid #eee; cursor:pointer; transition:all 0.2s; margin-top:8px;"
+               onmouseover="this.style.borderColor='#006064'; this.style.background='#e0f7fa';"
+               onmouseout="this.style.borderColor='#eee'; this.style.background='#fff';">
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:600; color:#333; font-size:0.95rem;
+                          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${a.nombre}
+              </div>
+              <div style="font-size:0.8rem; color:#666; margin-top:2px;">
+                Grupo: ${a.codigoGrupo}
+              </div>
+            </div>
+            <div style="font-size:0.78rem; color:#888; white-space:nowrap; margin-left:10px;">
+              ${fecha}
+            </div>
+            <span style="color:#006064; font-size:1.1rem; margin-left:10px;">›</span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div style="background:white; border-radius:10px; padding:16px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.09); margin-bottom:14px;
+                    border-left:4px solid #f57c00;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+            <span style="font-weight:700; font-size:1rem; color:#333;">${prof.nombre}</span>
+            <span style="background:#fff3e0; color:#f57c00; border-radius:20px; padding:3px 10px;
+                         font-size:0.78rem; font-weight:700; white-space:nowrap;">
+              ${count} alumno${count !== 1 ? 's' : ''} pendiente${count !== 1 ? 's' : ''}
+            </span>
+          </div>
+          ${filas}
+        </div>
+      `;
+    }).join('');
+
+  } catch (e) {
+    cont.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
   }
 }
 
