@@ -2759,6 +2759,7 @@ function aplicarFiltrosAlumnos() {
                 </div>
                 <div class="item-acciones">
                     <button onclick="editarAlumno('${id}')" class="btn-editar">Editar</button>
+                    <button onclick="avanzarAlumnoIndividual('${id}')" class="botVerde" title="Avanzar al siguiente periodo">Avanzar Periodo</button>
                     <button onclick="toggleActivoUsuario('${id}', 'alumno', ${!alumno.activo})" class="botAzu">
                         ${alumno.activo ? 'Desactivar' : 'Activar'}
                     </button>
