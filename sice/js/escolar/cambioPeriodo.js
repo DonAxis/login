@@ -765,12 +765,19 @@ async function avanzarAlumnoIndividual(alumnoId) {
     if (!alumnoDoc.exists) { alert('Alumno no encontrado'); return; }
     const alumno = alumnoDoc.data();
 
-    const carreraDoc = await db.collection('carreras').doc(alumno.carreraId).get();
+    const [carreraDoc, configDoc] = await Promise.all([
+      db.collection('carreras').doc(alumno.carreraId).get(),
+      db.collection('config').doc(`periodo_${alumno.carreraId}`).get()
+    ]);
     const carrera = carreraDoc.data();
     const periodosAnio = carrera?.periodosAnio || 2;
     const numeroPeriodos = carrera?.numeroPeriodos || 9;
 
-    const periodoActual = alumno.periodo;
+    // alumno.periodo puede ser número (semestre) o string académico ('2026-1')
+    // calcularSiguientePeriodo necesita el string académico
+    const periodoActual = String(alumno.periodo || '').includes('-')
+      ? alumno.periodo
+      : (configDoc.exists ? configDoc.data().periodo : null) || '2026-1';
     const siguientePeriodo = calcularSiguientePeriodo(periodoActual, periodosAnio);
     const nuevoSemestre = (alumno.semestreActual || 1) + 1;
     const esPasante = nuevoSemestre > numeroPeriodos;
