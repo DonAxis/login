@@ -218,9 +218,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     // validaMap[materiaId] = boolean — false si la materia está marcada como no válida para PDF
     // Fuente: historialAcademico.materias[]. Actualizado por cambioPeriodo y por guardarBatchCalBoleta.
 
-    // Si el periodo de la carrera ya cambió pero el alumno aún no avanzó → semestre cerrado
     const periodoActualCarrera = configDoc.exists ? configDoc.data().periodo : null;
-    const periodoYaCerrado = !!(periodoActualCarrera && alumno.periodo && alumno.periodo !== periodoActualCarrera);
 
     const histMap   = {};
     const validaMap = {};
@@ -264,26 +262,21 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       }
     }
 
-    // Una materia está "en curso" si: es el semestre actual del alumno
-    // Y el periodo de la carrera NO ha cambiado todavía (periodoYaCerrado = false)
-    // Y tampoco tiene periodoAcademico seteado en historial o calificaciones
+    // Cursando: semestre actual del alumno, sin periodoAcademico en historial ni en calificaciones
     const esCursandoMateria = (materiaId, perNum) =>
+      alumnoSemActual > 0 &&
       perNum === alumnoSemActual &&
-      !periodoYaCerrado &&
       !histMap[materiaId] &&
       !(calMap[materiaId]?.periodoAcademico);
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
-    // Hay periodos editables si: el semestre actual ya está cerrado (periodoYaCerrado),
-    // hay semestres anteriores, o alguna materia del semestre actual tiene periodoAcademico seteado
-    const hayPeriodosPasados = alumnoSemActual > 0 && (
-      periodoYaCerrado ||
+    // Hay periodos editables si: hay semestres anteriores al actual, o el actual ya tiene periodoAcademico seteado
+    const hayPeriodosPasados = alumnoSemActual > 0 &&
       periodoKeys.some(pk => {
         if (pk < alumnoSemActual) return true;
         if (pk === alumnoSemActual) return (porPeriodo[pk] || []).some(m => histMap[m.id] || calMap[m.id]?.periodoAcademico);
         return false;
-      })
-    );
+      });
     const labelPer = periodosAnio === 3 ? 'Cuatrimestre' : periodosAnio === 4 ? 'Trimestre' : 'Semestre';
 
     // Contadores resumen
@@ -406,7 +399,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
         // Editable si: semestre anterior, O semestre actual cerrado por cambio de periodo o periodoAcademico seteado
         const esPasadoMat = !isCursando && (
           perNum < alumnoSemActual ||
-          (perNum === alumnoSemActual && (periodoYaCerrado || !!histMap[m.id] || !!(calMap[m.id]?.periodoAcademico)))
+          (perNum === alumnoSemActual && (!!histMap[m.id] || !!(calMap[m.id]?.periodoAcademico)))
         );
 
         if (isCursando) {
