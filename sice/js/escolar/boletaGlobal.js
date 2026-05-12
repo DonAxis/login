@@ -217,6 +217,11 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     // histMap[materiaId]   = periodoAcademico (string) o null (aún en curso)
     // validaMap[materiaId] = boolean — false si la materia está marcada como no válida para PDF
     // Fuente: historialAcademico.materias[]. Actualizado por cambioPeriodo y por guardarBatchCalBoleta.
+
+    // Si el periodo de la carrera ya cambió pero el alumno aún no avanzó → semestre cerrado
+    const periodoActualCarrera = configDoc.exists ? configDoc.data().periodo : null;
+    const periodoYaCerrado = !!(periodoActualCarrera && alumno.periodo && alumno.periodo !== periodoActualCarrera);
+
     const histMap   = {};
     const validaMap = {};
     if (histDoc.exists) {
@@ -226,11 +231,38 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           validaMap[m.materiaId] = m.valida !== false; // default true
         }
       });
+    } else {
+      // Sin historial registrado: crearlo con todas las materias de la carrera (calificaciones en null)
+      try {
+        const materiasInicial = [];
+        Object.keys(porPeriodo).map(Number).sort((a, b) => a - b).forEach(perNum => {
+          (porPeriodo[perNum] || []).forEach(m => {
+            materiasInicial.push({
+              materiaId:        m.id,
+              materiaNombre:    m.nombre,
+              periodo:          perNum,
+              calificacion:     null,
+              acr:              null,
+              periodoAcademico: null
+            });
+          });
+        });
+        await db.collection('historialAcademico').doc(alumnoId).set({
+          alumnoId,
+          alumnoNombre:       alumno.nombre    || '',
+          matricula:          alumno.matricula || '',
+          email:              alumno.email     || '',
+          carreraId,
+          carreraNombre,
+          periodoActual:      periodoActualCarrera || '',
+          materias:           materiasInicial,
+          periodos:           [],
+          fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (e) {
+        console.warn('No se pudo crear historialAcademico:', e);
+      }
     }
-
-    // Si el periodo de la carrera ya cambió pero el alumno aún no avanzó → semestre cerrado
-    const periodoActualCarrera = configDoc.exists ? configDoc.data().periodo : null;
-    const periodoYaCerrado = !!(periodoActualCarrera && alumno.periodo && alumno.periodo !== periodoActualCarrera);
 
     // Una materia está "en curso" si: es el semestre actual del alumno
     // Y el periodo de la carrera NO ha cambiado todavía (periodoYaCerrado = false)
