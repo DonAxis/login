@@ -227,15 +227,15 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       });
     }
 
-    // Una materia está "en curso" si: es el semestre actual del alumno Y aún no tiene periodoAcademico
+    // Una materia está "en curso" si: es el semestre actual del alumno Y ni historial ni calificaciones tienen periodoAcademico
     const esCursandoMateria = (materiaId, perNum) =>
-      perNum === alumnoSemActual && !histMap[materiaId];
+      perNum === alumnoSemActual && !histMap[materiaId] && !(calMap[materiaId]?.periodoAcademico);
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
     // Hay periodos editables si hay semestres anteriores al actual O si el semestre actual ya fue cerrado
     const hayPeriodosPasados = alumnoSemActual > 0 && periodoKeys.some(pk => {
       if (pk < alumnoSemActual) return true;
-      if (pk === alumnoSemActual) return (porPeriodo[pk] || []).some(m => histMap[m.id]);
+      if (pk === alumnoSemActual) return (porPeriodo[pk] || []).some(m => histMap[m.id] || calMap[m.id]?.periodoAcademico);
       return false;
     });
     const labelPer = periodosAnio === 3 ? 'Cuatrimestre' : periodosAnio === 4 ? 'Trimestre' : 'Semestre';
@@ -357,8 +357,8 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       mats.forEach((m, i) => {
         const rawCal = calMap[m.id]?.promedio ?? null;
         const isCursando  = esCursandoMateria(m.id, perNum);
-        // Editable/readonly si: semestre anterior al actual, O semestre actual ya cerrado (periodoAcademico seteado)
-        const esPasadoMat = !isCursando && (perNum < alumnoSemActual || (perNum === alumnoSemActual && !!histMap[m.id]));
+        // Editable/readonly si: semestre anterior al actual, O semestre actual ya cerrado (periodoAcademico en historial o calificaciones)
+        const esPasadoMat = !isCursando && (perNum < alumnoSemActual || (perNum === alumnoSemActual && (!!histMap[m.id] || !!(calMap[m.id]?.periodoAcademico))));
 
         if (isCursando) {
           // ── En curso: chip "Cursando", solo lectura ────────────────────────

@@ -559,13 +559,17 @@ async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, 
       const histSnap = histMap[alumnoId];
       let materiasActualizadas = null;
 
-      if (histSnap && histSnap.exists && semActual !== null) {
+      if (histSnap && histSnap.exists) {
         const materiasExistentes = histSnap.data().materias || [];
         let cambiado = false;
         materiasActualizadas = materiasExistentes.map(mat => {
-          if (mat.periodo !== semActual) return mat; // semestre diferente — no tocar
+          // Si conocemos el semestre, solo actualizar materias de ese semestre.
+          // Si semestreActual no está seteado en el alumno, actualizar cualquier materia
+          // que tenga calificacion registrada y aún no tenga periodoAcademico.
+          if (semActual !== null && mat.periodo !== semActual) return mat;
+          if (mat.periodoAcademico) return mat; // ya tiene periodo asignado — no pisar
           const cal = calsAlumno[mat.materiaId];
-          if (!cal) return mat;                       // materia sin calificación registrada
+          if (!cal) return mat;                 // sin calificación registrada
           const { calificacion, acr } = _calificacionFinal(cal);
           cambiado = true;
           return Object.assign({}, mat, {

@@ -2022,6 +2022,26 @@ async function eliminarAsignacion(asignacionId) {
     }
 }
 
+async function limpiarTodasAsignaciones() {
+    if (!usuarioActual?.carreraId) { alert('Sin carrera asignada.'); return; }
+    const snap = await db.collection('profesorMaterias')
+        .where('carreraId', '==', usuarioActual.carreraId).get();
+    if (snap.empty) { alert('No hay asignaciones que eliminar.'); return; }
+    if (!confirm(`ELIMINAR TODAS LAS ASIGNACIONES\n\n${snap.size} registro(s) en profesorMaterias para tu carrera.\n\nEsta acción no se puede deshacer.\n\n¿Continuar?`)) return;
+    try {
+        for (let i = 0; i < snap.docs.length; i += 499) {
+            const b = db.batch();
+            snap.docs.slice(i, i + 499).forEach(doc => b.delete(doc.ref));
+            await b.commit();
+        }
+        alert(`✓ ${snap.size} asignación(es) eliminada(s).`);
+        await cargarAsignaciones();
+    } catch (error) {
+        console.error('Error al limpiar asignaciones:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
 async function cargarInscripciones() {
     try {
         // Cargar inscripciones activas
