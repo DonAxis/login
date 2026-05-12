@@ -757,63 +757,56 @@ function mostrarMensajeModal(mensaje, tipo) {
   document.getElementById('modalGenerico').style.display = 'flex';
 }
 
-// Avanza UN alumno al siguiente período (actualiza semestreActual, periodo, codigoGrupo)
-// No archiva calificaciones — eso lo hace el cambio de periodo general o historialAcademicoMasivo
+// Avanza UN alumno al siguiente período (actualiza periodo +1, semestreActual +1, codigoGrupo)
+// No archiva calificaciones — eso lo hace el cambio de periodo general
 async function avanzarAlumnoIndividual(alumnoId) {
   try {
     const alumnoDoc = await db.collection('usuarios').doc(alumnoId).get();
     if (!alumnoDoc.exists) { alert('Alumno no encontrado'); return; }
     const alumno = alumnoDoc.data();
 
-    const [carreraDoc, configDoc] = await Promise.all([
-      db.collection('carreras').doc(alumno.carreraId).get(),
-      db.collection('config').doc(`periodo_${alumno.carreraId}`).get()
-    ]);
+    const carreraDoc = await db.collection('carreras').doc(alumno.carreraId).get();
     const carrera = carreraDoc.data();
-    const periodosAnio = carrera?.periodosAnio || 2;
     const numeroPeriodos = carrera?.numeroPeriodos || 9;
+    const periodosAnio   = carrera?.periodosAnio   || 2;
+    const carreraCodigo  = carrera?.codigo          || alumno.carreraId;
+    const nombrePeriodo  = obtenerNombrePeriodo(periodosAnio);
 
-    // alumno.periodo puede ser número (semestre) o string académico ('2026-1')
-    // calcularSiguientePeriodo necesita el string académico
-    const periodoActual = String(alumno.periodo || '').includes('-')
-      ? alumno.periodo
-      : (configDoc.exists ? configDoc.data().periodo : null) || '2026-1';
-    const siguientePeriodo = calcularSiguientePeriodo(periodoActual, periodosAnio);
-    const nuevoSemestre = (alumno.semestreActual || 1) + 1;
-    const esPasante = nuevoSemestre > numeroPeriodos;
+    const periodoActual  = Number(alumno.periodo)       || 1;
+    const semActual      = Number(alumno.semestreActual) || periodoActual;
+    const nuevoPeriodo   = periodoActual + 1;
+    const nuevoSemestre  = semActual + 1;
+    const esPasante      = nuevoPeriodo > numeroPeriodos;
+
+    const ordenStr = String(alumno.orden || '01').padStart(2, '0');
     const nuevoCodigoGrupo = esPasante
-      ? `${alumno.carreraId}-PASANTE`
-      : calcularNuevoCodigoGrupo(alumno.codigoGrupo, nuevoSemestre);
-    const nombrePeriodo = obtenerNombrePeriodo(periodosAnio);
+      ? `${carreraCodigo}-PASANTE`
+      : `${carreraCodigo}-${alumno.turno}${nuevoPeriodo}${ordenStr}`;
 
     const confirmacion = confirm(
       `AVANZAR ALUMNO AL SIGUIENTE ${nombrePeriodo.toUpperCase()}\n\n` +
       `Alumno: ${alumno.nombre}\n` +
       `Matrícula: ${alumno.matricula || '-'}\n\n` +
-      `${nombrePeriodo} actual: ${periodoActual}\n` +
-      `${nombrePeriodo} siguiente: ${siguientePeriodo}\n` +
-      `Semestre: ${alumno.semestreActual || 1} → ${nuevoSemestre}\n` +
+      `${nombrePeriodo}: ${periodoActual} → ${nuevoPeriodo}\n` +
       (esPasante
         ? `Estado: PASANTE (completó ${numeroPeriodos} periodos)\n`
-        : `Grupo nuevo: ${nuevoCodigoGrupo || '(sin grupo calculado)'}\n`) +
-      `\nNota: solo actualiza el registro del alumno. Las calificaciones\n` +
-      `se archivan al ejecutar el cambio de periodo general.\n\n` +
-      `¿Continuar?`
+        : `Grupo nuevo: ${nuevoCodigoGrupo}\n`) +
+      `\n¿Continuar?`
     );
     if (!confirmacion) return;
 
     const updateData = {
-      periodo: siguientePeriodo,
+      periodo:        nuevoPeriodo,
       semestreActual: nuevoSemestre,
-      codigoGrupo: nuevoCodigoGrupo,
-      ultimoCambio: firebase.firestore.FieldValue.serverTimestamp()
+      codigoGrupo:    nuevoCodigoGrupo,
+      ultimoCambio:   firebase.firestore.FieldValue.serverTimestamp()
     };
     if (esPasante) updateData.pasante = true;
     await db.collection('usuarios').doc(alumnoId).update(updateData);
 
     const msg = esPasante
       ? `✓ ${alumno.nombre} marcado como PASANTE`
-      : `✓ ${alumno.nombre} avanzado al ${nombrePeriodo.toLowerCase()} ${siguientePeriodo}`;
+      : `✓ ${alumno.nombre} avanzado al ${nombrePeriodo.toLowerCase()} ${nuevoPeriodo} — Grupo: ${nuevoCodigoGrupo}`;
     alert(msg);
 
   } catch (error) {
