@@ -134,6 +134,7 @@
     <div class="sv-tab"        onclick="svTab('profesor',this)">Profesor</div>
     <div class="sv-tab"        onclick="svTab('alumno',this)">Alumno</div>
     <div class="sv-tab"        onclick="svTab('prefecto',this);prefCargar()">Prefecto</div>
+    <div class="sv-tab"        onclick="svTab('config',this)">Configuración</div>
   </nav>
 
   <div class="sv-main">
@@ -529,6 +530,45 @@
         <h2 id="alumBoletaNombre">Boleta</h2>
         <p id="alumBoletaInfo" style="color:#888;font-size:0.85rem;margin-bottom:14px;"></p>
         <div id="alumBoletaContent"></div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: CONFIGURACIÓN ═══ -->
+    <div id="secConfig" class="sv-section">
+      <div class="sv-card" style="max-width:480px;margin:0 auto;">
+        <h2 style="margin-bottom:6px;">Cambiar Contraseña</h2>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:22px;">
+          Ingresa tu contraseña actual y la nueva contraseña para actualizar tus credenciales.
+        </p>
+
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div>
+            <label style="display:block;font-weight:600;color:#555;font-size:0.88rem;margin-bottom:6px;">Contraseña actual</label>
+            <input type="password" id="cfgPassActual" placeholder="Contraseña actual"
+              style="width:100%;padding:10px 14px;border:2px solid #ddd;border-radius:8px;font-size:0.95rem;transition:border-color 0.2s;"
+              onfocus="this.style.borderColor='#6A2135'" onblur="this.style.borderColor='#ddd'">
+          </div>
+          <div>
+            <label style="display:block;font-weight:600;color:#555;font-size:0.88rem;margin-bottom:6px;">Nueva contraseña</label>
+            <input type="password" id="cfgPassNueva" placeholder="Mínimo 6 caracteres"
+              style="width:100%;padding:10px 14px;border:2px solid #ddd;border-radius:8px;font-size:0.95rem;transition:border-color 0.2s;"
+              onfocus="this.style.borderColor='#6A2135'" onblur="this.style.borderColor='#ddd'">
+          </div>
+          <div>
+            <label style="display:block;font-weight:600;color:#555;font-size:0.88rem;margin-bottom:6px;">Confirmar nueva contraseña</label>
+            <input type="password" id="cfgPassConfirm" placeholder="Repite la nueva contraseña"
+              style="width:100%;padding:10px 14px;border:2px solid #ddd;border-radius:8px;font-size:0.95rem;transition:border-color 0.2s;"
+              onfocus="this.style.borderColor='#6A2135'" onblur="this.style.borderColor='#ddd'">
+          </div>
+
+          <div id="cfgMensaje" style="display:none;padding:12px 16px;border-radius:8px;font-size:0.9rem;font-weight:600;"></div>
+
+          <button onclick="cfgCambiarPassword()" id="cfgBtn"
+            style="background:linear-gradient(135deg,#6A2135,#3a121d);color:white;border:none;padding:12px 28px;border-radius:9px;font-size:0.95rem;font-weight:700;cursor:pointer;transition:opacity 0.2s;"
+            onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">
+            Actualizar Contraseña
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1307,6 +1347,61 @@
         b.className='sv-filtro-btn'+(b.textContent===v||(v==='todos'&&b.textContent==='Todos')?' sv-filtro-btn-activo':'');
       });
       alumAplicarFiltros();
+    }
+
+    // ════════════════════════════════════════════════
+    // CONFIGURACIÓN — Cambio de contraseña
+    // ════════════════════════════════════════════════
+    function cfgMostrarMsg(texto, tipo) {
+      const el = document.getElementById('cfgMensaje');
+      el.style.display = 'block';
+      el.textContent   = texto;
+      el.style.background = tipo === 'ok'    ? '#e8f5e9' : '#ffebee';
+      el.style.color      = tipo === 'ok'    ? '#2e7d32' : '#c62828';
+      el.style.border     = tipo === 'ok'    ? '1px solid #a5d6a7' : '1px solid #ef9a9a';
+    }
+
+    async function cfgCambiarPassword() {
+      const actual   = document.getElementById('cfgPassActual').value.trim();
+      const nueva    = document.getElementById('cfgPassNueva').value.trim();
+      const confirma = document.getElementById('cfgPassConfirm').value.trim();
+      const btn      = document.getElementById('cfgBtn');
+      const msgEl    = document.getElementById('cfgMensaje');
+      msgEl.style.display = 'none';
+
+      if (!actual || !nueva || !confirma) {
+        cfgMostrarMsg('Completa todos los campos.', 'error'); return;
+      }
+      if (nueva.length < 6) {
+        cfgMostrarMsg('La nueva contraseña debe tener al menos 6 caracteres.', 'error'); return;
+      }
+      if (nueva !== confirma) {
+        cfgMostrarMsg('Las contraseñas nuevas no coinciden.', 'error'); return;
+      }
+
+      btn.disabled    = true;
+      btn.textContent = 'Actualizando...';
+      try {
+        const user       = firebase.auth().currentUser;
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, actual);
+        await user.reauthenticateWithCredential(credential);
+        await user.updatePassword(nueva);
+        cfgMostrarMsg('Contraseña actualizada correctamente.', 'ok');
+        document.getElementById('cfgPassActual').value  = '';
+        document.getElementById('cfgPassNueva').value   = '';
+        document.getElementById('cfgPassConfirm').value = '';
+      } catch(e) {
+        const msgs = {
+          'auth/wrong-password'        : 'La contraseña actual es incorrecta.',
+          'auth/too-many-requests'     : 'Demasiados intentos. Espera unos minutos.',
+          'auth/requires-recent-login' : 'Sesión expirada. Cierra sesión e inicia de nuevo.',
+          'auth/weak-password'         : 'La nueva contraseña es demasiado débil.',
+        };
+        cfgMostrarMsg(msgs[e.code] || `Error: ${e.message}`, 'error');
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Actualizar Contraseña';
+      }
     }
 
     // ════════════════════════════════════════════════

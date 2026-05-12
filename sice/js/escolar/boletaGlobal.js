@@ -201,10 +201,11 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     // semestreActual: número de semestre dentro de la carrera (1, 2, 3...)
     const alumnoSemActual = alumno.semestreActual || Number(alumno.periodo) || 0;
 
-    const [{ carreraNombre, porPeriodo, periodosAnio }, calSnap, histDoc] = await Promise.all([
+    const [{ carreraNombre, porPeriodo, periodosAnio }, calSnap, histDoc, configDoc] = await Promise.all([
       _obtenerMateriasCarrera(carreraId),
       db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
-      db.collection('historialAcademico').doc(alumnoId).get()
+      db.collection('historialAcademico').doc(alumnoId).get(),
+      db.collection('config').doc(`periodo_${carreraId}`).get()
     ]);
 
     const calMap = {};
@@ -227,17 +228,30 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       });
     }
 
-    // Una materia está "en curso" si: es el semestre actual del alumno Y ni historial ni calificaciones tienen periodoAcademico
+    // Si el periodo de la carrera ya cambió pero el alumno aún no avanzó → semestre cerrado
+    const periodoActualCarrera = configDoc.exists ? configDoc.data().periodo : null;
+    const periodoYaCerrado = !!(periodoActualCarrera && alumno.periodo && alumno.periodo !== periodoActualCarrera);
+
+    // Una materia está "en curso" si: es el semestre actual del alumno
+    // Y el periodo de la carrera NO ha cambiado todavía (periodoYaCerrado = false)
+    // Y tampoco tiene periodoAcademico seteado en historial o calificaciones
     const esCursandoMateria = (materiaId, perNum) =>
-      perNum === alumnoSemActual && !histMap[materiaId] && !(calMap[materiaId]?.periodoAcademico);
+      perNum === alumnoSemActual &&
+      !periodoYaCerrado &&
+      !histMap[materiaId] &&
+      !(calMap[materiaId]?.periodoAcademico);
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
-    // Hay periodos editables si hay semestres anteriores al actual O si el semestre actual ya fue cerrado
-    const hayPeriodosPasados = alumnoSemActual > 0 && periodoKeys.some(pk => {
-      if (pk < alumnoSemActual) return true;
-      if (pk === alumnoSemActual) return (porPeriodo[pk] || []).some(m => histMap[m.id] || calMap[m.id]?.periodoAcademico);
-      return false;
-    });
+    // Hay periodos editables si: el semestre actual ya está cerrado (periodoYaCerrado),
+    // hay semestres anteriores, o alguna materia del semestre actual tiene periodoAcademico seteado
+    const hayPeriodosPasados = alumnoSemActual > 0 && (
+      periodoYaCerrado ||
+      periodoKeys.some(pk => {
+        if (pk < alumnoSemActual) return true;
+        if (pk === alumnoSemActual) return (porPeriodo[pk] || []).some(m => histMap[m.id] || calMap[m.id]?.periodoAcademico);
+        return false;
+      })
+    );
     const labelPer = periodosAnio === 3 ? 'Cuatrimestre' : periodosAnio === 4 ? 'Trimestre' : 'Semestre';
 
     // Contadores resumen
@@ -357,8 +371,11 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       mats.forEach((m, i) => {
         const rawCal = calMap[m.id]?.promedio ?? null;
         const isCursando  = esCursandoMateria(m.id, perNum);
-        // Editable/readonly si: semestre anterior al actual, O semestre actual ya cerrado (periodoAcademico en historial o calificaciones)
-        const esPasadoMat = !isCursando && (perNum < alumnoSemActual || (perNum === alumnoSemActual && (!!histMap[m.id] || !!(calMap[m.id]?.periodoAcademico))));
+        // Editable si: semestre anterior, O semestre actual cerrado por cambio de periodo o periodoAcademico seteado
+        const esPasadoMat = !isCursando && (
+          perNum < alumnoSemActual ||
+          (perNum === alumnoSemActual && (periodoYaCerrado || !!histMap[m.id] || !!(calMap[m.id]?.periodoAcademico)))
+        );
 
         if (isCursando) {
           // ── En curso: chip "Cursando", solo lectura ────────────────────────
