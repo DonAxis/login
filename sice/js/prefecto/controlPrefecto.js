@@ -785,7 +785,7 @@ function compartirPendientesWhatsApp() {
 
   const lineas = pendientesCache.map(prof => {
     const n = prof.alumnos.length;
-    return `❌ ${prof.nombre} — ${n} alumno${n !== 1 ? 's' : ''} sin responder`;
+    return `  ${prof.nombre} — ${n} alumno${n !== 1 ? 's' : ''} sin responder`;
   }).join('\n');
 
   const mensaje =
