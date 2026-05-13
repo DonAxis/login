@@ -104,7 +104,7 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
         if (data.column.index === calColIndex && data.section === 'body') {
           const v = parseFloat(data.cell.text[0]);
           if (!isNaN(v)) {
-            data.cell.styles.textColor = v < 6 ? [244, 67, 54] : v >= 8 ? [76, 175, 80] : [255, 152, 0];
+            data.cell.styles.textColor = v < 6 ? [244, 67, 54] : [76, 175, 80];
           }
         }
       }

@@ -389,7 +389,7 @@ async function historialActualAlumnos() {
           const vals = [p1, p2, p3].filter(v => v !== '-' && v !== null && v !== undefined).map(Number).filter(n => !isNaN(n));
           if (vals.length > 0) prom = String(redondearCalificacion(vals.reduce((a, b) => a + b, 0) / vals.length));
         }
-        const color = prom === '-' ? '#666' : parseFloat(prom) >= 8 ? '#4caf50' : parseFloat(prom) >= 6 ? '#ff9800' : '#f44336';
+        const color = prom === '-' ? '#666' : esReprobado(parseFloat(prom), false) ? '#f44336' : '#4caf50';
         html += `<td style="text-align:center; font-size:0.85rem;">
           <div style="color:#555;">${p1} / ${p2} / ${p3}</div>
           <div style="font-weight:bold; color:${color};">${prom}</div>
@@ -506,7 +506,7 @@ async function historialActualMaterias() {
           const vals = [p1, p2, p3].filter(v => v !== '-' && v !== null && v !== undefined).map(Number).filter(n => !isNaN(n));
           if (vals.length > 0) prom = String(redondearCalificacion(vals.reduce((a, b) => a + b, 0) / vals.length));
         }
-        const color = prom === '-' ? '#333' : parseFloat(prom) >= 8 ? '#4caf50' : parseFloat(prom) >= 6 ? '#ff9800' : '#f44336';
+        const color = prom === '-' ? '#333' : esReprobado(parseFloat(prom), false) ? '#f44336' : '#4caf50';
         html += `<tr>
           <td><strong>${alumno.matricula || 'N/A'}</strong></td>
           <td>${alumno.nombre}</td>
@@ -745,13 +745,10 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
 
       // Color del promedio
       let colorPromedio = '#333';
-      if (promedio !== '-' && promedio !== 'NP') {
-        const prom = parseFloat(promedio);
-        if (prom >= 8) colorPromedio = '#4caf50';
-        else if (prom >= 6) colorPromedio = '#ff9800';
-        else colorPromedio = '#f44336';
-      } else if (promedio === 'NP') {
-        colorPromedio = '#f44336';
+      if (promedio === 'NP' || promedio === '-') {
+        if (promedio === 'NP') colorPromedio = '#f44336';
+      } else {
+        colorPromedio = esReprobado(parseFloat(promedio), false) ? '#f44336' : '#4caf50';
       }
       
       html += `
@@ -947,12 +944,9 @@ async function _verHistorialCompletoCancelado(alumnoId, nombreAlumno) {
         
         let colorPromedio = '#333';
         if (promedio !== '-') {
-          const prom = parseFloat(promedio);
-          if (prom >= 8) colorPromedio = '#4caf50';
-          else if (prom >= 6) colorPromedio = '#ff9800';
-          else colorPromedio = '#f44336';
+          colorPromedio = esReprobado(parseFloat(promedio), false) ? '#f44336' : '#4caf50';
         }
-        
+
         html += `
           <tr>
             <td><strong>${materia.materiaNombre}</strong></td>

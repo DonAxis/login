@@ -228,6 +228,7 @@ async function procesarRegistroMasivo(event) {
         rol: 'alumno',
         codigoGrupo: codigoGrupo,
         periodo: parseInt(periodo),
+        semestreActual: parseInt(periodo),
         turno: parseInt(turno),
         orden: ordenFormateado,
         carreraId: usuarioActual.carreraId,

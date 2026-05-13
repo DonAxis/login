@@ -3628,7 +3628,7 @@ function generarTablaCalificaciones() {
           <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${alumno.nombre}</td>
           <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${alumno.matricula || '-'}</td>
           ${celdaCalMaestria}
-          <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${calTexto === 'NP' || (parseFloat(calTexto) < 6) ? '#dc3545' : parseFloat(calTexto) >= 8 ? '#4caf50' : '#ff9800'};">${calTexto}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${calTexto === 'NP' || parseFloat(calTexto) < 6 ? '#dc3545' : '#4caf50'};">${calTexto}</td>
         </tr>`;
             return; // pasar al siguiente alumno
         }

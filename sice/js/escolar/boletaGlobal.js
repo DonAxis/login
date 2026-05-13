@@ -172,9 +172,9 @@ function _optsCalificacion(rawCal) {
   }).join('');
 }
 
-// Opciones de acreditación: ORD / ETS / EXT — nombres coinciden con PDF (m.acr)
+// Opciones de acreditación: ORD / ETS / EXT / REC / FINAL / EQUI — nombres coinciden con PDF (m.acr)
 function _optsAcreditacion(rawAcr) {
-  const vals = [['', '-'], ['ORD','ORD'], ['ETS','ETS'], ['EXT','EXT']];
+  const vals = [['', '-'], ['ORD','ORD'], ['ETS','ETS'], ['EXT','EXT'], ['REC','REC'], ['FINAL','FINAL'], ['EQUI','EQUI']];
   return vals.map(([v, lbl]) => {
     const sel = (!rawAcr && v === '') || rawAcr === v ? ' selected' : '';
     return `<option value="${v}"${sel}>${lbl}</option>`;
@@ -199,7 +199,10 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     if (!carreraId) { _escribirError(w, 'El alumno no tiene carrera asignada.'); return; }
 
     // semestreActual: número de semestre dentro de la carrera (1, 2, 3...)
-    const alumnoSemActual = alumno.semestreActual || Number(alumno.periodo) || 0;
+    // alumno.periodo puede ser número o string académico ('2025-2') en datos viejos — usar semestreActual primero
+    const _periodoNum = Number(alumno.periodo);
+    const alumnoSemActual = Number(alumno.semestreActual) ||
+      (Number.isFinite(_periodoNum) ? _periodoNum : 0);
 
     const [{ carreraNombre, porPeriodo, periodosAnio }, calSnap, histDoc, configDoc] = await Promise.all([
       _obtenerMateriasCarrera(carreraId),
@@ -614,8 +617,9 @@ function _escribirError(w, msg) {
 }
 
 // ── PDF Boleta Global ─────────────────────────────────────────────────────────
-// Lee de historialAcademico. Layout 2 columnas: periodos impares izquierda,
-// pares derecha. Se llama desde el popup via window.opener.
+// Lee de historialAcademico + calificaciones (fallback) + config (periodoAnterior).
+// Layout 2 columnas: periodos impares izquierda, pares derecha.
+// Se llama desde el popup via window.opener.
 async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
   try {
     if (typeof window.jspdf === 'undefined') {
@@ -623,6 +627,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       return;
     }
 
+    // Paso 1: historialAcademico para obtener carreraId
     const histDoc = await db.collection('historialAcademico').doc(alumnoId).get();
 
     if (!histDoc.exists) {
@@ -630,7 +635,37 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       return;
     }
 
-    const data          = histDoc.data();
+    const data      = histDoc.data();
+    const carreraId = data.carreraId || '';
+
+    // Paso 2: calificaciones y config en paralelo
+    const [calSnap, configDoc] = await Promise.all([
+      db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
+      carreraId
+        ? db.collection('config').doc(`periodo_${carreraId}`).get()
+        : Promise.resolve({ exists: false })
+    ]);
+
+    // calMap: calificaciones por materiaId
+    const calMap = {};
+    calSnap.forEach(doc => {
+      const d = doc.data();
+      if (d.materiaId) calMap[d.materiaId] = d;
+    });
+
+    // periodoAnterior: fallback de periodo cuando historialAcademico aún no fue actualizado
+    const periodoAnterior = configDoc.exists ? (configDoc.data().periodoAnterior || null) : null;
+
+    // Calificación efectiva desde calificaciones: ETS > extraordinario > promedio
+    function _efectivaPDF(materiaId) {
+      const d = calMap[materiaId];
+      if (!d) return { cal: null, acr: null };
+      if (d.ets != null)            return { cal: d.ets,            acr: 'ETS' };
+      if (d.extraordinario != null) return { cal: d.extraordinario, acr: 'EXT' };
+      if (d.promedio != null)       return { cal: d.promedio,       acr: d.acreditacion || 'ORD' };
+      return { cal: null, acr: null };
+    }
+
     const alumnoNombre  = data.alumnoNombre  || '-';
     const matricula     = data.matricula     || '-';
     const carreraNombre = data.carreraNombre || '-';
@@ -709,19 +744,41 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       const label = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
       target.push([{ content: label, colSpan: 5, styles: nivelStyle }]);
       porPeriodo[periodo].forEach(m => {
-        if (m.valida === false) return; // materia marcada como no válida — excluir del PDF
+        if (m.valida === false) return;
         counter++;
-        // Cursando: el semestre coincide con el actual Y aún no tiene periodoAcademico (no cerrado)
-        const cursando = !m.periodoAcademico && periodoActual > 0 && Number(m.periodo) === periodoActual;
-        const calRed = redondearCalificacion(m.calificacion);
-        const calNum = (calRed !== null && calRed !== undefined && calRed !== 'NP') ? Number(calRed) : NaN;
-        if (!cursando && !isNaN(calNum)) { totalSuma += calNum; totalCount++; }
+
+        // Cursando: semestre coincide con actual Y ninguna fuente tiene periodoAcademico
+        const cursando = periodoActual > 0 && Number(m.periodo) === periodoActual
+          && !m.periodoAcademico && !calMap[m.materiaId]?.periodoAcademico;
+
+        // Calificación efectiva: historialAcademico (si ya tiene periodoAcademico) → calMap fallback
+        let calEfectiva, acrEfectiva;
+        if (m.periodoAcademico) {
+          calEfectiva = m.calificacion;
+          acrEfectiva = m.acr;
+        } else {
+          const ef = _efectivaPDF(m.materiaId);
+          calEfectiva = ef.cal;
+          acrEfectiva = ef.acr;
+        }
+
+        // Periodo de acreditación: historialAcademico → calMap → periodoAnterior (si hay calificación real)
+        const periodoAcr = m.periodoAcademico
+          || calMap[m.materiaId]?.periodoAcademico
+          || (!cursando && calEfectiva != null ? (periodoAnterior || '') : '');
+
+        // Promedio: solo materias formalmente cerradas (periodoAcr set) con nota numérica (excluye NP y no cursadas)
+        const calRed = cursando ? null : redondearCalificacion(calEfectiva);
+        const calNum = (periodoAcr && calRed !== null && calRed !== undefined && calRed !== 'NP')
+          ? Number(calRed) : NaN;
+        if (!isNaN(calNum)) { totalSuma += calNum; totalCount++; }
+
         target.push([
           counter.toString(),
-          m.materiaNombre    || '-',
-          m.acr              || 'ORD',
-          m.periodoAcademico || '',
-          cursando ? 'en curso' : formatCal(m.calificacion)
+          m.materiaNombre || '-',
+          acrEfectiva || m.acr || 'ORD',
+          periodoAcr,
+          cursando ? 'en curso' : formatCal(calEfectiva)
         ]);
       });
     }

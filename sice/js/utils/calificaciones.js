@@ -51,10 +51,24 @@ function calcularCalificacion(p1, p2, p3, tieneExamenFinal) {
  * @param {boolean} tieneExamenFinal
  * @returns {boolean}
  */
-function esReprobado(calificacion, tieneExamenFinal) {
+/**
+ * @param {number|'NP'|null} calificacion
+ * @param {boolean} tieneExamenFinal
+ * @param {{ p3?: any, extraordinario?: any }} [ctx]
+ *   p3            — valor de parcial3 (examen final); si está seteado el umbral baja a 6
+ *   extraordinario — si está seteado el umbral es siempre 6
+ */
+function esReprobado(calificacion, tieneExamenFinal, { p3 = null, extraordinario = null } = {}) {
   if (calificacion === 'NP') return true;
   if (calificacion === null || calificacion === undefined) return false;
-  return tieneExamenFinal ? calificacion < 7.5 : calificacion < 6;
+  if (!tieneExamenFinal) return calificacion < 6;
+  // tieneExamenFinal=true:
+  // si ya presentó examen final (p3) o extraordinario → umbral 6 (aprobado con >=6)
+  const p3Set    = p3            !== null && p3            !== undefined;
+  const extraSet = extraordinario !== null && extraordinario !== undefined;
+  if (p3Set || extraSet) return calificacion < 6;
+  // solo parciales pendientes → umbral 7.5
+  return calificacion < 7.5;
 }
 
 /**

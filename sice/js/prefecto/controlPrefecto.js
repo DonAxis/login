@@ -199,9 +199,14 @@ async function abrirModalConfirmar(alumnoId) {
   document.getElementById('modalCodigoGrupo').textContent  = alumno.codigoGrupo || 'Sin grupo';
   document.getElementById('modalListaProfes').innerHTML    = '<em style="color:#666;">Buscando profesores...</em>';
   document.getElementById('modalSinProfes').style.display  = 'none';
-  document.getElementById('modalMensaje').innerHTML        = '';
-  document.getElementById('btnConfirmarSolicitud').disabled = false;
-  document.getElementById('modalConfirmar').style.display  = 'flex';
+  document.getElementById('modalMensaje').innerHTML           = '';
+  const btnConfirmar = document.getElementById('btnConfirmarSolicitud');
+  btnConfirmar.disabled    = false;
+  btnConfirmar.textContent = 'Enviar Solicitud';
+  btnConfirmar.style.display = 'block';
+  document.getElementById('btnCerrarTrasEnvio').style.display  = 'none';
+  document.getElementById('btnCancelarSolicitud').style.display = 'block';
+  document.getElementById('modalConfirmar').style.display      = 'flex';
 
   // Buscar profesores del grupo
   profesoresSeleccionados = [];
@@ -274,19 +279,39 @@ async function confirmarSolicitud() {
       profesores:           profesoresMap
     });
 
-    msgEl.innerHTML = '<div class="msg-success">Solicitud enviada correctamente.</div>';
-    btn.textContent = 'Enviado';
+    msgEl.innerHTML = `
+      <div class="msg-success" style="margin-bottom:10px;">Solicitud enviada correctamente.</div>
+      <button onclick="avisarGrupoWhatsApp()" class="btn-primary"
+              style="background:linear-gradient(135deg,#25d366 0%,#128c7e 100%); margin-top:0;">
+        📲 Avisar al grupo de WhatsApp
+      </button>
+    `;
+    btn.style.display = 'none';
 
-    setTimeout(() => {
-      cerrarModalConfirmar();
-      mostrarMenu();
-    }, 1500);
+    document.getElementById('btnCerrarTrasEnvio').style.display = 'block';
 
   } catch (e) {
     msgEl.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
     btn.disabled = false;
     btn.textContent = 'Enviar Solicitud';
   }
+}
+
+function avisarGrupoWhatsApp() {
+  if (!alumnoSeleccionado) return;
+
+  const nombre = alumnoSeleccionado.nombre || 'Alumno';
+  const grupo  = alumnoSeleccionado.codigoGrupo || '';
+  const link   = 'https://ilbcontrol.mx/sice/control/profe/controlProfe.html';
+
+  const mensaje =
+    `📋 *Reporte escolar solicitado*\n\n` +
+    `Alumno: *${nombre}*\n` +
+    `Grupo: *${grupo}*\n\n` +
+    `Por favor registren su observación en el sistema:\n` +
+    `🔗 ${link}`;
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
 // ============================================================================

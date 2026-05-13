@@ -219,7 +219,12 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     const alumnoDataMap = {};
     alumnosSnap.docs.forEach(doc => {
       const a = doc.data();
-      alumnoDataMap[doc.id] = { nombre: a.nombre, matricula: a.matricula, semestreActual: a.semestreActual };
+      // semestreActual puede no existir en alumnos creados antes de este campo — usar periodo como fallback
+      alumnoDataMap[doc.id] = {
+        nombre: a.nombre,
+        matricula: a.matricula,
+        semestreActual: a.semestreActual || Number(a.periodo) || null
+      };
     });
 
     // 3. ARCHIVAR CALIFICACIONES (50%)
@@ -498,7 +503,7 @@ function _calificacionFinal(cal) {
   if (cal.ets !== null && cal.ets !== undefined)              return { calificacion: cal.ets,            acr: 'ETS' };
   if (cal.extraordinario !== null && cal.extraordinario !== undefined) return { calificacion: cal.extraordinario, acr: 'EXT' };
   const prom = cal.promedio ?? null;
-  return { calificacion: prom, acr: prom !== null ? 'ORD' : null };
+  return { calificacion: prom, acr: prom !== null ? (cal.acreditacion || 'ORD') : null };
 }
 
 // Escribe/actualiza historialAcademico/{alumnoId}:

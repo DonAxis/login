@@ -362,7 +362,9 @@
       <button class="btn-primary" id="btnConfirmarSolicitud" onclick="confirmarSolicitud()">
         Enviar Solicitud
       </button>
-      <button class="btn-secondary" onclick="cerrarModalConfirmar()">Cancelar</button>
+      <button class="btn-secondary" id="btnCerrarTrasEnvio" style="display:none;"
+              onclick="cerrarModalConfirmar(); mostrarMenu();">Cerrar</button>
+      <button class="btn-secondary" id="btnCancelarSolicitud" onclick="cerrarModalConfirmar()">Cancelar</button>
     </div>
   </div>
 

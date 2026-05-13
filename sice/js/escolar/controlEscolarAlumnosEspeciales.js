@@ -244,13 +244,7 @@ async function verDetalleAlumnoEspecial(alumnoId, nombreAlumno) {
         let promedioColor = '#333';
         
         if (!isNaN(promedioNum)) {
-          if (promedioNum >= 8) {
-            promedioColor = '#4caf50';
-          } else if (promedioNum >= 6) {
-            promedioColor = '#ff9800';
-          } else {
-            promedioColor = '#f44336';
-          }
+          promedioColor = esReprobado(promedioNum, false) ? '#f44336' : '#4caf50';
         }
         
         html += `

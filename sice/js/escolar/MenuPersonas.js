@@ -288,6 +288,7 @@ async function guardarAlumno(event) {
     nombre: document.getElementById('nombre').value.trim(),
     email: document.getElementById('email').value.trim(),
     periodo: parseInt(periodo),
+    semestreActual: parseInt(periodo),
     turno: turno,
     orden: orden,
     codigoGrupo: codigoGrupo,
