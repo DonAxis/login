@@ -9,6 +9,7 @@ let profesoresSeleccionados = [];
 let filtroEsp = null;
 let filtroPer = null;
 let reporteDetalleActual = null; // Para PDF
+let pendientesCache = [];
 
 // Filtro invisible — solo estas carreras son visibles para el prefecto
 const CARRERAS_PERMITIDAS = ['TA', 'TAE', 'TC', 'TI', 'TIAC', 'TT', 'DE', 'PRUEBA'];
@@ -305,11 +306,11 @@ function avisarGrupoWhatsApp() {
   const link   = 'https://ilbcontrol.mx/sice/control/profe/controlProfe.html';
 
   const mensaje =
-    `📋 *Reporte escolar solicitado*\n\n` +
+    `*Reporte escolar solicitado*\n\n` +
     `Alumno: *${nombre}*\n` +
     `Grupo: *${grupo}*\n\n` +
     `Por favor registren su observación en el sistema:\n` +
-    `🔗 ${link}`;
+    `${link}`;
 
   window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
@@ -683,6 +684,8 @@ async function mostrarPendientes() {
       .filter(r => !r.archivado && (r.profesoresPendientes || []).length > 0);
 
     if (!activos.length) {
+      pendientesCache = [];
+      document.getElementById('btnCompartirPendientes').style.display = 'none';
       cont.innerHTML = `
         <div style="text-align:center; padding:48px 20px; color:#2e7d32;">
           <div style="font-size:2.5rem; margin-bottom:10px;">✓</div>
@@ -716,6 +719,9 @@ async function mostrarPendientes() {
 
     const sorted = Object.values(porProfesor)
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    pendientesCache = sorted;
+    document.getElementById('btnCompartirPendientes').style.display = 'inline-flex';
 
     cont.innerHTML = sorted.map(prof => {
       const count = prof.alumnos.length;
@@ -766,6 +772,30 @@ async function mostrarPendientes() {
   } catch (e) {
     cont.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
   }
+}
+
+function compartirPendientesWhatsApp() {
+  if (!pendientesCache.length) return;
+
+  const hoy = new Date().toLocaleDateString('es-MX', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+
+  const totalAlumnos = pendientesCache.reduce((s, p) => s + p.alumnos.length, 0);
+
+  const lineas = pendientesCache.map(prof => {
+    const n = prof.alumnos.length;
+    return `❌ ${prof.nombre} — ${n} alumno${n !== 1 ? 's' : ''} sin responder`;
+  }).join('\n');
+
+  const mensaje =
+    `*Profesores con reportes pendientes*\n` +
+    `_${hoy}_\n\n` +
+    `${lineas}\n\n` +
+    `Total: *${pendientesCache.length} profesor${pendientesCache.length !== 1 ? 'es' : ''}* · *${totalAlumnos} reporte${totalAlumnos !== 1 ? 's' : ''}* pendiente${totalAlumnos !== 1 ? 's' : ''}\n\n` +
+    `https://ilbcontrol.mx/sice/control/profe/controlProfe.html`;
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
 console.log('Panel Prefecto cargado');
