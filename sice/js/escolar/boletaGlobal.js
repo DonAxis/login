@@ -553,6 +553,14 @@ function guardarTodosCambios() {
       cambios.forEach(function(c) {
         var chip = document.getElementById('chip_' + c.mid);
         if (chip) _actualizarChip(chip, c.val);
+        if (c.val !== undefined) {
+          var row = document.getElementById('row_' + c.mid);
+          if (row) {
+            if (!c.val) row.style.background = '';
+            else if (c.val === 'NP') row.style.background = '#fff8f0';
+            else row.style.background = parseInt(c.val, 10) >= 6 ? '#f0fdf4' : '#fff5f5';
+          }
+        }
       });
       setTimeout(function(){ btn.textContent = 'Guardar Cambios'; }, 2000);
     } else {
@@ -775,7 +783,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       columnStyles: {
         0: { halign: 'center', cellWidth: 5 },
         1: { halign: 'left' },
-        2: { halign: 'center', cellWidth: 8 },
+        2: { halign: 'center', cellWidth: 12 },
         3: { halign: 'center', cellWidth: 10 },
         4: { halign: 'center', cellWidth: 15 }
       }
