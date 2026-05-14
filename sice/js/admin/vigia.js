@@ -1,17 +1,17 @@
 // vigia.js — funciones de mantenimiento único (idempotentes, seguras de repetir)
 
 function accionVigia() {
-  migrarSemestreActual();
+  eliminarSemestreActual();
 }
 
-// Agrega semestreActual a alumnos que no lo tienen en usuarios/.
-// Idempotente: solo toca documentos donde semestreActual es null/undefined/0.
-async function migrarSemestreActual() {
+// Elimina el campo semestreActual de todos los alumnos en usuarios/.
+// Idempotente: si el campo ya no existe, no hace nada en ese documento.
+async function eliminarSemestreActual() {
   if (!confirm(
-    'MIGRAR semestreActual\n\n' +
-    'Lee todos los alumnos en usuarios/ y agrega el campo\n' +
-    'semestreActual = periodo para los que no lo tengan.\n\n' +
-    'Seguro de repetir (no pisa alumnos que ya lo tienen).\n\n¿Continuar?'
+    'ELIMINAR semestreActual\n\n' +
+    'Quita el campo semestreActual de todos los alumnos\n' +
+    'en la colección usuarios/.\n\n' +
+    'Seguro de repetir.\n\n¿Continuar?'
   )) return;
 
   try {
@@ -24,12 +24,11 @@ async function migrarSemestreActual() {
     let total = 0;
 
     for (const doc of snap.docs) {
-      const a = doc.data();
-      if (a.semestreActual) continue; // ya tiene — no tocar
-      const semestre = Number(a.periodo);
-      if (!semestre) continue;        // periodo no es un número válido — saltar
+      if (!doc.data().hasOwnProperty('semestreActual')) continue;
 
-      batch.update(doc.ref, { semestreActual: semestre });
+      batch.update(doc.ref, {
+        semestreActual: firebase.firestore.FieldValue.delete()
+      });
       count++;
       total++;
 
@@ -42,9 +41,9 @@ async function migrarSemestreActual() {
 
     if (count > 0) await batch.commit();
 
-    alert(`✓ Migración completada.\n${total} alumnos actualizados con semestreActual.`);
+    alert(`✓ Completado.\n${total} alumnos actualizados (campo eliminado).`);
   } catch (e) {
-    console.error('Error en migrarSemestreActual:', e);
+    console.error('Error en eliminarSemestreActual:', e);
     alert('Error: ' + e.message);
   }
 }

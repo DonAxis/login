@@ -174,7 +174,7 @@ function _optsCalificacion(rawCal) {
 
 // Opciones de acreditación: ORD / ETS / EXT / REC / FINAL / EQUI — nombres coinciden con PDF (m.acr)
 function _optsAcreditacion(rawAcr) {
-  const vals = [['', '-'], ['ORD','ORD'], ['ETS','ETS'], ['EXT','EXT'], ['REC','REC'], ['FINAL','FINAL'], ['EQUI','EQUI']];
+  const vals = [['', '-'], ['ORD','ORD'], ['ETS','ETS'], ['EXT','EXT'], ['REC','REC'], ['ORD2','ORD2'], ['EQUI','EQUI']];
   return vals.map(([v, lbl]) => {
     const sel = (!rawAcr && v === '') || rawAcr === v ? ' selected' : '';
     return `<option value="${v}"${sel}>${lbl}</option>`;
@@ -222,8 +222,6 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     // Fuente: historialAcademico.materias[]. Actualizado por cambioPeriodo y por guardarBatchCalBoleta.
 
     const periodoActualCarrera = configDoc.exists ? configDoc.data().periodo : null;
-    // Si la carrera ya avanzó de periodo pero el alumno no fue avanzado aún → semestre cerrado
-    const periodoYaCerrado = !!(periodoActualCarrera && alumno.periodo && alumno.periodo !== periodoActualCarrera);
 
     const histMap    = {};   // materiaId → periodoAcademico
     const histCalMap = {};   // materiaId → { calificacion, acr } desde historialAcademico (fallback)
@@ -269,13 +267,9 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       }
     }
 
-    // Cursando: semestre actual, periodo NO cerrado, sin periodoAcademico en ninguna fuente
+    // Cursando: materia.periodo == alumno.periodo (mismo semestre, sin importar si el ciclo cerró)
     const esCursandoMateria = (materiaId, perNum) =>
-      alumnoSemActual > 0 &&
-      perNum === alumnoSemActual &&
-      !periodoYaCerrado &&
-      !histMap[materiaId] &&
-      !(calMap[materiaId]?.periodoAcademico);
+      alumnoSemActual > 0 && perNum === alumnoSemActual;
 
     // Calificación efectiva: ETS > extraordinario > promedio, con fallback a historialAcademico
     const _efectiva = (materiaId) => {
@@ -291,16 +285,9 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     };
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
-    // Hay periodos editables si: el semestre cerró (periodoYaCerrado), hay semestres anteriores,
-    // o alguna materia del semestre actual tiene periodoAcademico seteado
-    const hayPeriodosPasados = alumnoSemActual > 0 && (
-      periodoYaCerrado ||
-      periodoKeys.some(pk => {
-        if (pk < alumnoSemActual) return true;
-        if (pk === alumnoSemActual) return (porPeriodo[pk] || []).some(m => histMap[m.id] || calMap[m.id]?.periodoAcademico);
-        return false;
-      })
-    );
+    // Hay periodos editables si el alumno tiene semestres anteriores al actual
+    const hayPeriodosPasados = alumnoSemActual > 0 &&
+      periodoKeys.some(pk => pk < alumnoSemActual);
     const labelPer = periodosAnio === 3 ? 'Cuatrimestre' : periodosAnio === 4 ? 'Trimestre' : 'Semestre';
 
     // Contadores resumen
@@ -420,11 +407,7 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       mats.forEach((m, i) => {
         const { cal: rawCal, acr: rawAcrEfectiva } = _efectiva(m.id);
         const isCursando  = esCursandoMateria(m.id, perNum);
-        // Editable si: semestre anterior, O semestre actual cerrado
-        const esPasadoMat = !isCursando && (
-          perNum < alumnoSemActual ||
-          (perNum === alumnoSemActual && (periodoYaCerrado || !!histMap[m.id] || !!(calMap[m.id]?.periodoAcademico)))
-        );
+        const esPasadoMat = !isCursando && perNum < alumnoSemActual;
 
         if (isCursando) {
           // ── En curso: chip "Cursando", solo lectura ────────────────────────
@@ -501,22 +484,13 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           }
 
         } else {
-          // ── Semestre futuro o sin periodo definido: solo lectura, sin checkbox ────
-          const sinCap   = rawCal === null;
-          const esNP     = rawCal === 'NP';
-          const calNum   = (!sinCap && !esNP) ? Number(rawCal) : null;
-          const aprobada = calNum !== null && calNum >= 6;
-          const rowBg    = sinCap ? '' : (esNP ? '#fff8f0' : (aprobada ? '#f0fdf4' : '#fff5f5'));
-          const chipBg   = sinCap ? '#f5f5f5' : (esNP ? '#fff3e0' : (aprobada ? '#e8f5e9' : '#ffebee'));
-          const chipColor= sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
-          const chipTxt  = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
-          const calStr   = sinCap ? '-' : String(redondearCalificacion(rawCal));
-          html += `<tr style="background:${rowBg};">
+          // ── Semestre futuro: bloqueado, solo lectura, sin checkbox ────────────
+          html += `<tr style="opacity:0.5;">
     <td style="text-align:center;color:#bbb;">-</td>
     <td style="text-align:center;color:#bbb;">${i + 1}</td>
-    <td>${m.nombre}</td>
-    <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:#667eea;">${calStr}</td>
-    <td style="text-align:center;"><span class="estado" style="background:${chipBg};color:${chipColor};">${chipTxt}</span></td>
+    <td style="color:#aaa;">${m.nombre}</td>
+    <td style="text-align:center;color:#bbb;">-</td>
+    <td style="text-align:center;"><span class="estado" style="background:#f0f0f0;color:#aaa;">Pendiente</span></td>
     <td style="text-align:center;color:#bbb;">-</td>
     <td style="text-align:center;color:#bbb;">-</td>
   </tr>`;
