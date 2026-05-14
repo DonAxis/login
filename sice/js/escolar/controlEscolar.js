@@ -68,6 +68,13 @@ async function inicializar() {
 
   actualizarEstadisticas();
   mostrarCarreras();
+
+  // Restaurar panel desde hash del navegador (recarga en pestaña específica)
+  const hashPanel = location.hash.replace('#', '').split('/')[0];
+  const panelesValidos = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'config'];
+  const panelInicial = panelesValidos.includes(hashPanel) ? hashPanel : 'alumnos';
+  mostrarPanelEscolar(panelInicial, true);
+  history.replaceState({ panel: panelInicial, nivel: 'panel' }, '', '#' + panelInicial);
 }
 
 async function cargarPeriodoActual() {
@@ -197,11 +204,10 @@ function mostrarCarreras() {
 }
 
 // ===== SELECCIONAR CARRERA → muestra grupos =====
-async function seleccionarCarrera(carreraId) {
+async function seleccionarCarrera(carreraId, skipHistory = false) {
   carreraSeleccionada = carrerasData.find(c => c.id === carreraId);
   if (!carreraSeleccionada) return;
 
-  // Cargar el periodo activo de esta carrera
   try {
     const configDoc = await db.collection('config').doc(`periodo_${carreraId}`).get();
     periodoActual = configDoc.exists ? (configDoc.data().periodo || '2026-1') : '2026-1';
@@ -213,6 +219,9 @@ async function seleccionarCarrera(carreraId) {
   document.getElementById('menuCarreras').style.display = 'none';
   grupoSeleccionado = null;
   mostrarGruposCarrera();
+  if (!skipHistory) {
+    history.pushState({ panel: 'alumnos', nivel: 'grupos', carreraId }, '', '#alumnos/grupos');
+  }
 }
 
 function mostrarGruposCarrera() {
@@ -256,14 +265,14 @@ function mostrarGruposCarrera() {
 }
 
 // ===== SELECCIONAR GRUPO → muestra opciones =====
-function seleccionarGrupo(codigoGrupo) {
+function seleccionarGrupo(codigoGrupo, skipHistory = false) {
   grupoSeleccionado = { codigoGrupo };
 
   const totalAlumnos = alumnosData.filter(a => a.codigoGrupo === codigoGrupo && a.tipoAlumno !== 'especial').length;
 
   const html = `
     <div style="grid-column:1/-1; margin-bottom:10px;">
-      <button onclick="mostrarGruposCarrera()" class="btn-volver" style="margin-bottom:10px;">← Grupos</button>
+      <button onclick="history.back()" class="btn-volver" style="margin-bottom:10px;">← Grupos</button>
       <h2 class="titulo-seccion">${codigoGrupo}</h2>
     </div>
     <div style="grid-column:1/-1; display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px;">
@@ -287,6 +296,12 @@ function seleccionarGrupo(codigoGrupo) {
     </div>`;
 
   document.getElementById('gruposGrid').innerHTML = html;
+  if (!skipHistory) {
+    history.pushState(
+      { panel: 'alumnos', nivel: 'opciones', carreraId: carreraSeleccionada.id, grupo: codigoGrupo },
+      '', '#alumnos/opciones'
+    );
+  }
 }
 
 // ===== VER ALUMNOS DEL GRUPO =====
@@ -1002,6 +1017,10 @@ function mostrarLista(html) {
 }
 
 function volverCarreras() {
+  history.back();
+}
+
+function _irACarreras() {
   document.getElementById('gruposContainer').classList.remove('active');
   document.getElementById('listaContainer').classList.remove('active');
   document.getElementById('menuCarreras').removeAttribute('style');
@@ -1018,8 +1037,7 @@ function volverGrupos() {
     document.getElementById('listaContenido').innerHTML = listaHistorial.pop();
     return;
   }
-  document.getElementById('listaContainer').classList.remove('active');
-  document.getElementById('gruposContainer').classList.add('active');
+  history.back();
 }
 
 // ===== VER ALUMNOS ESPECIALES =====
@@ -1744,8 +1762,8 @@ function generarListaObservacionesPDF() {
 
 // ═══ NAVEGACIÓN DE PANELES (controlEscolar) ═══
 
-function mostrarPanelEscolar(panel) {
-  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal'];
+function mostrarPanelEscolar(panel, skipHistory = false) {
+  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'config'];
   paneles.forEach(p => {
     const el = document.getElementById(`panel${p.charAt(0).toUpperCase() + p.slice(1)}`);
     const btn = document.getElementById(`btnPanel${p.charAt(0).toUpperCase() + p.slice(1)}`);
@@ -1754,7 +1772,6 @@ function mostrarPanelEscolar(panel) {
   });
 
   if (panel === 'alumnos') {
-    // Resetear navegación interna para que menuCarreras siempre sea visible al regresar
     const mc = document.getElementById('menuCarreras');
     if (mc) mc.removeAttribute('style');
     document.getElementById('gruposContainer')?.classList.remove('active');
@@ -1766,6 +1783,9 @@ function mostrarPanelEscolar(panel) {
   if (panel === 'boletaGlobal') {
     inicializarBoletaGlobal();
     buscarAlumnoBoletaGlobal();
+  }
+  if (!skipHistory) {
+    history.pushState({ panel, nivel: 'panel' }, '', '#' + panel);
   }
 }
 
@@ -1884,4 +1904,74 @@ async function avanzarYActualizarFila(alumnoId) {
     fila.style.background = '#e8f5e9';
     setTimeout(() => { fila.style.background = ''; }, 2000);
   } catch (_) { /* la tabla se actualizará si el usuario vuelve a buscar */ }
+}
+
+// ═══ HISTORIAL DEL NAVEGADOR (popstate) ═══
+
+window.onpopstate = async function(e) {
+  if (!e.state) return;
+  const { panel, nivel, carreraId, grupo } = e.state;
+
+  if (nivel === 'panel') {
+    mostrarPanelEscolar(panel, true);
+    if (panel === 'alumnos') _irACarreras();
+  } else if (nivel === 'grupos' && carreraId) {
+    mostrarPanelEscolar('alumnos', true);
+    await seleccionarCarrera(carreraId, true);
+  } else if (nivel === 'opciones' && carreraId && grupo) {
+    mostrarPanelEscolar('alumnos', true);
+    await seleccionarCarrera(carreraId, true);
+    seleccionarGrupo(grupo, true);
+  }
+};
+
+// ═══ PANEL CONFIGURACION: cambio de contrasena ═══
+
+async function cambiarContrasenaEscolar() {
+  const actual   = (document.getElementById('cfgPassActual').value  || '').trim();
+  const nueva    = (document.getElementById('cfgPassNueva').value   || '').trim();
+  const confirma = (document.getElementById('cfgPassConfirm').value || '').trim();
+  const msgEl    = document.getElementById('cfgMsgEscolar');
+  const btn      = document.getElementById('cfgBtnSubmit');
+
+  msgEl.className = 'cfg-msg';
+  msgEl.textContent = '';
+
+  if (!actual || !nueva || !confirma) {
+    msgEl.className = 'cfg-msg err';
+    msgEl.textContent = 'Completa todos los campos.';
+    return;
+  }
+  if (nueva.length < 6) {
+    msgEl.className = 'cfg-msg err';
+    msgEl.textContent = 'La nueva contrasena debe tener al menos 6 caracteres.';
+    return;
+  }
+  if (nueva !== confirma) {
+    msgEl.className = 'cfg-msg err';
+    msgEl.textContent = 'Las contrasenas no coinciden.';
+    return;
+  }
+
+  btn.textContent = 'Actualizando...';
+  btn.disabled = true;
+  try {
+    const user = firebase.auth().currentUser;
+    const credential = firebase.auth.EmailAuthProvider.credential(user.email, actual);
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(nueva);
+    msgEl.className = 'cfg-msg ok';
+    msgEl.textContent = 'Contrasena actualizada correctamente.';
+    document.getElementById('cfgPassActual').value  = '';
+    document.getElementById('cfgPassNueva').value   = '';
+    document.getElementById('cfgPassConfirm').value = '';
+  } catch (e) {
+    msgEl.className = 'cfg-msg err';
+    msgEl.textContent = (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential')
+      ? 'Contrasena actual incorrecta.'
+      : 'Error: ' + e.message;
+  } finally {
+    btn.textContent = 'Actualizar Contrasena';
+    btn.disabled = false;
+  }
 }

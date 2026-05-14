@@ -8,38 +8,34 @@
   <link rel="stylesheet" type="text/css" href="../../css/modules/controlEscolar.css">
   <title>Control Escolar</title>
   <style>
-    /* ── Navegación de paneles ── */
-    .nav-paneles {
+    /* ── Tabs de navegación ── */
+    .nav-tabs-escolar {
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      background: white;
+      border-bottom: 2px solid #e8e8e8;
+      padding: 0 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
-    .btn-panel {
-      background: rgba(255,255,255,0.15);
-      color: white;
-      border: 2px solid rgba(255,255,255,0.4);
-      padding: 9px 22px;
-      border-radius: 8px;
+    .nav-tabs-escolar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: 14px 20px;
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
+      color: #888;
       cursor: pointer;
-      transition: all 0.2s;
+      white-space: nowrap;
+      transition: color 0.2s, border-color 0.2s;
+      margin-bottom: -2px;
       letter-spacing: 0.2px;
     }
-    .btn-panel:hover {
-      background: rgba(255,255,255,0.3);
-      border-color: white;
-    }
-    .btn-panel.activo {
-      background: white;
+    .tab-btn:hover { color: #6A2135; }
+    .tab-btn.activo {
       color: #6A2135;
-      border-color: white;
-    }
-    .btn-panel:disabled {
-      background: rgba(255,255,255,0.05);
-      color: rgba(255,255,255,0.35);
-      border-color: rgba(255,255,255,0.15);
-      cursor: not-allowed;
+      border-bottom-color: #6A2135;
     }
 
     /* ── Secciones de panel ── */
@@ -75,49 +71,78 @@
       border-radius: 12px;
       border: 2px solid #e0e0e0;
     }
+
+    /* ── Configuración: cambio de contraseña ── */
+    .cfg-card {
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 440px;
+    }
+    .cfg-card h3 { color: #6A2135; margin: 0 0 6px; font-size: 1.1rem; }
+    .cfg-card p  { color: #666; font-size: 0.9rem; margin: 0 0 20px; }
+    .cfg-field { margin-bottom: 14px; }
+    .cfg-field label {
+      display: block; font-weight: 600; color: #444;
+      margin-bottom: 5px; font-size: 0.9rem;
+    }
+    .cfg-field input {
+      width: 100%; padding: 9px 12px; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 0.95rem; box-sizing: border-box;
+    }
+    .cfg-msg {
+      margin-top: 12px; padding: 10px 14px; border-radius: 6px;
+      font-size: 0.9rem; display: none;
+    }
+    .cfg-msg.ok  { background: #e8f5e9; color: #2e7d32; display: block; }
+    .cfg-msg.err { background: #ffebee; color: #c62828; display: block; }
   </style>
 </head>
 <body>
 
   <div class="container">
+
     <!-- HEADER -->
-    <div class="header" style="display:flex; flex-direction:column; gap:14px;">
-      <div style="display:flex; align-items:center; gap:12px;">
-        <div style="flex:1;">
-          <h1 style="margin:0; color:#4FC99A;">Control Escolar</h1>
-          <p id="nombreUsuario" style="margin:4px 0 0; opacity:0.85;">Cargando...</p>
-        </div>
-        <button onclick="cerrarSesion()" class="btn-salir">Cerrar Sesion</button>
+    <div class="header" style="display:flex; align-items:center; gap:12px; padding:18px 24px;">
+      <div style="flex:1;">
+        <h1 style="margin:0; color:#4FC99A; font-size:1.7rem;">Control Escolar</h1>
+        <p id="nombreUsuario" style="margin:4px 0 0; opacity:0.85; font-size:0.95rem;">Cargando...</p>
       </div>
-      <nav class="nav-paneles">
-        <button id="btnPanelAlumnos"   class="btn-panel activo"  onclick="mostrarPanelEscolar('alumnos')">Alumnos</button>
-        <button id="btnPanelEditar"    class="btn-panel"         onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
-        <button id="btnPanelAprobar"   class="btn-panel"         onclick="mostrarPanelEscolar('aprobar')">Aprobar Alumnos</button>
-    <!--     <button id="btnPanelBoletaGlobal" class="btn-panel" onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button> -->
-      </nav>
+      <button onclick="cerrarSesion()" class="btn-salir">Cerrar Sesion</button>
     </div>
+
+    <!-- STATS: siempre visibles -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <h3>Total Carreras</h3>
+        <div class="numero" id="totalCarreras">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>Total Alumnos</h3>
+        <div class="numero" id="totalAlumnos">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>Total Materias</h3>
+        <div class="numero" id="totalMaterias">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>Periodo Actual</h3>
+        <div class="numero" id="periodoActual">-</div>
+      </div>
+    </div>
+
+    <!-- TABS DE NAVEGACIÓN -->
+    <nav class="nav-tabs-escolar">
+      <button id="btnPanelAlumnos"      class="tab-btn activo" onclick="mostrarPanelEscolar('alumnos')">Alumnos</button>
+      <button id="btnPanelEditar"       class="tab-btn"        onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
+      <button id="btnPanelAprobar"      class="tab-btn"        onclick="mostrarPanelEscolar('aprobar')">Reinscribir</button>
+      <button id="btnPanelBoletaGlobal" class="tab-btn"        onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button>
+      <button id="btnPanelConfig"       class="tab-btn"        onclick="mostrarPanelEscolar('config')">Configuracion</button>
+    </nav>
 
     <!-- ═══════════════════════════════════ PANEL 1: ALUMNOS ═══════════════════════════════════ -->
     <div id="panelAlumnos" class="panel-escolar activo">
-      <div class="stats-grid" id="statsGrid">
-        <div class="stat-card">
-          <h3>Total Carreras</h3>
-          <div class="numero" id="totalCarreras">0</div>
-        </div>
-        <div class="stat-card">
-          <h3>Total Alumnos</h3>
-          <div class="numero" id="totalAlumnos">0</div>
-        </div>
-        <div class="stat-card">
-          <h3>Total Materias</h3>
-          <div class="numero" id="totalMaterias">0</div>
-        </div>
-        <div class="stat-card">
-          <h3>Periodo Actual</h3>
-          <div class="numero" id="periodoActual">-</div>
-        </div>
-      </div>
-
       <div class="content" id="mainContent">
         <h2 class="titulo-seccion">Selecciona una Carrera</h2>
         <div id="menuCarreras" class="menu-carreras">
@@ -136,80 +161,79 @@
 
     <!-- ══════════════════════════════════ PANEL 2: EDITAR DATOS ═══════════════════════════════ -->
     <div id="panelEditar" class="panel-escolar">
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; padding-top:10px;">
-        <button onclick="abrirEditorAlumnos()" class="btn-nav-seccion">Alumnos</button>
-        <button onclick="abrirEditorMaterias()" class="btn-nav-seccion" style="background:linear-gradient(135deg,#6A3221,#6A2159);">Materias</button>
-        <button onclick="abrirEditorProfesores()" class="btn-nav-seccion">Profesores</button>
-      </div>
-
-      <!-- Sub-panel: Alumnos -->
-      <div id="editorNombresPanel" style="display:none; background:#fff; border:2px solid #6A2135; border-radius:12px; padding:25px; margin-bottom:20px;">
-        <h2 style="color:#6A2135; margin:0 0 20px;">Editar Datos de Alumnos</h2>
-        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
-          <div>
-            <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
-            <select id="filtroCarreraEdicion" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
-              <option value="">-- Selecciona Carrera --</option>
-            </select>
-          </div>
-          <div>
-            <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Periodo</label>
-            <select id="filtroPeriodoEdicion" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
-              <option value="">Todos</option>
-              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-              <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-              <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-            </select>
-          </div>
-          <button onclick="filtrarAlumnosEdicion()" class="btn-accion">Buscar</button>
-          <button onclick="abrirEditorAlumnos()" class="btn-volver" style="margin:0;">Cerrar</button>
+      <div style="padding:24px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+          <button onclick="abrirEditorAlumnos()" class="btn-nav-seccion">Alumnos</button>
+          <button onclick="abrirEditorMaterias()" class="btn-nav-seccion" style="background:linear-gradient(135deg,#6A3221,#6A2159);">Materias</button>
+          <button onclick="abrirEditorProfesores()" class="btn-nav-seccion">Profesores</button>
         </div>
-        <div id="resultadoEdicionNombres"></div>
-      </div>
 
-      <!-- Sub-panel: Profesores -->
-      <div id="editorProfesoresPanel" style="display:none; background:#fff; border:2px solid #6A2135; border-radius:12px; padding:25px; margin-bottom:20px;">
-        <h2 style="color:#6A2135; margin:0 0 20px;">Editar Nombres de Profesores</h2>
-        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
-          <div>
-            <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Buscar por nombre</label>
-            <input type="text" id="busquedaProfesor" placeholder="Escribe para filtrar..." oninput="filtrarProfesoresEdicion()"
-                   style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:240px;">
+        <!-- Sub-panel: Alumnos -->
+        <div id="editorNombresPanel" style="display:none; background:#fff; border:2px solid #6A2135; border-radius:12px; padding:25px; margin-bottom:20px;">
+          <h2 style="color:#6A2135; margin:0 0 20px;">Editar Datos de Alumnos</h2>
+          <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
+              <select id="filtroCarreraEdicion" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
+                <option value="">-- Selecciona Carrera --</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Periodo</label>
+              <select id="filtroPeriodoEdicion" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
+                <option value="">Todos</option>
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+              </select>
+            </div>
+            <button onclick="filtrarAlumnosEdicion()" class="btn-accion">Buscar</button>
+            <button onclick="abrirEditorAlumnos()" class="btn-volver" style="margin:0;">Cerrar</button>
           </div>
-          <button onclick="abrirEditorProfesores()" class="btn-volver" style="margin:0;">Cerrar</button>
+          <div id="resultadoEdicionNombres"></div>
         </div>
-        <div id="resultadoProfesoresEdicion"></div>
-      </div>
 
-      <!-- Sub-panel: Materias -->
-      <div id="editorMateriasPanel" style="display:none; background:#fff; border:2px solid #6A2135; border-radius:12px; padding:25px; margin-bottom:20px;">
-        <h2 style="color:#6A2135; margin:0 0 20px;">Editar Nombres de Materias</h2>
-        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
-          <div>
-            <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
-            <select id="filtroCarreraMateria" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
-              <option value="">-- Selecciona Carrera --</option>
-            </select>
+        <!-- Sub-panel: Profesores -->
+        <div id="editorProfesoresPanel" style="display:none; background:#fff; border:2px solid #6A2135; border-radius:12px; padding:25px; margin-bottom:20px;">
+          <h2 style="color:#6A2135; margin:0 0 20px;">Editar Nombres de Profesores</h2>
+          <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Buscar por nombre</label>
+              <input type="text" id="busquedaProfesor" placeholder="Escribe para filtrar..." oninput="filtrarProfesoresEdicion()"
+                     style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:240px;">
+            </div>
+            <button onclick="abrirEditorProfesores()" class="btn-volver" style="margin:0;">Cerrar</button>
           </div>
-          <button onclick="filtrarMateriasEdicion()" class="btn-accion">Buscar</button>
-          <button onclick="abrirEditorMaterias()" class="btn-volver" style="margin:0;">Cerrar</button>
+          <div id="resultadoProfesoresEdicion"></div>
         </div>
-        <div id="resultadoMateriasEdicion"></div>
+
+        <!-- Sub-panel: Materias -->
+        <div id="editorMateriasPanel" style="display:none; background:#fff; border:2px solid #6A2135; border-radius:12px; padding:25px; margin-bottom:20px;">
+          <h2 style="color:#6A2135; margin:0 0 20px;">Editar Nombres de Materias</h2>
+          <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
+              <select id="filtroCarreraMateria" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
+                <option value="">-- Selecciona Carrera --</option>
+              </select>
+            </div>
+            <button onclick="filtrarMateriasEdicion()" class="btn-accion">Buscar</button>
+            <button onclick="abrirEditorMaterias()" class="btn-volver" style="margin:0;">Cerrar</button>
+          </div>
+          <div id="resultadoMateriasEdicion"></div>
+        </div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════════ PANEL 3: APROBAR ALUMNOS ════════════════════════════ -->
+    <!-- ══════════════════════════════════ PANEL 3: REINSCRIBIR ════════════════════════════════ -->
     <div id="panelAprobar" class="panel-escolar">
-      <div style="padding-top:10px;">
-
-        <!-- Herramienta: Avanzar alumno individual -->
+      <div style="padding:24px;">
         <div class="herramienta-card" style="border-color:#6A2135;">
-          <h3 style="margin:0 0 6px; color:#6A2135;">Aprobar Alumno al Siguiente Periodo</h3>
+          <h3 style="margin:0 0 6px; color:#6A2135;">Reinscribir Alumno al Siguiente Periodo</h3>
           <p style="color:#666; font-size:0.9rem; margin-bottom:18px;">
-            Busca un alumno y avánzalo manualmente al siguiente periodo sin necesidad de hacer el cambio general de carrera.
-            Útil para alumnos que se inscriben tarde o que no se consideraron en el cambio masivo.
+            Avanza manualmente a un alumno al siguiente periodo. Util para alumnos que se inscriben tarde
+            o que no se consideraron en el cambio masivo de carrera.
           </p>
-
           <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
             <div>
               <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
@@ -219,12 +243,11 @@
             </div>
             <div>
               <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Buscar alumno</label>
-              <input type="text" id="busquedaAprobar" placeholder="Nombre o matrícula..."
+              <input type="text" id="busquedaAprobar" placeholder="Nombre o matricula..."
                      style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
             </div>
             <button onclick="cargarAlumnosParaAprobar()" class="btn-accion">Buscar</button>
           </div>
-
           <div id="resultadoAprobar">
             <p style="color:#999; text-align:center; padding:20px 0;">Selecciona una carrera y presiona Buscar.</p>
           </div>
@@ -234,7 +257,7 @@
 
     <!-- ═══════════════════════════════════ PANEL 4: BOLETA GLOBAL ════════════════════════════ -->
     <div id="panelBoletaGlobal" class="panel-escolar">
-      <div style="padding-top:10px;">
+      <div style="padding:24px;">
         <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:18px;">
           <div>
             <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
@@ -244,20 +267,46 @@
           </div>
           <div>
             <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Buscar alumno</label>
-            <input type="text" id="boletagBusqueda" placeholder="Filtrar por nombre o matrícula..."
+            <input type="text" id="boletagBusqueda" placeholder="Filtrar por nombre o matricula..."
                    oninput="buscarAlumnoBoletaGlobal()"
                    style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:240px;">
           </div>
         </div>
         <div id="boletagResultados">
-          <p style="color:#999; text-align:center; padding:20px 0;">Selecciona una carrera o escribe un nombre y presiona Buscar.</p>
+          <p style="color:#999; text-align:center; padding:20px 0;">Selecciona una carrera o escribe un nombre.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ PANEL 5: CONFIGURACION ════════════════════════════ -->
+    <div id="panelConfig" class="panel-escolar">
+      <div style="padding:24px;">
+        <div class="cfg-card">
+          <h3>Cambiar Contrasena</h3>
+          <p>Ingresa tu contrasena actual y la nueva contrasena para actualizarla.</p>
+          <div class="cfg-field">
+            <label>Contrasena actual</label>
+            <input type="password" id="cfgPassActual" placeholder="••••••••">
+          </div>
+          <div class="cfg-field">
+            <label>Nueva contrasena</label>
+            <input type="password" id="cfgPassNueva" placeholder="Minimo 6 caracteres">
+          </div>
+          <div class="cfg-field">
+            <label>Confirmar nueva contrasena</label>
+            <input type="password" id="cfgPassConfirm" placeholder="Repite la nueva contrasena">
+          </div>
+          <button id="cfgBtnSubmit" onclick="cambiarContrasenaEscolar()" class="btn-accion" style="width:100%; padding:11px;">
+            Actualizar Contrasena
+          </button>
+          <div id="cfgMsgEscolar" class="cfg-msg"></div>
         </div>
       </div>
     </div>
 
   </div><!-- .container -->
 
-  <!-- Firebase y librerías -->
+  <!-- Firebase y librerias -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
