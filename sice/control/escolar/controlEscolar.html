@@ -11,31 +11,33 @@
     /* ── Tabs de navegación ── */
     .nav-tabs-escolar {
       display: flex;
-      background: white;
-      border-bottom: 2px solid #e8e8e8;
-      padding: 0 20px;
-      overflow-x: auto;
-      scrollbar-width: none;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 12px 20px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
-    .nav-tabs-escolar::-webkit-scrollbar { display: none; }
     .tab-btn {
-      background: none;
-      border: none;
-      border-bottom: 3px solid transparent;
-      padding: 14px 20px;
+      background: white;
+      border: 1.5px solid #ccc;
+      border-radius: 20px;
+      padding: 8px 18px;
       font-weight: 700;
-      font-size: 0.88rem;
-      color: #888;
+      font-size: 0.87rem;
+      color: #555;
       cursor: pointer;
       white-space: nowrap;
-      transition: color 0.2s, border-color 0.2s;
-      margin-bottom: -2px;
-      letter-spacing: 0.2px;
+      transition: all 0.18s;
     }
-    .tab-btn:hover { color: #6A2135; }
-    .tab-btn.activo {
+    .tab-btn:hover {
+      border-color: #6A2135;
       color: #6A2135;
-      border-bottom-color: #6A2135;
+      background: #fff5f7;
+    }
+    .tab-btn.activo {
+      background: #6A2135;
+      color: white;
+      border-color: #6A2135;
     }
 
     /* ── Secciones de panel ── */
@@ -79,6 +81,7 @@
       border-radius: 12px;
       padding: 28px;
       max-width: 440px;
+      margin: 0 auto;
     }
     .cfg-card h3 { color: #6A2135; margin: 0 0 6px; font-size: 1.1rem; }
     .cfg-card p  { color: #666; font-size: 0.9rem; margin: 0 0 20px; }
@@ -136,8 +139,8 @@
     <nav class="nav-tabs-escolar">
       <button id="btnPanelAlumnos"      class="tab-btn activo" onclick="mostrarPanelEscolar('alumnos')">Alumnos</button>
       <button id="btnPanelEditar"       class="tab-btn"        onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
-      <button id="btnPanelAprobar"      class="tab-btn"        onclick="mostrarPanelEscolar('aprobar')">Reinscribir</button>
       <button id="btnPanelBoletaGlobal" class="tab-btn"        onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button>
+      <button id="btnPanelAprobar"      class="tab-btn"        onclick="mostrarPanelEscolar('aprobar')">Reinscribir</button>
       <button id="btnPanelConfig"       class="tab-btn"        onclick="mostrarPanelEscolar('config')">Configuracion</button>
     </nav>
 
