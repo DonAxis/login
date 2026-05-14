@@ -275,8 +275,8 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     const _efectiva = (materiaId) => {
       const d = calMap[materiaId];
       if (d) {
-        if (d.ets != null)            return { cal: d.ets,            acr: 'ETS' };
-        if (d.extraordinario != null) return { cal: d.extraordinario, acr: 'EXT' };
+        if (d.ets != null)            return { cal: d.ets,            acr: d.acreditacion || 'ETS' };
+        if (d.extraordinario != null) return { cal: d.extraordinario, acr: d.acreditacion || 'EXT' };
         if (d.promedio != null)       return { cal: d.promedio,       acr: d.acreditacion || 'ORD' };
         return { cal: null, acr: null };
       }
