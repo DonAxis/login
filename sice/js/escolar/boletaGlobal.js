@@ -174,7 +174,7 @@ function _optsCalificacion(rawCal) {
 
 // Opciones de acreditación: ORD / ETS / EXT / REC / FINAL / EQUI — nombres coinciden con PDF (m.acr)
 function _optsAcreditacion(rawAcr) {
-  const vals = [['', '-'], ['ORD','ORD'], ['ETS','ETS'], ['EXT','EXT'], ['REC','REC'], ['ORD2','ORD2'], ['EQUI','EQUI']];
+  const vals = [['', '-'], ['ORD','ORD'], ['ETS','ETS'], ['EXT','EXT'], ['REC','REC'], ['ORD2','ORD2'], ['FINAL','FINAL'], ['EQUI','EQUI']];
   return vals.map(([v, lbl]) => {
     const sel = (!rawAcr && v === '') || rawAcr === v ? ' selected' : '';
     return `<option value="${v}"${sel}>${lbl}</option>`;
@@ -267,9 +267,10 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       }
     }
 
-    // Cursando: materia.periodo == alumno.periodo (mismo semestre, sin importar si el ciclo cerró)
+    // Cursando: mismo semestre Y el periodo aún no fue cerrado por "Cambiar Periodo"
+    // histMap[materiaId] se llena con periodoAcademico al cerrar → ya no está en curso
     const esCursandoMateria = (materiaId, perNum) =>
-      alumnoSemActual > 0 && perNum === alumnoSemActual;
+      alumnoSemActual > 0 && perNum === alumnoSemActual && !histMap[materiaId];
 
     // Calificación efectiva: ETS > extraordinario > promedio, con fallback a historialAcademico
     const _efectiva = (materiaId) => {
@@ -407,7 +408,8 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       mats.forEach((m, i) => {
         const { cal: rawCal, acr: rawAcrEfectiva } = _efectiva(m.id);
         const isCursando  = esCursandoMateria(m.id, perNum);
-        const esPasadoMat = !isCursando && perNum < alumnoSemActual;
+        // <= para incluir el caso: mismo semestre pero ya cerrado por Cambiar Periodo
+        const esPasadoMat = !isCursando && perNum <= alumnoSemActual;
 
         if (isCursando) {
           // ── En curso: chip "Cursando", solo lectura ────────────────────────
@@ -783,7 +785,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       columnStyles: {
         0: { halign: 'center', cellWidth: 5 },
         1: { halign: 'left' },
-        2: { halign: 'center', cellWidth: 12 },
+        2: { halign: 'center', cellWidth: 14 },
         3: { halign: 'center', cellWidth: 10 },
         4: { halign: 'center', cellWidth: 15 }
       }
