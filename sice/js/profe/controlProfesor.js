@@ -518,10 +518,10 @@ function generarTablaCalificaciones() {
           ${generarCeldaFalta(cal.falta1, index, 'f1')}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
-          ${generarCeldaCalificacion(cal.parcial2, index, 'p2')}
+          ${generarCeldaCalificacion(cal.parcial2, index, 'p2', cal.parcial1 == null)}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
-          ${generarCeldaFalta(cal.falta2, index, 'f2')}
+          ${generarCeldaFalta(cal.falta2, index, 'f2', cal.parcial1 == null)}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f3e5f5;">
           ${generarCeldaExamenFinal(cal.parcial3, cal.parcial1, cal.parcial2, index)}
@@ -535,16 +535,16 @@ function generarTablaCalificaciones() {
           ${generarCeldaFalta(cal.falta1, index, 'f1')}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
-          ${generarCeldaCalificacion(cal.parcial2, index, 'p2')}
+          ${generarCeldaCalificacion(cal.parcial2, index, 'p2', cal.parcial1 == null)}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
-          ${generarCeldaFalta(cal.falta2, index, 'f2')}
+          ${generarCeldaFalta(cal.falta2, index, 'f2', cal.parcial1 == null)}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
-          ${generarCeldaCalificacion(cal.parcial3, index, 'p3')}
+          ${generarCeldaCalificacion(cal.parcial3, index, 'p3', cal.parcial2 == null)}
         </td>
         <td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f4ae90;">
-          ${generarCeldaFalta(cal.falta3, index, 'f3')}
+          ${generarCeldaFalta(cal.falta3, index, 'f3', cal.parcial2 == null)}
         </td>`;
     }
 
@@ -571,8 +571,9 @@ function generarTablaCalificaciones() {
       ← Desliza horizontalmente para ver todas las columnas →
     </div>
 
-    <button onclick="guardarCalificacionesProfe()"
-            style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 20px auto; display: block; transition: all 0.3s;">
+    <div id="progresoGuardado" style="text-align: center; font-size: 0.9rem; min-height: 22px; margin-top: 8px;"></div>
+    <button id="btnGuardarCalif" onclick="guardarCalificacionesProfe()"
+            style="background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; max-width: 300px; margin: 10px auto 20px; display: block; transition: all 0.3s;">
       Guardar Calificaciones
     </button>
   `;
@@ -582,33 +583,35 @@ function generarTablaCalificaciones() {
   console.log('Tabla generada correctamente');
 }
 
-function generarCeldaCalificacion(valor, index, parcial) {
+function generarCeldaCalificacion(valor, index, parcial, deshabilitado = false) {
   if (valor !== null && valor !== undefined && valor !== '') {
     const color = valor === 'NP' ? '#dc3545' : '#4caf50';
     return `<span style="font-weight: bold; color: ${color};">${valor}</span>`;
-  } else {
-    return `
-      <select id="cal_${index}_${parcial}" 
-              style="width: 80px; padding: 8px 4px; border: 2px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.95rem;">
-        <option value="">-</option>
-        <option value="10">10</option>
-        <option value="9">9</option>
-        <option value="8">8</option>
-        <option value="7">7</option>
-        <option value="6">6</option>
-        <option value="5">5</option>
-        <option value="4">4</option>
-        <option value="3">3</option>
-        <option value="2">2</option>
-        <option value="1">1</option>
-        <option value="0">0</option>
-        <option value="NP">NP</option>
-      </select>
-    `;
   }
+  if (deshabilitado) {
+    return `<span style="color: #ccc; font-size: 1.1rem;" title="Guarda el parcial anterior primero">—</span>`;
+  }
+  return `
+    <select id="cal_${index}_${parcial}"
+            style="width: 80px; padding: 8px 4px; border: 2px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.95rem;">
+      <option value="">-</option>
+      <option value="10">10</option>
+      <option value="9">9</option>
+      <option value="8">8</option>
+      <option value="7">7</option>
+      <option value="6">6</option>
+      <option value="5">5</option>
+      <option value="4">4</option>
+      <option value="3">3</option>
+      <option value="2">2</option>
+      <option value="1">1</option>
+      <option value="0">0</option>
+      <option value="NP">NP</option>
+    </select>
+  `;
 }
 
-function generarCeldaFalta(valor, index, falta) {
+function generarCeldaFalta(valor, index, falta, deshabilitado = false) {
     // Si ya tiene valor guardado → mostrar con color semáforo + ícono
     if (valor !== null && valor !== undefined && valor !== '') {
         const num = parseInt(valor);
@@ -627,6 +630,11 @@ function generarCeldaFalta(valor, index, falta) {
             <span style="font-weight:bold; color:${color}; font-size:1.05rem;">${valor}</span>
             
           </div>`;
+    }
+
+    // Si el parcial correspondiente no está guardado → campo bloqueado
+    if (deshabilitado) {
+      return `<span style="color: #ccc; font-size: 1.1rem;" title="Disponible al guardar el parcial correspondiente">—</span>`;
     }
 
     // Si no tiene valor → mostrar input con estilo claramente distinto al de calificaciones
@@ -716,29 +724,25 @@ async function guardarCalificacionesProfe() {
   if (!confirm('¿Guardar las calificaciones y faltas?\n\nIMPORTANTE: No podrás modificarlas después.')) {
     return;
   }
-  
-  console.log('=== Guardando calificaciones ===');
-  console.log('Asignación actual:', asignacionActual);
-  console.log('Total alumnos:', alumnosMateria.length);
-  
+
+  const btnGuardar = document.getElementById('btnGuardarCalif');
+  const divProgreso = document.getElementById('progresoGuardado');
+  const setProgreso = (msg, color = '#555') => {
+    if (divProgreso) { divProgreso.textContent = msg; divProgreso.style.color = color; }
+    console.log(msg);
+  };
+
+  if (btnGuardar) btnGuardar.disabled = true;
+  setProgreso('Verificando datos del formulario...');
+
   try {
-    let guardadas = 0;
-    let errores = 0;
-    const erroresDetalle = [];
-    
-    for (let i = 0; i < alumnosMateria.length; i++) {
-      const alumno = alumnosMateria[i];
-      
-      console.log(`\nProcesando alumno ${i + 1}/${alumnosMateria.length}: ${alumno.nombre}`);
-      
-      // Leer valores de los inputs
+    // ── Fase 1: leer valores del formulario (sincrónico, sin red) ──────────────
+    const filas = alumnosMateria.map((alumno, i) => {
       const inputP1 = document.getElementById(`cal_${i}_p1`);
-      // Para maestría: solo p1. Para examen final: "ef". Para normal: "p3"
       const inputP2 = esMaestriaActual ? null : document.getElementById(`cal_${i}_p2`);
       const inputP3 = esMaestriaActual ? null : tieneExamenFinalActual
         ? document.getElementById(`cal_${i}_ef`)
         : document.getElementById(`cal_${i}_p3`);
-
       const inputF1 = document.getElementById(`fal_${i}_f1`);
       const inputF2 = esMaestriaActual ? null : document.getElementById(`fal_${i}_f2`);
       const inputF3 = esMaestriaActual || tieneExamenFinalActual ? null : document.getElementById(`fal_${i}_f3`);
@@ -746,22 +750,14 @@ async function guardarCalificacionesProfe() {
       const p1 = inputP1 ? inputP1.value : '';
       const p2 = inputP2 ? inputP2.value : '';
       const p3 = inputP3 ? inputP3.value : '';
-
       const f1 = inputF1 ? inputF1.value : '0';
       const f2 = inputF2 ? inputF2.value : '0';
       const f3 = inputF3 ? inputF3.value : '0';
 
-      console.log('  Valores leídos:');
-      console.log('    P1:', p1, '  F1:', f1);
-      console.log('    P2:', p2, '  F2:', f2);
-      console.log(tieneExamenFinalActual ? '    EF:' : '    P3:', p3, tieneExamenFinalActual ? '' : '  F3: ' + f3);
-
-      // Convertir a formato correcto
       const parcial1 = p1 === '' ? null : (p1 === 'NP' ? 'NP' : parseFloat(p1));
       const parcial2 = p2 === '' ? null : (p2 === 'NP' ? 'NP' : parseFloat(p2));
       const parcial3 = p3 === '' ? null : (p3 === 'NP' ? 'NP' : parseFloat(p3));
 
-      // La falta solo es válida si hay un parcial correspondiente capturado
       const tieneParcial1 = parcial1 !== null || alumno.calificaciones.parcial1 !== null;
       const tieneParcial2 = parcial2 !== null || alumno.calificaciones.parcial2 !== null;
       const tieneParcial3 = !tieneExamenFinalActual && (parcial3 !== null || alumno.calificaciones.parcial3 !== null);
@@ -770,11 +766,6 @@ async function guardarCalificacionesProfe() {
       const falta2 = esMaestriaActual ? null : tieneParcial2 ? (inputF2 ? parseInt(f2) : null) : null;
       const falta3 = esMaestriaActual || tieneExamenFinalActual ? null : tieneParcial3 ? (inputF3 ? parseInt(f3) : null) : null;
 
-      console.log('  Valores convertidos:');
-      console.log('    Parciales:', parcial1, parcial2, parcial3);
-      console.log('    Faltas:', falta1, falta2, falta3);
-
-      // Verificar si hay datos nuevos
       const hayNuevasParciales =
         (alumno.calificaciones.parcial1 === null && parcial1 !== null) ||
         (alumno.calificaciones.parcial2 === null && parcial2 !== null) ||
@@ -785,46 +776,67 @@ async function guardarCalificacionesProfe() {
         (alumno.calificaciones.falta2 === null && falta2 !== null) ||
         (!tieneExamenFinalActual && alumno.calificaciones.falta3 === null && falta3 !== null);
 
-      if (!hayNuevasParciales && !hayNuevasFaltas) {
-        console.log('  -> Sin cambios, omitiendo');
-        continue;
-      }
+      return {
+        alumno,
+        docId: `${alumno.id}_${asignacionActual.materiaId}`,
+        necesitaGuardar: hayNuevasParciales || hayNuevasFaltas,
+        formValues: { parcial1, parcial2, parcial3, falta1, falta2, falta3 }
+      };
+    });
 
-      const docId = `${alumno.id}_${asignacionActual.materiaId}`;
-      console.log('  -> Documento:', docId);
+    const filasConCambios = filas.filter(f => f.necesitaGuardar);
+    console.log(`Alumnos con cambios: ${filasConCambios.length} de ${alumnosMateria.length}`);
 
-      const calDoc = await db.collection('calificaciones').doc(docId).get();
+    if (filasConCambios.length === 0) {
+      setProgreso('');
+      if (btnGuardar) btnGuardar.disabled = false;
+      alert('No hay calificaciones nuevas para guardar.');
+      return;
+    }
+
+    // ── Fase 2: leer datos actuales de Firestore en paralelo (1 round-trip) ───
+    setProgreso(`Leyendo ${filasConCambios.length} registro(s) de Firestore...`);
+    const snapshots = await Promise.all(
+      filasConCambios.map(f => db.collection('calificaciones').doc(f.docId).get())
+    );
+
+    // ── Fase 3: construir el batch (sin red, solo lógica) ──────────────────────
+    setProgreso(`Preparando ${filasConCambios.length} calificacion(es)...`);
+    const batch = db.batch();
+
+    for (let j = 0; j < filasConCambios.length; j++) {
+      const { alumno, docId, formValues } = filasConCambios[j];
+      const { parcial1, parcial2, parcial3, falta1, falta2, falta3 } = formValues;
+      const calDoc = snapshots[j];
 
       let datosActuales = {
         parciales: { parcial1: null, parcial2: null, parcial3: null },
-        faltas: { falta1: null, falta2: null, falta3: null }
+        faltas:    { falta1: null,  falta2: null,  falta3: null  }
       };
-
       if (calDoc.exists) {
         const data = calDoc.data();
         datosActuales.parciales = data.parciales || datosActuales.parciales;
-        datosActuales.faltas = data.faltas || datosActuales.faltas;
-        console.log('  -> Datos actuales:', datosActuales);
+        datosActuales.faltas    = data.faltas    || datosActuales.faltas;
       }
 
-      // Actualizar solo campos vacíos
+      // Regla secuencial: P2 requiere P1 en BD; P3 requiere P2 en BD
       const nuevosParciales = {
         parcial1: datosActuales.parciales.parcial1 ?? parcial1,
-        parcial2: datosActuales.parciales.parcial2 ?? parcial2,
-        parcial3: datosActuales.parciales.parcial3 ?? parcial3
+        parcial2: datosActuales.parciales.parcial1 !== null
+          ? (datosActuales.parciales.parcial2 ?? parcial2)
+          : datosActuales.parciales.parcial2,
+        parcial3: datosActuales.parciales.parcial2 !== null
+          ? (datosActuales.parciales.parcial3 ?? parcial3)
+          : datosActuales.parciales.parcial3
       };
 
+      // Preservar faltas ya guardadas (falta2/falta3 son null para maestría/tieneExamenFinal desde arriba)
       const nuevasFaltas = {
-        falta1: falta1 !== null ? (datosActuales.faltas.falta1 ?? falta1) : null,
-        falta2: falta2 !== null ? (datosActuales.faltas.falta2 ?? falta2) : null,
-        falta3: !tieneExamenFinalActual && falta3 !== null ? (datosActuales.faltas.falta3 ?? falta3) : null
+        falta1: datosActuales.faltas.falta1 ?? falta1,
+        falta2: datosActuales.faltas.falta2 ?? falta2,
+        falta3: datosActuales.faltas.falta3 ?? falta3
       };
 
-      console.log('  -> Nuevos datos a guardar:');
-      console.log('     Parciales:', nuevosParciales);
-      console.log('     Faltas:', nuevasFaltas);
-
-      // Calcular calificación usando la función centralizada
       const promedio = redondearCalificacion(esMaestriaActual
         ? nuevosParciales.parcial1
         : calcularCalificacion(
@@ -834,64 +846,50 @@ async function guardarCalificacionesProfe() {
             tieneExamenFinalActual
           ));
 
-      console.log('  -> Calificación calculada:', promedio);
-      
-      // Guardar
-      try {
-        await db.collection('calificaciones').doc(docId).set({
-          alumnoId: alumno.id,
-          alumnoNombre: alumno.nombre,
-          materiaId: asignacionActual.materiaId,
-          materiaNombre: asignacionActual.materiaNombre,
-          codigoGrupo: asignacionActual.codigoGrupo,
-          profesorId: usuarioActual.uid,
-          profesorNombre: usuarioActual.nombre,
-          periodo: asignacionActual.periodo,
-          carreraId: asignacionActual.carreraId,
-          parciales: nuevosParciales,
-          faltas: nuevasFaltas,
-          promedio: promedio,
-          actualizadoPor: usuarioActual.uid,
-          fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-        });
+      console.log(`  [batch] ${alumno.nombre} → parciales:`, nuevosParciales, '| promedio:', promedio);
 
-        guardadas++;
-        console.log('  ✓ Guardado correctamente');
-        
-      } catch (error) {
-        errores++;
-        erroresDetalle.push(`${alumno.nombre}: ${error.message}`);
-        console.error('  ✗ Error al guardar:', error);
-      }
+      batch.set(db.collection('calificaciones').doc(docId), {
+        alumnoId:       alumno.id,
+        alumnoNombre:   alumno.nombre,
+        materiaId:      asignacionActual.materiaId,
+        materiaNombre:  asignacionActual.materiaNombre,
+        codigoGrupo:    asignacionActual.codigoGrupo,
+        profesorId:     usuarioActual.uid,
+        profesorNombre: usuarioActual.nombre,
+        periodo:        asignacionActual.periodo,
+        carreraId:      asignacionActual.carreraId,
+        parciales:      nuevosParciales,
+        faltas:         nuevasFaltas,
+        promedio:       promedio,
+        actualizadoPor: usuarioActual.uid,
+        fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+      });
     }
-    
-    console.log('\n=== RESUMEN ===');
-    console.log('Guardadas:', guardadas);
-    console.log('Errores:', errores);
-    
-    if (errores > 0) {
-      alert(
-        `CALIFICACIONES GUARDADAS CON ERRORES\n\n` +
-        `Guardadas: ${guardadas}\n` +
-        `Errores: ${errores}\n\n` +
-        `Errores:\n${erroresDetalle.join('\n')}`
-      );
-    } else if (guardadas > 0) {
-      alert(
-        `¡CALIFICACIONES GUARDADAS!\n\n` +
-        `${guardadas} alumno(s) actualizado(s)\n\n` +
-        `Las calificaciones y faltas han sido guardadas.`
-      );
-      
-      // Recargar datos
-      await cargarAlumnosYCalificaciones();
-    } else {
-      alert('No hay calificaciones nuevas para guardar.');
-    }
-    
+
+    // ── Fase 4: commit atómico (todo o nada) ──────────────────────────────────
+    setProgreso(`Guardando ${filasConCambios.length} alumno(s)...`);
+    await batch.commit();
+
+    console.log(`\n=== GUARDADO COMPLETO: ${filasConCambios.length} alumnos ===`);
+    setProgreso(`✓ ${filasConCambios.length} alumno(s) guardado(s)`, '#4caf50');
+
+    alert(
+      `¡CALIFICACIONES GUARDADAS!\n\n` +
+      `${filasConCambios.length} alumno(s) actualizado(s)\n\n` +
+      `Las calificaciones y faltas han sido guardadas correctamente.`
+    );
+
+    await cargarAlumnosYCalificaciones();
+
   } catch (error) {
-    console.error('Error general:', error);
-    alert('Error al guardar calificaciones: ' + error.message);
+    console.error('Error al guardar calificaciones:', error);
+    setProgreso('Error al guardar. Ningún cambio fue aplicado.', '#dc3545');
+    if (btnGuardar) btnGuardar.disabled = false;
+    alert(
+      `Error al guardar calificaciones:\n${error.message}\n\n` +
+      `Ningún cambio fue guardado (la operación es todo o nada).\n` +
+      `Verifica tu conexión e intenta de nuevo.`
+    );
   }
 }
 
