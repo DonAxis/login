@@ -788,6 +788,30 @@ async function avanzarAlumnoIndividual(alumnoId) {
       ? `${carreraCodigo}-PASANTE`
       : `${carreraCodigo}-${alumno.turno}${nuevoPeriodo}${ordenStr}`;
 
+    // ── Verificar que Cambiar Periodo ya cerró el semestre actual ───────────
+    const [histDoc, configDoc] = await Promise.all([
+      db.collection('historialAcademico').doc(alumnoId).get(),
+      db.collection('config').doc(`periodo_${alumno.carreraId}`).get()
+    ]);
+
+    const cicloActual   = configDoc.exists ? configDoc.data().periodo : '(desconocido)';
+    const materiasHist  = histDoc.exists ? (histDoc.data().materias || []) : [];
+    const cicloYaCerrado = materiasHist
+      .filter(m => m.periodo === periodoActual)
+      .some(m => !!m.periodoAcademico);
+
+    if (!cicloYaCerrado) {
+      alert(
+        `No se puede avanzar todavía.\n\n` +
+        `Ciclo actual: ${cicloActual}\n\n` +
+        `El ${nombrePeriodo.toLowerCase()} ${periodoActual} de ${alumno.nombre} ` +
+        `aún no ha sido cerrado.\n\n` +
+        `Pide al coordinador que ejecute "Cambiar Periodo" primero.`
+      );
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const confirmacion = confirm(
       `AVANZAR ALUMNO AL SIGUIENTE ${nombrePeriodo.toUpperCase()}\n\n` +
       `Alumno: ${alumno.nombre}\n` +
