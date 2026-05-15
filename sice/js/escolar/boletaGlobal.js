@@ -833,22 +833,56 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     y = Math.max(leftFinalY, rightFinalY) + 8;
 
     // Totales y firmas
-    if (y + 40 > pageHeight) { doc.addPage(); y = 20; }
+    if (y + 70 > pageHeight) { doc.addPage(); y = 20; }
 
     const promGeneral = totalCount > 0 ? (totalSuma / totalCount).toFixed(1) : '-';
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
+    doc.setTextColor(0, 0, 0);
     doc.text(`Total de materias: ${totalCount}`, 20, y);
     doc.text(`Promedio General: ${promGeneral}`, pageWidth - 20, y, { align: 'right' });
 
     const firmasY = y + 25;
+
+    // Títulos de firmantes (arriba de las líneas)
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'bold');
+    doc.text('DIRECTOR GENERAL',        60,  firmasY - 4, { align: 'center' });
+    doc.text('JEFE DE CONTROL ESCOLAR', 150, firmasY - 4, { align: 'center' });
+
     doc.setLineWidth(0.3);
     doc.line(30,  firmasY, 90,  firmasY);
     doc.line(120, firmasY, 180, firmasY);
+
+    // Notas al pie en 2 columnas (4 renglones debajo de las líneas)
+    const notasY  = firmasY + 14;
+    const fs      = 6.5;
+    const lh      = 3.2;
+    const midX    = pageWidth / 2 - 5;
+
+    doc.setFontSize(fs);
+    doc.setTextColor(0, 0, 0);
+
+    // Columna izquierda
+    const leftW = midX - 22;
+    const n1 = doc.splitTextToSize('1.- ESCALA DE CALIFICACIONES 0 A 10 MINIMA APROBATORIA 6', leftW);
+    const n2 = doc.splitTextToSize('2.- LA PRESENTE BOLETA NO ES VALIDA SIN FIRMAS ORIGINALES QUE APARECEN EN ELLA.', leftW);
+    const n3 = doc.splitTextToSize('3.- ORIGINAL PARA EL INTERESADO COPIA PARA EL EXPEDIENTE', leftW);
+    let ly = notasY;
     doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.text('Coordinacion',    60,  firmasY + 5, { align: 'center' });
-    doc.text('Control Escolar', 150, firmasY + 5, { align: 'center' });
+    doc.text(n1, 20, ly);  ly += n1.length * lh + 1;
+    doc.text(n2, 20, ly);  ly += n2.length * lh + 1;
+    doc.text(n3, 20, ly);
+
+    // Columna derecha
+    const rx     = midX + 8;
+    const rightW = pageWidth - rx - 18;
+    doc.setFont(undefined, 'bold');
+    doc.text('* ACREDITACION DE LAS UNIDADES DE APRENDIZAJE', rx, notasY);
+    doc.setFont(undefined, 'normal');
+    const acrTxt = '(ORD) CURSO ORDINARIO  (ETS) EVALUACION A TITULO DE SUFICIENCIA  (EXT) EXAMEN EXTEMPORAL  (REC) RECURSAMIENTO  (FINAL) EXAMEN FINAL  (EQUI) MATERIA DE EQUIVALENCIA';
+    const acrLines = doc.splitTextToSize(acrTxt, rightW);
+    doc.text(acrLines, rx, notasY + lh + 0.5);
 
     doc.save('BoletaGlobal_' + alumnoNombre.replace(/\s+/g, '_') + '.pdf');
 
