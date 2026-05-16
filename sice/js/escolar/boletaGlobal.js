@@ -868,7 +868,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       '* ACR: (ORD) CURSO ORDINARIO  (ETS) EVALUACION T. SUFICIENCIA  (EXT) EXAMEN EXTEMPORAL  (REC) RECURSAMIENTO  (FINAL) EXAMEN FINAL  (EQUI) EQUIVALENCIA',
       noteW
     );
-    const noteStartY = firmasY + 6;
+    const noteStartY = firmasY + 9;
     doc.text(leftNoteLines,  20,                noteStartY);
     doc.text(rightNoteLines, pageWidth / 2 + 3, noteStartY);
 
