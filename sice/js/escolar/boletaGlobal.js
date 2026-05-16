@@ -809,7 +809,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     const startY = y;
 
     doc.autoTable({ ...tableComun, startY,
-      margin: { left: 20, right: col2X, bottom: 32 },
+      margin: { left: 20, right: col2X, bottom: 44 },
       head: HEAD, body: leftRows,
       didDrawCell: hookNivel
     });
@@ -820,7 +820,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     doc.line(20,    leftFinalY, pageWidth - col2X, leftFinalY);
 
     doc.autoTable({ ...tableComun, startY,
-      margin: { left: col2X, right: 20, bottom: 32 },
+      margin: { left: col2X, right: 20, bottom: 44 },
       head: HEAD, body: rightRows,
       didDrawCell: hookNivel
     });
@@ -833,16 +833,16 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     y = Math.max(leftFinalY, rightFinalY) + 3;
 
     // Totales y firmas
-    if (y + 18 > pageHeight - 14) { doc.addPage(); y = 20; }
+    if (y + 46 > pageHeight) { doc.addPage(); y = 20; }
 
     const promGeneral = totalCount > 0 ? (totalSuma / totalCount).toFixed(1) : '-';
     doc.setFontSize(8);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(`Total de materias: ${totalCount}`, 20, y);
-    doc.text(`Promedio General: ${promGeneral}`, pageWidth - 20, y, { align: 'right' });
+    doc.text(`Total de materias: ${totalCount}`, 20, y + 4);
+    doc.text(`Promedio General: ${promGeneral}`, pageWidth - 20, y + 4, { align: 'right' });
 
-    const firmasY = y + 12;
+    const firmasY = y + 26;
     doc.setLineWidth(0.3);
     doc.line(30,  firmasY, 90,  firmasY);
     doc.line(120, firmasY, 180, firmasY);
@@ -852,7 +852,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     doc.text('DIRECTOR GENERAL',        60,  firmasY + 3, { align: 'center' });
     doc.text('JEFE DE CONTROL ESCOLAR', 150, firmasY + 3, { align: 'center' });
 
-    // Notas marginales fijas al fondo de la página (2 columnas, letra muy pequeña)
+    // Notas marginales en 2 columnas, debajo de las firmas
     const noteFs = 5.5;
     const noteLH = noteFs * 0.352778 * 1.3;
     const noteW  = (pageWidth - 45) / 2;
@@ -868,8 +868,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
       '* ACR: (ORD) CURSO ORDINARIO  (ETS) EVALUACION T. SUFICIENCIA  (EXT) EXAMEN EXTEMPORAL  (REC) RECURSAMIENTO  (FINAL) EXAMEN FINAL  (EQUI) EQUIVALENCIA',
       noteW
     );
-    const maxNL      = Math.max(leftNoteLines.length, rightNoteLines.length);
-    const noteStartY = pageHeight - 5 - (maxNL - 1) * noteLH;
+    const noteStartY = firmasY + 6;
     doc.text(leftNoteLines,  20,                noteStartY);
     doc.text(rightNoteLines, pageWidth / 2 + 3, noteStartY);
 
