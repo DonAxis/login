@@ -860,10 +860,11 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     doc.setFont(undefined, 'normal');
     doc.setTextColor(60, 60, 60);
 
-    const leftNoteLines = doc.splitTextToSize(
-      '1.- ESCALA DE CALIFICACIONES 0 A 10, MINIMA APROBATORIA 6.  2.- NO VALIDA SIN FIRMAS ORIGINALES QUE APARECEN EN ELLA.  3.- ORIGINAL AL INTERESADO, COPIA AL EXPEDIENTE.',
-      noteW
-    );
+    const leftNoteLines = [
+      '1.- ESCALA DE CALIFICACIONES 0 A 10, MINIMA APROBATORIA 6.',
+      '2.- NO VALIDA SIN FIRMAS ORIGINALES QUE APARECEN EN ELLA.',
+      '3.- ORIGINAL AL INTERESADO, COPIA AL EXPEDIENTE.'
+    ];
     const rightNoteLines = doc.splitTextToSize(
       '* ACR: (ORD) CURSO ORDINARIO  (ETS) EVALUACION T. SUFICIENCIA  (EXT) EXAMEN EXTEMPORAL  (REC) RECURSAMIENTO  (FINAL) EXAMEN FINAL  (EQUI) EQUIVALENCIA',
       noteW
