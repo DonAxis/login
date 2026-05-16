@@ -697,7 +697,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     doc.text(`Matricula: ${matricula}`, 20, y);
     y += 4;
     doc.text(`Carrera: ${carreraNombre}`, 20, y);
-    y += 6;
+    y += 2;
 
     // col2X = (pageWidth + GAP) / 2: margen izq. del col. derecha = margen der. del col. izquierda
     const GAP   = 5;
@@ -722,7 +722,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
 
     const nivelStyle = { halign: 'center', fontStyle: 'bold',
                          fillColor: [255, 255, 255], textColor: [0, 0, 0],
-                         cellPadding: { top: 3, bottom: 0.3, left: 1, right: 1 } };
+                         cellPadding: { top: 1.5, bottom: 0.3, left: 1, right: 1 } };
 
     function agregarFilasNivel(periodo, target) {
       const label = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
@@ -809,7 +809,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     const startY = y;
 
     doc.autoTable({ ...tableComun, startY,
-      margin: { left: 20, right: col2X, bottom: 20 },
+      margin: { left: 20, right: col2X, bottom: 32 },
       head: HEAD, body: leftRows,
       didDrawCell: hookNivel
     });
@@ -820,7 +820,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     doc.line(20,    leftFinalY, pageWidth - col2X, leftFinalY);
 
     doc.autoTable({ ...tableComun, startY,
-      margin: { left: col2X, right: 20, bottom: 20 },
+      margin: { left: col2X, right: 20, bottom: 32 },
       head: HEAD, body: rightRows,
       didDrawCell: hookNivel
     });
@@ -830,59 +830,48 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     doc.line(col2X, startY,      pageWidth - 20, startY);
     doc.line(col2X, rightFinalY, pageWidth - 20, rightFinalY);
 
-    y = Math.max(leftFinalY, rightFinalY) + 8;
+    y = Math.max(leftFinalY, rightFinalY) + 3;
 
     // Totales y firmas
-    if (y + 70 > pageHeight) { doc.addPage(); y = 20; }
+    if (y + 18 > pageHeight - 14) { doc.addPage(); y = 20; }
 
     const promGeneral = totalCount > 0 ? (totalSuma / totalCount).toFixed(1) : '-';
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text(`Total de materias: ${totalCount}`, 20, y);
     doc.text(`Promedio General: ${promGeneral}`, pageWidth - 20, y, { align: 'right' });
 
-    const firmasY = y + 25;
-
-    // Títulos de firmantes (arriba de las líneas)
-    doc.setFontSize(8);
-    doc.setFont(undefined, 'bold');
-    doc.text('DIRECTOR GENERAL',        60,  firmasY - 4, { align: 'center' });
-    doc.text('JEFE DE CONTROL ESCOLAR', 150, firmasY - 4, { align: 'center' });
-
+    const firmasY = y + 12;
     doc.setLineWidth(0.3);
     doc.line(30,  firmasY, 90,  firmasY);
     doc.line(120, firmasY, 180, firmasY);
-
-    // Notas al pie en 2 columnas (4 renglones debajo de las líneas)
-    const notasY  = firmasY + 14;
-    const fs      = 6.5;
-    const lh      = 3.2;
-    const midX    = pageWidth / 2 - 5;
-
-    doc.setFontSize(fs);
-    doc.setTextColor(0, 0, 0);
-
-    // Columna izquierda
-    const leftW = midX - 22;
-    const n1 = doc.splitTextToSize('1.- ESCALA DE CALIFICACIONES 0 A 10 MINIMA APROBATORIA 6', leftW);
-    const n2 = doc.splitTextToSize('2.- LA PRESENTE BOLETA NO ES VALIDA SIN FIRMAS ORIGINALES QUE APARECEN EN ELLA.', leftW);
-    const n3 = doc.splitTextToSize('3.- ORIGINAL PARA EL INTERESADO COPIA PARA EL EXPEDIENTE', leftW);
-    let ly = notasY;
-    doc.setFont(undefined, 'normal');
-    doc.text(n1, 20, ly);  ly += n1.length * lh + 1;
-    doc.text(n2, 20, ly);  ly += n2.length * lh + 1;
-    doc.text(n3, 20, ly);
-
-    // Columna derecha
-    const rx     = midX + 8;
-    const rightW = pageWidth - rx - 18;
+    // Títulos debajo de las líneas (pegados pero sin tocarlas)
+    doc.setFontSize(7);
     doc.setFont(undefined, 'bold');
-    doc.text('* ACREDITACION DE LAS UNIDADES DE APRENDIZAJE', rx, notasY);
+    doc.text('DIRECTOR GENERAL',        60,  firmasY + 3, { align: 'center' });
+    doc.text('JEFE DE CONTROL ESCOLAR', 150, firmasY + 3, { align: 'center' });
+
+    // Notas marginales fijas al fondo de la página (2 columnas, letra muy pequeña)
+    const noteFs = 5.5;
+    const noteLH = noteFs * 0.352778 * 1.3;
+    const noteW  = (pageWidth - 45) / 2;
+    doc.setFontSize(noteFs);
     doc.setFont(undefined, 'normal');
-    const acrTxt = '(ORD) CURSO ORDINARIO  (ETS) EVALUACION A TITULO DE SUFICIENCIA  (EXT) EXAMEN EXTEMPORAL  (REC) RECURSAMIENTO  (FINAL) EXAMEN FINAL  (EQUI) MATERIA DE EQUIVALENCIA';
-    const acrLines = doc.splitTextToSize(acrTxt, rightW);
-    doc.text(acrLines, rx, notasY + lh + 0.5);
+    doc.setTextColor(60, 60, 60);
+
+    const leftNoteLines = doc.splitTextToSize(
+      '1.- ESCALA DE CALIFICACIONES 0 A 10, MINIMA APROBATORIA 6.  2.- NO VALIDA SIN FIRMAS ORIGINALES QUE APARECEN EN ELLA.  3.- ORIGINAL AL INTERESADO, COPIA AL EXPEDIENTE.',
+      noteW
+    );
+    const rightNoteLines = doc.splitTextToSize(
+      '* ACR: (ORD) CURSO ORDINARIO  (ETS) EVALUACION T. SUFICIENCIA  (EXT) EXAMEN EXTEMPORAL  (REC) RECURSAMIENTO  (FINAL) EXAMEN FINAL  (EQUI) EQUIVALENCIA',
+      noteW
+    );
+    const maxNL      = Math.max(leftNoteLines.length, rightNoteLines.length);
+    const noteStartY = pageHeight - 5 - (maxNL - 1) * noteLH;
+    doc.text(leftNoteLines,  20,                noteStartY);
+    doc.text(rightNoteLines, pageWidth / 2 + 3, noteStartY);
 
     doc.save('BoletaGlobal_' + alumnoNombre.replace(/\s+/g, '_') + '.pdf');
 

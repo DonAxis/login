@@ -3204,16 +3204,23 @@ async function cargarReporteProfesores() {
     container.innerHTML = '<p style="text-align:center; padding:30px; color:#666;">Cargando reporte...</p>';
 
     try {
-        // 1. Asignaciones activas de la carrera
-        const asigSnap = await db.collection('profesorMaterias')
-            .where('carreraId', '==', usuarioActual.carreraId)
-            .where('activa', '==', true)
-            .get();
+        // 1. Asignaciones activas + tipo de carrera en paralelo
+        const [asigSnap, tieneEF] = await Promise.all([
+            db.collection('profesorMaterias')
+                .where('carreraId', '==', usuarioActual.carreraId)
+                .where('activa', '==', true)
+                .get(),
+            obtenerTieneExamenFinal(usuarioActual.carreraId)
+        ]);
 
         if (asigSnap.empty) {
             container.innerHTML = '<div class="sin-datos">No hay asignaciones activas en esta carrera.</div>';
             return;
         }
+
+        // tieneExamenFinal: solo P1 y P2 (P3 es Examen Final condicional, no un parcial normal)
+        const parcialesAMostrar = tieneEF ? [1, 2] : [1, 2, 3];
+        const labelParcial = p => (tieneEF && p === 3) ? 'Examen Final' : `Parcial ${p}`;
 
         // 2. Todas las calificaciones de la carrera en un solo query → mapa en memoria
         const calSnap = await db.collection('calificaciones')
@@ -3237,25 +3244,25 @@ async function cargarReporteProfesores() {
         }));
 
         // 4. Analizar pendientes por parcial
-        const pendientes = { 1: [], 2: [], 3: [] };
+        const pendientes = Object.fromEntries(parcialesAMostrar.map(p => [p, []]));
 
         asigSnap.forEach(asigDoc => {
             const asig = asigDoc.data();
             const alumnos = alumnosPorCodigoGrupo[asig.codigoGrupo] || [];
             if (alumnos.length === 0) return;
 
-            const sinCalif = { 1: 0, 2: 0, 3: 0 };
+            const sinCalif = Object.fromEntries(parcialesAMostrar.map(p => [p, 0]));
 
             alumnos.forEach(alumnoId => {
                 const docId = `${alumnoId}_${asig.materiaId}`;
                 const cal = calMap[docId];
                 const parciales = cal ? (cal.parciales || {}) : {};
-                if (!cal || parciales.parcial1 == null) sinCalif[1]++;
-                if (!cal || parciales.parcial2 == null) sinCalif[2]++;
-                if (!cal || parciales.parcial3 == null) sinCalif[3]++;
+                for (const p of parcialesAMostrar) {
+                    if (!cal || parciales[`parcial${p}`] == null) sinCalif[p]++;
+                }
             });
 
-            for (const p of [1, 2, 3]) {
+            for (const p of parcialesAMostrar) {
                 if (sinCalif[p] > 0) {
                     pendientes[p].push({
                         profesorNombre: asig.profesorNombre || 'Sin asignar',
@@ -3275,7 +3282,6 @@ async function cargarReporteProfesores() {
                     Todos los profesores han subido calificaciones en este parcial.
                 </p>`;
             }
-            // Ordenar: más pendientes primero
             lista.sort((a, b) => b.sinCalif - a.sinCalif);
             return `
                 <table style="width:100%; border-collapse:collapse;">
@@ -3307,20 +3313,20 @@ async function cargarReporteProfesores() {
 
         container.innerHTML = `
             <div style="display:flex; gap:0; border-bottom:2px solid #ddd; margin-bottom:20px;">
-                ${[1, 2, 3].map(p => `
+                ${parcialesAMostrar.map((p, i) => `
                     <button onclick="mostrarParcialReporte(${p})" id="tabParcialReporte${p}"
                         style="padding:12px 28px; border:none; cursor:pointer; font-weight:600; font-size:0.95rem;
-                               background:${p === 1 ? '#43a047' : '#f5f5f5'}; color:${p === 1 ? 'white' : '#555'};
-                               border-radius:${p === 1 ? '8px 8px 0 0' : '0'}; transition:all 0.2s;">
-                        Parcial ${p}
+                               background:${i === 0 ? '#43a047' : '#f5f5f5'}; color:${i === 0 ? 'white' : '#555'};
+                               border-radius:${i === 0 ? '8px 8px 0 0' : '0'}; transition:all 0.2s;">
+                        ${labelParcial(p)}
                         ${pendientes[p].length > 0
                             ? `<span style="background:#c62828; color:white; border-radius:10px; padding:2px 8px; font-size:0.8rem; margin-left:6px;">${pendientes[p].length}</span>`
                             : ''}
                     </button>
                 `).join('')}
             </div>
-            ${[1, 2, 3].map(p => `
-                <div id="contenidoParcialReporte${p}" style="display:${p === 1 ? 'block' : 'none'};">
+            ${parcialesAMostrar.map((p, i) => `
+                <div id="contenidoParcialReporte${p}" style="display:${i === 0 ? 'block' : 'none'};">
                     ${renderPorProfesor(pendientes[p])}
                 </div>
             `).join('')}
@@ -3334,14 +3340,14 @@ async function cargarReporteProfesores() {
 
 function mostrarParcialReporte(parcial) {
     [1, 2, 3].forEach(p => {
-        const tab = document.getElementById(`tabParcialReporte${p}`);
+        const tab  = document.getElementById(`tabParcialReporte${p}`);
         const cont = document.getElementById(`contenidoParcialReporte${p}`);
         if (!tab || !cont) return;
         const activo = p === parcial;
-        tab.style.background = activo ? '#43a047' : '#f5f5f5';
-        tab.style.color = activo ? 'white' : '#555';
+        tab.style.background   = activo ? '#43a047' : '#f5f5f5';
+        tab.style.color        = activo ? 'white' : '#555';
         tab.style.borderRadius = activo ? '8px 8px 0 0' : '0';
-        cont.style.display = activo ? 'block' : 'none';
+        cont.style.display     = activo ? 'block' : 'none';
     });
 }
 
