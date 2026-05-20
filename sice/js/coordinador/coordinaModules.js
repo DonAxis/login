@@ -3118,18 +3118,18 @@ async function guardarAlumno(event, alumnoId) {
             // Editar
             await db.collection('usuarios').doc(alumnoId).update(userData);
 
-            // Propagar cambio de nombre a calificaciones si el nombre cambió
-            const calificacionesSnap = await db.collection('calificaciones')
-                .where('alumnoId', '==', alumnoId)
-                .get();
+            // Propagar cambio de nombre a calificaciones y reportesPrefecto en paralelo
+            const [calificacionesSnap, reportesSnap] = await Promise.all([
+                db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
+                db.collection('reportesPrefecto').where('alumnoId', '==', alumnoId).get()
+            ]);
 
-            if (!calificacionesSnap.empty) {
+            if (!calificacionesSnap.empty || !reportesSnap.empty) {
                 const batch = db.batch();
-                calificacionesSnap.forEach(calDoc => {
-                    batch.update(calDoc.ref, { alumnoNombre: nombre });
-                });
+                calificacionesSnap.forEach(doc => batch.update(doc.ref, { alumnoNombre: nombre }));
+                reportesSnap.forEach(doc => batch.update(doc.ref, { alumnoNombre: nombre }));
                 await batch.commit();
-                console.log(`[guardarAlumno] alumnoNombre actualizado en ${calificacionesSnap.size} documento(s) de calificaciones`);
+                console.log(`[guardarAlumno] alumnoNombre actualizado: ${calificacionesSnap.size} calificacion(es), ${reportesSnap.size} reporte(s) de prefecto`);
             }
 
             alert('Alumno actualizado');
