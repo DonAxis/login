@@ -762,9 +762,9 @@ async function guardarCalificacionesProfe() {
       const tieneParcial2 = parcial2 !== null || alumno.calificaciones.parcial2 !== null;
       const tieneParcial3 = !tieneExamenFinalActual && (parcial3 !== null || alumno.calificaciones.parcial3 !== null);
 
-      const falta1 = tieneParcial1 ? (inputF1 ? (f1 === '' ? null : parseInt(f1)) : null) : null;
-      const falta2 = esMaestriaActual ? null : tieneParcial2 ? (inputF2 ? (f2 === '' ? null : parseInt(f2)) : null) : null;
-      const falta3 = esMaestriaActual || tieneExamenFinalActual ? null : tieneParcial3 ? (inputF3 ? (f3 === '' ? null : parseInt(f3)) : null) : null;
+      const falta1 = tieneParcial1 ? (inputF1 ? (f1 === '' ? 0 : parseInt(f1)) : null) : null;
+      const falta2 = esMaestriaActual ? null : tieneParcial2 ? (inputF2 ? (f2 === '' ? 0 : parseInt(f2)) : null) : null;
+      const falta3 = esMaestriaActual || tieneExamenFinalActual ? null : tieneParcial3 ? (inputF3 ? (f3 === '' ? 0 : parseInt(f3)) : null) : null;
 
       const hayNuevasParciales =
         (alumno.calificaciones.parcial1 === null && parcial1 !== null) ||
