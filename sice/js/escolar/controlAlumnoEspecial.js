@@ -716,18 +716,30 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
   gruposArray.sort((a, b) => (a.ordenamiento || 0) - (b.ordenamiento || 0));
   
   gruposArray.forEach(grupo => {
-    gruposHtml += `<option value="${grupo.id}" data-nombre="${grupo.nombre}">
+    gruposHtml += `<option value="${grupo.id}" data-nombre="${grupo.nombre}" data-codigo="${grupo.codigoGrupo}">
       ${grupo.nombre}
     </option>`;
   });
-  
+
   const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
     .where('alumnoId', '==', alumnoId)
     .where('activa', '==', true)
     .get();
-  
+
   const numMaterias = inscripcionesSnap.size;
-  
+
+  // Detectar cuántos grupos distintos tiene el alumno
+  const gruposDistintos = [...new Set(
+    inscripcionesSnap.docs.map(d => d.data().codigoGrupo).filter(Boolean)
+  )];
+  const multiGrupoHtml = gruposDistintos.length > 1
+    ? `<div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
+        <strong>Atencion: el alumno cursa en ${gruposDistintos.length} grupos distintos</strong>
+        <p style="margin: 6px 0 0 0; font-size: 0.9rem;">Grupos: <strong>${gruposDistintos.join(', ')}</strong>.<br>
+        Al regularizar, TODAS las inscripciones especiales se daran de baja.</p>
+       </div>`
+    : '';
+
   const html = `
     <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
       <strong>Atencion: Conversion de Alumno Especial a Normal</strong>
@@ -735,13 +747,15 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
         Esta accion convertira al alumno especial en un alumno normal del grupo seleccionado.
       </p>
     </div>
-    
+
+    ${multiGrupoHtml}
+
     <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
       <strong>Alumno:</strong> ${alumnoNombre}<br>
       <strong>Matricula:</strong> ${alumnoMatricula}<br>
       <strong>Materias inscritas:</strong> ${numMaterias}
     </div>
-    
+
     <form onsubmit="ejecutarRegularizacion('${alumnoId}', '${alumnoNombre}', event)">
       <div class="form-grupo">
         <label>Asignar a Grupo: *</label>
@@ -750,7 +764,7 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
         </select>
         <small style="color: #666;">El grupo fijo al que pertenecera</small>
       </div>
-      
+
       <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
         <strong>Que sucedera:</strong>
         <ul style="margin: 10px 0 0 20px; font-size: 0.9rem;">
@@ -761,7 +775,7 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
           <li>Se movera con su grupo en cambios de periodo</li>
         </ul>
       </div>
-      
+
       <div style="background: #ffebee; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f44336;">
         <strong>Advertencia:</strong>
         <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #c62828;">
@@ -790,6 +804,7 @@ async function ejecutarRegularizacion(alumnoId, alumnoNombre, event) {
   const grupoSelect = document.getElementById('grupoRegularizar');
   const grupoId = grupoSelect.value;
   const grupoNombre = grupoSelect.options[grupoSelect.selectedIndex].dataset.nombre;
+  const codigoGrupo = grupoSelect.options[grupoSelect.selectedIndex].dataset.codigo;
   
   if (!confirm(
     'CONFIRMAR REGULARIZACION\n\n' +
@@ -805,6 +820,7 @@ async function ejecutarRegularizacion(alumnoId, alumnoNombre, event) {
     await db.collection('usuarios').doc(alumnoId).update({
       tipoAlumno: null,
       grupoId: grupoId,
+      codigoGrupo: codigoGrupo,
       grupoNombre: grupoNombre,
       fechaRegularizacion: firebase.firestore.FieldValue.serverTimestamp(),
       regularizadoPor: usuarioActual.uid,
@@ -843,6 +859,201 @@ async function ejecutarRegularizacion(alumnoId, alumnoNombre, event) {
     
   } catch (error) {
     console.error('Error:', error);
+    alert('Error: ' + error.message);
+  }
+}
+
+// =====================================================
+// PARTE 4B: CONVERTIR ALUMNO NORMAL → ESPECIAL
+// =====================================================
+
+async function mostrarFormHacerEspecial() {
+  document.getElementById('tituloModal').textContent = 'Convertir Alumno Normal a Especial';
+
+  const alumnosSnap = await db.collection('usuarios')
+    .where('rol', '==', 'alumno')
+    .where('carreraId', '==', usuarioActual.carreraId)
+    .where('activo', '==', true)
+    .get();
+
+  const alumnosNormales = [];
+  alumnosSnap.forEach(doc => {
+    const d = doc.data();
+    if (!d.tipoAlumno || d.tipoAlumno !== 'especial') {
+      alumnosNormales.push({ id: doc.id, ...d });
+    }
+  });
+
+  alumnosNormales.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  if (alumnosNormales.length === 0) {
+    alert('No hay alumnos normales en esta carrera para convertir.');
+    return;
+  }
+
+  let alumnosHtml = '<option value="">Seleccionar alumno...</option>';
+  alumnosNormales.forEach(a => {
+    const grupo = a.codigoGrupo || 'Sin grupo';
+    alumnosHtml += `<option value="${a.id}" data-nombre="${a.nombre.replace(/'/g, "&#39;")}" data-grupo="${a.codigoGrupo || ''}" data-grupoid="${a.grupoId || ''}">
+      ${a.nombre} — ${a.matricula || ''} (Grupo: ${grupo})
+    </option>`;
+  });
+
+  const html = `
+    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ff9800;">
+      <strong>Convertir Alumno Normal a Especial</strong>
+      <p style="margin: 10px 0 0 0; font-size: 0.9rem;">
+        El alumno dejara de pertenecer a su grupo fijo. Se crearan inscripciones especiales para sus materias activas del periodo actual.
+      </p>
+    </div>
+
+    <form onsubmit="ejecutarHacerEspecial(event)">
+      <div class="form-grupo">
+        <label>Alumno a convertir: *</label>
+        <select id="alumnoHacerEspecial" required onchange="mostrarInfoAlumnoHacerEspecial(this)">
+          ${alumnosHtml}
+        </select>
+        <div id="infoAlumnoHacerEspecial" style="display:none; background:#f5f5f5; padding:10px; border-radius:5px; margin-top:8px; font-size:0.9rem;"></div>
+      </div>
+
+      <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
+        <strong>Que sucedera:</strong>
+        <ul style="margin: 10px 0 0 20px; font-size: 0.9rem;">
+          <li>El alumno dejara de pertenecer a su grupo actual</li>
+          <li>Se crearan inscripciones especiales para sus materias activas del periodo</li>
+          <li>No aparecera en la lista normal del grupo, pero si en esta seccion</li>
+          <li>Sus calificaciones existentes se CONSERVAN</li>
+          <li>Podra ser inscrito a nuevas materias desde aqui</li>
+        </ul>
+      </div>
+
+      <div style="background: #ffebee; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f44336;">
+        <strong>Advertencia:</strong>
+        <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #c62828;">
+          Esta accion NO se puede deshacer facilmente. Usa "Regularizar" para revertirla.
+        </p>
+      </div>
+
+      <div class="form-botones" style="margin-top: 20px;">
+        <button type="submit" style="background: #ff9800; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+          Confirmar Conversion
+        </button>
+        <button type="button" onclick="cerrarModal()" class="btn-cancelar">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  `;
+
+  document.getElementById('contenidoModal').innerHTML = html;
+  document.getElementById('modalGenerico').style.display = 'block';
+}
+
+function mostrarInfoAlumnoHacerEspecial(select) {
+  const infoDiv = document.getElementById('infoAlumnoHacerEspecial');
+  if (!select.value) {
+    infoDiv.style.display = 'none';
+    return;
+  }
+  const opt = select.options[select.selectedIndex];
+  const grupo = opt.dataset.grupo || 'Sin grupo asignado';
+  infoDiv.innerHTML = `<strong>Grupo actual:</strong> ${grupo}`;
+  infoDiv.style.display = 'block';
+}
+
+async function ejecutarHacerEspecial(event) {
+  event.preventDefault();
+
+  const select = document.getElementById('alumnoHacerEspecial');
+  const alumnoId = select.value;
+  const opt = select.options[select.selectedIndex];
+  const alumnoNombre = opt.dataset.nombre;
+  const codigoGrupoAnterior = opt.dataset.grupo;
+  const grupoIdAnterior = opt.dataset.grupoid;
+
+  if (!alumnoId) return;
+
+  if (!confirm(
+    'CONFIRMAR CONVERSION A ESPECIAL\n\n' +
+    'Alumno: ' + alumnoNombre + '\n' +
+    'Grupo actual: ' + (codigoGrupoAnterior || 'Sin grupo') + '\n\n' +
+    'El alumno dejara su grupo y se crearan inscripciones especiales para sus materias activas.\n\n' +
+    'Continuar?'
+  )) return;
+
+  try {
+    let materiasCreadas = 0;
+
+    if (codigoGrupoAnterior) {
+      // Obtener materias activas del grupo en el periodo actual
+      const materiasSnap = await db.collection('profesorMaterias')
+        .where('codigoGrupo', '==', codigoGrupoAnterior)
+        .where('activa', '==', true)
+        .get();
+
+      const ahora = firebase.firestore.FieldValue.serverTimestamp();
+      const batch = db.batch();
+
+      for (const doc of materiasSnap.docs) {
+        const mat = doc.data();
+
+        // Evitar duplicados: verificar si ya existe inscripcion especial activa
+        const existente = await db.collection('inscripcionesEspeciales')
+          .where('alumnoId', '==', alumnoId)
+          .where('materiaId', '==', mat.materiaId)
+          .where('codigoGrupo', '==', codigoGrupoAnterior)
+          .where('activa', '==', true)
+          .get();
+
+        if (existente.empty) {
+          const newRef = db.collection('inscripcionesEspeciales').doc();
+          batch.set(newRef, {
+            alumnoId,
+            alumnoNombre,
+            materiaId: mat.materiaId,
+            materiaNombre: mat.materiaNombre,
+            profesorId: mat.profesorId || null,
+            profesorNombre: mat.profesorNombre || '',
+            codigoGrupo: codigoGrupoAnterior,
+            carreraId: mat.carreraId || usuarioActual.carreraId,
+            periodo: mat.periodo || periodoActualCarrera,
+            tipoInscripcion: 'especial',
+            activa: true,
+            motivoConversion: 'Convertido de alumno normal',
+            fechaCreacion: ahora,
+            creadoPor: usuarioActual.uid
+          });
+          materiasCreadas++;
+        }
+      }
+
+      await batch.commit();
+    }
+
+    // Actualizar el alumno: quitar grupo y marcar como especial
+    await db.collection('usuarios').doc(alumnoId).update({
+      tipoAlumno: 'especial',
+      codigoGrupo: null,
+      grupoId: null,
+      fechaConversionEspecial: firebase.firestore.FieldValue.serverTimestamp(),
+      conversionEspecialPor: usuarioActual.uid,
+      antesCodigoGrupo: codigoGrupoAnterior || null,
+      antesGrupoId: grupoIdAnterior || null
+    });
+
+    alert(
+      'CONVERSION EXITOSA!\n\n' +
+      'Alumno: ' + alumnoNombre + '\n' +
+      'Grupo anterior: ' + (codigoGrupoAnterior || 'Sin grupo') + '\n' +
+      'Inscripciones especiales creadas: ' + materiasCreadas + '\n\n' +
+      'El alumno ahora aparece en la seccion de Inscripciones Especiales.'
+    );
+
+    cerrarModal();
+    await cargarInscripciones();
+
+  } catch (error) {
+    console.error('Error al convertir alumno a especial:', error);
     alert('Error: ' + error.message);
   }
 }
