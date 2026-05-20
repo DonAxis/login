@@ -204,12 +204,26 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
     const alumnoSemActual = Number(alumno.semestreActual) ||
       (Number.isFinite(_periodoNum) ? _periodoNum : 0);
 
-    const [{ carreraNombre, porPeriodo, periodosAnio }, calSnap, histDoc, configDoc] = await Promise.all([
+    const esEspecial = alumno.tipoAlumno === 'especial';
+
+    const [{ carreraNombre, porPeriodo, periodosAnio }, calSnap, histDoc, configDoc, inscEspSnap] = await Promise.all([
       _obtenerMateriasCarrera(carreraId),
       db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
       db.collection('historialAcademico').doc(alumnoId).get(),
-      db.collection('config').doc(`periodo_${carreraId}`).get()
+      db.collection('config').doc(`periodo_${carreraId}`).get(),
+      esEspecial
+        ? db.collection('inscripcionesEspeciales').where('alumnoId', '==', alumnoId).where('activa', '==', true).get()
+        : Promise.resolve(null)
     ]);
+
+    // Para especiales: Set de materiaIds actualmente cursando (via inscripcionesEspeciales activas)
+    const inscripcionesActivasSet = new Set();
+    if (esEspecial && inscEspSnap) {
+      inscEspSnap.docs.forEach(d => {
+        const mid = d.data().materiaId;
+        if (mid) inscripcionesActivasSet.add(mid);
+      });
+    }
 
     const calMap = {};
     calSnap.docs.forEach(doc => {
@@ -267,10 +281,11 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       }
     }
 
-    // Cursando: mismo semestre Y el periodo aún no fue cerrado por "Cambiar Periodo"
-    // histMap[materiaId] se llena con periodoAcademico al cerrar → ya no está en curso
-    const esCursandoMateria = (materiaId, perNum) =>
-      alumnoSemActual > 0 && perNum === alumnoSemActual && !histMap[materiaId];
+    // Cursando: para especiales → materia en inscripcionesEspeciales activas y sin cerrar
+    //           para normales  → mismo semestre y sin periodoAcademico
+    const esCursandoMateria = esEspecial
+      ? (materiaId)         => inscripcionesActivasSet.has(materiaId) && !histMap[materiaId]
+      : (materiaId, perNum) => alumnoSemActual > 0 && perNum === alumnoSemActual && !histMap[materiaId];
 
     // Calificación efectiva: ETS > extraordinario > promedio, con fallback a historialAcademico
     const _efectiva = (materiaId) => {
@@ -622,13 +637,22 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     const data      = histDoc.data();
     const carreraId = data.carreraId || '';
 
-    // Paso 2: calificaciones y config en paralelo
-    const [calSnap, configDoc] = await Promise.all([
+    // Paso 2: calificaciones, config e inscripciones especiales activas en paralelo
+    const [calSnap, configDoc, inscEspSnapPDF] = await Promise.all([
       db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
       carreraId
         ? db.collection('config').doc(`periodo_${carreraId}`).get()
-        : Promise.resolve({ exists: false })
+        : Promise.resolve({ exists: false }),
+      db.collection('inscripcionesEspeciales').where('alumnoId', '==', alumnoId).where('activa', '==', true).get()
     ]);
+
+    // Set de materias activas (especiales): si tiene inscripciones activas, es alumno especial
+    const inscActivasPDF = new Set();
+    inscEspSnapPDF.docs.forEach(d => {
+      const mid = d.data().materiaId;
+      if (mid) inscActivasPDF.add(mid);
+    });
+    const esEspecialPDF = inscActivasPDF.size > 0;
 
     // calMap: calificaciones por materiaId
     const calMap = {};
@@ -731,9 +755,12 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
         if (m.valida === false) return;
         counter++;
 
-        // Cursando: semestre coincide con actual Y ninguna fuente tiene periodoAcademico
-        const cursando = periodoActual > 0 && Number(m.periodo) === periodoActual
-          && !m.periodoAcademico && !calMap[m.materiaId]?.periodoAcademico;
+        // Cursando: para especiales → materia en inscripciones activas sin cerrar
+        //           para normales  → semestre coincide con actual y sin periodoAcademico
+        const cursando = esEspecialPDF
+          ? (inscActivasPDF.has(m.materiaId) && !m.periodoAcademico && !calMap[m.materiaId]?.periodoAcademico)
+          : (periodoActual > 0 && Number(m.periodo) === periodoActual
+              && !m.periodoAcademico && !calMap[m.materiaId]?.periodoAcademico);
 
         // Calificación efectiva: historialAcademico (si ya tiene periodoAcademico) → calMap fallback
         let calEfectiva, acrEfectiva;

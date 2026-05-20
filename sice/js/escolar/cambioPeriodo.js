@@ -198,6 +198,7 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     let gruposArchivados = 0;
     let asignacionesDesactivadas = 0;
     let calificacionesArchivadas = 0;
+    let inscripcionesEspCerradas = 0;
 
     // 1. ARCHIVAR GRUPOS (15%)
     progressBar.style.width = '15%';
@@ -239,6 +240,12 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     progressText.textContent = 'Actualizando historial académico...';
 
     await actualizarHistorialAcademico(carreraId, periodoActual, resultCals.docs, alumnoDataMap);
+
+    // 3.6 CERRAR INSCRIPCIONES ESPECIALES
+    progressBar.style.width = '75%';
+    progressText.textContent = 'Procesando alumnos especiales...';
+
+    inscripcionesEspCerradas = await cerrarInscripcionesEspeciales(carreraId, periodoActual, resultCals.docs, alumnoDataMap);
 
     // 4. ELIMINAR ASIGNACIONES DEL PERIODO (para que el coordinador arme grupos nuevos)
     progressBar.style.width = '85%';
@@ -315,6 +322,10 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
               <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 4px;">
                 <span>Asignaciones de profesores eliminadas:</span>
                 <strong>${asignacionesDesactivadas}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 4px;">
+                <span>Inscripciones especiales cerradas:</span>
+                <strong>${inscripcionesEspCerradas}</strong>
               </div>
             </div>
           </div>
@@ -504,6 +515,108 @@ function _calificacionFinal(cal) {
   if (cal.extraordinario !== null && cal.extraordinario !== undefined) return { calificacion: cal.extraordinario, acr: 'EXT' };
   const prom = cal.promedio ?? null;
   return { calificacion: prom, acr: prom !== null ? (cal.acreditacion || 'ORD') : null };
+}
+
+// Cierra las materias de inscripcionesEspeciales activas del periodo:
+//   · Actualiza historialAcademico poniendo periodoAcademico en las materias cursadas por especiales
+//   · Marca todas las inscripcionesEspeciales del periodo como activa: false
+async function cerrarInscripcionesEspeciales(carreraId, periodoActual, calsDocs, alumnoDataMap) {
+  try {
+    // Calificaciones indexadas por alumnoId → materiaId
+    const calPorAlumno = {};
+    for (const calDoc of calsDocs) {
+      const c = calDoc.data();
+      if (!c.alumnoId) continue;
+      if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = {};
+      calPorAlumno[c.alumnoId][c.materiaId] = c;
+    }
+
+    // Inscripciones activas del periodo — filtramos en JS por alumnos de esta carrera
+    const alumnoIdsCarrera = new Set(Object.keys(alumnoDataMap));
+    const inscSnap = await db.collection('inscripcionesEspeciales')
+      .where('periodo', '==', periodoActual)
+      .where('activa', '==', true)
+      .get();
+
+    const inscDocs = inscSnap.docs.filter(d => alumnoIdsCarrera.has(d.data().alumnoId));
+    if (!inscDocs.length) return 0;
+
+    // Agrupar por alumnoId
+    const inscPorAlumno = {};
+    inscDocs.forEach(doc => {
+      const d = doc.data();
+      if (!inscPorAlumno[d.alumnoId]) inscPorAlumno[d.alumnoId] = [];
+      inscPorAlumno[d.alumnoId].push({ ref: doc.ref, ...d });
+    });
+
+    const alumnoIds = Object.keys(inscPorAlumno);
+
+    // Leer historialAcademico de todos en paralelo
+    const histSnaps = await Promise.all(
+      alumnoIds.map(id => db.collection('historialAcademico').doc(id).get())
+    );
+
+    let batch = db.batch();
+    let batchCount = 0;
+    let totalCerradas = 0;
+    const ahora = firebase.firestore.FieldValue.serverTimestamp();
+
+    for (let i = 0; i < alumnoIds.length; i++) {
+      const alumnoId   = alumnoIds[i];
+      const histSnap   = histSnaps[i];
+      const inscripciones = inscPorAlumno[alumnoId];
+      const calsAlumno = calPorAlumno[alumnoId] || {};
+      const inscMateriasIds = new Set(inscripciones.map(insc => insc.materiaId));
+
+      // Cerrar materias especiales en historialAcademico
+      if (histSnap.exists) {
+        const materiasExistentes = histSnap.data().materias || [];
+        let cambiado = false;
+
+        const materiasActualizadas = materiasExistentes.map(mat => {
+          if (!inscMateriasIds.has(mat.materiaId)) return mat;
+          if (mat.periodoAcademico) return mat; // ya cerrada — no pisar
+          cambiado = true;
+          const cal = calsAlumno[mat.materiaId];
+          if (cal) {
+            const { calificacion, acr } = _calificacionFinal(cal);
+            return Object.assign({}, mat, { calificacion, acr, periodoAcademico: periodoActual });
+          }
+          return Object.assign({}, mat, { periodoAcademico: periodoActual });
+        });
+
+        if (cambiado) {
+          batch.set(
+            db.collection('historialAcademico').doc(alumnoId),
+            { materias: materiasActualizadas, fechaActualizacion: ahora },
+            { merge: true }
+          );
+          batchCount++;
+        }
+      }
+
+      // Desactivar inscripciones del periodo
+      inscripciones.forEach(insc => {
+        batch.update(insc.ref, { activa: false, motivoBaja: 'Cambio de periodo', fechaBaja: ahora });
+        batchCount++;
+        totalCerradas++;
+      });
+
+      if (batchCount >= 490) {
+        await batch.commit();
+        batch = db.batch();
+        batchCount = 0;
+      }
+    }
+
+    if (batchCount > 0) await batch.commit();
+    console.log(`Inscripciones especiales cerradas: ${totalCerradas}`);
+    return totalCerradas;
+
+  } catch (error) {
+    console.error('Error al cerrar inscripciones especiales:', error);
+    throw error;
+  }
 }
 
 // Escribe/actualiza historialAcademico/{alumnoId}:

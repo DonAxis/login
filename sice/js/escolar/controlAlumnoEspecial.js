@@ -484,14 +484,18 @@ async function cargarInscripciones() {
                 Matricula: ${alumno.matricula} | ${inscripciones.length} materia(s) inscrita(s)
               </div>
             </div>
-            <div style="display: flex; gap: 8px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               ${inscripciones.length > 0 ? `
-                <button onclick="verTodasMateriasAlumnoEspecial('${alumno.id}', '${alumno.nombre}')" 
+                <button onclick="verTodasMateriasAlumnoEspecial('${alumno.id}', '${alumno.nombre.replace(/'/g, "\\'")}', '${alumno.matricula}')"
                         style="background: white; color: #43a047; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">
                   Ver Todas
                 </button>
               ` : ''}
-              <button onclick="inscribirOtraMateriaAlumno('${alumno.id}')" 
+              <button onclick="mostrarFormRegularizarAlumno('${alumno.id}', '${alumno.nombre.replace(/'/g, "\\'")}', '${alumno.matricula}')"
+                      style="background: #1565c0; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                Asignar a Grupo
+              </button>
+              <button onclick="inscribirOtraMateriaAlumno('${alumno.id}')"
                       style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">
                 + Agregar Materia
               </button>
@@ -732,13 +736,27 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
   const gruposDistintos = [...new Set(
     inscripcionesSnap.docs.map(d => d.data().codigoGrupo).filter(Boolean)
   )];
-  const multiGrupoHtml = gruposDistintos.length > 1
-    ? `<div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
-        <strong>Atencion: el alumno cursa en ${gruposDistintos.length} grupos distintos</strong>
-        <p style="margin: 6px 0 0 0; font-size: 0.9rem;">Grupos: <strong>${gruposDistintos.join(', ')}</strong>.<br>
-        Al regularizar, TODAS las inscripciones especiales se daran de baja.</p>
-       </div>`
-    : '';
+
+  // Bloquear si cursa en múltiples grupos: asignar a uno solo no tiene sentido
+  if (gruposDistintos.length > 1) {
+    const html = `
+      <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-bottom: 20px;">
+        <strong>No es posible asignar a grupo</strong>
+        <p style="margin: 10px 0 0 0; font-size: 0.9rem; color: #c62828;">
+          El alumno cursa materias en <strong>${gruposDistintos.length} grupos distintos</strong>:
+          <strong>${gruposDistintos.join(', ')}</strong>.<br><br>
+          Un alumno normal solo pertenece a un grupo. Para asignarlo, primero da de baja
+          las materias de los grupos adicionales y deja solo las del grupo destino.
+        </p>
+      </div>
+      <div class="form-botones">
+        <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cerrar</button>
+      </div>
+    `;
+    document.getElementById('contenidoModal').innerHTML = html;
+    document.getElementById('modalGenerico').style.display = 'block';
+    return;
+  }
 
   const html = `
     <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
@@ -776,13 +794,6 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
         </ul>
       </div>
 
-      <div style="background: #ffebee; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f44336;">
-        <strong>Advertencia:</strong>
-        <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #c62828;">
-          Esta accion NO se puede deshacer.
-        </p>
-      </div>
-      
       <div class="form-botones" style="margin-top: 20px;">
         <button type="submit" style="background: #4caf50; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">
           Confirmar Regularizacion
@@ -810,7 +821,6 @@ async function ejecutarRegularizacion(alumnoId, alumnoNombre, event) {
     'CONFIRMAR REGULARIZACION\n\n' +
     'Alumno: ' + alumnoNombre + '\n' +
     'Nuevo Grupo: ' + grupoNombre + '\n\n' +
-    'Esta accion NO se puede deshacer.\n\n' +
     'Continuar?'
   )) {
     return;
