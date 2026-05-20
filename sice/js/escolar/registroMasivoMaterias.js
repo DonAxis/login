@@ -326,7 +326,8 @@ async function guardarMateriasMasivas(event) {
   
   let exitosos = 0;
   let errores = 0;
-  
+  const materiasCreadas = [];
+
   try {
     const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
     const codigoCarrera = carreraDoc.data().codigo;
@@ -366,7 +367,7 @@ async function guardarMateriasMasivas(event) {
       });
       
       try {
-        await db.collection('materias').add({
+        const nuevaRef = await db.collection('materias').add({
           nombre: nombreMateria,
           codigos: codigosGenerados,
           grupos: gruposEnlazados,
@@ -379,7 +380,7 @@ async function guardarMateriasMasivas(event) {
           fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
           fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
         });
-        
+        materiasCreadas.push({ id: nuevaRef.id, nombre: nombreMateria, periodo });
         exitosos++;
       } catch (error) {
         console.error(`Error al crear materia ${nombreMateria}:`, error);
@@ -392,13 +393,52 @@ async function guardarMateriasMasivas(event) {
       texto.textContent = `Procesando: ${i + 1} de ${nombres.length}...`;
     }
     
+    // Propagar materias nuevas a historialAcademico de alumnos existentes
+    if (materiasCreadas.length > 0) {
+      texto.textContent = 'Actualizando historial académico…';
+      try {
+        const alumnosSnap = await db.collection('usuarios')
+          .where('carreraId', '==', usuarioActual.carreraId)
+          .where('rol', '==', 'alumno')
+          .where('activo', '==', true)
+          .get();
+        if (!alumnosSnap.empty) {
+          const alumnoIds = alumnosSnap.docs.map(d => d.id);
+          const idsConHistorial = new Set();
+          for (let i = 0; i < alumnoIds.length; i += 30) {
+            const snap = await db.collection('historialAcademico')
+              .where(firebase.firestore.FieldPath.documentId(), 'in', alumnoIds.slice(i, i + 30))
+              .get();
+            snap.forEach(d => idsConHistorial.add(d.id));
+          }
+          let batchH = db.batch();
+          let opsH = 0;
+          for (const uid of idsConHistorial) {
+            const entradas = materiasCreadas.map(m => ({
+              materiaId: m.id, materiaNombre: m.nombre, periodo: m.periodo,
+              calificacion: null, acr: null, periodoAcademico: null
+            }));
+            batchH.update(db.collection('historialAcademico').doc(uid), {
+              materias: firebase.firestore.FieldValue.arrayUnion(...entradas),
+              fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            opsH++;
+            if (opsH >= 400) { await batchH.commit(); batchH = db.batch(); opsH = 0; }
+          }
+          if (opsH > 0) await batchH.commit();
+        }
+      } catch (eH) {
+        console.warn('[registroMasivo] Error propagando a historialAcademico:', eH);
+      }
+    }
+
     barra.style.background = 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)';
     texto.innerHTML = `
       <strong style="color: #4caf50;">Proceso completado</strong><br>
       Materias registradas: ${exitosos}<br>
       ${errores > 0 ? `Errores: ${errores}` : ''}
     `;
-    
+
     setTimeout(() => {
       cerrarModalMateriasMasivas();
       if (typeof cargarMaterias === 'function') {

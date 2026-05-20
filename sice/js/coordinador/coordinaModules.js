@@ -524,7 +524,7 @@ async function guardarMateria(event, materiaId) {
             // Actualizar materia existente
             await db.collection('materias').doc(materiaId).update(materiaData);
 
-            // Propagar cambio de nombre a profesorMaterias y calificaciones
+            // Propagar cambio de nombre a profesorMaterias, calificaciones e historialAcademico
             if (nombre !== nombreAnterior) {
                 const [pmSnap, calSnap] = await Promise.all([
                     db.collection('profesorMaterias').where('materiaId', '==', materiaId).get(),
@@ -543,13 +543,15 @@ async function guardarMateria(event, materiaId) {
                 }
 
                 console.log(`[guardarMateria] nombre propagado a ${pmSnap.size} profesorMaterias y ${calSnap.size} calificaciones`);
+                await _propagarNombreMateriaEnHistoriales(materiaId, nombre, usuarioActual.carreraId);
             }
 
             alert('Materia actualizada correctamente');
         } else {
             // Crear nueva materia
             materiaData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('materias').add(materiaData);
+            const nuevaRef = await db.collection('materias').add(materiaData);
+            await _propagarNuevaMateriaEnHistoriales(nuevaRef.id, nombre, periodo, usuarioActual.carreraId);
 
             let mensaje = 'Materia creada correctamente\n\n';
             mensaje += 'Codigos generados:\n';
@@ -565,6 +567,81 @@ async function guardarMateria(event, materiaId) {
     } catch (error) {
         console.error('Error al guardar materia:', error);
         alert('Error al guardar: ' + error.message);
+    }
+}
+
+// Agrega una materia recién creada al historialAcademico de todos los alumnos de la carrera.
+// Solo actualiza docs que ya existen; los alumnos sin historial lo crean solos al abrir boleta.
+async function _propagarNuevaMateriaEnHistoriales(materiaId, nombre, periodo, carreraId) {
+    try {
+        const alumnosSnap = await db.collection('usuarios')
+            .where('carreraId', '==', carreraId)
+            .where('rol', '==', 'alumno')
+            .where('activo', '==', true)
+            .get();
+        if (alumnosSnap.empty) return;
+
+        const alumnoIds = alumnosSnap.docs.map(d => d.id);
+        const idsConHistorial = new Set();
+        for (let i = 0; i < alumnoIds.length; i += 30) {
+            const snap = await db.collection('historialAcademico')
+                .where(firebase.firestore.FieldPath.documentId(), 'in', alumnoIds.slice(i, i + 30))
+                .get();
+            snap.forEach(d => idsConHistorial.add(d.id));
+        }
+
+        const entrada = { materiaId, materiaNombre: nombre, periodo, calificacion: null, acr: null, periodoAcademico: null };
+        let batch = db.batch();
+        let ops = 0;
+        for (const uid of idsConHistorial) {
+            batch.update(db.collection('historialAcademico').doc(uid), {
+                materias: firebase.firestore.FieldValue.arrayUnion(entrada),
+                fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            ops++;
+            if (ops >= 400) { await batch.commit(); batch = db.batch(); ops = 0; }
+        }
+        if (ops > 0) await batch.commit();
+        console.log(`[guardarMateria] nueva materia propagada a ${idsConHistorial.size} historialAcademico`);
+    } catch (e) {
+        console.warn('[guardarMateria] Error propagando a historialAcademico:', e);
+    }
+}
+
+// Actualiza materiaNombre en historialAcademico cuando se edita el nombre de una materia.
+async function _propagarNombreMateriaEnHistoriales(materiaId, nombreNuevo, carreraId) {
+    try {
+        const alumnosSnap = await db.collection('usuarios')
+            .where('carreraId', '==', carreraId)
+            .where('rol', '==', 'alumno')
+            .where('activo', '==', true)
+            .get();
+        if (alumnosSnap.empty) return;
+
+        const alumnoIds = alumnosSnap.docs.map(d => d.id);
+        const histDocs = [];
+        for (let i = 0; i < alumnoIds.length; i += 30) {
+            const snap = await db.collection('historialAcademico')
+                .where(firebase.firestore.FieldPath.documentId(), 'in', alumnoIds.slice(i, i + 30))
+                .get();
+            snap.forEach(d => histDocs.push({ ref: d.ref, materias: d.data().materias || [] }));
+        }
+
+        let batch = db.batch();
+        let ops = 0;
+        for (const { ref, materias } of histDocs) {
+            if (!materias.some(m => m.materiaId === materiaId)) continue;
+            const actualizadas = materias.map(m =>
+                m.materiaId === materiaId ? { ...m, materiaNombre: nombreNuevo } : m
+            );
+            batch.update(ref, { materias: actualizadas, fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp() });
+            ops++;
+            if (ops >= 400) { await batch.commit(); batch = db.batch(); ops = 0; }
+        }
+        if (ops > 0) await batch.commit();
+        console.log(`[guardarMateria] nombre propagado a ${ops} historialAcademico`);
+    } catch (e) {
+        console.warn('[guardarMateria] Error propagando nombre a historialAcademico:', e);
     }
 }
 
