@@ -3760,8 +3760,9 @@ function generarDropdownFalta(index, faltaKey, valor) {
                          color: #bf360c;
                          cursor: pointer;">`;
 
+    html += `<option value=""${valorNum === null ? ' selected' : ''}>-</option>`;
     for (let i = 0; i <= 20; i++) {
-        const isSelected = (valorNum === null && i === 0) || (valorNum !== null && valorNum === i);
+        const isSelected = valorNum !== null && valorNum === i;
         html += `<option value="${i}"${isSelected ? ' selected' : ''}>${i}</option>`;
     }
 
@@ -3792,6 +3793,13 @@ async function guardarTodasCalificacionesCoord() {
 
     try {
         let guardadas = 0;
+        // '-' (valor vacío) = no tocar la falta en BD; preservar el valor existente
+        const leerFalta = (sel, existing) => {
+            if (!sel || sel.value === '') return existing !== undefined ? existing : null;
+            return sel.value !== sel.dataset.original
+                ? parseInt(sel.value)
+                : (existing !== undefined ? existing : parseInt(sel.value));
+        };
 
         for (let i = 0; i < alumnosCalifMateria.length; i++) {
             const alumno = alumnosCalifMateria[i];
@@ -3815,9 +3823,7 @@ async function guardarTodasCalificacionesCoord() {
                 parcial3 = null;
 
                 const selF1 = document.getElementById(`falt_${i}_falta1`);
-                const f1 = selF1?.value;
-                const origF1 = selF1?.dataset.original;
-                falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
+                falta1 = leerFalta(selF1, existingFaltas.falta1);
                 falta2 = null;
                 falta3 = null;
 
@@ -3836,17 +3842,9 @@ async function guardarTodasCalificacionesCoord() {
                 const selF2 = document.getElementById(`falt_${i}_falta2`);
                 const selF3 = document.getElementById(`falt_${i}_falta3`);
 
-                const f1 = selF1?.value;
-                const f2 = selF2?.value;
-                const f3 = selF3?.value;
-
-                const origF1 = selF1?.dataset.original;
-                const origF2 = selF2?.dataset.original;
-                const origF3 = selF3?.dataset.original;
-
-                falta1 = (f1 !== origF1) ? parseInt(f1) : (existingFaltas.falta1 !== undefined ? existingFaltas.falta1 : parseInt(f1));
-                falta2 = (f2 !== origF2) ? parseInt(f2) : (existingFaltas.falta2 !== undefined ? existingFaltas.falta2 : parseInt(f2));
-                falta3 = tieneExamenFinalCoord ? null : ((f3 !== origF3) ? parseInt(f3) : (existingFaltas.falta3 !== undefined ? existingFaltas.falta3 : parseInt(f3)));
+                falta1 = leerFalta(selF1, existingFaltas.falta1);
+                falta2 = leerFalta(selF2, existingFaltas.falta2);
+                falta3 = tieneExamenFinalCoord ? null : leerFalta(selF3, existingFaltas.falta3);
 
                 const toNum = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
                 promedio = redondearCalificacion(calcularCalificacion(toNum(parcial1), toNum(parcial2), toNum(parcial3), tieneExamenFinalCoord));
