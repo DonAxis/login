@@ -638,7 +638,7 @@ function generarCeldaFalta(valor, index, falta, deshabilitado = false) {
     }
 
     // Si no tiene valor → mostrar input con estilo claramente distinto al de calificaciones
-    let opciones = '';
+    let opciones = '<option value="">-</option>';
     for (let i = 0; i <= 20; i++) {
         opciones += `<option value="${i}">${i}</option>`;
     }
@@ -750,9 +750,9 @@ async function guardarCalificacionesProfe() {
       const p1 = inputP1 ? inputP1.value : '';
       const p2 = inputP2 ? inputP2.value : '';
       const p3 = inputP3 ? inputP3.value : '';
-      const f1 = inputF1 ? inputF1.value : '0';
-      const f2 = inputF2 ? inputF2.value : '0';
-      const f3 = inputF3 ? inputF3.value : '0';
+      const f1 = inputF1 ? inputF1.value : '';
+      const f2 = inputF2 ? inputF2.value : '';
+      const f3 = inputF3 ? inputF3.value : '';
 
       const parcial1 = p1 === '' ? null : (p1 === 'NP' ? 'NP' : parseFloat(p1));
       const parcial2 = p2 === '' ? null : (p2 === 'NP' ? 'NP' : parseFloat(p2));
@@ -762,9 +762,9 @@ async function guardarCalificacionesProfe() {
       const tieneParcial2 = parcial2 !== null || alumno.calificaciones.parcial2 !== null;
       const tieneParcial3 = !tieneExamenFinalActual && (parcial3 !== null || alumno.calificaciones.parcial3 !== null);
 
-      const falta1 = tieneParcial1 ? (inputF1 ? parseInt(f1) : null) : null;
-      const falta2 = esMaestriaActual ? null : tieneParcial2 ? (inputF2 ? parseInt(f2) : null) : null;
-      const falta3 = esMaestriaActual || tieneExamenFinalActual ? null : tieneParcial3 ? (inputF3 ? parseInt(f3) : null) : null;
+      const falta1 = tieneParcial1 ? (inputF1 ? (f1 === '' ? null : parseInt(f1)) : null) : null;
+      const falta2 = esMaestriaActual ? null : tieneParcial2 ? (inputF2 ? (f2 === '' ? null : parseInt(f2)) : null) : null;
+      const falta3 = esMaestriaActual || tieneExamenFinalActual ? null : tieneParcial3 ? (inputF3 ? (f3 === '' ? null : parseInt(f3)) : null) : null;
 
       const hayNuevasParciales =
         (alumno.calificaciones.parcial1 === null && parcial1 !== null) ||
