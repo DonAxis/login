@@ -531,10 +531,10 @@ async function cerrarInscripcionesEspeciales(carreraId, periodoActual, calsDocs,
       calPorAlumno[c.alumnoId][c.materiaId] = c;
     }
 
-    // Inscripciones activas del periodo — filtramos en JS por alumnos de esta carrera
+    // Inscripciones activas — filtramos en JS por alumnos de esta carrera.
+    // No filtramos por periodo en Firestore porque el campo puede no coincidir exactamente.
     const alumnoIdsCarrera = new Set(Object.keys(alumnoDataMap));
     const inscSnap = await db.collection('inscripcionesEspeciales')
-      .where('periodo', '==', periodoActual)
       .where('activa', '==', true)
       .get();
 

@@ -703,172 +703,178 @@ async function verTodasMateriasAlumnoEspecial(alumnoId, alumnoNombre) {
 // =====================================================
 
 async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatricula) {
-  document.getElementById('tituloModal').textContent = 'Regularizar Alumno Especial';
-  
-  const gruposSnap = await db.collection('grupos')
-    .where('carreraId', '==', usuarioActual.carreraId)
-    .where('activo', '==', true)
-    .get();
-  
-  let gruposHtml = '<option value="">Seleccionar grupo...</option>';
-  
-  const gruposArray = [];
-  gruposSnap.forEach(doc => {
-    gruposArray.push({ id: doc.id, ...doc.data() });
-  });
-  
-  gruposArray.sort((a, b) => (a.ordenamiento || 0) - (b.ordenamiento || 0));
-  
-  gruposArray.forEach(grupo => {
-    gruposHtml += `<option value="${grupo.id}" data-nombre="${grupo.nombre}" data-codigo="${grupo.codigoGrupo}">
-      ${grupo.nombre}
-    </option>`;
-  });
+  document.getElementById('tituloModal').textContent = 'Asignar Alumno a Grupo';
+
+  // Leer carrera para obtener su código y número de periodos
+  const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
+  const carreraCodigo   = carreraDoc.exists ? (carreraDoc.data().codigo || usuarioActual.carreraId) : usuarioActual.carreraId;
+  const numeroPeriodos  = carreraDoc.exists ? (carreraDoc.data().numeroPeriodos || 9) : 9;
 
   const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
     .where('alumnoId', '==', alumnoId)
     .where('activa', '==', true)
     .get();
-
   const numMaterias = inscripcionesSnap.size;
 
-  // Detectar cuántos grupos distintos tiene el alumno
-  const gruposDistintos = [...new Set(
-    inscripcionesSnap.docs.map(d => d.data().codigoGrupo).filter(Boolean)
-  )];
-
-  // Bloquear si cursa en múltiples grupos: asignar a uno solo no tiene sentido
-  if (gruposDistintos.length > 1) {
-    const html = `
-      <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-bottom: 20px;">
-        <strong>No es posible asignar a grupo</strong>
-        <p style="margin: 10px 0 0 0; font-size: 0.9rem; color: #c62828;">
-          El alumno cursa materias en <strong>${gruposDistintos.length} grupos distintos</strong>:
-          <strong>${gruposDistintos.join(', ')}</strong>.<br><br>
-          Un alumno normal solo pertenece a un grupo. Para asignarlo, primero da de baja
-          las materias de los grupos adicionales y deja solo las del grupo destino.
-        </p>
-      </div>
-      <div class="form-botones">
-        <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cerrar</button>
-      </div>
-    `;
-    document.getElementById('contenidoModal').innerHTML = html;
-    document.getElementById('modalGenerico').style.display = 'block';
-    return;
+  // Generar opciones de periodo (1..numeroPeriodos)
+  let periodosHtml = '<option value="">Seleccionar...</option>';
+  for (let p = 1; p <= numeroPeriodos; p++) {
+    periodosHtml += `<option value="${p}">${p}</option>`;
   }
 
   const html = `
     <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-      <strong>Atencion: Conversion de Alumno Especial a Normal</strong>
-      <p style="margin: 10px 0 0 0; font-size: 0.9rem;">
-        Esta accion convertira al alumno especial en un alumno normal del grupo seleccionado.
+      <strong>Conversion de Alumno Especial a Normal</strong>
+      <p style="margin: 8px 0 0 0; font-size: 0.9rem;">
+        Indica el grupo al que pertenecera. El codigo se forma igual que en "Gestionar Alumnos".
       </p>
     </div>
-
-    ${multiGrupoHtml}
 
     <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
       <strong>Alumno:</strong> ${alumnoNombre}<br>
       <strong>Matricula:</strong> ${alumnoMatricula}<br>
-      <strong>Materias inscritas:</strong> ${numMaterias}
+      <strong>Inscripciones activas que se archivaran:</strong> ${numMaterias}
     </div>
 
-    <form onsubmit="ejecutarRegularizacion('${alumnoId}', '${alumnoNombre}', event)">
-      <div class="form-grupo">
-        <label>Asignar a Grupo: *</label>
-        <select id="grupoRegularizar" required>
-          ${gruposHtml}
-        </select>
-        <small style="color: #666;">El grupo fijo al que pertenecera</small>
+    <form onsubmit="ejecutarRegularizacion('${alumnoId}', '${alumnoNombre}', '${carreraCodigo}', event)">
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
+        <div class="form-grupo">
+          <label>Periodo (semestre): *</label>
+          <select id="regPeriodo" required>${periodosHtml}</select>
+        </div>
+        <div class="form-grupo">
+          <label>Turno: *</label>
+          <select id="regTurno" required>
+            <option value="">Seleccionar...</option>
+            <option value="1">1 — Matutino</option>
+            <option value="2">2 — Vespertino</option>
+            <option value="3">3 — Nocturno</option>
+            <option value="4">4 — Sabatino</option>
+          </select>
+        </div>
+        <div class="form-grupo">
+          <label>Orden en grupo: *</label>
+          <input type="number" id="regOrden" min="1" max="99" required placeholder="Ej: 1">
+          <small style="color:#666;">Número de lista (1, 2, 3…)</small>
+        </div>
       </div>
 
-      <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
+      <div id="regCodigoPreview" style="background:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:16px; font-size:0.95rem; color:#1565c0; display:none;">
+        Código de grupo: <strong id="regCodigoTexto"></strong>
+      </div>
+
+      <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
         <strong>Que sucedera:</strong>
-        <ul style="margin: 10px 0 0 20px; font-size: 0.9rem;">
+        <ul style="margin: 8px 0 0 20px; font-size: 0.9rem;">
           <li>El alumno dejara de ser "especial"</li>
-          <li>Se asignara al grupo seleccionado</li>
-          <li>Se daran de baja ${numMaterias} inscripciones especiales</li>
+          <li>Se le asignara el grupo y turno indicados</li>
+          <li>Se archivaran ${numMaterias} inscripciones especiales activas</li>
           <li>Las calificaciones se CONSERVARAN</li>
-          <li>Se movera con su grupo en cambios de periodo</li>
+          <li>A partir de ahora avanzara con su grupo en cambios de periodo</li>
         </ul>
       </div>
 
-      <div class="form-botones" style="margin-top: 20px;">
-        <button type="submit" style="background: #4caf50; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-          Confirmar Regularizacion
+      <div class="form-botones" style="margin-top:20px;">
+        <button type="submit" style="background:#4caf50;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;">
+          Confirmar Asignacion
         </button>
-        <button type="button" onclick="cerrarModal()" class="btn-cancelar">
-          Cancelar
-        </button>
+        <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
       </div>
     </form>
   `;
-  
+
   document.getElementById('contenidoModal').innerHTML = html;
   document.getElementById('modalGenerico').style.display = 'block';
+
+  // Preview en tiempo real del código que se generará
+  const actualizarPreview = () => {
+    const p = document.getElementById('regPeriodo').value;
+    const t = document.getElementById('regTurno').value;
+    const o = document.getElementById('regOrden').value;
+    const preview = document.getElementById('regCodigoPreview');
+    const texto   = document.getElementById('regCodigoTexto');
+    if (p && t && o) {
+      const orden = String(parseInt(o) || 1).padStart(2, '0');
+      texto.textContent = `${carreraCodigo}-${t}${p}${orden}`;
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
+  };
+  ['regPeriodo', 'regTurno', 'regOrden'].forEach(id =>
+    document.getElementById(id).addEventListener('input', actualizarPreview)
+  );
 }
 
-async function ejecutarRegularizacion(alumnoId, alumnoNombre, event) {
+async function ejecutarRegularizacion(alumnoId, alumnoNombre, carreraCodigo, event) {
   event.preventDefault();
-  
-  const grupoSelect = document.getElementById('grupoRegularizar');
-  const grupoId = grupoSelect.value;
-  const grupoNombre = grupoSelect.options[grupoSelect.selectedIndex].dataset.nombre;
-  const codigoGrupo = grupoSelect.options[grupoSelect.selectedIndex].dataset.codigo;
-  
+
+  const periodo  = parseInt(document.getElementById('regPeriodo').value);
+  const turno    = parseInt(document.getElementById('regTurno').value);
+  const ordenRaw = parseInt(document.getElementById('regOrden').value) || 1;
+  const orden    = String(ordenRaw).padStart(2, '0');
+
+  const codigoGrupo = `${carreraCodigo}-${turno}${periodo}${orden}`;
+
+  const turnoNombres = { 1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino' };
+
   if (!confirm(
-    'CONFIRMAR REGULARIZACION\n\n' +
+    'CONFIRMAR ASIGNACION A GRUPO\n\n' +
     'Alumno: ' + alumnoNombre + '\n' +
-    'Nuevo Grupo: ' + grupoNombre + '\n\n' +
+    'Grupo: ' + codigoGrupo + '\n' +
+    'Turno: ' + (turnoNombres[turno] || turno) + '\n' +
+    'Periodo (semestre): ' + periodo + '\n\n' +
     'Continuar?'
   )) {
     return;
   }
-  
+
   try {
     await db.collection('usuarios').doc(alumnoId).update({
-      tipoAlumno: null,
-      grupoId: grupoId,
-      codigoGrupo: codigoGrupo,
-      grupoNombre: grupoNombre,
-      fechaRegularizacion: firebase.firestore.FieldValue.serverTimestamp(),
-      regularizadoPor: usuarioActual.uid,
-      antesTipoAlumno: 'especial'
+      tipoAlumno:           firebase.firestore.FieldValue.delete(),
+      codigoGrupo:          codigoGrupo,
+      turno:                String(turno),
+      periodo:              periodo,
+      semestreActual:       periodo,
+      orden:                orden,
+      fechaRegularizacion:  firebase.firestore.FieldValue.serverTimestamp(),
+      regularizadoPor:      usuarioActual.uid,
+      antesTipoAlumno:      'especial'
     });
-    
+
     const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
       .where('alumnoId', '==', alumnoId)
       .where('activa', '==', true)
       .get();
-    
+
     let inscripcionesBajadas = 0;
-    const batch = db.batch();
-    
-    inscripcionesSnap.forEach(doc => {
-      batch.update(doc.ref, {
-        activa: false,
-        motivoBaja: 'Alumno regularizado',
-        fechaBaja: firebase.firestore.FieldValue.serverTimestamp()
+    if (!inscripcionesSnap.empty) {
+      const batch = db.batch();
+      inscripcionesSnap.forEach(doc => {
+        batch.update(doc.ref, {
+          activa:      false,
+          motivoBaja:  'Alumno regularizado',
+          fechaBaja:   firebase.firestore.FieldValue.serverTimestamp()
+        });
+        inscripcionesBajadas++;
       });
-      inscripcionesBajadas++;
-    });
-    
-    await batch.commit();
-    
+      await batch.commit();
+    }
+
     alert(
-      'REGULARIZACION EXITOSA!\n\n' +
+      'ASIGNACION EXITOSA!\n\n' +
       'Alumno: ' + alumnoNombre + '\n' +
-      'Grupo: ' + grupoNombre + '\n' +
+      'Grupo: ' + codigoGrupo + '\n' +
       'Inscripciones archivadas: ' + inscripcionesBajadas + '\n\n' +
       'El alumno ahora se movera con su grupo.'
     );
-    
+
     cerrarModal();
-    await cargarInscripciones();
-    
+    if (typeof cargarInscripciones === 'function') await cargarInscripciones();
+
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error en regularizacion:', error);
     alert('Error: ' + error.message);
   }
 }
