@@ -2532,14 +2532,19 @@ async function guardarProfesor(event, profesorId) {
             // Si el nombre cambió, propagar a profesorMaterias y calificaciones
             const nombreAnterior = datosActuales.nombre || '';
             if (nombre !== nombreAnterior) {
-                const [pmSnap, calSnap] = await Promise.all([
+                const [pmSnap, calSnap, repSnap] = await Promise.all([
                     db.collection('profesorMaterias').where('profesorId', '==', profesorId).get(),
-                    db.collection('calificaciones').where('profesorId', '==', profesorId).get()
+                    db.collection('calificaciones').where('profesorId', '==', profesorId).get(),
+                    db.collection('reportesPrefecto').get()
                 ]);
 
                 const ops = [];
                 pmSnap.forEach(doc => ops.push({ ref: doc.ref, data: { profesorNombre: nombre } }));
                 calSnap.forEach(doc => ops.push({ ref: doc.ref, data: { profesorNombre: nombre } }));
+                repSnap.forEach(docSnap => {
+                    if (!(profesorId in (docSnap.data().profesores || {}))) return;
+                    ops.push({ ref: docSnap.ref, data: { [`profesores.${profesorId}.nombre`]: nombre } });
+                });
 
                 const CHUNK = 499;
                 for (let i = 0; i < ops.length; i += CHUNK) {
