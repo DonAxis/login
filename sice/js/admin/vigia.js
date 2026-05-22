@@ -11,9 +11,9 @@ function accionVigia() {
 // Idempotente: si ya fue migrado, no hace nada en ese doc.
 // ─────────────────────────────────────────────────────────────────────────────
 async function migrarProfesorEnReportes() {
-  const OLD_UID  = 'y916y3L99tR6PHwVlZSKLX08jk52';
-  const NEW_UID  = 'k5pDfU9sTgcLc7fkPQuC8g0qaXO2';
-  const NEW_NAME = 'María del Carmen Ramírez Martínez';
+  const OLD_UID  = 'kwFeta5WXyPs8HsxNrB9x8y4jnt2';
+  const NEW_UID  = 'fkrWoQaTVeQbCxXTDLsIbeXHFD23';
+  const NEW_NAME = 'Lopez Sandoval Jose Luis';
 
   const btn = document.getElementById('btnVigia');
   if (btn) btn.disabled = true;
