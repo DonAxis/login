@@ -281,10 +281,11 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       }
     }
 
-    // Cursando: para especiales → materia en inscripcionesEspeciales activas y sin cerrar
+    // Cursando: para especiales → basta con inscripción activa (activa=true es fuente de verdad;
+    //           no se checa histMap porque el alumno puede estar retomando una materia reprobada)
     //           para normales  → mismo semestre y sin periodoAcademico
     const esCursandoMateria = esEspecial
-      ? (materiaId)         => inscripcionesActivasSet.has(materiaId) && !histMap[materiaId]
+      ? (materiaId)         => inscripcionesActivasSet.has(materiaId)
       : (materiaId, perNum) => alumnoSemActual > 0 && perNum === alumnoSemActual && !histMap[materiaId];
 
     // Calificación efectiva: ETS > extraordinario > promedio, con fallback a historialAcademico
@@ -755,10 +756,11 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
         if (m.valida === false) return;
         counter++;
 
-        // Cursando: para especiales → materia en inscripciones activas sin cerrar
+        // Cursando: para especiales → basta con inscripción activa (activa=true es fuente de verdad;
+        //           no se checa periodoAcademico porque el alumno puede estar retomando una materia reprobada)
         //           para normales  → semestre coincide con actual y sin periodoAcademico
         const cursando = esEspecialPDF
-          ? (inscActivasPDF.has(m.materiaId) && !m.periodoAcademico && !calMap[m.materiaId]?.periodoAcademico)
+          ? inscActivasPDF.has(m.materiaId)
           : (periodoActual > 0 && Number(m.periodo) === periodoActual
               && !m.periodoAcademico && !calMap[m.materiaId]?.periodoAcademico);
 
@@ -774,9 +776,10 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
         }
 
         // Periodo de acreditación: historialAcademico → calMap → periodoAnterior (si hay calificación real)
-        const periodoAcr = m.periodoAcademico
-          || calMap[m.materiaId]?.periodoAcademico
-          || (!cursando && calEfectiva != null ? (periodoAnterior || '') : '');
+        const periodoAcr = cursando ? ''
+          : (m.periodoAcademico
+             || calMap[m.materiaId]?.periodoAcademico
+             || (calEfectiva != null ? (periodoAnterior || '') : ''));
 
         // Promedio: solo materias formalmente cerradas (periodoAcr set) con nota numérica (excluye NP y no cursadas)
         const calRed = cursando ? null : redondearCalificacion(calEfectiva);
