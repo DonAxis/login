@@ -329,8 +329,22 @@ async function guardarInscripcionAlumno(event) {
   const alumnoMatricula = alumnoSelect.options[alumnoSelect.selectedIndex].dataset.matricula;
   
   try {
+    // Validar que el alumno siga siendo especial y no tenga grupo asignado
+    const alumnoDoc = await db.collection('usuarios').doc(alumnoId).get();
+    if (alumnoDoc.exists) {
+      const alumnoData = alumnoDoc.data();
+      if (alumnoData.codigoGrupo) {
+        alert('Error: Este alumno pertenece al grupo ' + alumnoData.codigoGrupo + '.\nUn alumno no puede estar en un grupo y en inscripciones especiales al mismo tiempo.\nConviertelo a especial primero.');
+        return;
+      }
+      if (alumnoData.tipoAlumno !== 'especial') {
+        alert('Error: Este alumno no esta marcado como especial.\nConviertelo a especial primero.');
+        return;
+      }
+    }
+
     const asigDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
-    
+
     if (!asigDoc.exists) {
       alert('Error: Asignacion no encontrada');
       return;
@@ -526,7 +540,7 @@ async function cargarInscripciones() {
                   ${insc.materiaCodigo ? '<span style="color: #666; font-size: 0.9rem;">(' + insc.materiaCodigo + ')</span>' : ''}
                 </div>
                 <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
-                  Grupo: ${insc.grupoNombre} | 
+                  Grupo: Especial |
                   Profesor: ${insc.profesorNombre || 'Sin asignar'}
                 </div>
               </div>
@@ -646,7 +660,7 @@ async function verTodasMateriasAlumnoEspecial(alumnoId, alumnoNombre) {
             ${insc.materiaCodigo ? '<br><small style="color: #666;">' + insc.materiaCodigo + '</small>' : ''}
           </td>
           <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-            ${insc.grupoNombre}
+            Especial
           </td>
           <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
             ${insc.profesorNombre || 'Sin asignar'}
@@ -998,54 +1012,6 @@ async function ejecutarHacerEspecial(event) {
   )) return;
 
   try {
-    let materiasCreadas = 0;
-
-    if (codigoGrupoAnterior) {
-      // Obtener materias activas del grupo en el periodo actual
-      const materiasSnap = await db.collection('profesorMaterias')
-        .where('codigoGrupo', '==', codigoGrupoAnterior)
-        .where('activa', '==', true)
-        .get();
-
-      const ahora = firebase.firestore.FieldValue.serverTimestamp();
-      const batch = db.batch();
-
-      for (const doc of materiasSnap.docs) {
-        const mat = doc.data();
-
-        // Evitar duplicados: verificar si ya existe inscripcion especial activa
-        const existente = await db.collection('inscripcionesEspeciales')
-          .where('alumnoId', '==', alumnoId)
-          .where('materiaId', '==', mat.materiaId)
-          .where('codigoGrupo', '==', codigoGrupoAnterior)
-          .where('activa', '==', true)
-          .get();
-
-        if (existente.empty) {
-          const newRef = db.collection('inscripcionesEspeciales').doc();
-          batch.set(newRef, {
-            alumnoId,
-            alumnoNombre,
-            materiaId: mat.materiaId,
-            materiaNombre: mat.materiaNombre,
-            profesorId: mat.profesorId || null,
-            profesorNombre: mat.profesorNombre || '',
-            codigoGrupo: codigoGrupoAnterior,
-            carreraId: mat.carreraId || usuarioActual.carreraId,
-            periodo: mat.periodo || periodoActualCarrera,
-            tipoInscripcion: 'especial',
-            activa: true,
-            motivoConversion: 'Convertido de alumno normal',
-            fechaCreacion: ahora,
-            creadoPor: usuarioActual.uid
-          });
-          materiasCreadas++;
-        }
-      }
-
-      await batch.commit();
-    }
-
     // Actualizar el alumno: quitar grupo y marcar como especial
     await db.collection('usuarios').doc(alumnoId).update({
       tipoAlumno: 'especial',
@@ -1060,9 +1026,9 @@ async function ejecutarHacerEspecial(event) {
     alert(
       'CONVERSION EXITOSA!\n\n' +
       'Alumno: ' + alumnoNombre + '\n' +
-      'Grupo anterior: ' + (codigoGrupoAnterior || 'Sin grupo') + '\n' +
-      'Inscripciones especiales creadas: ' + materiasCreadas + '\n\n' +
-      'El alumno ahora aparece en la seccion de Inscripciones Especiales.'
+      'Grupo anterior: ' + (codigoGrupoAnterior || 'Sin grupo') + '\n\n' +
+      'El alumno ahora aparece en la seccion de Inscripciones Especiales.\n' +
+      'Inscribelo manualmente en las materias que debe cursar.'
     );
 
     cerrarModal();
@@ -1579,7 +1545,7 @@ if (typeof cargarMateriasYCalificaciones !== 'undefined') {
             nombre: inscripcion.materiaNombre,
             codigo: inscripcion.materiaCodigo || '',
             profesor: inscripcion.profesorNombre || 'Sin asignar',
-            grupo: inscripcion.grupoNombre,
+            grupo: 'Especial',
             parcial1: parcial1,
             parcial2: parcial2,
             parcial3: parcial3
