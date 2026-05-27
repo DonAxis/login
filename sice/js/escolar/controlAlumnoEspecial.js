@@ -719,21 +719,51 @@ async function verTodasMateriasAlumnoEspecial(alumnoId, alumnoNombre) {
 async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatricula) {
   document.getElementById('tituloModal').textContent = 'Asignar Alumno a Grupo';
 
-  // Leer carrera para obtener su código y número de periodos
-  const carreraDoc = await db.collection('carreras').doc(usuarioActual.carreraId).get();
-  const carreraCodigo   = carreraDoc.exists ? (carreraDoc.data().codigo || usuarioActual.carreraId) : usuarioActual.carreraId;
-  const numeroPeriodos  = carreraDoc.exists ? (carreraDoc.data().numeroPeriodos || 9) : 9;
+  // Leer carrera, inscripciones y datos actuales del alumno en paralelo
+  const [carreraDoc, inscripcionesSnap, alumnoDoc] = await Promise.all([
+    db.collection('carreras').doc(usuarioActual.carreraId).get(),
+    db.collection('inscripcionesEspeciales').where('alumnoId', '==', alumnoId).where('activa', '==', true).get(),
+    db.collection('usuarios').doc(alumnoId).get()
+  ]);
 
-  const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
-    .where('alumnoId', '==', alumnoId)
-    .where('activa', '==', true)
-    .get();
-  const numMaterias = inscripcionesSnap.size;
+  const carreraCodigo  = carreraDoc.exists ? (carreraDoc.data().codigo || usuarioActual.carreraId) : usuarioActual.carreraId;
+  const numeroPeriodos = carreraDoc.exists ? (carreraDoc.data().numeroPeriodos || 9) : 9;
+  const numMaterias    = inscripcionesSnap.size;
 
-  // Generar opciones de periodo (1..numeroPeriodos)
+  const alumnoData      = alumnoDoc.exists ? alumnoDoc.data() : {};
+  const periodoActual   = Number(alumnoData.periodo) || Number(alumnoData.semestreActual) || 0;
+  const periodoActualTxt = periodoActual > 0 ? periodoActual + '°' : 'No registrado';
+
+  // Solo mostrar periodos >= al actual del alumno
+  const periodoMinimo = periodoActual > 0 ? periodoActual : 1;
   let periodosHtml = '<option value="">Seleccionar...</option>';
-  for (let p = 1; p <= numeroPeriodos; p++) {
-    periodosHtml += `<option value="${p}">${p}</option>`;
+  for (let p = periodoMinimo; p <= numeroPeriodos; p++) {
+    periodosHtml += `<option value="${p}" ${p === periodoActual ? 'selected' : ''}>${p}</option>`;
+  }
+
+  // Si tiene materias activas → bloquear el formulario por completo
+  if (numMaterias > 0) {
+    const html = `
+      <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 16px;">
+        <strong>Alumno:</strong> ${alumnoNombre}<br>
+        <strong>Matricula:</strong> ${alumnoMatricula}<br>
+        <strong>Periodo actual registrado:</strong>
+          <span style="background:#1565c0;color:white;padding:2px 10px;border-radius:12px;font-weight:700;margin-left:4px;">${periodoActualTxt}</span>
+      </div>
+      <div style="background:#ffebee; padding:18px; border-radius:8px; border-left:4px solid #f44336; text-align:center;">
+        <strong style="color:#c62828; font-size:1rem;">No se puede asignar a grupo</strong>
+        <p style="margin:10px 0 0 0; color:#c62828;">
+          El alumno tiene <strong>${numMaterias}</strong> materia(s) especial(es) activa(s).<br>
+          Primero cierra esas materias con "Dar de Baja" y luego asigna el grupo.
+        </p>
+      </div>
+      <div style="margin-top:20px; text-align:center;">
+        <button type="button" onclick="cerrarModal()" class="btn-cancelar">Cerrar</button>
+      </div>
+    `;
+    document.getElementById('contenidoModal').innerHTML = html;
+    document.getElementById('modalGenerico').style.display = 'block';
+    return;
   }
 
   const html = `
@@ -744,18 +774,20 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
       </p>
     </div>
 
-    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 16px;">
       <strong>Alumno:</strong> ${alumnoNombre}<br>
       <strong>Matricula:</strong> ${alumnoMatricula}<br>
-      <strong>Inscripciones activas que se archivaran:</strong> ${numMaterias}
+      <strong>Periodo actual registrado:</strong>
+        <span style="background:#1565c0;color:white;padding:2px 10px;border-radius:12px;font-weight:700;margin-left:4px;">${periodoActualTxt}</span>
     </div>
 
-    <form onsubmit="ejecutarRegularizacion('${alumnoId}', '${alumnoNombre}', '${carreraCodigo}', event)">
+    <form onsubmit="ejecutarRegularizacion('${alumnoId}', '${alumnoNombre}', '${carreraCodigo}', ${periodoActual}, event)">
 
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
         <div class="form-grupo">
           <label>Periodo (semestre): *</label>
           <select id="regPeriodo" required>${periodosHtml}</select>
+          <small style="color:#666;">Mínimo: ${periodoMinimo}° (no puede retroceder)</small>
         </div>
         <div class="form-grupo">
           <label>Turno: *</label>
@@ -783,7 +815,6 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
         <ul style="margin: 8px 0 0 20px; font-size: 0.9rem;">
           <li>El alumno dejara de ser "especial"</li>
           <li>Se le asignara el grupo y turno indicados</li>
-          <li>Se archivaran ${numMaterias} inscripciones especiales activas</li>
           <li>Las calificaciones se CONSERVARAN</li>
           <li>A partir de ahora avanzara con su grupo en cambios de periodo</li>
         </ul>
@@ -821,7 +852,7 @@ async function mostrarFormRegularizarAlumno(alumnoId, alumnoNombre, alumnoMatric
   );
 }
 
-async function ejecutarRegularizacion(alumnoId, alumnoNombre, carreraCodigo, event) {
+async function ejecutarRegularizacion(alumnoId, alumnoNombre, carreraCodigo, periodoAnterior, event) {
   event.preventDefault();
 
   const periodo  = parseInt(document.getElementById('regPeriodo').value);
@@ -832,6 +863,17 @@ async function ejecutarRegularizacion(alumnoId, alumnoNombre, carreraCodigo, eve
   const codigoGrupo = `${carreraCodigo}-${turno}${periodo}${orden}`;
 
   const turnoNombres = { 1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino' };
+
+  // Bloquear si el periodo elegido es menor al que tenia el alumno
+  if (periodoAnterior > 0 && periodo < periodoAnterior) {
+    alert(
+      'No puedes asignar al alumno a un periodo inferior.\n\n' +
+      'Periodo actual del alumno: ' + periodoAnterior + '°\n' +
+      'Periodo seleccionado: ' + periodo + '°\n\n' +
+      'Selecciona ' + periodoAnterior + '° o superior.'
+    );
+    return;
+  }
 
   if (!confirm(
     'CONFIRMAR ASIGNACION A GRUPO\n\n' +
