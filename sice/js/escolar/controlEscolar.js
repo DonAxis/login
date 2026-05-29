@@ -1822,7 +1822,7 @@ function mostrarPanelEscolar(panel, skipHistory = false) {
   }
   if (panel === 'aprobar') _poblarCarrerasAprobar();
   if (panel === 'boletaGlobal') {
-    inicializarBoletaGlobal();
+    inicializarBoletaGlobal(null, false, true);
     buscarAlumnoBoletaGlobal();
   }
   if (!skipHistory) {

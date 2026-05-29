@@ -5,12 +5,15 @@
 let _boletaCarrerasCache = null;
 let _alumnosBGCache = null;       // alumnos cargados de Firestore (filtrado en cliente)
 let _alumnosBGCacheCarrera = null; // carreraId del último batch cargado
-let _bgSoloLectura = false;       // true = controlEscolar (sin edición de calificaciones)
+let _bgSoloLectura = false;        // true = controlEscolar (sin edición de calificaciones)
+let _bgIncluirInactivos = false;   // true = controlEscolar (muestra alumnos inactivos con badge)
 
 // carreraFija: si se pasa (desde coordinador), oculta el select y lo fija a esa carrera
 // soloLectura: true = controlEscolar (sin edición, mismo PDF)
-async function inicializarBoletaGlobal(carreraFija = null, soloLectura = false) {
+// incluirInactivos: true = controlEscolar (muestra inactivos con badge "INACTIVO")
+async function inicializarBoletaGlobal(carreraFija = null, soloLectura = false, incluirInactivos = false) {
   _bgSoloLectura = soloLectura;
+  _bgIncluirInactivos = incluirInactivos;
   const select = document.getElementById('boletagCarrera');
   if (!select) return;
 
@@ -55,9 +58,8 @@ async function buscarAlumnoBoletaGlobal() {
   if (_alumnosBGCache === null || _alumnosBGCacheCarrera !== carreraId) {
     contenedor.innerHTML = '<p style="color:#666;padding:16px;text-align:center;">Cargando alumnos...</p>';
     try {
-      let q = db.collection('usuarios')
-        .where('rol', '==', 'alumno')
-        .where('activo', '==', true);
+      let q = db.collection('usuarios').where('rol', '==', 'alumno');
+      if (!_bgIncluirInactivos) q = q.where('activo', '==', true);
       if (carreraId) q = q.where('carreraId', '==', carreraId);
       const snap = await q.get();
       _alumnosBGCache        = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -105,9 +107,14 @@ async function buscarAlumnoBoletaGlobal() {
   `;
 
   alumnos.forEach(a => {
+    const inactivo = a.activo === false;
+    const badgeInactivo = inactivo
+      ? ' <span style="background:#dc3545;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;">INACTIVO</span>'
+      : '';
+    const rowBg = inactivo ? 'background:#fff5f5;' : '';
     html += `
-      <tr style="border-bottom:1px solid #eee;">
-        <td style="padding:10px 12px;">${a.nombre || '-'}</td>
+      <tr style="border-bottom:1px solid #eee;${rowBg}">
+        <td style="padding:10px 12px;">${a.nombre || '-'}${badgeInactivo}</td>
         <td style="padding:10px 12px;">${a.matricula || '-'}</td>
         <td style="padding:10px 12px;">${carrerasRef[a.carreraId] || a.carreraId || '-'}</td>
         <td style="padding:10px 12px;text-align:center;">${a.periodo || '-'}</td>
