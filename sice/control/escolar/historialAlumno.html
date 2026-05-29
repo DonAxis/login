@@ -108,8 +108,26 @@
         ]);
 
         if (calSnap.empty) {
-          document.getElementById('contenido').innerHTML =
-            `<p style="color:#666;text-align:center;padding:40px;">Este alumno no tiene calificaciones registradas.</p>`;
+          document.getElementById('contenido').innerHTML = `
+            <div class="info-card">
+              <div><strong style="color:#666;">Alumno:</strong><br>${nombreAlumno}</div>
+              <div><strong style="color:#666;">Total Materias:</strong><br>
+                <span style="font-size:1.5rem;color:#999;font-weight:bold;">0</span></div>
+              <div><strong style="color:#666;">Periodos Cursados:</strong><br>
+                <span style="font-size:1.5rem;color:#999;font-weight:bold;">0</span></div>
+              <div class="btns-pdf">
+                <button class="btn-pdf rojo" onclick="descargarHistorialAlumnoPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}')">
+                  Historial Actual
+                </button>
+                <button class="btn-pdf azul" onclick="descargarInformeCalificacionesPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}', true)">
+                  Informe de Calificaciones
+                </button>
+                <button class="btn-pdf verde" onclick="verBoletaGlobalAlumno('${alumnoId}')">
+                  Boleta Global
+                </button>
+              </div>
+            </div>
+            <p style="color:#999;text-align:center;padding:20px;">Este alumno aún no tiene calificaciones capturadas.</p>`;
           return;
         }
 

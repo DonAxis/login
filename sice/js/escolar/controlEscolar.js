@@ -9,6 +9,7 @@ let grupoSeleccionado = null;
 let materiaSeleccionada = null;
 let periodoActual = '2026-1';
 let listaHistorial = [];
+let inscEspPorGrupo = {}; // { codigoGrupo: [{ alumnoId, materiaId }] } — especiales activos de la carrera seleccionada
 
 // ===== PROTECCIÓN DE PÁGINA =====
 auth.onAuthStateChanged(async (user) => {
@@ -208,9 +209,23 @@ async function seleccionarCarrera(carreraId, skipHistory = false) {
   carreraSeleccionada = carrerasData.find(c => c.id === carreraId);
   if (!carreraSeleccionada) return;
 
+  inscEspPorGrupo = {};
+
   try {
-    const configDoc = await db.collection('config').doc(`periodo_${carreraId}`).get();
+    const [configDoc, inscSnap] = await Promise.all([
+      db.collection('config').doc(`periodo_${carreraId}`).get(),
+      db.collection('inscripcionesEspeciales')
+        .where('carreraId', '==', carreraId)
+        .where('activa', '==', true)
+        .get()
+    ]);
     periodoActual = configDoc.exists ? (configDoc.data().periodo || '2026-1') : '2026-1';
+    inscSnap.docs.forEach(doc => {
+      const d = doc.data();
+      if (!d.codigoGrupo || !d.alumnoId || !d.materiaId) return;
+      if (!inscEspPorGrupo[d.codigoGrupo]) inscEspPorGrupo[d.codigoGrupo] = [];
+      inscEspPorGrupo[d.codigoGrupo].push({ alumnoId: d.alumnoId, materiaId: d.materiaId });
+    });
   } catch (e) {
     periodoActual = '2026-1';
   }
@@ -227,12 +242,15 @@ async function seleccionarCarrera(carreraId, skipHistory = false) {
 function mostrarGruposCarrera() {
   document.getElementById('gruposContainer').classList.add('active');
 
-  // Derivar grupos únicos del campo codigoGrupo de alumnosData
   const alumnosCarrera = alumnosData.filter(a =>
     a.carreraId === carreraSeleccionada.id && a.tipoAlumno !== 'especial' && a.codigoGrupo
   );
 
-  const gruposUnicos = [...new Set(alumnosCarrera.map(a => a.codigoGrupo))].sort();
+  // Grupos únicos: normales + grupos donde hay especiales inscritos
+  const gruposUnicos = [...new Set([
+    ...alumnosCarrera.map(a => a.codigoGrupo),
+    ...Object.keys(inscEspPorGrupo)
+  ])].sort();
 
   let html = `<div style="grid-column:1/-1; margin-bottom:10px;">
     <h2 class="titulo-seccion">${carreraSeleccionada.nombre}</h2>
@@ -243,7 +261,9 @@ function mostrarGruposCarrera() {
     html += '<div style="grid-column:1/-1;" class="sin-datos">No hay grupos con alumnos en esta carrera</div>';
   } else {
     gruposUnicos.forEach(codigo => {
-      const total = alumnosCarrera.filter(a => a.codigoGrupo === codigo).length;
+      const normales  = alumnosCarrera.filter(a => a.codigoGrupo === codigo).length;
+      const especiales = new Set((inscEspPorGrupo[codigo] || []).map(i => i.alumnoId)).size;
+      const total = normales + especiales;
       html += `
         <div class="grupo-card" onclick="seleccionarGrupo('${codigo.replace(/'/g, "\\'")}')">
           <h4>${codigo}</h4>
@@ -257,7 +277,7 @@ function mostrarGruposCarrera() {
     html += `
       <div class="grupo-card" onclick="verAlumnosEspeciales()" style="background:#fff3cd; border-left:4px solid #ff9800;">
         <h4>Especiales</h4>
-        <p>Alumnos sin grupo fijo</p>
+        <p>Alumnos de grupos cambiantes</p>
       </div>`;
   }
 
@@ -268,7 +288,9 @@ function mostrarGruposCarrera() {
 function seleccionarGrupo(codigoGrupo, skipHistory = false) {
   grupoSeleccionado = { codigoGrupo };
 
-  const totalAlumnos = alumnosData.filter(a => a.codigoGrupo === codigoGrupo && a.tipoAlumno !== 'especial').length;
+  const normalesGrupo  = alumnosData.filter(a => a.codigoGrupo === codigoGrupo && a.tipoAlumno !== 'especial').length;
+  const especialesGrupo = new Set((inscEspPorGrupo[codigoGrupo] || []).map(i => i.alumnoId)).size;
+  const totalAlumnos = normalesGrupo + especialesGrupo;
 
   const html = `
     <div style="grid-column:1/-1; margin-bottom:10px;">
@@ -306,18 +328,23 @@ function seleccionarGrupo(codigoGrupo, skipHistory = false) {
 
 // ===== VER ALUMNOS DEL GRUPO =====
 function verAlumnosGrupo() {
-  const alumnos = alumnosData
-    .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial')
-    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const grupo = grupoSeleccionado.codigoGrupo;
+
+  const normales = alumnosData.filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial');
+
+  const alumnoIdsEsp = new Set((inscEspPorGrupo[grupo] || []).map(i => i.alumnoId));
+  const especiales = alumnosData.filter(a => alumnoIdsEsp.has(a.uid));
+
+  const alumnos = [...normales, ...especiales].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) {
-    mostrarLista(`<h2 class="titulo-seccion">Alumnos — ${grupoSeleccionado.codigoGrupo}</h2>
+    mostrarLista(`<h2 class="titulo-seccion">Alumnos — ${grupo}</h2>
       <div class="sin-datos">No hay alumnos en este grupo</div>`);
     return;
   }
 
   let html = `
-    <h2 class="titulo-seccion">Alumnos — ${grupoSeleccionado.codigoGrupo}</h2>
+    <h2 class="titulo-seccion">Alumnos — ${grupo}</h2>
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
       <p style="margin:0; color:#666;">Total: ${alumnos.length} alumnos</p>
       <button onclick="generarListaObservacionesPDF()" class="btn-accion" style="white-space:nowrap;">Lista PDF</button>
@@ -654,20 +681,32 @@ async function verAlumnosEnMateria(materiaId, nombreMateria) {
         .filter(a => a.codigoGrupo === codigoGrupoMateria && a.tipoAlumno !== 'especial')
         .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-      for (const alumno of alumnosGrupo) {
+      // Especiales inscritos en esta materia específica dentro de este grupo
+      const espIds = (inscEspPorGrupo[codigoGrupoMateria] || [])
+        .filter(i => i.materiaId === materiaId)
+        .map(i => i.alumnoId);
+      const alumnosEsp = alumnosData
+        .filter(a => espIds.includes(a.uid))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+      const todosList = [...alumnosGrupo, ...alumnosEsp];
+
+      for (const alumno of todosList) {
         const docId = `${alumno.uid}_${materiaId}`;
         const calDoc = await db.collection('calificaciones').doc(docId).get({ source: 'server' })
           .catch(() => db.collection('calificaciones').doc(docId).get());
         const cal = calDoc.exists ? calDoc.data() : null;
         alumnosEnMateria.push({
           ...alumno,
-          parcial1:      cal?.parciales?.parcial1 ?? '-',
-          parcial2:      cal?.parciales?.parcial2 ?? '-',
-          parcial3:      cal?.parciales?.parcial3 ?? '-',
+          codigoGrupo:    alumno.codigoGrupo || codigoGrupoMateria,
+          parcial1:       cal?.parciales?.parcial1 ?? '-',
+          parcial2:       cal?.parciales?.parcial2 ?? '-',
+          parcial3:       cal?.parciales?.parcial3 ?? '-',
           extraordinario: cal?.extraordinario ?? null,
-          periodo:       cal?.periodo || periodoActual
+          periodo:        cal?.periodo || periodoActual
         });
       }
+      alumnosEnMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
     } else {
       // Sin contexto de grupo: fallback a query por calificaciones
       const calSnap = await db.collection('calificaciones')
@@ -1699,9 +1738,11 @@ async function guardarDatosAlumno(uid) {
 
 // ===== LISTA DE ALUMNOS CON OBSERVACIONES (PDF) =====
 function generarListaObservacionesPDF() {
-  const alumnos = alumnosData
-    .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial')
-    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const grupo = grupoSeleccionado.codigoGrupo;
+  const normales = alumnosData.filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial');
+  const alumnoIdsEsp = new Set((inscEspPorGrupo[grupo] || []).map(i => i.alumnoId));
+  const especiales = alumnosData.filter(a => alumnoIdsEsp.has(a.uid));
+  const alumnos = [...normales, ...especiales].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) { alert('No hay alumnos en este grupo'); return; }
 
