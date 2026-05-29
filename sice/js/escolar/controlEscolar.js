@@ -1751,7 +1751,6 @@ function generarListaObservacionesPDF() {
   const pageWidth = doc.internal.pageSize.getWidth();
 
   const fecha = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-  const grupo = grupoSeleccionado.codigoGrupo;
   const carrera = carreraSeleccionada ? carreraSeleccionada.nombre : '';
 
   // Logos
