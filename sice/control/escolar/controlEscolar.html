@@ -141,6 +141,7 @@
       <button id="btnPanelEditar"       class="tab-btn"        onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
       <button id="btnPanelBoletaGlobal" class="tab-btn"        onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button>
       <button id="btnPanelAprobar"      class="tab-btn"        onclick="mostrarPanelEscolar('aprobar')">Reinscribir</button>
+      <button id="btnPanelBuscar"       class="tab-btn"        onclick="mostrarPanelEscolar('buscar')">Buscar</button>
       <button id="btnPanelConfig"       class="tab-btn"        onclick="mostrarPanelEscolar('config')">Configuracion</button>
     </nav>
 
@@ -278,6 +279,21 @@
         <div id="boletagResultados">
           <p style="color:#999; text-align:center; padding:20px 0;">Selecciona una carrera o escribe un nombre.</p>
         </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ PANEL 6: BUSCAR ═════════════════════════════════════ -->
+    <div id="panelBuscar" class="panel-escolar">
+      <div class="content">
+        <h2 class="titulo-seccion">Buscar Alumno</h2>
+        <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
+          <input type="text" id="inputBuscarGlobal" placeholder="Nombre o matrícula..."
+            style="padding:0.55rem 0.9rem;border:1px solid #ccc;border-radius:6px;font-size:1rem;min-width:260px;flex:1;max-width:420px;"
+            oninput="_renderBuscarResultados(this.value.trim().toLowerCase())"
+            onkeydown="if(event.key==='Enter')buscarAlumnoGlobal()">
+          <button class="btn-accion" onclick="buscarAlumnoGlobal()">Buscar</button>
+        </div>
+        <div id="resultadosBuscarGlobal"></div>
       </div>
     </div>
 

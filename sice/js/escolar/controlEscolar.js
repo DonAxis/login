@@ -1803,7 +1803,7 @@ function generarListaObservacionesPDF() {
 // ═══ NAVEGACIÓN DE PANELES (controlEscolar) ═══
 
 function mostrarPanelEscolar(panel, skipHistory = false) {
-  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'config'];
+  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'config'];
   paneles.forEach(p => {
     const el = document.getElementById(`panel${p.charAt(0).toUpperCase() + p.slice(1)}`);
     const btn = document.getElementById(`btnPanel${p.charAt(0).toUpperCase() + p.slice(1)}`);
@@ -1820,6 +1820,11 @@ function mostrarPanelEscolar(panel, skipHistory = false) {
     grupoSeleccionado = null;
   }
   if (panel === 'aprobar') _poblarCarrerasAprobar();
+  if (panel === 'buscar') {
+    const dummy = document.getElementById('resultadosBuscarGlobal');
+    if (dummy) _cargarCacheBuscar(dummy).catch(() => {});
+    document.getElementById('inputBuscarGlobal')?.focus();
+  }
   if (panel === 'boletaGlobal') {
     inicializarBoletaGlobal(null, false, true);
     buscarAlumnoBoletaGlobal();
@@ -2013,5 +2018,83 @@ async function cambiarContrasenaEscolar() {
   } finally {
     btn.textContent = 'Actualizar Contrasena';
     btn.disabled = false;
+  }
+}
+
+// ── Buscar alumno global (sin filtro de carrera ni activo) ──────────────────
+let _carrerasMapBuscar = null;
+let _alumnosBuscarCache = null;   // cargado una vez, filtrado en memoria
+
+async function _cargarCacheBuscar(contenedor) {
+  if (_alumnosBuscarCache) return true;
+  contenedor.innerHTML = '<p style="color:#999;margin-top:0.5rem;">Cargando alumnos...</p>';
+  const [carrerasSnap, alumnosSnap] = await Promise.all([
+    _carrerasMapBuscar ? null : db.collection('carreras').get(),
+    db.collection('usuarios').where('rol', '==', 'alumno').get()
+  ]);
+  if (carrerasSnap) {
+    _carrerasMapBuscar = {};
+    carrerasSnap.docs.forEach(d => { _carrerasMapBuscar[d.id] = d.data().nombre || d.id; });
+  }
+  _alumnosBuscarCache = alumnosSnap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+  return true;
+}
+
+function _renderBuscarResultados(busqueda) {
+  const contenedor = document.getElementById('resultadosBuscarGlobal');
+  if (!contenedor || !_alumnosBuscarCache) return;
+
+  if (!busqueda) {
+    contenedor.innerHTML = '<p style="color:#999;margin-top:0.5rem;">Escribe un nombre o matrícula para buscar.</p>';
+    return;
+  }
+
+  const alumnos = _alumnosBuscarCache.filter(a => {
+    const n = (a.nombre || '').toLowerCase();
+    const m = (a.matricula || '').toLowerCase();
+    return n.includes(busqueda) || m.includes(busqueda);
+  });
+
+  if (alumnos.length === 0) {
+    contenedor.innerHTML = '<p style="color:#999;margin-top:0.5rem;">No se encontraron alumnos.</p>';
+    return;
+  }
+
+  const rows = alumnos.map(a => {
+    const inactivo = a.activo === false;
+    const badge = inactivo
+      ? ' <span style="background:#dc3545;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">INACTIVO</span>'
+      : '';
+    const rowBg = inactivo ? 'background:#fff5f5;' : '';
+    const carreraNombre = _carrerasMapBuscar[a.carreraId] || a.carreraId || '—';
+    return `<tr style="${rowBg}">
+      <td>${a.nombre || '—'}${badge}</td>
+      <td>${a.matricula || '—'}</td>
+      <td>${carreraNombre}</td>
+      <td><button class="btn-accion" onclick="verBoletaGlobalAlumno('${a.id}', false)">Ver Boleta</button></td>
+    </tr>`;
+  }).join('');
+
+  contenedor.innerHTML = `
+    <table class="tabla-alumnos">
+      <thead><tr><th>Nombre</th><th>Matrícula</th><th>Carrera</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="color:#999;font-size:0.85rem;margin-top:0.5rem;">${alumnos.length} resultado(s)</p>`;
+}
+
+async function buscarAlumnoGlobal() {
+  const input = document.getElementById('inputBuscarGlobal');
+  const busqueda = (input?.value || '').trim().toLowerCase();
+  const contenedor = document.getElementById('resultadosBuscarGlobal');
+  if (!contenedor) return;
+
+  try {
+    await _cargarCacheBuscar(contenedor);
+    _renderBuscarResultados(busqueda);
+  } catch (e) {
+    contenedor.innerHTML = `<p style="color:#dc3545;margin-top:0.5rem;">Error al buscar: ${e.message}</p>`;
   }
 }
