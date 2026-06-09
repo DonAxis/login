@@ -288,11 +288,10 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
       }
     }
 
-    // Cursando: para especiales → basta con inscripción activa (activa=true es fuente de verdad;
-    //           no se checa histMap porque el alumno puede estar retomando una materia reprobada)
+    // Cursando: para especiales → nunca bloquear (todo editable en Boleta Global)
     //           para normales  → mismo semestre y sin periodoAcademico
     const esCursandoMateria = esEspecial
-      ? (materiaId)         => inscripcionesActivasSet.has(materiaId)
+      ? ()                  => false
       : (materiaId, perNum) => alumnoSemActual > 0 && perNum === alumnoSemActual && !histMap[materiaId];
 
     // Calificación efectiva: ETS > extraordinario > promedio, con fallback a historialAcademico

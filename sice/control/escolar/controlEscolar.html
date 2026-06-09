@@ -142,6 +142,7 @@
       <button id="btnPanelBoletaGlobal" class="tab-btn"        onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button>
       <button id="btnPanelAprobar"      class="tab-btn"        onclick="mostrarPanelEscolar('aprobar')">Reinscribir</button>
       <button id="btnPanelBuscar"       class="tab-btn"        onclick="mostrarPanelEscolar('buscar')">Buscar</button>
+      <button id="btnPanelExAlumnos"    class="tab-btn"        onclick="mostrarPanelEscolar('exAlumnos')">Ex Alumnos</button>
       <button id="btnPanelConfig"       class="tab-btn"        onclick="mostrarPanelEscolar('config')">Configuracion</button>
     </nav>
 
@@ -294,6 +295,22 @@
           <button class="btn-accion" onclick="buscarAlumnoGlobal()">Buscar</button>
         </div>
         <div id="resultadosBuscarGlobal"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ PANEL 7: EX ALUMNOS ════════════════════════════════ -->
+    <div id="panelExAlumnos" class="panel-escolar">
+      <div class="content">
+        <h2 class="titulo-seccion">Ex Alumnos</h2>
+        <p style="color:#666;margin:0 0 16px;font-size:0.9rem;">Alumnos inactivos y egresados. Puedes ver su historial o reactivarlos.</p>
+        <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
+          <input type="text" id="inputBuscarExAlumno" placeholder="Nombre o matrícula..."
+            style="padding:0.55rem 0.9rem;border:1px solid #ccc;border-radius:6px;font-size:1rem;min-width:260px;flex:1;max-width:420px;"
+            oninput="filtrarExAlumnos()">
+        </div>
+        <div id="resultadosExAlumnos">
+          <p style="color:#999;text-align:center;padding:20px;">Cargando...</p>
+        </div>
       </div>
     </div>
 

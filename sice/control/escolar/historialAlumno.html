@@ -66,6 +66,125 @@
     }
   </script>
   <script>
+    // Estado compartido entre funciones de vista
+    const _h = {};
+
+    // Construye la tabla HTML para un periodo dado usando el estado en _h
+    function _construirTablaUnPeriodo(periodo) {
+      const mats = _h.porPeriodo[periodo];
+      if (!mats || mats.length === 0) {
+        return `<p style="color:#999;text-align:center;padding:20px;">Sin datos para este periodo.</p>`;
+      }
+      const { cabeceras, colsBeforePromedio, colsAfterPromedio, esMaestria, tieneEF } = _h;
+      let suma = 0, count = 0, tbodyHtml = '';
+
+      mats.forEach(m => {
+        let prom;
+        if (m.promedio !== null && m.promedio !== undefined) {
+          prom = redondearCalificacion(m.promedio);
+        } else {
+          const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+          const calNum = esMaestria
+            ? toN(m.parcial1)
+            : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
+          prom = redondearCalificacion(calNum);
+        }
+        const promStr = (prom === null || prom === undefined) ? '-' : String(prom);
+        const promNum = parseFloat(promStr);
+        const colorProm = promStr === 'NP' ? '#dc3545' : isNaN(promNum) ? '#333'
+          : promNum >= 8 ? '#4caf50' : promNum >= 6 ? '#ff9800' : '#f44336';
+        if (!isNaN(promNum)) { suma += promNum; count++; }
+
+        const p1 = m.parcial1 !== null && m.parcial1 !== undefined ? String(m.parcial1) : '-';
+        const p2 = m.parcial2 !== null && m.parcial2 !== undefined ? String(m.parcial2) : '-';
+        const p3 = m.parcial3 !== null && m.parcial3 !== undefined ? String(m.parcial3) : '-';
+        const extStr = m.extraordinario !== null && m.extraordinario !== undefined
+          ? String(redondearCalificacion(m.extraordinario)) : '-';
+        const etsStr = m.ets !== null && m.ets !== undefined
+          ? String(redondearCalificacion(m.ets)) : '-';
+
+        let celdas;
+        if (esMaestria) {
+          celdas = `<td style="text-align:center;font-weight:bold;font-size:1.2rem;color:${colorProm};">${promStr}</td>`;
+        } else if (tieneEF) {
+          celdas = `
+            <td style="text-align:center;font-weight:bold;">${p1}</td>
+            <td style="text-align:center;font-weight:bold;">${p2}</td>
+            <td style="text-align:center;font-weight:bold;">${p3}</td>
+            <td style="text-align:center;font-weight:bold;font-size:1.2rem;color:${colorProm};">${promStr}</td>
+            <td style="text-align:center;font-weight:bold;">${extStr}</td>`;
+        } else {
+          celdas = `
+            <td style="text-align:center;font-weight:bold;">${p1}</td>
+            <td style="text-align:center;font-weight:bold;">${p2}</td>
+            <td style="text-align:center;font-weight:bold;">${p3}</td>
+            <td style="text-align:center;font-weight:bold;font-size:1.2rem;color:${colorProm};">${promStr}</td>
+            <td style="text-align:center;font-weight:bold;">${extStr}</td>
+            <td style="text-align:center;font-weight:bold;">${etsStr}</td>`;
+        }
+        tbodyHtml += `<tr>
+          <td><strong>${m.materiaNombre}</strong></td>
+          <td>${m.materiaCodigo}</td>
+          ${celdas}
+        </tr>`;
+      });
+
+      const promPeriodo = count > 0 ? (suma / count).toFixed(1) : '-';
+      const colsAfterStr = colsAfterPromedio > 0 ? `<td colspan="${colsAfterPromedio}"></td>` : '';
+      return `
+        <table>
+          <thead><tr><th>Materia</th><th>Código</th>${cabeceras}</tr></thead>
+          <tbody>${tbodyHtml}</tbody>
+          <tfoot><tr>
+            <td colspan="${colsBeforePromedio}" style="text-align:right;padding-right:20px;">Promedio del Periodo:</td>
+            <td style="text-align:center;font-size:1.2rem;color:#6A2135;">${promPeriodo}</td>
+            ${colsAfterStr}
+          </tr></tfoot>
+        </table>`;
+    }
+
+    // Muestra solo el periodo anterior en la sección dinámica
+    function _vistaHistorialAnterior() {
+      const vistaEl = document.getElementById('vistaActiva');
+      if (!vistaEl) return;
+      const per = _h.periodoAnterior;
+      if (!per) {
+        vistaEl.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">No hay periodo anterior registrado.</p>';
+        return;
+      }
+      if (!_h.porPeriodo || !_h.porPeriodo[per]) {
+        vistaEl.innerHTML = `<p style="color:#999;text-align:center;padding:20px;">No hay calificaciones para el periodo ${per}.</p>`;
+        return;
+      }
+      vistaEl.innerHTML = `<h3 class="periodo-titulo">Periodo Anterior — ${per}</h3>` + _construirTablaUnPeriodo(per);
+    }
+
+    // Muestra el periodo actual inline + botón PDF
+    function _vistaInforme() {
+      const vistaEl = document.getElementById('vistaActiva');
+      if (!vistaEl) return;
+      const per   = _h.periodoActual;
+      const nomSafe = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const pdfBtn = `<div style="text-align:center;margin:16px 0;">
+        <button class="btn-pdf azul" style="max-width:300px;display:inline-block;"
+          onclick="descargarInformeCalificacionesPDF('${_h.alumnoId}', '${nomSafe}', true)">
+          Descargar Informe PDF
+        </button>
+      </div>`;
+
+      if (!per || !_h.porPeriodo || !_h.porPeriodo[per]) {
+        const label = per ? ` (${per})` : '';
+        vistaEl.innerHTML = `
+          <h3 class="periodo-titulo">Informe Periodo Actual${label}</h3>
+          <p style="color:#999;text-align:center;padding:10px;">Sin calificaciones capturadas para este periodo.</p>
+          ${pdfBtn}`;
+        return;
+      }
+      vistaEl.innerHTML = `<h3 class="periodo-titulo">Informe Periodo Actual — ${per}</h3>` +
+        _construirTablaUnPeriodo(per) + pdfBtn;
+    }
+
+    // ─────────────────────────────────────────
     const auth = firebase.auth();
 
     auth.onAuthStateChanged(async (user) => {
@@ -79,7 +198,7 @@
         return;
       }
       const params = new URLSearchParams(window.location.search);
-      const alumnoId    = params.get('id')     || sessionStorage.getItem('historialAlumnoId');
+      const alumnoId     = params.get('id')     || sessionStorage.getItem('historialAlumnoId');
       const alumnoNombre = params.get('nombre') || sessionStorage.getItem('historialAlumnoNombre') || 'Alumno';
 
       if (!alumnoId) {
@@ -92,22 +211,69 @@
 
     async function cargarHistorial(alumnoId, nombreAlumno) {
       try {
-        // Obtener carreraId del alumno para adaptar columnas
         const alumnoDoc = await db.collection('usuarios').doc(alumnoId).get();
         const carreraId = alumnoDoc.exists ? alumnoDoc.data().carreraId : null;
 
-        const [tieneEF, esMaestria] = await Promise.all([
+        const [tieneEF, esMaestria, configDoc] = await Promise.all([
           carreraId ? obtenerTieneExamenFinal(carreraId) : Promise.resolve(false),
-          carreraId ? obtenerEsMaestria(carreraId)       : Promise.resolve(false)
+          carreraId ? obtenerEsMaestria(carreraId)       : Promise.resolve(false),
+          carreraId ? db.collection('config').doc(`periodo_${carreraId}`).get() : Promise.resolve({ exists: false })
         ]);
 
-        // Cargar calificaciones del alumno
+        // Guardar en estado global para que los botones accedan
+        _h.alumnoId     = alumnoId;
+        _h.alumnoNombre = nombreAlumno;
+        _h.tieneEF      = tieneEF;
+        _h.esMaestria   = esMaestria;
+        _h.periodoActual   = configDoc.exists ? (configDoc.data().periodo        || null) : null;
+        _h.periodoAnterior = configDoc.exists ? (configDoc.data().periodoAnterior || null) : null;
+
+        // Construir cabeceras según tipo de carrera
+        if (esMaestria) {
+          _h.cabeceras = `<th style="text-align:center;">Calificación</th>`;
+          _h.colsBeforePromedio = 2; _h.colsAfterPromedio = 0;
+        } else if (tieneEF) {
+          _h.cabeceras = `
+            <th style="text-align:center;">Parcial 1</th>
+            <th style="text-align:center;">Parcial 2</th>
+            <th style="text-align:center;">Examen Final</th>
+            <th style="text-align:center;">Calificación</th>
+            <th style="text-align:center;">Extraordinario</th>`;
+          _h.colsBeforePromedio = 5; _h.colsAfterPromedio = 1;
+        } else {
+          _h.cabeceras = `
+            <th style="text-align:center;">Parcial 1</th>
+            <th style="text-align:center;">Parcial 2</th>
+            <th style="text-align:center;">Parcial 3</th>
+            <th style="text-align:center;">Promedio</th>
+            <th style="text-align:center;">Extraordinario</th>
+            <th style="text-align:center;">ETS</th>`;
+          _h.colsBeforePromedio = 5; _h.colsAfterPromedio = 2;
+        }
+
         const [calSnap, materiasSnap] = await Promise.all([
           db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
           db.collection('materias').get()
         ]);
 
+        const materiasCache = {};
+        materiasSnap.forEach(d => { materiasCache[d.id] = d.data(); });
+
+        // Labels dinámicos para los botones
+        const antLabel = _h.periodoAnterior ? `Historial Anterior (${_h.periodoAnterior})` : 'Historial Anterior';
+        const infLabel = _h.periodoActual   ? `Informe (${_h.periodoActual})` : 'Informe de Calificaciones';
+        const idSafe  = alumnoId;
+        const nomSafe = nombreAlumno.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+        const btnsHtml = `
+          <div class="btns-pdf">
+            <button class="btn-pdf rojo" onclick="_vistaHistorialAnterior()">${antLabel}</button>
+            <button class="btn-pdf azul" onclick="_vistaInforme()">${infLabel}</button>
+            <button class="btn-pdf verde" onclick="verBoletaGlobalAlumno('${idSafe}')">Boleta Global</button>
+          </div>`;
+
         if (calSnap.empty) {
+          _h.porPeriodo = {};
           document.getElementById('contenido').innerHTML = `
             <div class="info-card">
               <div><strong style="color:#666;">Alumno:</strong><br>${nombreAlumno}</div>
@@ -115,177 +281,59 @@
                 <span style="font-size:1.5rem;color:#999;font-weight:bold;">0</span></div>
               <div><strong style="color:#666;">Periodos Cursados:</strong><br>
                 <span style="font-size:1.5rem;color:#999;font-weight:bold;">0</span></div>
-              <div class="btns-pdf">
-                <button class="btn-pdf rojo" onclick="descargarHistorialAlumnoPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}')">
-                  Historial Actual
-                </button>
-                <button class="btn-pdf azul" onclick="descargarInformeCalificacionesPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}', true)">
-                  Informe de Calificaciones
-                </button>
-                <button class="btn-pdf verde" onclick="verBoletaGlobalAlumno('${alumnoId}')">
-                  Boleta Global
-                </button>
-              </div>
+              ${btnsHtml}
             </div>
-            <p style="color:#999;text-align:center;padding:20px;">Este alumno aún no tiene calificaciones capturadas.</p>`;
+            <div id="vistaActiva"><p style="color:#999;text-align:center;padding:20px;">Este alumno aún no tiene calificaciones capturadas.</p></div>`;
           return;
         }
 
-        const materiasCache = {};
-        materiasSnap.forEach(d => { materiasCache[d.id] = d.data(); });
-
-        // Procesar registros incluyendo extraordinario y ets
+        // Procesar calificaciones
         const materiasMap = {};
         calSnap.forEach(doc => {
           const cal = doc.data();
           const key = `${cal.materiaId}_${cal.periodo}`;
           materiasMap[key] = {
-            materiaNombre: cal.materiaNombre || materiasCache[cal.materiaId]?.nombre || 'Sin nombre',
-            materiaCodigo: cal.materiaCodigo || materiasCache[cal.materiaId]?.codigo || '',
-            periodo:       cal.periodo || 'N/A',
-            parcial1:      cal.parciales?.parcial1 ?? null,
-            parcial2:      cal.parciales?.parcial2 ?? null,
-            parcial3:      cal.parciales?.parcial3 ?? null,
-            promedio:      cal.promedio      ?? null,
+            materiaNombre:  cal.materiaNombre  || materiasCache[cal.materiaId]?.nombre || 'Sin nombre',
+            materiaCodigo:  cal.materiaCodigo  || materiasCache[cal.materiaId]?.codigo || '',
+            periodo:        cal.periodo        || 'N/A',
+            parcial1:       cal.parciales?.parcial1 ?? null,
+            parcial2:       cal.parciales?.parcial2 ?? null,
+            parcial3:       cal.parciales?.parcial3 ?? null,
+            promedio:       cal.promedio       ?? null,
             extraordinario: cal.extraordinario ?? null,
-            ets:           cal.ets            ?? null
+            ets:            cal.ets            ?? null
           };
         });
 
-        // Agrupar por periodo
         const porPeriodo = {};
         Object.values(materiasMap).forEach(m => {
           if (!porPeriodo[m.periodo]) porPeriodo[m.periodo] = [];
           porPeriodo[m.periodo].push(m);
         });
+        _h.porPeriodo = porPeriodo;
         const periodos = Object.keys(porPeriodo).sort().reverse();
 
-        // Columnas y posición de "Promedio del Periodo" según tipo de carrera
-        // colsBeforePromedio = cols antes de la columna de calificación final
-        // colsAfterPromedio  = cols vacías después de ella en el tfoot
-        let cabeceras, colsBeforePromedio, colsAfterPromedio;
-        if (esMaestria) {
-          cabeceras = `<th style="text-align:center;">Calificación</th>`;
-          colsBeforePromedio = 2; colsAfterPromedio = 0;
-        } else if (tieneEF) {
-          cabeceras = `
-            <th style="text-align:center;">Parcial 1</th>
-            <th style="text-align:center;">Parcial 2</th>
-            <th style="text-align:center;">Examen Final</th>
-            <th style="text-align:center;">Calificación</th>
-            <th style="text-align:center;">Extraordinario</th>`;
-          colsBeforePromedio = 5; colsAfterPromedio = 1;
-        } else {
-          cabeceras = `
-            <th style="text-align:center;">Parcial 1</th>
-            <th style="text-align:center;">Parcial 2</th>
-            <th style="text-align:center;">Parcial 3</th>
-            <th style="text-align:center;">Promedio</th>
-            <th style="text-align:center;">Extraordinario</th>
-            <th style="text-align:center;">ETS</th>`;
-          colsBeforePromedio = 5; colsAfterPromedio = 2;
-        }
+        // Fallback si no hay config: usar los periodos del alumno
+        if (!_h.periodoActual   && periodos.length > 0) _h.periodoActual   = periodos[0];
+        if (!_h.periodoAnterior && periodos.length > 1) _h.periodoAnterior = periodos[1];
 
-        // Construir HTML
-        let html = `
+        // Construir vista por defecto: todos los periodos
+        let htmlPeriodos = '';
+        periodos.forEach(p => {
+          htmlPeriodos += `<h3 class="periodo-titulo">Periodo ${p}</h3>` + _construirTablaUnPeriodo(p);
+        });
+
+        document.getElementById('contenido').innerHTML = `
           <div class="info-card">
             <div><strong style="color:#666;">Alumno:</strong><br>${nombreAlumno}</div>
             <div><strong style="color:#666;">Total Materias:</strong><br>
               <span style="font-size:1.5rem;color:#4caf50;font-weight:bold;">${Object.keys(materiasMap).length}</span></div>
             <div><strong style="color:#666;">Periodos Cursados:</strong><br>
               <span style="font-size:1.5rem;color:#6A2135;font-weight:bold;">${periodos.length}</span></div>
-            <div class="btns-pdf">
-              <button class="btn-pdf rojo" onclick="descargarHistorialAlumnoPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}')">
-                Historial Actual
-              </button>
-              <button class="btn-pdf azul" onclick="descargarInformeCalificacionesPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}', true)">
-                Informe de Calificaciones
-              </button>
-              <button class="btn-pdf verde" onclick="verBoletaGlobalAlumno('${alumnoId}')">
-                Boleta Global
-              </button>
-            </div>
-          </div>`;
+            ${btnsHtml}
+          </div>
+          <div id="vistaActiva">${htmlPeriodos}</div>`;
 
-        periodos.forEach(periodo => {
-          const materias = porPeriodo[periodo];
-          let suma = 0, count = 0;
-
-          html += `<h3 class="periodo-titulo">Periodo ${periodo}</h3>
-            <table>
-              <thead><tr>
-                <th>Materia</th><th>Código</th>
-                ${cabeceras}
-              </tr></thead>
-              <tbody>`;
-
-          materias.forEach(m => {
-            // Usar promedio almacenado si existe; sino recalcular desde parciales
-            let prom;
-            if (m.promedio !== null && m.promedio !== undefined) {
-              prom = redondearCalificacion(m.promedio);
-            } else {
-              const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
-              const calNum = esMaestria
-                ? toN(m.parcial1)
-                : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
-              prom = redondearCalificacion(calNum);
-            }
-
-            const promStr = (prom === null || prom === undefined) ? '-' : String(prom);
-            const promNum = parseFloat(promStr);
-            const colorProm = promStr === 'NP' ? '#dc3545'
-              : isNaN(promNum) ? '#333'
-              : promNum >= 8 ? '#4caf50' : promNum >= 6 ? '#ff9800' : '#f44336';
-            if (!isNaN(promNum)) { suma += promNum; count++; }
-
-            const p1 = m.parcial1 !== null && m.parcial1 !== undefined ? String(m.parcial1) : '-';
-            const p2 = m.parcial2 !== null && m.parcial2 !== undefined ? String(m.parcial2) : '-';
-            const p3 = m.parcial3 !== null && m.parcial3 !== undefined ? String(m.parcial3) : '-';
-            const extStr = m.extraordinario !== null && m.extraordinario !== undefined
-              ? String(redondearCalificacion(m.extraordinario)) : '-';
-            const etsStr = m.ets !== null && m.ets !== undefined
-              ? String(redondearCalificacion(m.ets)) : '-';
-
-            let celdas;
-            if (esMaestria) {
-              celdas = `<td style="text-align:center;font-weight:bold;font-size:1.2rem;color:${colorProm};">${promStr}</td>`;
-            } else if (tieneEF) {
-              celdas = `
-                <td style="text-align:center;font-weight:bold;">${p1}</td>
-                <td style="text-align:center;font-weight:bold;">${p2}</td>
-                <td style="text-align:center;font-weight:bold;">${p3}</td>
-                <td style="text-align:center;font-weight:bold;font-size:1.2rem;color:${colorProm};">${promStr}</td>
-                <td style="text-align:center;font-weight:bold;">${extStr}</td>`;
-            } else {
-              celdas = `
-                <td style="text-align:center;font-weight:bold;">${p1}</td>
-                <td style="text-align:center;font-weight:bold;">${p2}</td>
-                <td style="text-align:center;font-weight:bold;">${p3}</td>
-                <td style="text-align:center;font-weight:bold;font-size:1.2rem;color:${colorProm};">${promStr}</td>
-                <td style="text-align:center;font-weight:bold;">${extStr}</td>
-                <td style="text-align:center;font-weight:bold;">${etsStr}</td>`;
-            }
-
-            html += `<tr>
-              <td><strong>${m.materiaNombre}</strong></td>
-              <td>${m.materiaCodigo}</td>
-              ${celdas}
-            </tr>`;
-          });
-
-          const promPeriodo = count > 0 ? (suma / count).toFixed(1) : '-';
-          const colsAfterStr = colsAfterPromedio > 0 ? `<td colspan="${colsAfterPromedio}"></td>` : '';
-          html += `</tbody>
-            <tfoot><tr>
-              <td colspan="${colsBeforePromedio}" style="text-align:right;padding-right:20px;">Promedio del Periodo:</td>
-              <td style="text-align:center;font-size:1.2rem;color:#6A2135;">${promPeriodo}</td>
-              ${colsAfterStr}
-            </tr></tfoot>
-            </table>`;
-        });
-
-        document.getElementById('contenido').innerHTML = html;
       } catch (err) {
         console.error(err);
         document.getElementById('contenido').innerHTML =

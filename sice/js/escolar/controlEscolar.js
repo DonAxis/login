@@ -72,7 +72,7 @@ async function inicializar() {
 
   // Restaurar panel desde hash del navegador (recarga en pestaña específica)
   const hashPanel = location.hash.replace('#', '').split('/')[0];
-  const panelesValidos = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'config'];
+  const panelesValidos = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config'];
   const panelInicial = panelesValidos.includes(hashPanel) ? hashPanel : 'alumnos';
   mostrarPanelEscolar(panelInicial, true);
   history.replaceState({ panel: panelInicial, nivel: 'panel' }, '', '#' + panelInicial);
@@ -356,11 +356,18 @@ function verAlumnosGrupo() {
       <tbody>`;
 
   alumnos.forEach(alumno => {
+    const _nomSafe = alumno.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     html += `<tr>
       <td><strong>${alumno.matricula || 'N/A'}</strong></td>
       <td>${alumno.nombre}</td>
       <td>${alumno.periodo || periodoActual}</td>
-      <td><button onclick="verHistorialCompleto('${alumno.uid}', '${alumno.nombre.replace(/'/g, "\\'")}')">Ver Historial</button></td>
+      <td style="white-space:nowrap;">
+        <button onclick="verHistorialCompleto('${alumno.uid}', '${_nomSafe}')">Ver Historial</button>
+        <button onclick="toggleActivoAlumno('${alumno.uid}', '${_nomSafe}', false, 'grupo')"
+          style="background:#dc3545;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
+          Desactivar
+        </button>
+      </td>
     </tr>`;
   });
 
@@ -1258,12 +1265,15 @@ async function verDetalleAlumnoEspecial(alumnoId, nombreAlumno) {
     // Ordenar por materia
     inscripciones.sort((a, b) => a.materiaNombre.localeCompare(b.materiaNombre));
     
+    const _idSafe  = alumnoId;
+    const _nomSafe = alumno.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
     // Generar HTML
     let html = `
       <h2 class="titulo-seccion">Detalle Alumno Especial</h2>
-      
+
       <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #ff9800;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 16px;">
           <div>
             <strong style="color: #666;">Nombre:</strong><br>
             ${alumno.nombre}
@@ -1285,6 +1295,15 @@ async function verDetalleAlumnoEspecial(alumnoId, nombreAlumno) {
             <strong style="color: #666;">Materias Inscritas:</strong><br>
             <span style="font-size: 1.5rem; color: #4caf50; font-weight: bold;">${inscripciones.length}</span>
           </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-accion" onclick="verHistorialCompleto('${_idSafe}', '${_nomSafe}')">
+            Ver Historial
+          </button>
+          <button style="background:#388e3c;color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;"
+            onclick="verBoletaGlobalAlumno('${_idSafe}')">
+            Boleta Global
+          </button>
         </div>
       </div>
     `;
@@ -1803,7 +1822,7 @@ function generarListaObservacionesPDF() {
 // ═══ NAVEGACIÓN DE PANELES (controlEscolar) ═══
 
 function mostrarPanelEscolar(panel, skipHistory = false) {
-  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'config'];
+  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config'];
   paneles.forEach(p => {
     const el = document.getElementById(`panel${p.charAt(0).toUpperCase() + p.slice(1)}`);
     const btn = document.getElementById(`btnPanel${p.charAt(0).toUpperCase() + p.slice(1)}`);
@@ -1825,6 +1844,7 @@ function mostrarPanelEscolar(panel, skipHistory = false) {
     if (dummy) _cargarCacheBuscar(dummy).catch(() => {});
     document.getElementById('inputBuscarGlobal')?.focus();
   }
+  if (panel === 'exAlumnos') cargarExAlumnos();
   if (panel === 'boletaGlobal') {
     inicializarBoletaGlobal(null, false, true);
     buscarAlumnoBoletaGlobal();
@@ -2063,17 +2083,26 @@ function _renderBuscarResultados(busqueda) {
   }
 
   const rows = alumnos.map(a => {
-    const inactivo = a.activo === false;
+    const inactivo  = a.activo === false;
+    const _nomSafe  = (a.nombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const badge = inactivo
       ? ' <span style="background:#dc3545;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">INACTIVO</span>'
       : '';
     const rowBg = inactivo ? 'background:#fff5f5;' : '';
     const carreraNombre = _carrerasMapBuscar[a.carreraId] || a.carreraId || '—';
+    const btnColor = inactivo ? '#4caf50' : '#dc3545';
+    const btnLabel = inactivo ? 'Activar' : 'Desactivar';
     return `<tr style="${rowBg}">
       <td>${a.nombre || '—'}${badge}</td>
       <td>${a.matricula || '—'}</td>
       <td>${carreraNombre}</td>
-      <td><button class="btn-accion" onclick="verBoletaGlobalAlumno('${a.id}', false)">Ver Boleta</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn-accion" onclick="verBoletaGlobalAlumno('${a.id}', false)">Ver Boleta</button>
+        <button onclick="toggleActivoAlumno('${a.id}', '${_nomSafe}', ${!inactivo}, 'buscar')"
+          style="background:${btnColor};color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
+          ${btnLabel}
+        </button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -2083,6 +2112,118 @@ function _renderBuscarResultados(busqueda) {
       <tbody>${rows}</tbody>
     </table>
     <p style="color:#999;font-size:0.85rem;margin-top:0.5rem;">${alumnos.length} resultado(s)</p>`;
+}
+
+// ── Ex Alumnos ───────────────────────────────────────────────────────────────
+let _exAlumnosCache     = null;
+let _carrerasMapExAlumnos = null;
+
+async function cargarExAlumnos() {
+  const contenedor = document.getElementById('resultadosExAlumnos');
+  if (!contenedor) return;
+
+  if (!_exAlumnosCache) {
+    contenedor.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Cargando ex alumnos...</p>';
+    try {
+      const [carrerasSnap, alumnosSnap] = await Promise.all([
+        _carrerasMapExAlumnos
+          ? Promise.resolve(null)
+          : db.collection('carreras').get(),
+        db.collection('usuarios')
+          .where('rol', '==', 'alumno')
+          .where('activo', '==', false)
+          .get()
+      ]);
+      if (carrerasSnap) {
+        _carrerasMapExAlumnos = {};
+        carrerasSnap.docs.forEach(d => { _carrerasMapExAlumnos[d.id] = d.data().nombre || d.id; });
+      }
+      _exAlumnosCache = alumnosSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    } catch (e) {
+      contenedor.innerHTML = `<p style="color:#dc3545;text-align:center;padding:20px;">Error al cargar: ${e.message}</p>`;
+      return;
+    }
+  }
+  filtrarExAlumnos();
+}
+
+function filtrarExAlumnos() {
+  const busqueda = (document.getElementById('inputBuscarExAlumno')?.value || '').trim().toLowerCase();
+  _renderExAlumnos(busqueda);
+}
+
+function _renderExAlumnos(busqueda) {
+  const contenedor = document.getElementById('resultadosExAlumnos');
+  if (!contenedor || !_exAlumnosCache) return;
+
+  let alumnos = _exAlumnosCache;
+  if (busqueda) {
+    alumnos = alumnos.filter(a =>
+      (a.nombre   || '').toLowerCase().includes(busqueda) ||
+      (a.matricula|| '').toLowerCase().includes(busqueda)
+    );
+  }
+
+  if (alumnos.length === 0) {
+    contenedor.innerHTML = busqueda
+      ? '<p style="color:#999;text-align:center;padding:20px;">No se encontraron ex alumnos con ese criterio.</p>'
+      : '<p style="color:#999;text-align:center;padding:20px;">No hay ex alumnos registrados.</p>';
+    return;
+  }
+
+  const rows = alumnos.map(a => {
+    const _nomSafe     = (a.nombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const esGraduado   = a.graduado === true;
+    const badge = esGraduado
+      ? ' <span style="background:#4caf50;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">GRADUADO</span>'
+      : ' <span style="background:#757575;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">BAJA</span>';
+    const carreraNombre = (_carrerasMapExAlumnos || {})[a.carreraId] || a.carreraId || '—';
+    return `<tr>
+      <td>${a.nombre || '—'}${badge}</td>
+      <td>${a.matricula || '—'}</td>
+      <td>${carreraNombre}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-accion" onclick="verHistorialCompleto('${a.id}', '${_nomSafe}')">Ver Historial</button>
+        <button onclick="toggleActivoAlumno('${a.id}', '${_nomSafe}', true, 'exAlumnos')"
+          style="background:#4caf50;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
+          Reactivar
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  contenedor.innerHTML = `
+    <table class="tabla-alumnos">
+      <thead><tr><th>Nombre</th><th>Matrícula</th><th>Carrera</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="color:#999;font-size:0.85rem;margin-top:0.5rem;">${alumnos.length} resultado(s)</p>`;
+}
+
+// ── Activar / Desactivar alumno ──────────────────────────────────────────────
+async function toggleActivoAlumno(uid, nombre, nuevoEstado, contexto) {
+  const accion = nuevoEstado ? 'activar' : 'desactivar';
+  if (!confirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} al alumno "${nombre}"?`)) return;
+  try {
+    await db.collection('usuarios').doc(uid).update({ activo: nuevoEstado });
+    // Invalidar caché de búsqueda y ex-alumnos para que el siguiente acceso recargue
+    _alumnosBuscarCache = null;
+    _exAlumnosCache     = null;
+    await cargarAlumnos();
+    actualizarEstadisticas();
+    if (contexto === 'buscar') {
+      await buscarAlumnoGlobal();
+    } else if (contexto === 'exAlumnos') {
+      await cargarExAlumnos();
+    } else {
+      verAlumnosGrupo();
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Error al actualizar estado del alumno.');
+  }
 }
 
 async function buscarAlumnoGlobal() {
