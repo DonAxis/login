@@ -10,6 +10,9 @@ let filtroEsp = null;
 let filtroPer = null;
 let reporteDetalleActual = null; // Para PDF
 let pendientesCache = [];
+let modoGrupo = false;
+let alumnosGrupo = [];
+let profesoresPorGrupo = {};
 
 // Filtro invisible — solo estas carreras son visibles para el prefecto
 const CARRERAS_PERMITIDAS = ['TA', 'TAE', 'TC', 'TI', 'TIAC', 'TT', 'DE', 'PRUEBA'];
@@ -165,6 +168,7 @@ function aplicarFiltros() {
   });
 
   renderAlumnos(filtrado);
+  actualizarBtnGrupo();
 }
 
 function renderAlumnos(lista) {
@@ -193,6 +197,13 @@ function renderAlumnos(lista) {
 async function abrirModalConfirmar(alumnoId) {
   const alumno = alumnosCache.find(a => a.id === alumnoId);
   if (!alumno) return;
+
+  modoGrupo = false;
+  alumnosGrupo = [];
+  profesoresPorGrupo = {};
+  document.getElementById('modalTitulo').textContent          = 'Confirmar Solicitud de Reporte';
+  document.getElementById('modalFilaIndividual').style.display = 'block';
+  document.getElementById('modalGrupoInfo').style.display      = 'none';
 
   alumnoSeleccionado = alumno;
 
@@ -250,9 +261,20 @@ function cerrarModalConfirmar() {
   document.getElementById('modalConfirmar').style.display = 'none';
   alumnoSeleccionado = null;
   profesoresSeleccionados = [];
+  modoGrupo = false;
+  alumnosGrupo = [];
+  profesoresPorGrupo = {};
 }
 
 async function confirmarSolicitud() {
+  if (modoGrupo) {
+    await confirmarSolicitudGrupo();
+  } else {
+    await confirmarSolicitudIndividual();
+  }
+}
+
+async function confirmarSolicitudIndividual() {
   if (!alumnoSeleccionado || !profesoresSeleccionados.length) return;
 
   const btn = document.getElementById('btnConfirmarSolicitud');
@@ -296,6 +318,209 @@ async function confirmarSolicitud() {
     btn.disabled = false;
     btn.textContent = 'Enviar Solicitud';
   }
+}
+
+async function confirmarSolicitudGrupo() {
+  if (!alumnosGrupo.length) return;
+
+  const btn = document.getElementById('btnConfirmarSolicitud');
+  const msgEl = document.getElementById('modalMensaje');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  try {
+    const batch = db.batch();
+    const ahora = new Date().toISOString();
+    let creados = 0;
+
+    alumnosGrupo.forEach(alumno => {
+      const cg = alumno.codigoGrupo || '';
+      const profes = profesoresPorGrupo[cg] || [];
+      if (!profes.length) return;
+
+      const profesoresMap = {};
+      const profesoresPendientes = [];
+      profes.forEach(p => {
+        profesoresMap[p.id] = { nombre: p.nombre, respuesta: null, fecha: null };
+        profesoresPendientes.push(p.id);
+      });
+
+      const ref = db.collection('reportesPrefecto').doc();
+      batch.set(ref, {
+        alumnoId:             alumno.id,
+        alumnoNombre:         alumno.nombre || '',
+        codigoGrupo:          cg,
+        prefectoId:           prefectoActual.uid,
+        prefectoNombre:       prefectoActual.nombre || '',
+        fechaSolicitud:       ahora,
+        profesoresPendientes: profesoresPendientes,
+        profesores:           profesoresMap
+      });
+      creados++;
+    });
+
+    await batch.commit();
+
+    msgEl.innerHTML = `
+      <div class="msg-success" style="margin-bottom:10px;">
+        Solicitud enviada para ${creados} alumno${creados !== 1 ? 's' : ''}.
+      </div>
+      <button onclick="avisarGrupoWhatsAppMasivo()" class="btn-primary"
+              style="background:linear-gradient(135deg,#25d366 0%,#128c7e 100%); margin-top:0;">
+        📲 Avisar al grupo de WhatsApp
+      </button>
+    `;
+    btn.style.display = 'none';
+    document.getElementById('btnCerrarTrasEnvio').style.display = 'block';
+
+  } catch (e) {
+    msgEl.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Enviar Solicitud';
+  }
+}
+
+// ============================================================================
+// REPORTE DE GRUPO COMPLETO
+// ============================================================================
+
+function actualizarBtnGrupo() {
+  const btn  = document.getElementById('btnReportarGrupo');
+  const hint = document.getElementById('hintBtnGrupo');
+  if (!btn) return;
+
+  if (filtroEsp && filtroPer) {
+    const count = alumnosCache.filter(a =>
+      (a.carreraId || '').trim() === filtroEsp && Number(a.periodo) === filtroPer
+    ).length;
+
+    if (count > 0) {
+      btn.disabled        = false;
+      btn.style.opacity   = '1';
+      btn.style.cursor    = 'pointer';
+      btn.textContent     = `📋 Reportar grupo completo · ${count} alumno${count !== 1 ? 's' : ''}`;
+      hint.textContent    = '';
+    } else {
+      btn.disabled        = true;
+      btn.style.opacity   = '0.45';
+      btn.style.cursor    = 'not-allowed';
+      btn.textContent     = '📋 Reportar grupo completo';
+      hint.textContent    = 'No hay alumnos en este filtro';
+    }
+  } else {
+    btn.disabled      = true;
+    btn.style.opacity = '0.45';
+    btn.style.cursor  = 'not-allowed';
+    btn.textContent   = '📋 Reportar grupo completo';
+    if (!filtroEsp && !filtroPer) {
+      hint.textContent = 'Selecciona especialidad y periodo';
+    } else if (!filtroEsp) {
+      hint.textContent = 'Selecciona especialidad';
+    } else {
+      hint.textContent = 'Selecciona periodo';
+    }
+  }
+}
+
+async function abrirModalGrupo() {
+  alumnosGrupo = alumnosCache.filter(a =>
+    (a.carreraId || '').trim() === filtroEsp && Number(a.periodo) === filtroPer
+  );
+  if (!alumnosGrupo.length) return;
+
+  modoGrupo = true;
+  alumnoSeleccionado = null;
+
+  // Preparar modal en modo grupo
+  document.getElementById('modalTitulo').textContent           = 'Confirmar Reporte de Grupo';
+  document.getElementById('modalFilaIndividual').style.display = 'none';
+
+  const codigosGrupo = [...new Set(alumnosGrupo.map(a => a.codigoGrupo).filter(Boolean))];
+  const grupoLabel   = codigosGrupo.length ? codigosGrupo.join(', ') : 'Sin grupo';
+
+  document.getElementById('modalGrupoInfo').style.display = 'block';
+  document.getElementById('modalGrupoInfo').innerHTML = `
+    <p style="margin:0 0 4px 0; color:#333;">
+      <strong>${filtroEsp}</strong> · Periodo <strong>${filtroPer}</strong>
+      &nbsp;·&nbsp; Grupo <strong>${grupoLabel}</strong>
+    </p>
+    <p style="color:#666; font-size:0.88rem; margin:0 0 8px 0;">
+      ${alumnosGrupo.length} alumno${alumnosGrupo.length !== 1 ? 's' : ''} seleccionado${alumnosGrupo.length !== 1 ? 's' : ''}:
+    </p>
+    <div style="max-height:130px; overflow-y:auto; border:1px solid #e0f7fa;
+                border-radius:6px; padding:8px; background:#f9fefe;">
+      ${alumnosGrupo.map(a => `<div style="font-size:0.88rem; padding:2px 0; color:#333;">${a.nombre || 'Sin nombre'}</div>`).join('')}
+    </div>
+  `;
+
+  // Resetear estado del modal
+  document.getElementById('modalListaProfes').innerHTML         = '<em style="color:#666;">Buscando profesores...</em>';
+  document.getElementById('modalSinProfes').style.display       = 'none';
+  document.getElementById('modalMensaje').innerHTML             = '';
+  const btnConfirmar = document.getElementById('btnConfirmarSolicitud');
+  btnConfirmar.disabled    = false;
+  btnConfirmar.textContent = 'Enviar Solicitud';
+  btnConfirmar.style.display = 'block';
+  document.getElementById('btnCerrarTrasEnvio').style.display  = 'none';
+  document.getElementById('btnCancelarSolicitud').style.display = 'block';
+  document.getElementById('modalConfirmar').style.display       = 'flex';
+
+  // Consultar profesores por cada codigoGrupo único
+  profesoresSeleccionados = [];
+  profesoresPorGrupo      = {};
+
+  try {
+    const snaps = await Promise.all(
+      codigosGrupo.map(cg =>
+        db.collection('profesorMaterias').where('codigoGrupo', '==', cg).get()
+      )
+    );
+
+    const globalMapa = {};
+    codigosGrupo.forEach((cg, i) => {
+      const mapa = {};
+      snaps[i].forEach(doc => {
+        const d = doc.data();
+        if (d.profesorId) {
+          mapa[d.profesorId]       = d.profesorNombre || 'Profesor';
+          globalMapa[d.profesorId] = d.profesorNombre || 'Profesor';
+        }
+      });
+      profesoresPorGrupo[cg] = Object.entries(mapa).map(([id, nombre]) => ({ id, nombre }));
+    });
+
+    profesoresSeleccionados = Object.entries(globalMapa).map(([id, nombre]) => ({ id, nombre }));
+
+    if (!profesoresSeleccionados.length) {
+      document.getElementById('modalListaProfes').innerHTML = '';
+      document.getElementById('modalSinProfes').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('modalListaProfes').innerHTML =
+      profesoresSeleccionados.map(p => `<span class="profe-tag">${p.nombre}</span>`).join('');
+
+  } catch (e) {
+    document.getElementById('modalListaProfes').innerHTML =
+      `<span style="color:#d32f2f;">Error: ${e.message}</span>`;
+  }
+}
+
+function avisarGrupoWhatsAppMasivo() {
+  const codigosGrupo = [...new Set(alumnosGrupo.map(a => a.codigoGrupo).filter(Boolean))];
+  const grupoLabel   = codigosGrupo.join(', ') || '';
+  const count        = alumnosGrupo.length;
+  const link         = 'https://ilbcontrol.mx/sice/control/profe/controlProfe.html';
+
+  const mensaje =
+    `*Reporte escolar grupal solicitado*\n\n` +
+    `Especialidad: *${filtroEsp}* · Periodo: *${filtroPer}*\n` +
+    `Grupo: *${grupoLabel}*\n` +
+    `Alumnos reportados: *${count}*\n\n` +
+    `Por favor registren su observación en el sistema:\n` +
+    `${link}`;
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
 function avisarGrupoWhatsApp() {
