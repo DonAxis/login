@@ -58,6 +58,7 @@
   <script src="../../js/utils/calificaciones.js"></script>
   <script src="../../js/coordinador/HistorialAlumnoPDF.js"></script>
   <script src="../../js/coordinador/InformeCalificacionesPDF.js"></script>
+  <script src="../../js/escolar/PeriodoPDF.js"></script>
   <script src="../../js/escolar/boletaGlobal.js"></script>
   <script>
     function cerrarModal() {
@@ -252,17 +253,20 @@
       if (!vistaEl) return;
 
       const periodos = Object.keys(_h.porPeriodo || {}).sort().reverse();
-      const nomSafe  = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      const pdfBtn   = `<div style="text-align:right;margin-bottom:16px;">
-        <button class="btn-pdf azul" style="display:inline-block;width:auto;padding:10px 20px;"
-          onclick="descargarInformeCalificacionesPDF('${_h.alumnoId}', '${nomSafe}', true)">
-          Descargar Informe PDF
-        </button></div>`;
 
       if (periodos.length === 0) {
-        vistaEl.innerHTML = pdfBtn + '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones registradas.</p>';
+        vistaEl.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones registradas.</p>';
         return;
       }
+
+      const nomSafe = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      // PDF solo del periodo más reciente con datos reales
+      const perPDF  = periodos[0];
+      const pdfBtn  = `<div style="text-align:right;margin-bottom:16px;">
+        <button class="btn-pdf azul" style="display:inline-block;width:auto;padding:10px 20px;"
+          onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', '${perPDF}', true)">
+          Descargar Informe PDF (${perPDF})
+        </button></div>`;
 
       // Tarjeta resumen del alumno (igual que encabezado del PDF)
       const turnoStr = _TURNOS_H[_h.turnoNum]      || String(_h.turnoNum      || '—');
@@ -300,17 +304,18 @@
         ? _h.periodoAnterior
         : (periodos.length > 1 ? periodos[1] : null);
 
+      if (!per) {
+        vistaEl.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">No hay periodo anterior con calificaciones registradas.</p>';
+        return;
+      }
+
       const nomSafe = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const pdfBtn  = `<div style="text-align:right;margin-bottom:16px;">
         <button class="btn-pdf rojo" style="display:inline-block;width:auto;padding:10px 20px;"
-          onclick="descargarHistorialAlumnoPDF('${_h.alumnoId}', '${nomSafe}')">
-          Descargar Historial PDF
+          onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', '${per}', true)">
+          Descargar PDF (${per})
         </button></div>`;
 
-      if (!per) {
-        vistaEl.innerHTML = pdfBtn + '<p style="color:#999;text-align:center;padding:20px;">No hay periodo anterior con calificaciones registradas.</p>';
-        return;
-      }
       vistaEl.innerHTML = pdfBtn +
         `<h3 class="periodo-titulo">Periodo Anterior — ${per}</h3>` +
         _construirTablaUnPeriodo(per);
