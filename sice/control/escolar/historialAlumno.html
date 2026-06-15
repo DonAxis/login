@@ -288,10 +288,13 @@
           </div>
         </div>`;
 
-      // Una sola tabla con TODAS las materias activas (sin agrupar por periodo)
-      const todasMaterias = periodos.flatMap(p => _h.porPeriodo[p] || []);
+      // Solo materias del periodo actual (excluye periodoAnterior)
+      const perAnteriorKey = _h.periodoAnterior ? String(_h.periodoAnterior) : null;
+      const todasMaterias = periodos
+        .filter(p => p !== perAnteriorKey)
+        .flatMap(p => _h.porPeriodo[p] || []);
       vistaEl.innerHTML = pdfBtn + resumen +
-        `<h3 class="periodo-titulo">Calificaciones del Periodo Actual</h3>` +
+        `<h3 class="periodo-titulo">Calificaciones del Periodo Actual${_h.periodoActual ? ' — ' + _h.periodoActual : ''}</h3>` +
         _construirTablaConFaltasArray(todasMaterias);
     }
 
@@ -473,11 +476,15 @@
           if (periodos.length > 1) _h.periodoAnterior = periodos[1];
         }
 
-        // Vista por defecto: todos los periodos (tabla simple sin faltas)
-        let htmlPeriodos = '';
-        periodos.forEach(p => {
-          htmlPeriodos += `<h3 class="periodo-titulo">Periodo ${p}</h3>` + _construirTablaUnPeriodo(p);
-        });
+        // Vista por defecto: solo periodo actual (excluye periodoAnterior)
+        const _perAntKey = _h.periodoAnterior ? String(_h.periodoAnterior) : null;
+        const _matsActuales = periodos
+          .filter(p => p !== _perAntKey)
+          .flatMap(p => porPeriodo[p] || []);
+        const htmlPeriodos = _matsActuales.length > 0
+          ? `<h3 class="periodo-titulo">Periodo Actual${_h.periodoActual ? ' — ' + _h.periodoActual : ''}</h3>`
+            + _construirTablaConFaltasArray(_matsActuales)
+          : '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones para el periodo actual.</p>';
 
         document.getElementById('contenido').innerHTML = `
           <div class="info-card">

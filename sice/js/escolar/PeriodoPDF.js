@@ -28,7 +28,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
 
     // ── Datos del alumno y carrera ────────────────────────────────
     let especialidad = '', grupo = '', turnoStr = '', semestreStr = '', noControl = '';
-    let tieneEF = false, esMaestria = false;
+    let tieneEF = false, esMaestria = false, periodoAnterior = null;
 
     const alumnoDoc = await db.collection('usuarios').doc(alumnoId).get();
     if (alumnoDoc.exists) {
@@ -40,7 +40,12 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
 
       if (a.carreraId) {
         try {
-          const cDoc = await db.collection('carreras').doc(a.carreraId).get();
+          const [cDoc, cfgDoc] = await Promise.all([
+            db.collection('carreras').doc(a.carreraId).get(),
+            periodoKey === null
+              ? db.collection('config').doc(`periodo_${a.carreraId}`).get()
+              : Promise.resolve({ exists: false })
+          ]);
           if (cDoc.exists) {
             const c = cDoc.data();
             especialidad = (c.nombre || '').toUpperCase();
@@ -48,6 +53,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
             esMaestria   = (c.codigo || '').startsWith('M') ||
                            (c.nombre  || '').toLowerCase().startsWith('maestr');
           }
+          if (cfgDoc.exists) periodoAnterior = cfgDoc.data().periodoAnterior || null;
         } catch (_) {}
       }
     }
@@ -59,7 +65,12 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     const registros = [];
     calSnap.forEach(calDoc => {
       const cal = calDoc.data();
-      if (periodoKey !== null && normP(cal.periodo) !== periodoKey) return;
+      if (periodoKey === null) {
+        // Informe: excluir materias del periodo anterior
+        if (periodoAnterior && normP(cal.periodo) === String(periodoAnterior)) return;
+      } else {
+        if (normP(cal.periodo) !== periodoKey) return;
+      }
 
       const p1Raw = cal.parciales?.parcial1 ?? null;
       const p2Raw = cal.parciales?.parcial2 ?? null;
