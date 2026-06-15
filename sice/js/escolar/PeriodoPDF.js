@@ -53,10 +53,13 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     }
 
     // ── Filtrar al periodo solicitado ─────────────────────────────
+    // Normalización: null/undefined → 'N/A', número → string (igual que cargarHistorial)
+    const normP = v => (v === null || v === undefined || v === '') ? 'N/A' : String(v);
+    // periodoKey === null → sin filtro (mostrar todos)
     const registros = [];
     calSnap.forEach(calDoc => {
       const cal = calDoc.data();
-      if (cal.periodo !== periodoKey) return;
+      if (periodoKey !== null && normP(cal.periodo) !== periodoKey) return;
 
       const p1Raw = cal.parciales?.parcial1 ?? null;
       const p2Raw = cal.parciales?.parcial2 ?? null;
@@ -85,7 +88,8 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     });
 
     if (registros.length === 0) {
-      alert(`No hay calificaciones registradas para el periodo ${periodoKey}.`);
+      const labelPer = periodoKey === null ? 'actual' : periodoKey;
+      alert(`No hay calificaciones registradas para el periodo ${labelPer}.`);
       return;
     }
 
@@ -113,8 +117,10 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 27, { align: 'center' });
+    const tituloDoc = periodoKey === null ? 'INFORME DE CALIFICACIONES' : 'CALIFICACIONES DEL PERIODO';
+    const labelPeriodo = periodoKey === null ? 'ACTUAL' : periodoKey;
     doc.setFontSize(11);
-    doc.text('CALIFICACIONES DEL PERIODO', pageWidth / 2, 34, { align: 'center' });
+    doc.text(tituloDoc, pageWidth / 2, 34, { align: 'center' });
     doc.setLineWidth(0.5);
     doc.setDrawColor(...HEAD_COLOR);
     doc.line(10, 38, pageWidth - 10, 38);
@@ -131,8 +137,8 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       doc.setFont(undefined, 'normal'); doc.setTextColor(0,0,0); doc.text(valor, xValor, y);
     };
 
-    campo('FECHA:',    fecha,        izq,          izq + 16);
-    campo('PERIODO:',  periodoKey,   der - 60,     der - 40);
+    campo('FECHA:',    fecha,         izq,      izq + 16);
+    campo('PERIODO:',  labelPeriodo,  der - 60, der - 40);
     y += 6;
     campo('ESPECIALIDAD:', especialidad, izq,      izq + 32);
     campo('NO. CONTROL:',  noControl,    der - 60, der - 35);
@@ -242,8 +248,9 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       doc.text(`Página ${i} de ${numPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
     }
 
-    const nombre = nombreAlumno.replace(/\s+/g, '_');
-    doc.save(`Calificaciones_${periodoKey}_${nombre}.pdf`);
+    const nombre   = nombreAlumno.replace(/\s+/g, '_');
+    const sufijoPer = periodoKey === null ? 'Actual' : periodoKey;
+    doc.save(`Calificaciones_${sufijoPer}_${nombre}.pdf`);
 
   } catch (error) {
     console.error('Error al generar PDF de periodo:', error);
