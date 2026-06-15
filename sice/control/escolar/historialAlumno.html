@@ -75,106 +75,12 @@
       6: 'Sexto',   7: 'Séptimo', 8: 'Octavo',   9: 'Noveno'
     };
 
-    // ── Tabla con P1/F1/P2/F2/P3/F3/Calificación/Extra/ETS (igual al PDF) ────
+    // ── Tabla con P1/F1/P2/F2/P3/F3/Calificación/Extra/ETS: delega al array ──
     function _construirTablaConFaltas(periodo) {
-      const mats = (_h.porPeriodo || {})[periodo];
-      if (!mats || mats.length === 0) {
-        return '<p style="color:#999;text-align:center;padding:20px;">Sin datos para este periodo.</p>';
-      }
-      const { esMaestria, tieneEF } = _h;
-
-      let thsCols, colsAntesCal, colsDespuesCal;
-      if (esMaestria) {
-        thsCols = '<th style="text-align:center;">Calificación</th>';
-        colsAntesCal = 2; colsDespuesCal = 0;
-      } else if (tieneEF) {
-        thsCols = `
-          <th style="text-align:center;">P1</th><th style="text-align:center;">Faltas</th>
-          <th style="text-align:center;">P2</th><th style="text-align:center;">Faltas</th>
-          <th style="text-align:center;">Exam.Final</th><th style="text-align:center;">-</th>
-          <th style="text-align:center;font-weight:bold;">Calificación</th>
-          <th style="text-align:center;">Extra</th><th style="text-align:center;">ETS</th>`;
-        colsAntesCal = 8; colsDespuesCal = 2;
-      } else {
-        thsCols = `
-          <th style="text-align:center;">P1</th><th style="text-align:center;">Faltas</th>
-          <th style="text-align:center;">P2</th><th style="text-align:center;">Faltas</th>
-          <th style="text-align:center;">P3</th><th style="text-align:center;">Faltas</th>
-          <th style="text-align:center;font-weight:bold;">Calificación</th>
-          <th style="text-align:center;">Extra</th><th style="text-align:center;">ETS</th>`;
-        colsAntesCal = 8; colsDespuesCal = 2;
-      }
-
-      const val = x => (x !== null && x !== undefined) ? String(x) : '-';
-      let suma = 0, count = 0, tbody = '';
-
-      mats.forEach((m, i) => {
-        let prom;
-        if (m.promedio !== null && m.promedio !== undefined) {
-          prom = redondearCalificacion(m.promedio);
-        } else {
-          const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
-          const calNum = esMaestria
-            ? toN(m.parcial1)
-            : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
-          prom = redondearCalificacion(calNum);
-        }
-        const promStr   = (prom === null || prom === undefined) ? '-' : String(prom);
-        const promNum   = parseFloat(promStr);
-        const colorProm = promStr === 'NP' ? '#dc3545' : isNaN(promNum) ? '#333'
-          : promNum >= 8 ? '#4caf50' : promNum >= 6 ? '#ff9800' : '#f44336';
-        if (!isNaN(promNum)) { suma += promNum; count++; }
-
-        const p1 = val(m.parcial1); const f1 = val(m.falta1);
-        const p2 = val(m.parcial2); const f2 = val(m.falta2);
-        const p3 = val(m.parcial3); const f3 = tieneEF ? '-' : val(m.falta3);
-        const extStr = m.extraordinario !== null && m.extraordinario !== undefined
-          ? String(redondearCalificacion(m.extraordinario)) : '-';
-        const etsStr = m.ets !== null && m.ets !== undefined
-          ? String(redondearCalificacion(m.ets)) : '-';
-
-        let celdas;
-        if (esMaestria) {
-          celdas = `<td style="text-align:center;font-weight:bold;font-size:1.1rem;color:${colorProm};">${promStr}</td>`;
-        } else {
-          celdas = `
-            <td style="text-align:center;font-weight:bold;">${p1}</td>
-            <td style="text-align:center;color:#777;font-size:0.85rem;">${f1}</td>
-            <td style="text-align:center;font-weight:bold;">${p2}</td>
-            <td style="text-align:center;color:#777;font-size:0.85rem;">${f2}</td>
-            <td style="text-align:center;font-weight:bold;">${p3}</td>
-            <td style="text-align:center;color:#777;font-size:0.85rem;">${f3}</td>
-            <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:${colorProm};">${promStr}</td>
-            <td style="text-align:center;">${extStr}</td>
-            <td style="text-align:center;">${etsStr}</td>`;
-        }
-        tbody += `<tr>
-          <td style="text-align:center;">${i + 1}</td>
-          <td><strong>${m.materiaNombre}</strong>${m.materiaCodigo ? `<br><small style="color:#888;">${m.materiaCodigo}</small>` : ''}</td>
-          ${celdas}
-        </tr>`;
-      });
-
-      const promPeriodo = count > 0 ? (suma / count).toFixed(1) : '-';
-      const afterStr    = colsDespuesCal > 0 ? `<td colspan="${colsDespuesCal}"></td>` : '';
-      return `<div style="overflow-x:auto;">
-        <table>
-          <thead><tr>
-            <th style="text-align:center;width:36px;">No.</th>
-            <th style="text-align:left;">Materia</th>
-            ${thsCols}
-          </tr></thead>
-          <tbody>${tbody}</tbody>
-          <tfoot><tr>
-            <td colspan="${colsAntesCal}" style="text-align:right;padding-right:20px;">Promedio del Periodo:</td>
-            <td style="text-align:center;font-size:1.2rem;font-weight:bold;color:#6A2135;">${promPeriodo}</td>
-            ${afterStr}
-          </tr></tfoot>
-        </table>
-      </div>`;
+      return _construirTablaConFaltasArray((_h.porPeriodo || {})[periodo]);
     }
 
-    // ── Variante de _construirTablaConFaltas que recibe array directo ────────
+    // ── Versión base: recibe array directo de materias ────────────────────────
     function _construirTablaConFaltasArray(mats) {
       if (!mats || mats.length === 0) {
         return '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas.</p>';
