@@ -17,12 +17,15 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
       year: 'numeric', month: 'long', day: 'numeric'
     });
 
-    // Determinar tieneExamenFinal para logo, columnas y calificación
+    // Determinar tieneExamenFinal y esMaestria para columnas y calificación
     let tieneExamenFinalActa = false;
+    let esMaestriaActa = false;
     try {
       const materiaDoc = await db.collection('materias').doc(materiaId).get();
       if (materiaDoc.exists && materiaDoc.data().carreraId) {
-        tieneExamenFinalActa = await obtenerTieneExamenFinal(materiaDoc.data().carreraId);
+        const carreraId = materiaDoc.data().carreraId;
+        tieneExamenFinalActa = await obtenerTieneExamenFinal(carreraId);
+        esMaestriaActa = await obtenerEsMaestria(carreraId);
       }
     } catch (_) {}
 
@@ -50,6 +53,7 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     y += 10;
 
     const toNum = v => (v !== null && v !== undefined && v !== '-' && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+    const fmtParcial = v => (v === null || v === undefined) ? '-' : v === 'NP' ? 'NP' : String(v);
 
     // Datos de tabla
     const tableData = [];
@@ -58,38 +62,86 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
       const calNum = calcularCalificacion(toNum(p1), toNum(p2), toNum(p3), tieneExamenFinalActa);
       const calStr = calNum === 'NP' ? 'NP' : calNum !== null ? calNum.toFixed(1) : '-';
 
-      if (tieneExamenFinalActa) {
-        // Columna Extraordinario: mostrar si tiene NP o examen final < 6
+      if (esMaestriaActa) {
+        tableData.push([
+          (index + 1).toString(),
+          alumno.matricula || 'N/A',
+          alumno.nombre,
+          fmtParcial(p1),
+          calStr
+        ]);
+      } else if (tieneExamenFinalActa) {
         const p3Num = toNum(p3);
         const necesitaExtra = calNum === 'NP' || (p3Num !== null && p3Num !== 'NP' && p3Num < 6);
         const extraVal = alumno.extraordinario !== null && alumno.extraordinario !== undefined
           ? String(alumno.extraordinario)
           : (necesitaExtra ? '' : '-');
-        tableData.push([(index + 1).toString(), alumno.matricula || 'N/A', alumno.nombre, calStr, extraVal]);
+        tableData.push([
+          (index + 1).toString(),
+          alumno.matricula || 'N/A',
+          alumno.nombre,
+          fmtParcial(p1),
+          fmtParcial(p2),
+          fmtParcial(p3),
+          calStr,
+          extraVal
+        ]);
       } else {
-        tableData.push([(index + 1).toString(), alumno.matricula || 'N/A', alumno.nombre, calStr]);
+        tableData.push([
+          (index + 1).toString(),
+          alumno.matricula || 'N/A',
+          alumno.nombre,
+          fmtParcial(p1),
+          fmtParcial(p2),
+          fmtParcial(p3),
+          calStr
+        ]);
       }
     });
 
     // Columnas dinámicas según tipo de carrera
-    const head = tieneExamenFinalActa
-      ? [['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación', 'Extraordinario']]
-      : [['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación']];
+    // Ancho total: 180mm. Matrícula: 33 en todos los casos.
+    let head, columnStyles, calColIndex;
 
-    const columnStyles = tieneExamenFinalActa ? {
-      0: { halign: 'center', cellWidth: 12 },
-      1: { halign: 'center', cellWidth: 30 },
-      2: { halign: 'left',   cellWidth: 75 },
-      3: { halign: 'center', cellWidth: 30, fontStyle: 'bold' },
-      4: { halign: 'center', cellWidth: 33 }
-    } : {
-      0: { halign: 'center', cellWidth: 15 },
-      1: { halign: 'center', cellWidth: 35 },
-      2: { halign: 'left',   cellWidth: 95 },
-      3: { halign: 'center', cellWidth: 35, fontStyle: 'bold' }
-    };
-
-    const calColIndex = tieneExamenFinalActa ? 3 : 3;
+    if (esMaestriaActa) {
+      // No.(10) | Matrícula(33) | Nombre(97) | P1(15) | Cal(25) = 180
+      head = [['No.', 'Matrícula', 'Nombre del Alumno', 'P1', 'Cal']];
+      columnStyles = {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'center', cellWidth: 33 },
+        2: { halign: 'left',   cellWidth: 97 },
+        3: { halign: 'center', cellWidth: 15 },
+        4: { halign: 'center', cellWidth: 25, fontStyle: 'bold' }
+      };
+      calColIndex = 4;
+    } else if (tieneExamenFinalActa) {
+      // No.(10) | Matrícula(33) | Nombre(52) | P1(13) | P2(13) | E.F(13) | Cal(20) | Extra(26) = 180
+      head = [['No.', 'Matrícula', 'Nombre del Alumno', 'P1', 'P2', 'E.F', 'Cal', 'Extra']];
+      columnStyles = {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'center', cellWidth: 33 },
+        2: { halign: 'left',   cellWidth: 52 },
+        3: { halign: 'center', cellWidth: 13 },
+        4: { halign: 'center', cellWidth: 13 },
+        5: { halign: 'center', cellWidth: 13 },
+        6: { halign: 'center', cellWidth: 20, fontStyle: 'bold' },
+        7: { halign: 'center', cellWidth: 26 }
+      };
+      calColIndex = 6;
+    } else {
+      // No.(10) | Matrícula(33) | Nombre(70) | P1(14) | P2(14) | P3(14) | Cal(25) = 180
+      head = [['No.', 'Matrícula', 'Nombre del Alumno', 'P1', 'P2', 'P3', 'Cal']];
+      columnStyles = {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'center', cellWidth: 33 },
+        2: { halign: 'left',   cellWidth: 70 },
+        3: { halign: 'center', cellWidth: 14 },
+        4: { halign: 'center', cellWidth: 14 },
+        5: { halign: 'center', cellWidth: 14 },
+        6: { halign: 'center', cellWidth: 25, fontStyle: 'bold' }
+      };
+      calColIndex = 6;
+    }
 
     doc.autoTable({
       startY: y,

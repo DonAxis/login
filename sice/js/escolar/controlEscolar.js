@@ -315,6 +315,14 @@ function seleccionarGrupo(codigoGrupo, skipHistory = false) {
         </div>
       </div>
 
+      <div class="opcion-card" style="border-left:4px solid #dc3545;">
+        <h3>Acta Histórica</h3>
+        <p>Genera actas de periodos anteriores</p>
+        <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center;">
+          <button onclick="verActaHistorica()" class="btn-accion" style="background:#dc3545;">Ver Periodos</button>
+        </div>
+      </div>
+
     </div>`;
 
   document.getElementById('gruposGrid').innerHTML = html;
@@ -2237,5 +2245,215 @@ async function buscarAlumnoGlobal() {
     _renderBuscarResultados(busqueda);
   } catch (e) {
     contenedor.innerHTML = `<p style="color:#dc3545;margin-top:0.5rem;">Error al buscar: ${e.message}</p>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ACTA HISTÓRICA — generar actas de periodos pasados
+// Fuente de datos: colección `calificaciones` (no se borra al cambiar periodo)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function verActaHistorica() {
+  const grupo = grupoSeleccionado.codigoGrupo;
+
+  const html = `
+    <h2 class="titulo-seccion">Acta Histórica — ${grupo}</h2>
+    <div class="herramienta-card" style="border-color:#dc3545; max-width:520px;">
+      <h3 style="color:#dc3545; margin:0 0 6px;">Seleccionar Periodo</h3>
+      <p style="color:#666; font-size:0.9rem; margin-bottom:18px;">
+        Ingresa el periodo académico para consultar las actas (ej. <strong>2025-1</strong>, <strong>2024-2</strong>).
+      </p>
+      <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        <div>
+          <label style="display:block; font-weight:600; color:#555; margin-bottom:5px; font-size:0.9rem;">Periodo</label>
+          <input type="text" id="inputPeriodoHistorico" placeholder="ej. 2025-1"
+            onkeydown="if(event.key==='Enter') cargarMateriasHistoricas()"
+            style="padding:8px 12px; border:1.5px solid #ddd; border-radius:6px; font-size:0.95rem; width:150px;">
+        </div>
+        <button onclick="cargarMateriasHistoricas()" class="btn-accion" style="background:#dc3545;">
+          Buscar Materias
+        </button>
+      </div>
+      <div id="resultadoMateriasHistoricas" style="margin-top:20px;"></div>
+    </div>
+  `;
+
+  mostrarLista(html);
+}
+
+async function cargarMateriasHistoricas() {
+  const periodo  = (document.getElementById('inputPeriodoHistorico')?.value || '').trim();
+  const resultado = document.getElementById('resultadoMateriasHistoricas');
+  if (!resultado) return;
+
+  if (!periodo) {
+    resultado.innerHTML = '<p style="color:#c00; font-size:0.9rem;">Ingresa un periodo (ej. 2025-1).</p>';
+    return;
+  }
+
+  const grupo = grupoSeleccionado.codigoGrupo;
+  resultado.innerHTML = '<p style="color:#999; font-size:0.9rem;">Buscando...</p>';
+
+  try {
+    const snap = await db.collection('calificaciones')
+      .where('codigoGrupo', '==', grupo)
+      .where('periodo', '==', periodo)
+      .get();
+
+    if (snap.empty) {
+      resultado.innerHTML = `
+        <p style="color:#888; font-size:0.9rem;">
+          No se encontraron calificaciones para el periodo <strong>${periodo}</strong>
+          en el grupo <strong>${grupo}</strong>.
+        </p>`;
+      return;
+    }
+
+    // Extraer materias únicas del periodo
+    const materiasMap = {};
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.materiaId && !materiasMap[d.materiaId]) {
+        materiasMap[d.materiaId] = d.materiaNombre || d.materiaId;
+      }
+    });
+
+    const materias = Object.entries(materiasMap)
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    let html = `
+      <p style="color:#555; font-size:0.85rem; margin-bottom:12px;">
+        <strong>${materias.length}</strong> materia(s) con calificaciones en el periodo
+        <strong>${periodo}</strong>:
+      </p>
+      <table>
+        <thead><tr><th>Materia</th><th style="text-align:center;">Acción</th></tr></thead>
+        <tbody>
+    `;
+
+    materias.forEach(m => {
+      const nomEsc = (m.nombre || '').replace(/'/g, "\\'");
+      html += `<tr>
+        <td>${m.nombre}</td>
+        <td style="text-align:center;">
+          <button onclick="verAlumnosActaHistorica('${m.id}','${nomEsc}','${grupo}','${periodo}')"
+            class="btn-accion" style="background:#dc3545; white-space:nowrap;">
+            Ver Alumnos / PDF
+          </button>
+        </td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    resultado.innerHTML = html;
+
+  } catch (error) {
+    console.error('Error al cargar materias históricas:', error);
+    resultado.innerHTML = `<p style="color:#c00; font-size:0.9rem;">Error: ${error.message}</p>`;
+  }
+}
+
+async function verAlumnosActaHistorica(materiaId, materiaNombre, codigoGrupo, periodo) {
+  try {
+    const snap = await db.collection('calificaciones')
+      .where('materiaId', '==', materiaId)
+      .where('codigoGrupo', '==', codigoGrupo)
+      .where('periodo', '==', periodo)
+      .get();
+
+    if (snap.empty) {
+      alert('No se encontraron alumnos para esta materia en el periodo seleccionado.');
+      return;
+    }
+
+    // Construir lista — matricula se busca en el caché local primero
+    const alumnosEnMateria = snap.docs.map(doc => {
+      const d = doc.data();
+      const alumnoLocal = alumnosData.find(a => a.uid === d.alumnoId);
+      return {
+        uid:            d.alumnoId,
+        nombre:         d.alumnoNombre || '—',
+        matricula:      alumnoLocal?.matricula || null,
+        codigoGrupo:    d.codigoGrupo,
+        periodo:        d.periodo,
+        parcial1:       d.parciales?.parcial1 ?? '-',
+        parcial2:       d.parciales?.parcial2 ?? '-',
+        parcial3:       d.parciales?.parcial3 ?? '-',
+        extraordinario: d.extraordinario ?? null
+      };
+    });
+
+    // Para alumnos sin matrícula en caché (inactivos/egresados), consultar Firestore
+    const sinMatricula = alumnosEnMateria.filter(a => !a.matricula);
+    if (sinMatricula.length > 0) {
+      await Promise.all(sinMatricula.map(async alumno => {
+        try {
+          const userDoc = await db.collection('usuarios').doc(alumno.uid).get();
+          if (userDoc.exists) alumno.matricula = userDoc.data().matricula || null;
+        } catch (_) {}
+      }));
+    }
+
+    alumnosEnMateria.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    // Guardar referencia para el botón de PDF
+    window._actaAlumnosData   = alumnosEnMateria;
+    window._actaMateriaId     = materiaId;
+    window._actaMateriaNombre = materiaNombre;
+
+    // Tabla de previsualización
+    const toNum = v => (v !== null && v !== undefined && v !== '-' && v !== 'NP')
+      ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+
+    let html = `
+      <h2 class="titulo-seccion">${materiaNombre}</h2>
+      <p style="color:#666; margin-bottom:6px;">
+        Periodo: <strong>${periodo}</strong> &nbsp;|&nbsp; Grupo: <strong>${codigoGrupo}</strong>
+      </p>
+      <p style="color:#666; margin-bottom:18px;">Total: <strong>${alumnosEnMateria.length}</strong> alumnos</p>
+
+      <div style="margin-bottom:18px;">
+        <button onclick="descargarActaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
+                class="opcion-btn" style="background:#dc3545;">
+          Descargar Acta de Calificaciones (PDF)
+        </button>
+      </div>
+
+      <table>
+        <thead><tr>
+          <th>Matrícula</th><th>Nombre</th>
+          <th style="text-align:center;">P1</th>
+          <th style="text-align:center;">P2</th>
+          <th style="text-align:center;">P3</th>
+          <th style="text-align:center;">Cal</th>
+        </tr></thead>
+        <tbody>
+    `;
+
+    alumnosEnMateria.forEach(alumno => {
+      const { parcial1: p1, parcial2: p2, parcial3: p3 } = alumno;
+      const calNum = calcularCalificacion(toNum(p1), toNum(p2), toNum(p3), false);
+      const calStr = calNum === 'NP' ? 'NP' : calNum !== null ? calNum.toFixed(1) : '-';
+      const color  = calStr === 'NP' ? '#f44336'
+        : calStr === '-' ? '#555'
+        : esReprobado(parseFloat(calStr), false) ? '#f44336' : '#4caf50';
+
+      html += `<tr>
+        <td><strong>${alumno.matricula || 'N/A'}</strong></td>
+        <td>${alumno.nombre}</td>
+        <td style="text-align:center;">${p1}</td>
+        <td style="text-align:center;">${p2}</td>
+        <td style="text-align:center;">${p3}</td>
+        <td style="text-align:center; font-weight:bold; font-size:1.1rem; color:${color};">${calStr}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    mostrarLista(html);
+
+  } catch (error) {
+    console.error('Error al cargar acta histórica:', error);
+    alert('Error al cargar alumnos: ' + error.message);
   }
 }
