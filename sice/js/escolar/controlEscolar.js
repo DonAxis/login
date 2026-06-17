@@ -315,11 +315,11 @@ function seleccionarGrupo(codigoGrupo, skipHistory = false) {
         </div>
       </div>
 
-      <div class="opcion-card" style="border-left:4px solid #dc3545;">
+      <div class="opcion-card">
         <h3>Acta Histórica</h3>
         <p>Genera actas de periodos anteriores</p>
         <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center;">
-          <button onclick="verActaHistorica()" class="btn-accion" style="background:#dc3545;">Ver Periodos</button>
+          <button onclick="verActaHistorica()" class="btn-accion">Ver Periodos</button>
         </div>
       </div>
 
