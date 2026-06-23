@@ -292,7 +292,7 @@
 
       // Mostrar todos los periodos que tengan al menos un dato capturado
       const _tieneDatoInf = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
-        || m.promedio != null || m.extraordinario != null || m.ets != null;
+        || m.extraordinario != null || m.ets != null;
 
       // Periodos en orden cronológico (ascendente) para el informe
       const periodosAsc = Object.keys(_h.porPeriodo || {}).sort();
@@ -490,7 +490,7 @@
         // Vista por defecto: solo periodo actual (excluye periodoAnterior)
         const _perAntKey = _h.periodoAnterior ? String(_h.periodoAnterior) : null;
         const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
-          || m.promedio != null || m.extraordinario != null || m.ets != null;
+          || m.extraordinario != null || m.ets != null;
         const _matsActuales = periodos
           .filter(p => p !== _perAntKey)
           .flatMap(p => porPeriodo[p] || [])
