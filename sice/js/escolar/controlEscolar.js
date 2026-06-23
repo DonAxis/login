@@ -2428,7 +2428,8 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, codigoGrupo, pe
         parcial1:       d.parciales?.parcial1 ?? null,
         parcial2:       d.parciales?.parcial2 ?? null,
         parcial3:       d.parciales?.parcial3 ?? null,
-        extraordinario: d.extraordinario ?? null
+        extraordinario: d.extraordinario ?? null,
+        profesorNombre: d.profesorNombre || '-'
       };
     });
 
