@@ -123,8 +123,11 @@
         else if (m.extraordinario != null) prom = redondearCalificacion(m.extraordinario);
         const promStr   = (prom === null || prom === undefined) ? '-' : String(prom);
         const promNum   = parseFloat(promStr);
+        const _reprobado67 = tieneEF && m.ets == null && m.extraordinario == null
+          && (m.parcial3 == null || m.parcial3 === undefined);
         const colorProm = promStr === 'NP' ? '#dc3545' : isNaN(promNum) ? '#333'
-          : promNum >= 8 ? '#4caf50' : promNum >= 6 ? '#ff9800' : '#f44336';
+          : promNum >= 8 ? '#4caf50' : promNum < 6 ? '#f44336'
+          : _reprobado67 ? '#f44336' : '#4caf50';
         if (!isNaN(promNum)) { suma += promNum; count++; }
 
         const p1 = val(m.parcial1); const f1 = val(m.falta1);
@@ -196,8 +199,11 @@
         else if (m.extraordinario != null) prom = redondearCalificacion(m.extraordinario);
         const promStr = (prom === null || prom === undefined) ? '-' : String(prom);
         const promNum = parseFloat(promStr);
+        const _reprobado67 = tieneEF && m.ets == null && m.extraordinario == null
+          && (m.parcial3 == null || m.parcial3 === undefined);
         const colorProm = promStr === 'NP' ? '#dc3545' : isNaN(promNum) ? '#333'
-          : promNum >= 8 ? '#4caf50' : promNum >= 6 ? '#ff9800' : '#f44336';
+          : promNum >= 8 ? '#4caf50' : promNum < 6 ? '#f44336'
+          : _reprobado67 ? '#f44336' : '#4caf50';
         if (!isNaN(promNum)) { suma += promNum; count++; }
 
         const p1 = m.parcial1 !== null && m.parcial1 !== undefined ? String(m.parcial1) : '-';
@@ -284,14 +290,23 @@
           </div>
         </div>`;
 
-      // Solo materias del periodo actual (excluye periodoAnterior)
-      const perAnteriorKey = _h.periodoAnterior ? String(_h.periodoAnterior) : null;
-      const todasMaterias = periodos
-        .filter(p => p !== perAnteriorKey)
-        .flatMap(p => _h.porPeriodo[p] || []);
-      vistaEl.innerHTML = pdfBtn + resumen +
-        `<h3 class="periodo-titulo">Calificaciones del Periodo Actual${_h.periodoActual ? ' — ' + _h.periodoActual : ''}</h3>` +
-        _construirTablaConFaltasArray(todasMaterias);
+      // Mostrar todos los periodos que tengan al menos un dato capturado
+      const _tieneDatoInf = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
+        || m.promedio != null || m.extraordinario != null || m.ets != null;
+
+      // Periodos en orden cronológico (ascendente) para el informe
+      const periodosAsc = Object.keys(_h.porPeriodo || {}).sort();
+      let contenidoPeriodos = '';
+      for (const p of periodosAsc) {
+        const mats = (_h.porPeriodo[p] || []).filter(_tieneDatoInf);
+        if (mats.length === 0) continue;
+        contenidoPeriodos += `<h3 class="periodo-titulo">Periodo ${p}</h3>` + _construirTablaConFaltasArray(mats);
+      }
+      if (!contenidoPeriodos) {
+        contenidoPeriodos = '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas.</p>';
+      }
+
+      vistaEl.innerHTML = pdfBtn + resumen + contenidoPeriodos;
     }
 
     // ── Historial Anterior: periodo previo con tabla simple + botón PDF ───────
@@ -474,13 +489,16 @@
 
         // Vista por defecto: solo periodo actual (excluye periodoAnterior)
         const _perAntKey = _h.periodoAnterior ? String(_h.periodoAnterior) : null;
+        const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
+          || m.promedio != null || m.extraordinario != null || m.ets != null;
         const _matsActuales = periodos
           .filter(p => p !== _perAntKey)
-          .flatMap(p => porPeriodo[p] || []);
+          .flatMap(p => porPeriodo[p] || [])
+          .filter(_tieneDato);
         const htmlPeriodos = _matsActuales.length > 0
           ? `<h3 class="periodo-titulo">Periodo Actual${_h.periodoActual ? ' — ' + _h.periodoActual : ''}</h3>`
             + _construirTablaConFaltasArray(_matsActuales)
-          : '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones para el periodo actual.</p>';
+          : '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas para el periodo actual.</p>';
 
         document.getElementById('contenido').innerHTML = `
           <div class="info-card">
