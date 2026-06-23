@@ -2290,149 +2290,191 @@ async function buscarAlumnoGlobal() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ACTA HISTÓRICA — generar actas de periodos pasados
-// Fuente de datos: historialCalificaciones (archivado por cambioPeriodo.js)
+// ACTA HISTÓRICA — generar actas por materia y periodo
+// Fuente de datos: calificaciones (no requiere que cambioPeriodo haya corrido)
+// Flujo: escoger materia → periodos disponibles → lista de alumnos + PDF
 // ═══════════════════════════════════════════════════════════════════════════
 
+let _cacheMateriasActa = null;
+
 async function verActaHistorica() {
-  const grupo = grupoSeleccionado.codigoGrupo;
-  mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${grupo}</h2>
-    <p style="color:#999;text-align:center;padding:30px;">Cargando periodos disponibles...</p>`);
+  const carreraId = grupoSeleccionado.carreraId;
+  mostrarLista(`<h2 class="titulo-seccion">Acta Histórica</h2>
+    <p style="color:#999;text-align:center;padding:30px;">Cargando materias...</p>`);
 
   try {
-    const snap = await db.collection('historialCalificaciones')
-      .where('codigoGrupo', '==', grupo)
-      .get();
+    if (!_cacheMateriasActa) {
+      const snap = await db.collection('materias')
+        .where('carreraId', '==', carreraId)
+        .where('activo', '==', true)
+        .get();
+      _cacheMateriasActa = snap.docs
+        .map(d => ({ id: d.id, nombre: d.data().nombre || d.id }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }
 
-    if (snap.empty) {
-      mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${grupo}</h2>
-        <p style="color:#888;text-align:center;padding:30px;">
-          No hay periodos archivados para el grupo <strong>${grupo}</strong>.
-        </p>`);
+    const materias = _cacheMateriasActa;
+
+    if (materias.length === 0) {
+      mostrarLista(`<h2 class="titulo-seccion">Acta Histórica</h2>
+        <p style="color:#888;text-align:center;padding:30px;">No hay materias activas para esta carrera.</p>`);
       return;
     }
 
-    const periodosSet = new Set();
-    snap.forEach(doc => { const p = doc.data().periodo; if (p) periodosSet.add(p); });
-    const periodos = [...periodosSet].sort().reverse();
+    const filasHtml = materias.map(m => {
+      const nomEsc = (m.nombre || '').replace(/'/g, "\\'");
+      return `<tr>
+        <td>${m.nombre}</td>
+        <td style="text-align:center;">
+          <button onclick="seleccionarPeriodoActa('${m.id}','${nomEsc}')"
+            class="btn-accion" style="background:#dc3545;white-space:nowrap;">
+            Seleccionar
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
 
-    const botonesHtml = periodos.map(p =>
-      `<button onclick="cargarMateriasHistoricas('${p}')"
-               class="btn-accion" style="background:#dc3545;min-width:120px;font-size:1rem;">
-         ${p}
+    mostrarLista(`
+      <h2 class="titulo-seccion">Acta Histórica</h2>
+      <div style="margin-bottom:14px;">
+        <input type="text" id="buscadorMateriasActa" placeholder="Buscar materia..."
+          oninput="_filtrarMateriasActa(this.value)"
+          style="padding:8px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:0.95rem;width:280px;">
+      </div>
+      <table id="tablaMateriasActa">
+        <thead><tr><th>Materia</th><th style="text-align:center;">Acción</th></tr></thead>
+        <tbody id="cuerpoMateriasActa">${filasHtml}</tbody>
+      </table>`);
+
+  } catch (error) {
+    console.error('Error en verActaHistorica:', error);
+    mostrarLista(`<h2 class="titulo-seccion">Acta Histórica</h2>
+      <p style="color:#c00;text-align:center;padding:20px;">Error: ${error.message}</p>`);
+  }
+}
+
+function _filtrarMateriasActa(query) {
+  const q = (query || '').toLowerCase();
+  document.querySelectorAll('#cuerpoMateriasActa tr').forEach(tr => {
+    tr.style.display = (tr.cells[0]?.textContent || '').toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+async function seleccionarPeriodoActa(materiaId, materiaNombre) {
+  const carreraId = grupoSeleccionado.carreraId;
+  mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${materiaNombre}</h2>
+    <p style="color:#999;text-align:center;padding:30px;">Buscando periodos disponibles...</p>`);
+
+  const backBtn = `<button onclick="verActaHistorica()" class="btn-accion"
+    style="background:#888;margin-bottom:18px;">← Cambiar Materia</button>`;
+
+  try {
+    const snap = await db.collection('calificaciones')
+      .where('materiaId', '==', materiaId)
+      .where('carreraId', '==', carreraId)
+      .get();
+
+    if (snap.empty) {
+      mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${materiaNombre}</h2>
+        ${backBtn}
+        <p style="color:#888;font-size:0.9rem;">No se encontraron calificaciones para esta materia.</p>`);
+      return;
+    }
+
+    // Contar alumnos con datos reales por periodo
+    const periodoStats = {};
+    snap.forEach(doc => {
+      const d = doc.data();
+      const p = d.periodo;
+      if (!p) return;
+      if (!periodoStats[p]) periodoStats[p] = 0;
+      const tieneAlgo = d.parciales?.parcial1 != null || d.parciales?.parcial2 != null
+        || d.parciales?.parcial3 != null || d.extraordinario != null || d.ets != null;
+      if (tieneAlgo) periodoStats[p]++;
+    });
+
+    const periodos = Object.entries(periodoStats).sort((a, b) => b[0].localeCompare(a[0]));
+
+    if (periodos.length === 0) {
+      mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${materiaNombre}</h2>
+        ${backBtn}
+        <p style="color:#888;font-size:0.9rem;">No hay calificaciones capturadas para esta materia.</p>`);
+      return;
+    }
+
+    const nomEsc = materiaNombre.replace(/'/g, "\\'");
+    const botonesHtml = periodos.map(([p, count]) =>
+      `<button onclick="verAlumnosActaHistorica('${materiaId}','${nomEsc}','${p}')"
+               class="btn-accion" style="background:#dc3545;min-width:130px;font-size:1rem;">
+         ${p} <span style="font-size:0.8rem;opacity:0.85;">(${count})</span>
        </button>`
     ).join('');
 
     mostrarLista(`
-      <h2 class="titulo-seccion">Acta Histórica — ${grupo}</h2>
+      <h2 class="titulo-seccion">Acta Histórica — ${materiaNombre}</h2>
+      ${backBtn}
       <div class="herramienta-card" style="border-color:#dc3545;max-width:600px;">
         <h3 style="color:#dc3545;margin:0 0 14px;">Selecciona un periodo</h3>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">${botonesHtml}</div>
       </div>`);
 
   } catch (error) {
-    console.error('Error en verActaHistorica:', error);
-    mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${grupo}</h2>
-      <p style="color:#c00;text-align:center;padding:20px;">Error: ${error.message}</p>`);
-  }
-}
-
-async function cargarMateriasHistoricas(periodo) {
-  const grupo = grupoSeleccionado.codigoGrupo;
-  mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${grupo} / ${periodo}</h2>
-    <p style="color:#999;text-align:center;padding:30px;">Cargando materias...</p>`);
-
-  const backBtn = `<button onclick="verActaHistorica()" class="btn-accion"
-    style="background:#888;margin-bottom:18px;">← Cambiar Periodo</button>`;
-
-  try {
-    const snap = await db.collection('historialCalificaciones')
-      .where('codigoGrupo', '==', grupo)
-      .where('periodo', '==', periodo)
-      .get();
-
-    if (snap.empty) {
-      mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${grupo} / ${periodo}</h2>
-        ${backBtn}
-        <p style="color:#888;font-size:0.9rem;">No se encontraron calificaciones archivadas para este periodo.</p>`);
-      return;
-    }
-
-    const materiasMap = {};
-    snap.forEach(doc => {
-      const d = doc.data();
-      if (d.materiaId && !materiasMap[d.materiaId])
-        materiasMap[d.materiaId] = d.materiaNombre || d.materiaId;
-    });
-
-    const materias = Object.entries(materiasMap)
-      .map(([id, nombre]) => ({ id, nombre }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-    let html = `
-      <h2 class="titulo-seccion">Acta Histórica — ${grupo} / ${periodo}</h2>
-      ${backBtn}
-      <p style="color:#555;font-size:0.85rem;margin-bottom:12px;">
-        <strong>${materias.length}</strong> materia(s) archivadas en el periodo <strong>${periodo}</strong>:
-      </p>
-      <table>
-        <thead><tr><th>Materia</th><th style="text-align:center;">Acción</th></tr></thead>
-        <tbody>`;
-
-    materias.forEach(m => {
-      const nomEsc = (m.nombre || '').replace(/'/g, "\\'");
-      html += `<tr>
-        <td>${m.nombre}</td>
-        <td style="text-align:center;">
-          <button onclick="verAlumnosActaHistorica('${m.id}','${nomEsc}','${grupo}','${periodo}')"
-            class="btn-accion" style="background:#dc3545;white-space:nowrap;">
-            Ver Alumnos / PDF
-          </button>
-        </td>
-      </tr>`;
-    });
-
-    html += '</tbody></table>';
-    mostrarLista(html);
-
-  } catch (error) {
-    console.error('Error en cargarMateriasHistoricas:', error);
-    mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${grupo}</h2>
+    console.error('Error en seleccionarPeriodoActa:', error);
+    mostrarLista(`<h2 class="titulo-seccion">Acta Histórica — ${materiaNombre}</h2>
       ${backBtn}
       <p style="color:#c00;font-size:0.9rem;">Error: ${error.message}</p>`);
   }
 }
 
-async function verAlumnosActaHistorica(materiaId, materiaNombre, codigoGrupo, periodo) {
+async function verAlumnosActaHistorica(materiaId, materiaNombre, periodo) {
+  const carreraId = grupoSeleccionado.carreraId;
+  const nomEsc    = materiaNombre.replace(/'/g, "\\'");
+  const backBtn   = `<button onclick="seleccionarPeriodoActa('${materiaId}','${nomEsc}')" class="btn-accion"
+    style="background:#888;margin-bottom:18px;">← Volver a Periodos</button>`;
+
   try {
-    const snap = await db.collection('historialCalificaciones')
-      .where('materiaId', '==', materiaId)
-      .where('codigoGrupo', '==', codigoGrupo)
-      .where('periodo', '==', periodo)
-      .get();
+    const [snap, tieneEF] = await Promise.all([
+      db.collection('calificaciones')
+        .where('materiaId', '==', materiaId)
+        .where('carreraId', '==', carreraId)
+        .where('periodo', '==', periodo)
+        .get(),
+      obtenerTieneExamenFinal(carreraId)
+    ]);
 
     if (snap.empty) {
-      alert('No se encontraron alumnos archivados para esta materia en el periodo seleccionado.');
+      mostrarLista(`<h2 class="titulo-seccion">${materiaNombre}</h2>
+        ${backBtn}
+        <p style="color:#888;">No se encontraron alumnos para esta materia en el periodo seleccionado.</p>`);
       return;
     }
 
-    const alumnosEnMateria = snap.docs.map(doc => {
-      const d = doc.data();
-      const alumnoLocal = alumnosData.find(a => a.uid === d.alumnoId);
-      return {
-        uid:            d.alumnoId,
-        nombre:         d.alumnoNombre || '—',
-        matricula:      alumnoLocal?.matricula || null,
-        codigoGrupo:    d.codigoGrupo,
-        periodo:        d.periodo,
-        parcial1:       d.parciales?.parcial1 ?? null,
-        parcial2:       d.parciales?.parcial2 ?? null,
-        parcial3:       d.parciales?.parcial3 ?? null,
-        extraordinario: d.extraordinario ?? null,
-        profesorNombre: d.profesorNombre || '-'
-      };
-    });
+    const toNum = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
 
+    const alumnosEnMateria = snap.docs
+      .map(doc => {
+        const d = doc.data();
+        const alumnoLocal = alumnosData.find(a => a.uid === d.alumnoId);
+        return {
+          uid:            d.alumnoId,
+          nombre:         d.alumnoNombre || '—',
+          matricula:      alumnoLocal?.matricula || null,
+          codigoGrupo:    d.codigoGrupo || '-',
+          periodo:        d.periodo,
+          parcial1:       d.parciales?.parcial1 ?? null,
+          parcial2:       d.parciales?.parcial2 ?? null,
+          parcial3:       d.parciales?.parcial3 ?? null,
+          extraordinario: d.extraordinario ?? null,
+          ets:            d.ets ?? null
+        };
+      })
+      .filter(a => {
+        // Solo mostrar alumnos que tienen al menos un parcial capturado
+        return a.parcial1 != null || a.parcial2 != null || a.parcial3 != null
+          || a.extraordinario != null || a.ets != null;
+      });
+
+    // Buscar matrícula de alumnos no encontrados en caché local
     const sinMatricula = alumnosEnMateria.filter(a => !a.matricula);
     if (sinMatricula.length > 0) {
       await Promise.all(sinMatricula.map(async alumno => {
@@ -2449,16 +2491,10 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, codigoGrupo, pe
     window._actaMateriaId     = materiaId;
     window._actaMateriaNombre = materiaNombre;
 
-    const toNum = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
-    const backBtn = `<button onclick="cargarMateriasHistoricas('${periodo}')" class="btn-accion"
-      style="background:#888;margin-bottom:18px;">← Volver a Materias</button>`;
-
     let html = `
       <h2 class="titulo-seccion">${materiaNombre}</h2>
       ${backBtn}
-      <p style="color:#666;margin-bottom:6px;">
-        Periodo: <strong>${periodo}</strong> &nbsp;|&nbsp; Grupo: <strong>${codigoGrupo}</strong>
-      </p>
+      <p style="color:#666;margin-bottom:6px;">Periodo: <strong>${periodo}</strong></p>
       <p style="color:#666;margin-bottom:18px;">Total: <strong>${alumnosEnMateria.length}</strong> alumnos</p>
       <div style="margin-bottom:18px;">
         <button onclick="descargarActaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
@@ -2468,24 +2504,27 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, codigoGrupo, pe
       </div>
       <table>
         <thead><tr>
-          <th>Matrícula</th><th>Nombre</th>
+          <th>Matrícula</th><th>Nombre</th><th>Grupo</th>
           <th style="text-align:center;">P1</th>
           <th style="text-align:center;">P2</th>
-          <th style="text-align:center;">P3</th>
+          <th style="text-align:center;">${tieneEF ? 'E.Final' : 'P3'}</th>
           <th style="text-align:center;">Cal</th>
         </tr></thead>
         <tbody>`;
 
     alumnosEnMateria.forEach(alumno => {
       const { parcial1: p1, parcial2: p2, parcial3: p3 } = alumno;
-      const calNum = calcularCalificacion(toNum(p1), toNum(p2), toNum(p3), false);
-      const calStr = calNum === 'NP' ? 'NP' : calNum !== null ? String(redondearCalificacion(calNum)) : '-';
-      const color  = calStr === 'NP' || esReprobado(parseFloat(calStr), false) ? '#f44336'
+      const calNum = calcularCalificacion(toNum(p1), toNum(p2), toNum(p3), tieneEF);
+      const calFinal = alumno.ets ?? (alumno.extraordinario != null ? alumno.extraordinario : calNum);
+      const calStr = calFinal === 'NP' ? 'NP'
+        : calFinal !== null ? String(redondearCalificacion(calFinal)) : '-';
+      const color = calStr === 'NP' || esReprobado(parseFloat(calStr), tieneEF) ? '#f44336'
         : calStr === '-' ? '#555' : '#4caf50';
 
       html += `<tr>
         <td><strong>${alumno.matricula || 'N/A'}</strong></td>
         <td>${alumno.nombre}</td>
+        <td style="font-size:0.85rem;color:#777;">${alumno.codigoGrupo}</td>
         <td style="text-align:center;">${p1 !== null ? p1 : '-'}</td>
         <td style="text-align:center;">${p2 !== null ? p2 : '-'}</td>
         <td style="text-align:center;">${p3 !== null ? p3 : '-'}</td>

@@ -28,7 +28,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
 
     // ── Datos del alumno y carrera ────────────────────────────────
     let especialidad = '', grupo = '', turnoStr = '', semestreStr = '', noControl = '';
-    let tieneEF = false, esMaestria = false, periodoAnterior = null;
+    let tieneEF = false, esMaestria = false, periodoAnterior = null, periodoActualConfig = null;
 
     const alumnoDoc = await db.collection('usuarios').doc(alumnoId).get();
     if (alumnoDoc.exists) {
@@ -53,7 +53,10 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
             esMaestria   = (c.codigo || '').startsWith('M') ||
                            (c.nombre  || '').toLowerCase().startsWith('maestr');
           }
-          if (cfgDoc.exists) periodoAnterior = cfgDoc.data().periodoAnterior || null;
+          if (cfgDoc.exists) {
+            periodoAnterior      = cfgDoc.data().periodoAnterior || null;
+            periodoActualConfig  = cfgDoc.data().periodo         || null;
+          }
         } catch (_) {}
       }
     }
@@ -66,8 +69,8 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     calSnap.forEach(calDoc => {
       const cal = calDoc.data();
       if (periodoKey === null) {
-        // Informe: excluir materias del periodo anterior
-        if (periodoAnterior && normP(cal.periodo) === String(periodoAnterior)) return;
+        // Informe: mostrar solo el periodo actual
+        if (periodoActualConfig && normP(cal.periodo) !== String(periodoActualConfig)) return;
       } else {
         if (normP(cal.periodo) !== periodoKey) return;
       }
