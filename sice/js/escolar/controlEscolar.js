@@ -1633,8 +1633,11 @@ function abrirEditorAlumnos() {
 }
 
 function poblarFiltrosEdicion() {
+  const inputBusq = document.getElementById('busquedaEdicionAlumno');
+  if (inputBusq) inputBusq.value = '';
+  document.getElementById('resultadoEdicionNombres').innerHTML = '';
   const sel = document.getElementById('filtroCarreraEdicion');
-  sel.innerHTML = '<option value="">-- Selecciona Carrera --</option>';
+  sel.innerHTML = '<option value="">-- Todas --</option>';
   [...carrerasData]
     .filter(c => !CARRERAS_OCULTAS.includes(c.codigo))
     .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
@@ -1643,30 +1646,43 @@ function poblarFiltrosEdicion() {
     });
 }
 
-function filtrarAlumnosEdicion() {
+async function filtrarAlumnosEdicion() {
+  const busqueda  = (document.getElementById('busquedaEdicionAlumno')?.value || '').trim().toLowerCase();
   const carreraId = document.getElementById('filtroCarreraEdicion').value;
   const periodo   = document.getElementById('filtroPeriodoEdicion').value;
+  const resultado = document.getElementById('resultadoEdicionNombres');
 
-  if (!carreraId) { alert('Selecciona una carrera'); return; }
+  if (!busqueda && !carreraId) return;
 
-  let filtrados = alumnosData.filter(a => a.carreraId === carreraId);
+  if (!_alumnosBuscarCache) {
+    resultado.innerHTML = '<p style="color:#999;padding:12px;">Cargando alumnos...</p>';
+    try { await _cargarCacheBuscar(resultado); }
+    catch (e) { resultado.innerHTML = '<p style="color:#c00;padding:12px;">Error al cargar alumnos.</p>'; return; }
+  }
 
+  let filtrados = _alumnosBuscarCache || [];
+
+  if (busqueda) {
+    filtrados = filtrados.filter(a =>
+      (a.nombre    || '').toLowerCase().includes(busqueda) ||
+      (a.matricula || '').toLowerCase().includes(busqueda)
+    );
+  }
+  if (carreraId) filtrados = filtrados.filter(a => a.carreraId === carreraId);
   if (periodo === 'especial') {
-    filtrados = filtrados.filter(a => a.grupoId === null || a.grupoId === undefined || a.grupoId === '');
+    filtrados = filtrados.filter(a => !a.codigoGrupo);
   } else if (periodo) {
     filtrados = filtrados.filter(a => String(a.periodo) === String(periodo));
   }
 
-  filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-  const resultado = document.getElementById('resultadoEdicionNombres');
+  filtrados.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
   if (filtrados.length === 0) {
     resultado.innerHTML = '<p style="color:#666; text-align:center; padding:20px;">No se encontraron alumnos con esos filtros</p>';
     return;
   }
 
-  const inp = s => `style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box;"`;
+  const inp = () => `style="width:100%; padding:5px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box;"`;
 
   let html = `<p style="margin-bottom:10px; color:#666;">${filtrados.length} alumnos encontrados</p>
   <div style="overflow-x:auto;">
@@ -1683,11 +1699,16 @@ function filtrarAlumnosEdicion() {
     <tbody>`;
 
   filtrados.forEach(alumno => {
-    const esc = v => (v || '').replace(/"/g, '&quot;');
-    const uid = alumno.uid;
-    html += `<tr>
+    const uid      = alumno.id || alumno.uid;
+    const inactivo = alumno.activo === false;
+    const esc      = v => (v || '').replace(/"/g, '&quot;');
+    const badge    = inactivo
+      ? '<span style="background:#dc3545;color:white;padding:1px 6px;border-radius:10px;font-size:0.7rem;font-weight:700;vertical-align:middle;margin-left:4px;">INACTIVO</span>'
+      : '';
+    const rowStyle = inactivo ? ' style="background:#fff5f5;"' : '';
+    html += `<tr${rowStyle}>
       <td>${alumno.codigoGrupo || ''}</td>
-      <td><input type="text" id="inputNombre_${uid}" value="${esc(alumno.nombre)}" ${inp()}></td>
+      <td><div style="display:flex;align-items:center;gap:6px;"><input type="text" id="inputNombre_${uid}" value="${esc(alumno.nombre)}" ${inp()}>${badge}</div></td>
       <td><input type="text" id="inputMatricula_${uid}" value="${esc(alumno.matricula)}" ${inp()}></td>
       <td><input type="email" id="inputEmail_${uid}" value="${esc(alumno.email)}" ${inp()}></td>
       <td><input type="text" id="inputTutorNombre_${uid}" value="${esc(alumno.tutor?.nombre)}" ${inp()}></td>
@@ -1748,6 +1769,13 @@ async function guardarDatosAlumno(uid) {
       alumno.matricula = nuevaMatricula;
       alumno.email     = nuevoEmail;
       alumno.tutor     = { nombre: tutorNombre, telefono: tutorTel };
+    }
+    const cached = _alumnosBuscarCache?.find(a => (a.id || a.uid) === uid);
+    if (cached) {
+      cached.nombre    = nuevoNombre;
+      cached.matricula = nuevaMatricula;
+      cached.email     = nuevoEmail;
+      cached.tutor     = { nombre: tutorNombre, telefono: tutorTel };
     }
 
     flashFila(document.getElementById('inputNombre_' + uid).closest('tr'));
@@ -1830,6 +1858,17 @@ function generarListaObservacionesPDF() {
 // ═══ NAVEGACIÓN DE PANELES (controlEscolar) ═══
 
 function mostrarPanelEscolar(panel, skipHistory = false) {
+  // _togglePanel oculta statsGrid y mainContent al abrir sub-paneles de edición.
+  // Al cambiar de tab hay que restaurarlos siempre, independientemente del destino.
+  const statsGrid = document.getElementById('statsGrid');
+  if (statsGrid) statsGrid.style.display = '';
+  const mainContent = document.getElementById('mainContent');
+  if (mainContent) mainContent.style.display = '';
+  ['editorNombresPanel', 'editorProfesoresPanel', 'editorMateriasPanel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
   const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config'];
   paneles.forEach(p => {
     const el = document.getElementById(`panel${p.charAt(0).toUpperCase() + p.slice(1)}`);
@@ -2106,7 +2145,7 @@ function _renderBuscarResultados(busqueda) {
       <td>${carreraNombre}</td>
       <td style="white-space:nowrap;">
         <button class="btn-accion" onclick="verBoletaGlobalAlumno('${a.id}', false)">Ver Boleta</button>
-        <button onclick="toggleActivoAlumno('${a.id}', '${_nomSafe}', ${!inactivo}, 'buscar')"
+        <button onclick="toggleActivoAlumno('${a.id}', '${_nomSafe}', ${inactivo}, 'buscar')"
           style="background:${btnColor};color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
           ${btnLabel}
         </button>

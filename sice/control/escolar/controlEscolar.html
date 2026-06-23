@@ -178,21 +178,26 @@
           <h2 style="color:#6A2135; margin:0 0 20px;">Editar Datos de Alumnos</h2>
           <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
             <div>
+              <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Buscar por nombre o matrícula</label>
+              <input type="text" id="busquedaEdicionAlumno" placeholder="Escribe para filtrar..."
+                     oninput="filtrarAlumnosEdicion()"
+                     style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:240px;">
+            </div>
+            <div>
               <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
-              <select id="filtroCarreraEdicion" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
-                <option value="">-- Selecciona Carrera --</option>
+              <select id="filtroCarreraEdicion" onchange="filtrarAlumnosEdicion()" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
+                <option value="">-- Todas --</option>
               </select>
             </div>
             <div>
               <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Periodo</label>
-              <select id="filtroPeriodoEdicion" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
+              <select id="filtroPeriodoEdicion" onchange="filtrarAlumnosEdicion()" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
                 <option value="">Todos</option>
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option>
                 <option value="4">4</option><option value="5">5</option><option value="6">6</option>
                 <option value="7">7</option><option value="8">8</option><option value="9">9</option>
               </select>
             </div>
-            <button onclick="filtrarAlumnosEdicion()" class="btn-accion">Buscar</button>
             <button onclick="abrirEditorAlumnos()" class="btn-volver" style="margin:0;">Cerrar</button>
           </div>
           <div id="resultadoEdicionNombres"></div>
