@@ -488,15 +488,16 @@
         }
 
         // Vista por defecto: solo periodo actual (excluye periodoAnterior)
-        // Solo materias del periodo activo en config, con al menos un parcial/ETS/Extra capturado
+        // Mostrar el periodo más reciente que tenga al menos un parcial/ETS/Extra capturado
         const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
           || m.extraordinario != null || m.ets != null;
-        const _periodoKey = _h.periodoActual || periodos[0] || null;
-        const _matsActuales = (_periodoKey && porPeriodo[_periodoKey])
-          ? porPeriodo[_periodoKey].filter(_tieneDato)
-          : [];
+        let _matsActuales = [], _periodoMostrado = null;
+        for (const p of periodos) { // periodos ya ordenados desc (más reciente primero)
+          const mats = (porPeriodo[p] || []).filter(_tieneDato);
+          if (mats.length > 0) { _matsActuales = mats; _periodoMostrado = p; break; }
+        }
         const htmlPeriodos = _matsActuales.length > 0
-          ? `<h3 class="periodo-titulo">Periodo Actual${_h.periodoActual ? ' — ' + _h.periodoActual : ''}</h3>`
+          ? `<h3 class="periodo-titulo">Periodo Actual${_periodoMostrado ? ' — ' + _periodoMostrado : ''}</h3>`
             + _construirTablaConFaltasArray(_matsActuales)
           : '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas para el periodo actual.</p>';
 
