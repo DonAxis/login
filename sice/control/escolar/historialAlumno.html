@@ -113,16 +113,14 @@
       let suma = 0, count = 0, tbody = '';
 
       mats.forEach((m, i) => {
-        let prom;
-        if (m.promedio !== null && m.promedio !== undefined) {
-          prom = redondearCalificacion(m.promedio);
-        } else {
-          const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
-          const calNum = esMaestria
-            ? toN(m.parcial1)
-            : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
-          prom = redondearCalificacion(calNum);
-        }
+        const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+        const calNum = esMaestria
+          ? toN(m.parcial1)
+          : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
+        let prom = redondearCalificacion(calNum);
+        // ETS > extraordinario tienen prioridad sobre el valor calculado (igual que PeriodoPDF.js)
+        if (m.ets != null)                prom = redondearCalificacion(m.ets);
+        else if (m.extraordinario != null) prom = redondearCalificacion(m.extraordinario);
         const promStr   = (prom === null || prom === undefined) ? '-' : String(prom);
         const promNum   = parseFloat(promStr);
         const colorProm = promStr === 'NP' ? '#dc3545' : isNaN(promNum) ? '#333'
@@ -188,16 +186,14 @@
       let suma = 0, count = 0, tbodyHtml = '';
 
       mats.forEach(m => {
-        let prom;
-        if (m.promedio !== null && m.promedio !== undefined) {
-          prom = redondearCalificacion(m.promedio);
-        } else {
-          const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
-          const calNum = esMaestria
-            ? toN(m.parcial1)
-            : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
-          prom = redondearCalificacion(calNum);
-        }
+        const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+        const calNum = esMaestria
+          ? toN(m.parcial1)
+          : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
+        let prom = redondearCalificacion(calNum);
+        // ETS > extraordinario tienen prioridad sobre el valor calculado (igual que PeriodoPDF.js)
+        if (m.ets != null)                prom = redondearCalificacion(m.ets);
+        else if (m.extraordinario != null) prom = redondearCalificacion(m.extraordinario);
         const promStr = (prom === null || prom === undefined) ? '-' : String(prom);
         const promNum = parseFloat(promStr);
         const colorProm = promStr === 'NP' ? '#dc3545' : isNaN(promNum) ? '#333'
