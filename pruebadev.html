@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Prueba Firebase Dev</title>
+</head>
+<body>
+  <h2>Prueba Firebase Dev</h2>
+  <button onclick="agregarDato()">Agregar dato de prueba</button>
+
+  <script type="module">
+    // IMPORTACIONES FIREBASE
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // 🔥 PEGA AQUÍ TU firebaseConfig DEV
+    const firebaseConfig = {
+  apiKey: "AIzaSyBz6-XHbHOXvlHhiSTScY6d86ZK9m0ARq8",
+  authDomain: "registrosescolares9-dev.firebaseapp.com",
+  projectId: "registrosescolares9-dev",
+  storageBucket: "registrosescolares9-dev.firebasestorage.app",
+  messagingSenderId: "657373748694",
+  appId: "1:657373748694:web:418360489f6fc66988d877",
+  measurementId: "G-Y2R4KK8H39"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.agregarDato = async function() {
+      try {
+        const docRef = await addDoc(collection(db, "prueba"), {
+          mensaje: "Hola desde DEV",
+          fecha: new Date()
+        });
+
+        alert("Documento agregado con ID: " + docRef.id);
+        console.log("Documento creado:", docRef.id);
+
+      } catch (e) {
+        console.error("Error agregando documento:", e);
+      }
+    }
+  </script>
+</body>
+</html>
