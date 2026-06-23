@@ -45,11 +45,17 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     doc.setFont(undefined, 'normal');
     let y = 45;
 
+    const profesorNombre = alumnosEnMateria[0]?.profesorNombre || '-';
+    const grupo   = alumnosEnMateria[0]?.codigoGrupo || '-';
+    const periodo = alumnosEnMateria[0]?.periodo || '-';
+
+    doc.text(`Materia: ${nombreMateria}`, 20, y);
     doc.text(`Fecha: ${fecha}`, pageWidth - 20, y, { align: 'right' });
     y += 5;
-    doc.text(`Materia: ${nombreMateria}`, 20, y);  y += 5;
-    doc.text(`Grupo: ${alumnosEnMateria[0]?.codigoGrupo || '-'}`, 20, y);  y += 5;
-    doc.text(`Periodo: ${alumnosEnMateria[0]?.periodo || '-'}`, 20, y);
+    doc.text(`Profesor: ${profesorNombre}`, 20, y);
+    doc.text(`Periodo: ${periodo}`, pageWidth - 20, y, { align: 'right' });
+    y += 5;
+    doc.text(`Grupo: ${grupo}`, 20, y);
     y += 10;
 
     const toNum = v => (v !== null && v !== undefined && v !== '-' && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);

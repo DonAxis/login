@@ -488,14 +488,17 @@
         }
 
         // Vista por defecto: solo periodo actual (excluye periodoAnterior)
-        const _perAntKey = _h.periodoAnterior ? String(_h.periodoAnterior) : null;
-        const _matsActuales = periodos
-          .filter(p => p !== _perAntKey)
-          .flatMap(p => porPeriodo[p] || []);
+        // Solo materias del periodo activo en config, con al menos un parcial/ETS/Extra capturado
+        const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
+          || m.extraordinario != null || m.ets != null;
+        const _periodoKey = _h.periodoActual || periodos[0] || null;
+        const _matsActuales = (_periodoKey && porPeriodo[_periodoKey])
+          ? porPeriodo[_periodoKey].filter(_tieneDato)
+          : [];
         const htmlPeriodos = _matsActuales.length > 0
           ? `<h3 class="periodo-titulo">Periodo Actual${_h.periodoActual ? ' — ' + _h.periodoActual : ''}</h3>`
             + _construirTablaConFaltasArray(_matsActuales)
-          : '<p style="color:#999;text-align:center;padding:20px;">Sin materias registradas para el periodo actual.</p>';
+          : '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas para el periodo actual.</p>';
 
         document.getElementById('contenido').innerHTML = `
           <div class="info-card">
