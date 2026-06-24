@@ -25,7 +25,7 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
       if (materiaDoc.exists && materiaDoc.data().carreraId) {
         const carreraId = materiaDoc.data().carreraId;
         tieneExamenFinalActa = await obtenerTieneExamenFinal(carreraId);
-        esMaestriaActa = await obtenerEsMaestria(carreraId);
+        esMaestriaActa = await obtenerEsUnParcial(carreraId);
       }
     } catch (_) {}
 

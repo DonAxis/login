@@ -484,6 +484,26 @@ function mostrarModalCarrera() {
     </div>
 
     <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 10px; font-weight: 700; color: #333; font-size: 1rem;">Sistema de Parciales:</label>
+      <div id="parcialesSelector" style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button type="button" onclick="seleccionarParciales(3, this)" class="btn-parciales parciales-activo"
+          style="flex: 1; min-width: 120px; padding: 12px 16px; border: 2px solid #667eea; border-radius: 8px; background: #f0f7ff; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; color: #667eea;">
+          3 Parciales<br><small style="font-weight:400;">Normal</small>
+        </button>
+        <button type="button" onclick="seleccionarParciales(2, this)" class="btn-parciales"
+          style="flex: 1; min-width: 120px; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; color: #333;">
+          2 Parciales<br><small style="font-weight:400;">+ Examen Final</small>
+        </button>
+        <button type="button" onclick="seleccionarParciales(1, this)" class="btn-parciales"
+          style="flex: 1; min-width: 120px; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; color: #333;">
+          1 Parcial<br><small style="font-weight:400;">Maestría / Especial</small>
+        </button>
+      </div>
+      <input type="hidden" id="parcialesSeleccion" value="3">
+      <small style="color: #666;">Define cómo se evaluará a los alumnos en cada periodo</small>
+    </div>
+
+    <div style="margin-bottom: 15px;">
       <label style="display: block; margin-bottom: 10px; font-weight: 700; color: #333; font-size: 1rem;">Sistema de Créditos:</label>
       <div id="creditosSelector" style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button type="button" onclick="seleccionarCreditos('TEPIC', this)" class="btn-creditos"
@@ -557,20 +577,21 @@ async function crearCarrera(event) {
   }
   
   const tipoPeriodo = TIPOS_PERIODO.find(t => t.valor === tipoSeleccionado.value);
-  
+  const numeroParciales = parseInt(document.getElementById('parcialesSeleccion')?.value || '3');
+
   try {
     mostrarMensajeCarrera("Creando carrera y generando matriz de grupos...", "info");
-    
+
     // Verificar si ya existe el código
     const existeSnap = await db.collection('carreras').where('codigo', '==', codigo).get();
     if (!existeSnap.empty) {
       mostrarMensajeCarrera("Ya existe una carrera con ese código", "error");
       return;
     }
-    
+
     // Crear documento de carrera con ID = codigo
     const creditosSeleccionado = document.getElementById('creditosCarreraSeleccion').value;
-    
+
     const carreraData = {
       codigo: codigo,
       nombre: nombre,
@@ -579,6 +600,8 @@ async function crearCarrera(event) {
       tipoPeriodo: tipoPeriodo.valor,
       periodosAnio: tipoPeriodo.periodosAnio,
       creditos: creditosSeleccionado || "",
+      tieneExamenFinal: numeroParciales === 2,
+      ...(numeroParciales === 1 ? { numeroParciales: 1 } : {}),
       activo: true,
       fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -589,12 +612,16 @@ async function crearCarrera(event) {
     // **CAMBIO PRINCIPAL: Generar matriz bidimensional de grupos**
     await generarMatrizGrupos(codigo, numeroPeriodos);
     
+    const parcialesLabel = numeroParciales === 1 ? '1 Parcial (Maestría/Especial)'
+      : numeroParciales === 2 ? '2 Parciales + Examen Final'
+      : '3 Parciales (Normal)';
     mostrarMensajeCarrera(
       `Carrera creada exitosamente\n\n` +
       `Código: ${codigo}\n` +
       `Nombre: ${nombre}\n` +
       `Tipo: ${tipoPeriodo.nombre}\n` +
-      `Periodos: ${numeroPeriodos}\n\n` +
+      `Periodos: ${numeroPeriodos}\n` +
+      `Parciales: ${parcialesLabel}\n\n` +
       `Matriz de grupos generada: ${numeroPeriodos} × 4 turnos`,
       "success"
     );
@@ -1862,6 +1889,21 @@ function cerrarModalMateriasAcademia() {
   academiaMateriasActualId = null;
   todasLasMateriasAdmin = [];
   carrerasAdminModal = [];
+}
+
+// ===== SELECTOR DE PARCIALES EN CREAR CARRERA =====
+function seleccionarParciales(valor, btn) {
+  document.querySelectorAll('#parcialesSelector .btn-parciales').forEach(b => {
+    b.style.background = 'white';
+    b.style.borderColor = '#ddd';
+    b.style.color = '#333';
+    b.classList.remove('parciales-activo');
+  });
+  btn.style.background = '#f0f7ff';
+  btn.style.borderColor = '#667eea';
+  btn.style.color = '#667eea';
+  btn.classList.add('parciales-activo');
+  document.getElementById('parcialesSeleccion').value = valor;
 }
 
 // ===== SELECTOR DE CRÉDITOS EN CREAR CARRERA =====

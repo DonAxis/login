@@ -250,7 +250,9 @@ async function verCalificacionesMateria(asignacionId) {
     // Determinar tipo de carrera
     const carreraActual = carrerasData.find(c => c.id === asignacionActual.carreraId);
     tieneExamenFinalActual = carreraActual?.tieneExamenFinal === true;
-    esMaestriaActual = (carreraActual?.codigo || '').startsWith('M');
+    esMaestriaActual = (carreraActual?.codigo || '').startsWith('M') ||
+                       (carreraActual?.nombre || '').toLowerCase().startsWith('maestr') ||
+                       carreraActual?.numeroParciales === 1;
 
     console.log('Asignación cargada:', asignacionActual);
     console.log('tieneExamenFinal:', tieneExamenFinalActual, '| esMaestria:', esMaestriaActual);

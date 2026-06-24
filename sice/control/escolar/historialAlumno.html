@@ -377,7 +377,7 @@
 
         const [tieneEF, esMaestria, configDoc, carreraDoc] = await Promise.all([
           carreraId ? obtenerTieneExamenFinal(carreraId) : Promise.resolve(false),
-          carreraId ? obtenerEsMaestria(carreraId)       : Promise.resolve(false),
+          carreraId ? obtenerEsUnParcial(carreraId)      : Promise.resolve(false),
           carreraId ? db.collection('config').doc(`periodo_${carreraId}`).get()
                     : Promise.resolve({ exists: false }),
           carreraId ? db.collection('carreras').doc(carreraId).get()

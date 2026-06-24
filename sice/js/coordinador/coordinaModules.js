@@ -211,7 +211,7 @@ async function cargarMaterias() {
             return;
         }
 
-        const esMaestria = await obtenerEsMaestria(usuarioActual.carreraId || '');
+        const esMaestria = await obtenerEsUnParcial(usuarioActual.carreraId || '');
         let html = '';
         snapshot.forEach(doc => {
             const materia = doc.data();
@@ -245,7 +245,7 @@ async function cargarMaterias() {
 
 async function mostrarFormMateria(materiaId = null) {
     const esEdicion = materiaId !== null;
-    const esMaestria = await obtenerEsMaestria(usuarioActual.carreraId || '');
+    const esMaestria = await obtenerEsUnParcial(usuarioActual.carreraId || '');
 
     document.getElementById('tituloModal').textContent = esEdicion ? 'Editar Materia' : 'Nueva Materia';
 
@@ -412,7 +412,7 @@ async function guardarMateria(event, materiaId) {
 
     const nombre = document.getElementById('nombreMateria').value.trim();
     const periodo = parseInt(document.getElementById('periodo').value);
-    const esMaestria = await obtenerEsMaestria(usuarioActual.carreraId || '');
+    const esMaestria = await obtenerEsUnParcial(usuarioActual.carreraId || '');
 
     let creditosSatcaVal, creditosTepicVal;
     if (esMaestria) {

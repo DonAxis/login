@@ -12,7 +12,9 @@
 //   - avg < 6 → sin derecho a examen final, va directo a extraordinario
 //   - Reprobado: calificación < 7.5
 //
-// Sistema Maestría (esMaestria=true, código empieza con 'M' o nombre empieza con 'maestr'):
+// Sistema Maestría / Un Parcial (obtenerEsUnParcial=true):
+//   - Maestría: código empieza con 'M' o nombre empieza con 'maestr' (detección por patrón)
+//   - Otras carreras: campo numeroParciales === 1 en Firestore (ej. UPAV)
 //   - Solo 1 calificación (parcial1) y 1 falta (falta1)
 //   - Sin extraordinario, sin ETS, sin parciales adicionales
 //   - Reprobado: calificación < 6
@@ -106,6 +108,7 @@ async function obtenerEsMaestria(carreraId) {
   const cached = sessionStorage.getItem(cacheKey);
   if (cached !== null) return cached === 'true';
   try {
+    // Nota: si ya se llamó obtenerEsUnParcial, el cache ya está poblado.
     const doc = await db.collection('carreras').doc(carreraId).get();
     const data = doc.exists ? doc.data() : {};
     const valor = (data.codigo || '').startsWith('M') ||
@@ -114,6 +117,36 @@ async function obtenerEsMaestria(carreraId) {
     return valor;
   } catch (e) {
     console.warn('obtenerEsMaestria error:', e.message);
+    return false;
+  }
+}
+
+/**
+ * Detecta si una carrera usa sistema de 1 solo parcial.
+ * Cubre: Maestrías (por patrón código/nombre) + carreras con numeroParciales === 1 en Firestore.
+ * Lee el doc de carreras UNA vez y actualiza también el cache de obtenerEsMaestria.
+ * @param {string} carreraId
+ * @returns {Promise<boolean>}
+ */
+async function obtenerEsUnParcial(carreraId) {
+  if (!carreraId) return false;
+  const cacheKey = `carrera_esUnParcial_${carreraId}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached !== null) return cached === 'true';
+  try {
+    const doc = await db.collection('carreras').doc(carreraId).get();
+    let valor = false;
+    if (doc.exists) {
+      const d = doc.data();
+      const esMaestria = (d.codigo || '').startsWith('M') ||
+                         (d.nombre  || '').toLowerCase().startsWith('maestr');
+      sessionStorage.setItem(`carrera_esMaestria_${carreraId}`, String(esMaestria));
+      valor = esMaestria || d.numeroParciales === 1;
+    }
+    sessionStorage.setItem(cacheKey, String(valor));
+    return valor;
+  } catch (e) {
+    console.warn('obtenerEsUnParcial error:', e.message);
     return false;
   }
 }
