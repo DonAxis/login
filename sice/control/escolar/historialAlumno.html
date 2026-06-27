@@ -266,10 +266,22 @@
       }
 
       const nomSafe = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      // PDF pasa null = sin filtro de periodo (todas las calificaciones activas)
+
+      // Determinar la clave del periodo actual en porPeriodo
+      // (puede ser '2026-1' formato académico o '4' formato semestre numérico)
+      const _todosPerKeys = Object.keys(_h.porPeriodo || {});
+      let _currentPerKey = null;
+      if (_h.periodoActual && _todosPerKeys.includes(String(_h.periodoActual))) {
+        _currentPerKey = String(_h.periodoActual);
+      } else if (_h.semestreNum && _todosPerKeys.includes(String(_h.semestreNum))) {
+        _currentPerKey = String(_h.semestreNum);
+      } else if (_todosPerKeys.length > 0) {
+        _currentPerKey = _todosPerKeys.sort().at(-1);
+      }
+
       const pdfBtn  = `<div style="text-align:right;margin-bottom:16px;">
         <button class="btn-pdf azul" style="display:inline-block;width:auto;padding:10px 20px;"
-          onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', null, true)">
+          onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', '${_currentPerKey}', true, true)">
           Descargar Informe PDF
         </button></div>`;
 

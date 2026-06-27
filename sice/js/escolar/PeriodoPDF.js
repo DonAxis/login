@@ -7,7 +7,7 @@ const _SEMESTRES_PPDF = {
   6: 'SEXTO',   7: 'SÉPTIMO', 8: 'OCTAVO',   9: 'NOVENO'
 };
 
-async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial = false) {
+async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial = false, esInforme = false) {
   try {
     if (typeof window.jspdf === 'undefined') {
       alert('Error: jsPDF no está cargado. Recarga la página.');
@@ -28,7 +28,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
 
     // ── Datos del alumno y carrera ────────────────────────────────
     let especialidad = '', grupo = '', turnoStr = '', semestreStr = '', noControl = '';
-    let tieneEF = false, esMaestria = false, periodoAnterior = null, periodoActualConfig = null;
+    let tieneEF = false, esMaestria = false;
 
     const alumnoDoc = await db.collection('usuarios').doc(alumnoId).get();
     if (alumnoDoc.exists) {
@@ -40,12 +40,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
 
       if (a.carreraId) {
         try {
-          const [cDoc, cfgDoc] = await Promise.all([
-            db.collection('carreras').doc(a.carreraId).get(),
-            periodoKey === null
-              ? db.collection('config').doc(`periodo_${a.carreraId}`).get()
-              : Promise.resolve({ exists: false })
-          ]);
+          const cDoc = await db.collection('carreras').doc(a.carreraId).get();
           if (cDoc.exists) {
             const c = cDoc.data();
             especialidad = (c.nombre || '').toUpperCase();
@@ -53,27 +48,16 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
             esMaestria   = (c.codigo || '').startsWith('M') ||
                            (c.nombre  || '').toLowerCase().startsWith('maestr');
           }
-          if (cfgDoc.exists) {
-            periodoAnterior      = cfgDoc.data().periodoAnterior || null;
-            periodoActualConfig  = cfgDoc.data().periodo         || null;
-          }
         } catch (_) {}
       }
     }
 
     // ── Filtrar al periodo solicitado ─────────────────────────────
-    // Normalización: null/undefined → 'N/A', número → string (igual que cargarHistorial)
     const normP = v => (v === null || v === undefined || v === '') ? 'N/A' : String(v);
-    // periodoKey === null → sin filtro (mostrar todos)
     const registros = [];
     calSnap.forEach(calDoc => {
       const cal = calDoc.data();
-      if (periodoKey === null) {
-        // Informe: mostrar solo el periodo actual
-        if (periodoActualConfig && normP(cal.periodo) !== String(periodoActualConfig)) return;
-      } else {
-        if (normP(cal.periodo) !== periodoKey) return;
-      }
+      if (periodoKey !== null && normP(cal.periodo) !== periodoKey) return;
 
       const p1Raw = cal.parciales?.parcial1 ?? null;
       const p2Raw = cal.parciales?.parcial2 ?? null;
@@ -102,8 +86,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     });
 
     if (registros.length === 0) {
-      const labelPer = periodoKey === null ? 'actual' : periodoKey;
-      alert(`No hay calificaciones registradas para el periodo ${labelPer}.`);
+      alert(`No hay calificaciones registradas para el periodo ${periodoKey ?? 'actual'}.`);
       return;
     }
 
@@ -131,8 +114,8 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 27, { align: 'center' });
-    const tituloDoc = periodoKey === null ? 'INFORME DE CALIFICACIONES' : 'CALIFICACIONES DEL PERIODO';
-    const labelPeriodo = periodoKey === null ? 'ACTUAL' : periodoKey;
+    const tituloDoc    = esInforme ? 'INFORME DE CALIFICACIONES' : 'CALIFICACIONES DEL PERIODO';
+    const labelPeriodo = esInforme ? 'ACTUAL' : (periodoKey ?? '');
     doc.setFontSize(11);
     doc.text(tituloDoc, pageWidth / 2, 34, { align: 'center' });
     doc.setLineWidth(0.5);
@@ -263,7 +246,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     }
 
     const nombre   = nombreAlumno.replace(/\s+/g, '_');
-    const sufijoPer = periodoKey === null ? 'Actual' : periodoKey;
+    const sufijoPer = esInforme ? 'Actual' : (periodoKey ?? '');
     doc.save(`Calificaciones_${sufijoPer}_${nombre}.pdf`);
 
   } catch (error) {
