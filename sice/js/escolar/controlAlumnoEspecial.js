@@ -1117,7 +1117,11 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
             if (cDocEsp.exists) {
               const cDataEsp = cDocEsp.data();
               tieneExamenFinalCoord = cDataEsp.tieneExamenFinal === true;
-              if (typeof esMaestriaCoord !== 'undefined') esMaestriaCoord = (cDataEsp.codigo || '').startsWith('M');
+              if (typeof esMaestriaCoord !== 'undefined') {
+                const _esMaestriaEsp = (cDataEsp.codigo || '').startsWith('M') ||
+                                       (cDataEsp.nombre || '').toLowerCase().startsWith('maestr');
+                esMaestriaCoord = _esMaestriaEsp || cDataEsp.numeroParciales === 1;
+              }
             }
           } catch (_) {}
         }
