@@ -3764,6 +3764,18 @@ function generarTablaCalificaciones() {
           </td>`;
         }
 
+        let colorCal = '#667eea';
+        if (calTexto === 'NP') {
+            colorCal = '#dc3545';
+        } else if (calTexto !== '-') {
+            const reprobado = esReprobado(
+                parseFloat(calTexto),
+                tieneExamenFinalCoord,
+                { p3: p3Num, extraordinario: extraGuardado }
+            );
+            colorCal = reprobado ? '#dc3545' : '#4caf50';
+        }
+
         html += `
         <tr style="border-bottom: 1px solid #eee;">
           <td style="padding: 12px; border: 1px solid #ddd;"><strong>${alumno.nombre}</strong></td>
@@ -3782,7 +3794,7 @@ function generarTablaCalificaciones() {
           </td>
           ${celdaP3}
           ${celdaExtra}
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2rem; color: #667eea;">
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2rem; color: ${colorCal};">
             ${calTexto}
           </td>
         </tr>
