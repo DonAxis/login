@@ -3557,7 +3557,9 @@ async function cargarCalificacionesMateria() {
                 if (cDocCoord.exists) {
                     const cData = cDocCoord.data();
                     tieneExamenFinalCoord = cData.tieneExamenFinal === true;
-                    esMaestriaCoord = (cData.codigo || '').startsWith('M');
+                    const _esMaestria = (cData.codigo || '').startsWith('M') ||
+                                        (cData.nombre || '').toLowerCase().startsWith('maestr');
+                    esMaestriaCoord = _esMaestria || cData.numeroParciales === 1;
                 }
             } catch (_) {}
         }
@@ -4271,39 +4273,71 @@ function descargarActaPDF() {
         // Preparar datos para la tabla
         const tableData = [];
         const toNum = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+        const fmtP  = v => (v === null || v === undefined) ? '-' : v === 'NP' ? 'NP' : String(v);
+
+        let calColIndex;
 
         alumnosCalifMateria.forEach((alumno, index) => {
             const promedio = calcularPromedioAlumno(alumno);
+            const p1 = alumno.calificaciones.parcial1;
+            const p2 = alumno.calificaciones.parcial2;
+            const p3 = alumno.calificaciones.parcial3;
 
-            if (tieneExamenFinalCoord) {
-                const p3Num = toNum(alumno.calificaciones.parcial3);
-                const calNum = isNaN(parseFloat(promedio)) ? promedio : parseFloat(promedio);
+            if (esMaestriaCoord) {
+                tableData.push([(index + 1).toString(), alumno.matricula, alumno.nombre, fmtP(p1), promedio]);
+            } else if (tieneExamenFinalCoord) {
+                const p3Num = toNum(p3);
                 const necesitaExtra = promedio === 'NP' || (p3Num !== null && p3Num !== 'NP' && p3Num < 6);
                 const extraVal = alumno.calificaciones.extraordinario !== null && alumno.calificaciones.extraordinario !== undefined
                     ? String(alumno.calificaciones.extraordinario)
                     : (necesitaExtra ? '' : '-');
-                tableData.push([(index + 1).toString(), alumno.matricula, alumno.nombre, promedio, extraVal]);
+                tableData.push([(index + 1).toString(), alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), promedio, extraVal]);
             } else {
-                tableData.push([(index + 1).toString(), alumno.matricula, alumno.nombre, promedio]);
+                tableData.push([(index + 1).toString(), alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), promedio]);
             }
         });
 
-        const headActa = tieneExamenFinalCoord
-            ? [['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación', 'Extraordinario']]
-            : [['No.', 'Matrícula', 'Nombre del Alumno', 'Calificación']];
+        let headActa, colStylesActa;
 
-        const colStylesActa = tieneExamenFinalCoord ? {
-            0: { halign: 'center', cellWidth: 12 },
-            1: { halign: 'center', cellWidth: 30 },
-            2: { halign: 'left',   cellWidth: 75 },
-            3: { halign: 'center', cellWidth: 30, fontStyle: 'bold' },
-            4: { halign: 'center', cellWidth: 33 }
-        } : {
-            0: { halign: 'center', cellWidth: 15 },
-            1: { halign: 'center', cellWidth: 35 },
-            2: { halign: 'left',   cellWidth: 95 },
-            3: { halign: 'center', cellWidth: 35, fontStyle: 'bold' }
-        };
+        if (esMaestriaCoord) {
+            // No.(10) | Matrícula(33) | Nombre(97) | D1(15) | Cal(25) = 180
+            headActa = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'Calificación']];
+            colStylesActa = {
+                0: { halign: 'center', cellWidth: 10 },
+                1: { halign: 'center', cellWidth: 33 },
+                2: { halign: 'left',   cellWidth: 97 },
+                3: { halign: 'center', cellWidth: 15 },
+                4: { halign: 'center', cellWidth: 25, fontStyle: 'bold' }
+            };
+            calColIndex = 4;
+        } else if (tieneExamenFinalCoord) {
+            // No.(10) | Matrícula(33) | Nombre(52) | D1(13) | D2(13) | E.F(13) | Cal(20) | Extra(26) = 180
+            headActa = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'E.F', 'Calificación', 'Extraordinario']];
+            colStylesActa = {
+                0: { halign: 'center', cellWidth: 10 },
+                1: { halign: 'center', cellWidth: 33 },
+                2: { halign: 'left',   cellWidth: 52 },
+                3: { halign: 'center', cellWidth: 13 },
+                4: { halign: 'center', cellWidth: 13 },
+                5: { halign: 'center', cellWidth: 13 },
+                6: { halign: 'center', cellWidth: 20, fontStyle: 'bold' },
+                7: { halign: 'center', cellWidth: 26 }
+            };
+            calColIndex = 6;
+        } else {
+            // No.(10) | Matrícula(33) | Nombre(70) | D1(14) | D2(14) | D3(14) | Cal(25) = 180
+            headActa = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'D3', 'Calificación']];
+            colStylesActa = {
+                0: { halign: 'center', cellWidth: 10 },
+                1: { halign: 'center', cellWidth: 33 },
+                2: { halign: 'left',   cellWidth: 70 },
+                3: { halign: 'center', cellWidth: 14 },
+                4: { halign: 'center', cellWidth: 14 },
+                5: { halign: 'center', cellWidth: 14 },
+                6: { halign: 'center', cellWidth: 25, fontStyle: 'bold' }
+            };
+            calColIndex = 6;
+        }
 
         // Generar tabla
         doc.autoTable({
@@ -4314,7 +4348,15 @@ function descargarActaPDF() {
             theme: 'grid',
             headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
             styles: { fontSize: 10, cellPadding: 2 },
-            columnStyles: colStylesActa
+            columnStyles: colStylesActa,
+            didParseCell: function(data) {
+                if (data.column.index === calColIndex && data.section === 'body') {
+                    const v = parseFloat(data.cell.text[0]);
+                    if (!isNaN(v)) {
+                        data.cell.styles.textColor = v < 6 ? [244, 67, 54] : [76, 175, 80];
+                    }
+                }
+            }
         });
 
         // El margin.bottom garantiza que siempre haya espacio para total + firma
