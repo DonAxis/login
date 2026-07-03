@@ -3666,14 +3666,16 @@ function generarTablaCalificaciones() {
             <th style="${thStyleNaranja}">Faltas 2</th>
             <th style="${thStyle}">${labelP3}</th>
             ${tieneExamenFinalCoord
-                ? `<th style="${thStyle}">Extra.</th>`
+                ? `<th style="${thStyle}">Extra.</th>
+                   <th style="${thStyle}">ETS</th>`
                 : `<th style="${thStyleNaranja}">Faltas 3</th>
-                   <th style="${thStyle}">Extra.</th>`}`;
+                   <th style="${thStyle}">Extra.</th>
+                   <th style="${thStyle}">ETS</th>`}`;
     }
 
     let html = `
     <div style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; min-width: ${esMaestriaCoord ? '500px' : tieneExamenFinalCoord ? '950px' : '920px'};">
+      <table style="width: 100%; border-collapse: collapse; min-width: ${esMaestriaCoord ? '500px' : tieneExamenFinalCoord ? '1030px' : '1000px'};">
         <thead>
           <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <th style="padding: 12px; text-align: left; border: 1px solid rgba(255,255,255,0.2);">Alumno</th>
@@ -3697,9 +3699,12 @@ function generarTablaCalificaciones() {
         if (calNum === 'NP') calTexto = 'NP';
         else if (calNum !== null) calTexto = String(redondearCalificacion(calNum));
 
-        // Si hay extraordinario guardado, es la calificación definitiva (pisa NP u otro valor)
+        // Prioridad: ETS > extraordinario > promedio
         const extraGuardado = alumno.calificaciones.extraordinario;
-        if (extraGuardado !== null && extraGuardado !== undefined) {
+        const etsGuardado = alumno.calificaciones.ets;
+        if (etsGuardado !== null && etsGuardado !== undefined) {
+            calTexto = String(redondearCalificacion(etsGuardado));
+        } else if (extraGuardado !== null && extraGuardado !== undefined) {
             calTexto = String(redondearCalificacion(extraGuardado));
         }
 
@@ -3723,6 +3728,9 @@ function generarTablaCalificaciones() {
         }
 
         let celdaP3, celdaExtra = '';
+        const celdaEts = `<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+            ${generarDropdownEts(index, alumno.calificaciones.ets)}
+          </td>`;
         if (tieneExamenFinalCoord) {
             const tieneNP_parciales = p1 === 'NP' || p2 === 'NP';
             const p1n = (p1 !== null && p1 !== undefined && p1 !== 'NP') ? parseFloat(p1) : null;
@@ -3794,6 +3802,7 @@ function generarTablaCalificaciones() {
           </td>
           ${celdaP3}
           ${celdaExtra}
+          ${celdaEts}
           <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2rem; color: ${colorCal};">
             ${calTexto}
           </td>
@@ -3812,7 +3821,7 @@ function generarTablaCalificaciones() {
 
     container.innerHTML = html;
 
-    // Rastrear cambios de extraordinario en memoria (más confiable que getElementById en el save)
+    // Rastrear cambios de extraordinario y ETS en memoria
     alumnosCalifMateria.forEach((alumno, idx) => {
         const el = document.getElementById(`calif_${idx}_extraordinario`);
         alumno._hasExtraDropdown = !!el;
@@ -3820,6 +3829,14 @@ function generarTablaCalificaciones() {
             el.addEventListener('change', () => {
                 const v = el.value;
                 alumno.calificaciones.extraordinario = v === '' ? null : (v === 'NP' ? 'NP' : parseInt(v));
+            });
+        }
+        const etsEl = document.getElementById(`calif_${idx}_ets`);
+        alumno._hasEtsDropdown = !!etsEl;
+        if (etsEl) {
+            etsEl.addEventListener('change', () => {
+                const v = etsEl.value;
+                alumno.calificaciones.ets = v === '' ? null : parseInt(v);
             });
         }
     });
@@ -3836,6 +3853,18 @@ function generarDropdownCalif(index, parcial, valor) {
         html += `<option value="${opc}" ${selected}>${texto}</option>`;
     });
 
+    html += '</select>';
+    return html;
+}
+
+function generarDropdownEts(index, valor) {
+    const opciones = ['', '10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
+    let html = `<select id="calif_${index}_ets" style="width: 80px; padding: 8px; border: 2px solid #ddd; border-radius: 5px; text-align: center; font-size: 1.1rem; font-weight: bold;">`;
+    opciones.forEach(opc => {
+        const selected = (valor === null || valor === undefined) && opc === '' ? 'selected' : (valor == opc ? 'selected' : '');
+        const texto = opc === '' ? '-' : opc;
+        html += `<option value="${opc}" ${selected}>${texto}</option>`;
+    });
     html += '</select>';
     return html;
 }
@@ -3959,8 +3988,21 @@ async function guardarTodasCalificacionesCoord() {
                 }
             }
 
-            // Si hay extraordinario capturado, es la calificación definitiva (pisa NP u otra)
-            if (extraordinarioGuardar !== null && extraordinarioGuardar !== undefined) {
+            // ETS — leer desde memoria (onchange mantiene alumno.calificaciones.ets actualizado)
+            let etsGuardar = undefined; // undefined = no tocar (merge)
+            if (alumno._hasEtsDropdown) {
+                const etsVal = alumno.calificaciones.ets;
+                if (etsVal === null || etsVal === undefined) {
+                    etsGuardar = null;
+                } else {
+                    etsGuardar = redondearCalificacion(parseFloat(etsVal));
+                }
+            }
+
+            // Prioridad: ETS > extraordinario > promedio calculado
+            if (etsGuardar !== null && etsGuardar !== undefined) {
+                promedio = etsGuardar;
+            } else if (extraordinarioGuardar !== null && extraordinarioGuardar !== undefined) {
                 promedio = extraordinarioGuardar;
             }
 
@@ -3982,8 +4024,9 @@ async function guardarTodasCalificacionesCoord() {
                 fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (extraordinarioGuardar !== undefined) updateData.extraordinario = extraordinarioGuardar;
+            if (etsGuardar !== undefined) updateData.ets = etsGuardar;
 
-            // merge: true para no borrar ets u otros campos
+            // merge: true para no borrar otros campos
             await db.collection('calificaciones').doc(docId).set(updateData, { merge: true });
 
             await registrarCambioCalificacion({
