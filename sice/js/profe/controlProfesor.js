@@ -975,82 +975,79 @@ async function verExtraordinarios() {
 
       console.log('\nProcesando materia:', asignacion.materiaNombre);
       
-      // Buscar alumnos del grupo
-      const alumnosSnap = await db.collection('usuarios')
-        .where('rol', '==', 'alumno')
-        .where('codigoGrupo', '==', asignacion.codigoGrupo)
-        .where('activo', '==', true)
-        .get();
-      
-      // Buscar inscripciones especiales
-      const especialesSnap = await db.collection('inscripcionesEspeciales')
-        .where('materiaId', '==', asignacion.materiaId)
-        .where('codigoGrupo', '==', asignacion.codigoGrupo)
-        .where('activa', '==', true)
-        .get();
-      
+      // Buscar alumnos del grupo e inscripciones especiales en paralelo
+      const [alumnosSnap, especialesSnap] = await Promise.all([
+        db.collection('usuarios')
+          .where('rol', '==', 'alumno')
+          .where('codigoGrupo', '==', asignacion.codigoGrupo)
+          .where('activo', '==', true)
+          .get(),
+        db.collection('inscripcionesEspeciales')
+          .where('materiaId', '==', asignacion.materiaId)
+          .where('codigoGrupo', '==', asignacion.codigoGrupo)
+          .where('activa', '==', true)
+          .get()
+      ]);
+
       console.log('  Alumnos encontrados:', alumnosSnap.size + especialesSnap.size);
-      
-      // Filtrar solo alumnos reprobados
+
       const alumnosReprobados = [];
-      
-      // Procesar alumnos normales
-      for (const alumnoDoc of alumnosSnap.docs) {
+      const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+
+      // Calificaciones de alumnos normales — todas en paralelo
+      const calDocsNormales = await Promise.all(
+        alumnosSnap.docs.map(d =>
+          db.collection('calificaciones').doc(`${d.id}_${asignacion.materiaId}`).get()
+        )
+      );
+
+      alumnosSnap.docs.forEach((alumnoDoc, i) => {
+        const calDoc = calDocsNormales[i];
+        if (!calDoc.exists) return;
         const alumno = { id: alumnoDoc.id, ...alumnoDoc.data() };
-        
-        const docId = `${alumno.id}_${asignacion.materiaId}`;
-        const calDoc = await db.collection('calificaciones').doc(docId).get();
-        
-        if (calDoc.exists) {
+        const data = calDoc.data();
+        const p = data.parciales || {};
+        const calificacion = calcularCalificacion(toN(p.parcial1), toN(p.parcial2), toN(p.parcial3), tieneEFExtra);
+        if (calificacion !== null && (calificacion === 'NP' || calificacion < 6)) {
+          alumnosReprobados.push({
+            ...alumno,
+            promedio: calificacion,
+            extraordinario: data.extraordinario,
+            ets: data.ets,
+            materiaId: asignacion.materiaId
+          });
+        }
+      });
+
+      // Alumnos especiales — usuario + calificación en paralelo por alumno
+      if (especialesSnap.size > 0) {
+        const inscripciones = especialesSnap.docs.map(d => d.data());
+        const [alumnosEspDocs, calDocsEsp] = await Promise.all([
+          Promise.all(inscripciones.map(i => db.collection('usuarios').doc(i.alumnoId).get())),
+          Promise.all(inscripciones.map(i => db.collection('calificaciones').doc(`${i.alumnoId}_${asignacion.materiaId}`).get()))
+        ]);
+
+        inscripciones.forEach((inscripcion, i) => {
+          const alumnoDoc = alumnosEspDocs[i];
+          const calDoc = calDocsEsp[i];
+          if (!alumnoDoc.exists || !calDoc.exists) return;
+          const alumno = alumnoDoc.data();
           const data = calDoc.data();
           const p = data.parciales || {};
-          const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
           const calificacion = calcularCalificacion(toN(p.parcial1), toN(p.parcial2), toN(p.parcial3), tieneEFExtra);
-
           if (calificacion !== null && (calificacion === 'NP' || calificacion < 6)) {
             alumnosReprobados.push({
-              ...alumno,
+              id: inscripcion.alumnoId,
+              nombre: alumno.nombre,
+              matricula: alumno.matricula || inscripcion.alumnoMatricula,
               promedio: calificacion,
               extraordinario: data.extraordinario,
               ets: data.ets,
-              materiaId: asignacion.materiaId
+              materiaId: asignacion.materiaId,
+              tipoInscripcion: 'especial'
             });
           }
-        }
-      }
-
-      // Procesar alumnos especiales
-      for (const inscripcionDoc of especialesSnap.docs) {
-        const inscripcion = inscripcionDoc.data();
-
-        const alumnoDoc = await db.collection('usuarios').doc(inscripcion.alumnoId).get();
-
-        if (alumnoDoc.exists) {
-          const alumno = alumnoDoc.data();
-
-          const docId = `${inscripcion.alumnoId}_${asignacion.materiaId}`;
-          const calDoc = await db.collection('calificaciones').doc(docId).get();
-
-          if (calDoc.exists) {
-            const data = calDoc.data();
-            const p = data.parciales || {};
-            const toN = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
-            const calificacion = calcularCalificacion(toN(p.parcial1), toN(p.parcial2), toN(p.parcial3), tieneEFExtra);
-
-            if (calificacion !== null && (calificacion === 'NP' || calificacion < 6)) {
-              alumnosReprobados.push({
-                id: inscripcion.alumnoId,
-                nombre: alumno.nombre,
-                matricula: alumno.matricula || inscripcion.alumnoMatricula,
-                promedio: calificacion,
-                extraordinario: data.extraordinario,
-                ets: data.ets,
-                materiaId: asignacion.materiaId,
-                tipoInscripcion: 'especial'
-              });
-            }
-          }
-        }
+        });
       }
       
       console.log('  Alumnos reprobados:', alumnosReprobados.length);
