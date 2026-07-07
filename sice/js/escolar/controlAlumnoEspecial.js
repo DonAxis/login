@@ -1,4 +1,4 @@
-// controlAlumnoEspecial.js
+﻿// controlAlumnoEspecial.js
 // SISTEMA COMPLETO DE ALUMNOS ESPECIALES
 // Un solo archivo que incluye TODO:
 // - Crear alumnos especiales
@@ -1151,10 +1151,11 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
       
       console.log('Buscando alumnos del grupo:', asignacionCalifActual.codigoGrupo);
       
-      // ✓ CORREGIDO: ALUMNOS NORMALES por codigoGrupo
+      // ALUMNOS NORMALES por codigoGrupo + carreraId
       const alumnosNormales = await db.collection('usuarios')
         .where('rol', '==', 'alumno')
         .where('codigoGrupo', '==', asignacionCalifActual.codigoGrupo)
+        .where('carreraId', '==', asignacionCalifActual.carreraId)
         .where('activo', '==', true)
         .get();
       
@@ -1199,16 +1200,26 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
       }
       
       console.log('Buscando inscripciones especiales...');
+      console.log('  asignacionId:', asignacionId);
       console.log('  materiaId:', asignacionCalifActual.materiaId);
-      console.log('  codigoGrupo:', asignacionCalifActual.codigoGrupo);
-      
-      // ✓ CORREGIDO: ALUMNOS ESPECIALES por codigoGrupo
-      const alumnosEspeciales = await db.collection('inscripcionesEspeciales')
-        .where('materiaId', '==', asignacionCalifActual.materiaId)
-        .where('codigoGrupo', '==', asignacionCalifActual.codigoGrupo)
+
+      // Buscar por profesorMateriaId (coincidencia exacta con la asignación seleccionada)
+      // Evita falsos negativos por mismatch de codigoGrupo cuando la asignación fue re-creada
+      let alumnosEspeciales = await db.collection('inscripcionesEspeciales')
+        .where('profesorMateriaId', '==', asignacionId)
         .where('activa', '==', true)
         .get();
-      
+
+      // Fallback: si no hay resultados por profesorMateriaId (inscripciones antiguas sin ese campo),
+      // buscar por materiaId + carreraId para no dejar al alumno invisible
+      if (alumnosEspeciales.empty) {
+        alumnosEspeciales = await db.collection('inscripcionesEspeciales')
+          .where('materiaId', '==', asignacionCalifActual.materiaId)
+          .where('carreraId', '==', asignacionCalifActual.carreraId)
+          .where('activa', '==', true)
+          .get();
+      }
+
       console.log('Inscripciones especiales encontradas:', alumnosEspeciales.size);
       
       for (const doc of alumnosEspeciales.docs) {
@@ -1273,270 +1284,9 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
 }
 
 // =====================================================
-// PARTE 6: CALIFICACIONES PROFESOR
+// PARTE 6: (eliminada — controlProfesor.js ya maneja
+// alumnos especiales con su propio generarTablaCalificaciones)
 // =====================================================
-
-if (typeof cargarAlumnosYCalificaciones !== 'undefined') {
-  const cargarAlumnosYCalificacionesOriginal = cargarAlumnosYCalificaciones;
-  
-  cargarAlumnosYCalificaciones = async function() {
-    try {
-      const container = document.getElementById('tablaCalificaciones');
-      container.innerHTML = '<p style="text-align: center; color: #999;">Cargando...</p>';
-      
-      console.log('=== Cargando alumnos (normal + especiales) ===');
-      console.log('Asignación actual:', asignacionActual);
-      
-      // Verificar que tengamos los campos necesarios
-      if (!asignacionActual.materiaId) {
-        console.error('ERROR: falta materiaId');
-        container.innerHTML = `
-          <div style="text-align: center; padding: 40px; color: #dc3545;">
-            <p><strong>Error de configuración</strong></p>
-            <p>Esta asignación no tiene un ID de materia válido.</p>
-          </div>
-        `;
-        return;
-      }
-      
-      if (!asignacionActual.codigoGrupo) {
-        console.error('ERROR: falta codigoGrupo');
-        container.innerHTML = `
-          <div style="text-align: center; padding: 40px; color: #dc3545;">
-            <p><strong>Error de configuración</strong></p>
-            <p>Esta asignación no tiene un código de grupo válido.</p>
-          </div>
-        `;
-        return;
-      }
-      
-      let todosLosAlumnos = [];
-      
-      // ========== ALUMNOS NORMALES (por codigoGrupo) ==========
-      console.log('Buscando alumnos normales con codigoGrupo:', asignacionActual.codigoGrupo);
-      
-      const alumnosNormales = await db.collection('usuarios')
-        .where('rol', '==', 'alumno')
-        .where('codigoGrupo', '==', asignacionActual.codigoGrupo)  // ✓ CORREGIDO
-        .where('activo', '==', true)
-        .get();
-      
-      console.log('Alumnos normales encontrados:', alumnosNormales.size);
-      
-      for (const doc of alumnosNormales.docs) {
-        const alumno = {
-          id: doc.id,
-          nombre: doc.data().nombre,
-          matricula: doc.data().matricula,
-          tipoInscripcion: 'normal',
-          calificaciones: {
-            'Parcial 1': '',
-            'Parcial 2': '',
-            'Parcial 3': ''
-          }
-        };
-        
-        const docId = doc.id + '_' + asignacionActual.materiaId;
-        const calDoc = await db.collection('calificaciones').doc(docId).get();
-        
-        if (calDoc.exists) {
-          const data = calDoc.data();
-          alumno.calificaciones['Parcial 1'] = data.parciales?.parcial1 ?? '-';
-          alumno.calificaciones['Parcial 2'] = data.parciales?.parcial2 ?? '-';
-          alumno.calificaciones['Parcial 3'] = data.parciales?.parcial3 ?? '-';
-        }
-        
-        todosLosAlumnos.push(alumno);
-      }
-      
-      // ========== ALUMNOS ESPECIALES (por codigoGrupo) ==========
-      console.log('Buscando inscripciones especiales...');
-      console.log('  materiaId:', asignacionActual.materiaId);
-      console.log('  codigoGrupo:', asignacionActual.codigoGrupo);
-      
-      const alumnosEspeciales = await db.collection('inscripcionesEspeciales')
-        .where('materiaId', '==', asignacionActual.materiaId)
-        .where('codigoGrupo', '==', asignacionActual.codigoGrupo)  // ✓ CORREGIDO
-        .where('activa', '==', true)
-        .get();
-      
-      console.log('Inscripciones especiales encontradas:', alumnosEspeciales.size);
-      
-      for (const doc of alumnosEspeciales.docs) {
-        const inscripcion = doc.data();
-        
-        const alumnoDoc = await db.collection('usuarios').doc(inscripcion.alumnoId).get();
-        
-        if (alumnoDoc.exists) {
-          const alumnoData = alumnoDoc.data();
-          
-          const alumno = {
-            id: inscripcion.alumnoId,
-            nombre: alumnoData.nombre,
-            matricula: alumnoData.matricula || inscripcion.alumnoMatricula,
-            tipoInscripcion: 'especial',
-            calificaciones: {
-              'Parcial 1': '',
-              'Parcial 2': '',
-              'Parcial 3': ''
-            }
-          };
-          
-          const docId = inscripcion.alumnoId + '_' + asignacionActual.materiaId;
-          const calDoc = await db.collection('calificaciones').doc(docId).get();
-          
-          if (calDoc.exists) {
-            const data = calDoc.data();
-            alumno.calificaciones['Parcial 1'] = data.parciales?.parcial1 ?? '-';
-            alumno.calificaciones['Parcial 2'] = data.parciales?.parcial2 ?? '-';
-            alumno.calificaciones['Parcial 3'] = data.parciales?.parcial3 ?? '-';
-          }
-          
-          todosLosAlumnos.push(alumno);
-        }
-      }
-      
-      todosLosAlumnos.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      
-      console.log('Total alumnos cargados:', todosLosAlumnos.length);
-      
-      if (todosLosAlumnos.length === 0) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 40px; color: #999;">
-            <p>No hay alumnos en este grupo.</p>
-            <p style="font-size: 0.9rem; margin-top: 10px;">
-              Grupo: ${asignacionActual.codigoGrupo}<br>
-              Materia: ${asignacionActual.materiaNombre}
-            </p>
-          </div>
-        `;
-        return;
-      }
-      
-      alumnosMateria = todosLosAlumnos;
-      
-      const totalNormales = todosLosAlumnos.filter(a => a.tipoInscripcion === 'normal').length;
-      const totalEspeciales = todosLosAlumnos.filter(a => a.tipoInscripcion === 'especial').length;
-      
-      let html = `
-        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-          <strong>Total: ${todosLosAlumnos.length}</strong> |
-          Normales: ${totalNormales} |
-          Especiales: ${totalEspeciales}
-        </div>
-        <div style="overflow-x: auto;">
-          <table style="width: 100%; border-collapse: collapse; background: white; min-width: 700px;">
-            <thead>
-              <tr style="background: #6A2135; color: white;">
-                <th style="padding: 15px; text-align: left; border: 1px solid #ddd;">Alumno</th>
-                <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Matricula</th>
-                <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 1</th>
-                <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 2</th>
-                <th style="padding: 15px; text-align: center; border: 1px solid #ddd; width: 120px;">Parcial 3</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-      
-      todosLosAlumnos.forEach((alumno, index) => {
-        const tipoBadge = alumno.tipoInscripcion === 'especial' 
-          ? '<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px;">ESPECIAL</span>'
-          : '';
-        
-        const rowStyle = alumno.tipoInscripcion === 'especial' ? 'background: #fff8e1;' : '';
-        
-        html += `
-          <tr style="border-bottom: 1px solid #eee; ${rowStyle}">
-            <td style="padding: 12px; border: 1px solid #ddd;">
-              <strong>${alumno.nombre}</strong>
-              ${tipoBadge}
-            </td>
-            <td style="padding: 12px; text-align: center; border: 1px solid #ddd; color: #666;">
-              ${alumno.matricula}
-            </td>
-            <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-              <select id="cal_${index}_p1" 
-                      ${alumno.calificaciones["Parcial 1"] !== "" && alumno.calificaciones["Parcial 1"] !== "-" ? "disabled" : ""} 
-                      style="width: 80px; padding: 8px; border: 2px solid #ddd; border-radius: 5px; text-align: center; font-weight: bold;">
-                <option value="">-</option>
-                <option value="10" ${alumno.calificaciones['Parcial 1'] == '10' ? 'selected' : ''}>10</option>
-                <option value="9" ${alumno.calificaciones['Parcial 1'] == '9' ? 'selected' : ''}>9</option>
-                <option value="8" ${alumno.calificaciones['Parcial 1'] == '8' ? 'selected' : ''}>8</option>
-                <option value="7" ${alumno.calificaciones['Parcial 1'] == '7' ? 'selected' : ''}>7</option>
-                <option value="6" ${alumno.calificaciones['Parcial 1'] == '6' ? 'selected' : ''}>6</option>
-                <option value="5" ${alumno.calificaciones['Parcial 1'] == '5' ? 'selected' : ''}>5</option>
-                <option value="4" ${alumno.calificaciones['Parcial 1'] == '4' ? 'selected' : ''}>4</option>
-                <option value="3" ${alumno.calificaciones['Parcial 1'] == '3' ? 'selected' : ''}>3</option>
-                <option value="2" ${alumno.calificaciones['Parcial 1'] == '2' ? 'selected' : ''}>2</option>
-                <option value="1" ${alumno.calificaciones['Parcial 1'] == '1' ? 'selected' : ''}>1</option>
-                <option value="0" ${alumno.calificaciones['Parcial 1'] == '0' ? 'selected' : ''}>0</option>
-                <option value="NP" ${alumno.calificaciones['Parcial 1'] == 'NP' ? 'selected' : ''}>NP</option>
-              </select>
-            </td>
-            <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-              <select id="cal_${index}_p2" 
-                      ${alumno.calificaciones["Parcial 2"] !== "" && alumno.calificaciones["Parcial 2"] !== "-" ? "disabled" : ""} 
-                      style="width: 80px; padding: 8px; border: 2px solid #ddd; border-radius: 5px; text-align: center; font-weight: bold;">
-                <option value="">-</option>
-                <option value="10" ${alumno.calificaciones['Parcial 2'] == '10' ? 'selected' : ''}>10</option>
-                <option value="9" ${alumno.calificaciones['Parcial 2'] == '9' ? 'selected' : ''}>9</option>
-                <option value="8" ${alumno.calificaciones['Parcial 2'] == '8' ? 'selected' : ''}>8</option>
-                <option value="7" ${alumno.calificaciones['Parcial 2'] == '7' ? 'selected' : ''}>7</option>
-                <option value="6" ${alumno.calificaciones['Parcial 2'] == '6' ? 'selected' : ''}>6</option>
-                <option value="5" ${alumno.calificaciones['Parcial 2'] == '5' ? 'selected' : ''}>5</option>
-                <option value="4" ${alumno.calificaciones['Parcial 2'] == '4' ? 'selected' : ''}>4</option>
-                <option value="3" ${alumno.calificaciones['Parcial 2'] == '3' ? 'selected' : ''}>3</option>
-                <option value="2" ${alumno.calificaciones['Parcial 2'] == '2' ? 'selected' : ''}>2</option>
-                <option value="1" ${alumno.calificaciones['Parcial 2'] == '1' ? 'selected' : ''}>1</option>
-                <option value="0" ${alumno.calificaciones['Parcial 2'] == '0' ? 'selected' : ''}>0</option>
-                <option value="NP" ${alumno.calificaciones['Parcial 2'] == 'NP' ? 'selected' : ''}>NP</option>
-              </select>
-            </td>
-            <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-              <select id="cal_${index}_p3" 
-                      ${alumno.calificaciones["Parcial 3"] !== "" && alumno.calificaciones["Parcial 3"] !== "-" ? "disabled" : ""} 
-                      style="width: 80px; padding: 8px; border: 2px solid #ddd; border-radius: 5px; text-align: center; font-weight: bold;">
-                <option value="">-</option>
-                <option value="10" ${alumno.calificaciones['Parcial 3'] == '10' ? 'selected' : ''}>10</option>
-                <option value="9" ${alumno.calificaciones['Parcial 3'] == '9' ? 'selected' : ''}>9</option>
-                <option value="8" ${alumno.calificaciones['Parcial 3'] == '8' ? 'selected' : ''}>8</option>
-                <option value="7" ${alumno.calificaciones['Parcial 3'] == '7' ? 'selected' : ''}>7</option>
-                <option value="6" ${alumno.calificaciones['Parcial 3'] == '6' ? 'selected' : ''}>6</option>
-                <option value="5" ${alumno.calificaciones['Parcial 3'] == '5' ? 'selected' : ''}>5</option>
-                <option value="4" ${alumno.calificaciones['Parcial 3'] == '4' ? 'selected' : ''}>4</option>
-                <option value="3" ${alumno.calificaciones['Parcial 3'] == '3' ? 'selected' : ''}>3</option>
-                <option value="2" ${alumno.calificaciones['Parcial 3'] == '2' ? 'selected' : ''}>2</option>
-                <option value="1" ${alumno.calificaciones['Parcial 3'] == '1' ? 'selected' : ''}>1</option>
-                <option value="0" ${alumno.calificaciones['Parcial 3'] == '0' ? 'selected' : ''}>0</option>
-                <option value="NP" ${alumno.calificaciones['Parcial 3'] == 'NP' ? 'selected' : ''}>NP</option>
-              </select>
-            </td>
-          </tr>
-        `;
-      });
-      
-      html += `
-            </tbody>
-          </table>
-        </div>
-        <div style="margin-top: 20px; text-align: right;">
-          <button onclick="guardarCalificacionesProfe()" 
-                  style="padding: 12px 30px; background: linear-gradient(135deg, #6A2135 0%, #6A3221 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-            Guardar Calificaciones
-          </button>
-        </div>
-      `;
-      
-      container.innerHTML = html;
-      
-      console.log('Tabla de calificaciones generada correctamente');
-      
-    } catch (error) {
-      console.error('Error al cargar alumnos y calificaciones:', error);
-      alert('Error al cargar calificaciones: ' + error.message);
-    }
-  };
-}
 
 // =====================================================
 // PARTE 7: CONSULTA DE ALUMNO ESPECIAL

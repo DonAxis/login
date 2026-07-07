@@ -312,17 +312,25 @@ async function cargarAlumnosYCalificaciones() {
     const alumnosSnap = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
       .where('codigoGrupo', '==', asignacionActual.codigoGrupo)
+      .where('carreraId', '==', asignacionActual.carreraId)
       .where('activo', '==', true)
       .get();
-    
+
     console.log('Alumnos normales encontrados:', alumnosSnap.size);
-    
-    // Buscar inscripciones especiales
-    const especialesSnap = await db.collection('inscripcionesEspeciales')
-      .where('materiaId', '==', asignacionActual.materiaId)
-      .where('codigoGrupo', '==', asignacionActual.codigoGrupo)
+
+    // Buscar inscripciones especiales (exacto por asignación, con fallback legacy)
+    let especialesSnap = await db.collection('inscripcionesEspeciales')
+      .where('profesorMateriaId', '==', asignacionActual.id)
       .where('activa', '==', true)
       .get();
+
+    if (especialesSnap.empty) {
+      especialesSnap = await db.collection('inscripcionesEspeciales')
+        .where('materiaId', '==', asignacionActual.materiaId)
+        .where('carreraId', '==', asignacionActual.carreraId)
+        .where('activa', '==', true)
+        .get();
+    }
     
     console.log('Inscripciones especiales encontradas:', especialesSnap.size);
     

@@ -718,6 +718,7 @@ async function verAlumnosEnMateria(materiaId, nombreMateria, profesorNombreParam
           parcial2:       cal?.parciales?.parcial2 ?? '-',
           parcial3:       cal?.parciales?.parcial3 ?? '-',
           extraordinario: cal?.extraordinario ?? null,
+          ets:            cal?.ets ?? null,
           periodo:        cal?.periodo || periodoActual,
           profesorNombre: cal?.profesorNombre || profesorNombreParam
         });
@@ -738,6 +739,7 @@ async function verAlumnosEnMateria(materiaId, nombreMateria, profesorNombreParam
             parcial2:       cal.parciales?.parcial2 ?? '-',
             parcial3:       cal.parciales?.parcial3 ?? '-',
             extraordinario: cal.extraordinario ?? null,
+            ets:            cal.ets ?? null,
             periodo:        cal.periodo,
             profesorNombre: cal.profesorNombre || ''
           });
@@ -764,13 +766,21 @@ async function verAlumnosEnMateria(materiaId, nombreMateria, profesorNombreParam
       <h2 class="titulo-seccion">Alumnos en ${nombreMateria}</h2>
       <p style="margin-bottom: 20px; color: #666;">Total: ${alumnosEnMateria.length} alumnos</p>
 
-      <div style="margin-bottom: 20px;">
+      <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
         <button onclick="descargarActaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
                 class="opcion-btn" style="background: #dc3545;">
-          Descargar Acta de Calificaciones (PDF)
+          Acta General
+        </button>
+        <button onclick="descargarActaExtraordinariaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
+                class="opcion-btn" style="background: #f57c00;">
+          Acta Extraordinario
+        </button>
+        <button onclick="descargarActaEtsMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
+                class="opcion-btn" style="background: #1565c0;">
+          Acta ETS
         </button>
       </div>
-      
+
       <table>
         <thead>
           <tr>
@@ -781,6 +791,8 @@ async function verAlumnosEnMateria(materiaId, nombreMateria, profesorNombreParam
             <th>Parcial 2</th>
             <th>Parcial 3</th>
             <th>Promedio</th>
+            <th>Extra</th>
+            <th>ETS</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -832,6 +844,12 @@ async function verAlumnosEnMateria(materiaId, nombreMateria, profesorNombreParam
           <td style="text-align: center; font-weight: bold; font-size: 1.1rem;">${p3}</td>
           <td style="text-align: center; font-weight: bold; font-size: 1.3rem; color: ${colorPromedio};">
             ${promedio}
+          </td>
+          <td style="text-align: center; font-weight: bold; font-size: 1.1rem; color: ${alumno.extraordinario !== null && alumno.extraordinario !== undefined ? '#f57c00' : '#ccc'};">
+            ${alumno.extraordinario !== null && alumno.extraordinario !== undefined ? alumno.extraordinario : '—'}
+          </td>
+          <td style="text-align: center; font-weight: bold; font-size: 1.1rem; color: ${alumno.ets !== null && alumno.ets !== undefined ? '#1565c0' : '#ccc'};">
+            ${alumno.ets !== null && alumno.ets !== undefined ? alumno.ets : '—'}
           </td>
           <td>
             <button onclick="verHistorialCompleto('${alumno.uid}', '${alumno.nombre.replace(/'/g, "\\'")}')">
@@ -2496,10 +2514,18 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, periodo) {
       ${backBtn}
       <p style="color:#666;margin-bottom:6px;">Periodo: <strong>${periodo}</strong></p>
       <p style="color:#666;margin-bottom:18px;">Total: <strong>${alumnosEnMateria.length}</strong> alumnos</p>
-      <div style="margin-bottom:18px;">
+      <div style="margin-bottom:18px; display:flex; gap:10px; flex-wrap:wrap;">
         <button onclick="descargarActaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
                 class="opcion-btn" style="background:#dc3545;">
-          Descargar Acta de Calificaciones (PDF)
+          Acta General
+        </button>
+        <button onclick="descargarActaExtraordinariaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
+                class="opcion-btn" style="background:#f57c00;">
+          Acta Extraordinario
+        </button>
+        <button onclick="descargarActaEtsMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
+                class="opcion-btn" style="background:#1565c0;">
+          Acta ETS
         </button>
       </div>
       <table>
@@ -2509,6 +2535,8 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, periodo) {
           <th style="text-align:center;">P2</th>
           <th style="text-align:center;">${tieneEF ? 'E.Final' : 'P3'}</th>
           <th style="text-align:center;">Cal</th>
+          <th style="text-align:center;">Extra</th>
+          <th style="text-align:center;">ETS</th>
         </tr></thead>
         <tbody>`;
 
@@ -2529,6 +2557,12 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, periodo) {
         <td style="text-align:center;">${p2 !== null ? p2 : '-'}</td>
         <td style="text-align:center;">${p3 !== null ? p3 : '-'}</td>
         <td style="text-align:center;font-weight:bold;font-size:1.1rem;color:${color};">${calStr}</td>
+        <td style="text-align:center;font-weight:bold;color:${alumno.extraordinario != null ? '#f57c00' : '#ccc'};">
+          ${alumno.extraordinario != null ? alumno.extraordinario : '—'}
+        </td>
+        <td style="text-align:center;font-weight:bold;color:${alumno.ets != null ? '#1565c0' : '#ccc'};">
+          ${alumno.ets != null ? alumno.ets : '—'}
+        </td>
       </tr>`;
     });
 

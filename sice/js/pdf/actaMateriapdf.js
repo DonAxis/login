@@ -192,4 +192,154 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
   }
 }
 
-console.log('Función descargarActaMateria cargada');
+// ── helpers internos ──────────────────────────────────────────────────────────
+
+function _actaEsc_encabezado(doc, titulo, alumnosEnMateria, nombreMateria) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const fecha = new Date().toLocaleDateString('es-MX', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
+
+  doc.setFontSize(18);
+  doc.setFont(undefined, 'bold');
+  doc.text(titulo, 105, 25, { align: 'center' });
+  doc.setLineWidth(0.5);
+  doc.line(30, 38, 180, 38);
+
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'normal');
+  let y = 45;
+
+  const profesorNombre = alumnosEnMateria[0]?.profesorNombre || '-';
+  const grupo   = alumnosEnMateria[0]?.codigoGrupo || '-';
+  const periodo = alumnosEnMateria[0]?.periodo || '-';
+
+  doc.text(`Materia: ${nombreMateria}`, 20, y);
+  doc.text(`Fecha: ${fecha}`, pageWidth - 20, y, { align: 'right' });
+  y += 5;
+  doc.text(`Profesor: ${profesorNombre}`, 20, y);
+  doc.text(`Periodo: ${periodo}`, pageWidth - 20, y, { align: 'right' });
+  y += 5;
+  doc.text(`Grupo: ${grupo}`, 20, y);
+  return y + 10;
+}
+
+function _actaEsc_pie(doc, total) {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let finalY = doc.lastAutoTable.finalY + 10;
+  if (finalY + 45 > pageHeight) { doc.addPage(); finalY = 20; }
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.text(`Total de alumnos: ${total}`, 20, finalY);
+
+  const firmasY = finalY + 30;
+  doc.setLineWidth(0.3);
+  doc.line(30,  firmasY, 90,  firmasY);
+  doc.line(120, firmasY, 180, firmasY);
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(9);
+  doc.text('Profesor',     60,  firmasY + 5, { align: 'center' });
+  doc.text('Coordinación', 150, firmasY + 5, { align: 'center' });
+}
+
+function _actaEsc_tablaSimple(doc, startY, cabecera, filtrados, campo) {
+  const tableData = filtrados.map((alumno, index) => [
+    (index + 1).toString(),
+    alumno.matricula || 'N/A',
+    alumno.nombre,
+    String(alumno[campo])
+  ]);
+
+  doc.autoTable({
+    startY,
+    margin: { bottom: 40 },
+    head: [['No.', 'Matrícula', 'Nombre del Alumno', cabecera]],
+    body: tableData,
+    theme: 'grid',
+    headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
+    styles: { fontSize: 10, cellPadding: 2 },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 10  },
+      1: { halign: 'center', cellWidth: 33  },
+      2: { halign: 'left',   cellWidth: 112 },
+      3: { halign: 'center', cellWidth: 25, fontStyle: 'bold' }
+    },
+    didParseCell: function(data) {
+      if (data.column.index === 3 && data.section === 'body') {
+        const v = parseFloat(data.cell.text[0]);
+        if (!isNaN(v)) {
+          data.cell.styles.textColor = v < 6 ? [244, 67, 54] : [76, 175, 80];
+        }
+      }
+    }
+  });
+}
+
+// ── Acta Extraordinario ───────────────────────────────────────────────────────
+
+async function descargarActaExtraordinariaMateria(materiaId, nombreMateria, alumnosEnMateria) {
+  const filtrados = alumnosEnMateria.filter(a =>
+    a.extraordinario !== null && a.extraordinario !== undefined
+  );
+
+  if (filtrados.length === 0) {
+    alert('No hay alumnos con calificación de extraordinario en esta materia.');
+    return;
+  }
+
+  try {
+    if (typeof window.jspdf === 'undefined') {
+      alert('Error: jsPDF no está cargado. Recarga la página.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ format: 'letter' });
+
+    const startY = _actaEsc_encabezado(doc, 'ACTA DE EXTRAORDINARIO', filtrados, nombreMateria);
+    _actaEsc_tablaSimple(doc, startY, 'Extraordinario', filtrados, 'extraordinario');
+    _actaEsc_pie(doc, filtrados.length);
+
+    doc.save(`Acta_Extraordinario_${nombreMateria.replace(/\s+/g, '_')}.pdf`);
+
+  } catch (error) {
+    console.error('Error al generar PDF de extraordinario:', error);
+    alert('Error al generar PDF: ' + error.message);
+  }
+}
+
+// ── Acta ETS ─────────────────────────────────────────────────────────────────
+
+async function descargarActaEtsMateria(materiaId, nombreMateria, alumnosEnMateria) {
+  const filtrados = alumnosEnMateria.filter(a =>
+    a.ets !== null && a.ets !== undefined
+  );
+
+  if (filtrados.length === 0) {
+    alert('No hay alumnos con calificación ETS en esta materia.');
+    return;
+  }
+
+  try {
+    if (typeof window.jspdf === 'undefined') {
+      alert('Error: jsPDF no está cargado. Recarga la página.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ format: 'letter' });
+
+    const startY = _actaEsc_encabezado(doc, 'ACTA DE ETS', filtrados, nombreMateria);
+    _actaEsc_tablaSimple(doc, startY, 'ETS', filtrados, 'ets');
+    _actaEsc_pie(doc, filtrados.length);
+
+    doc.save(`Acta_ETS_${nombreMateria.replace(/\s+/g, '_')}.pdf`);
+
+  } catch (error) {
+    console.error('Error al generar PDF de ETS:', error);
+    alert('Error al generar PDF: ' + error.message);
+  }
+}
+
+console.log('Funciones de actas de calificaciones cargadas');

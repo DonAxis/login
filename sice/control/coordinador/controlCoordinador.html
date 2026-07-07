@@ -820,14 +820,22 @@
  <h3 style="margin: 0;" id="tituloMateriaCalif">Materia</h3>
  <p style="margin: 5px 0; color: #666;" id="infoMateriaCalif">Informacion de la materia</p>
  </div>
- <div style="display: flex; gap: 10px;">
- <button onclick="guardarTodasCalificacionesCoord()" 
+ <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+ <button onclick="guardarTodasCalificacionesCoord()"
  style="padding: 12px 24px; background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
  Guardar Calificaciones
  </button>
- <button onclick="descargarActaPDF()" 
+ <button onclick="descargarActaPDF()"
  style="padding: 12px 24px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
- Descargar PDF
+ Acta General
+ </button>
+ <button id="btnActaExtraordinario" onclick="descargarActaExtraordinarioPDF()"
+ style="padding: 12px 24px; background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
+ Acta Extraordinario
+ </button>
+ <button id="btnActaETS" onclick="descargarActaEtsPDF()"
+ style="padding: 12px 24px; background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
+ Acta ETS
  </button>
  </div>
  </div>
@@ -985,6 +993,7 @@
   <script src="../../js/coordinador/HistorialCoorPDF.js"></script>
   <script src="../../js/coordinador/HistorialAlumnoPDF.js"></script>
   <script src="../../js/coordinador/InformeCalificacionesPDF.js"></script>
+  <script src="../../js/coordinador/actaCalificacionesPDF.js"></script>
   <!-- ============================================= -->
   <!-- coordinador demaciado pesado ya -->
   <!-- <script src="coordinador.js"></script>  -->
