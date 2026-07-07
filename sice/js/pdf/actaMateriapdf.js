@@ -264,8 +264,8 @@ function _actaEsc_tablaSimple(doc, startY, cabecera, filtrados, campo) {
     columnStyles: {
       0: { halign: 'center', cellWidth: 10  },
       1: { halign: 'center', cellWidth: 33  },
-      2: { halign: 'left',   cellWidth: 112 },
-      3: { halign: 'center', cellWidth: 25, fontStyle: 'bold' }
+      2: { halign: 'left',   cellWidth: 108 },
+      3: { halign: 'center', cellWidth: 29, fontStyle: 'bold' }
     },
     didParseCell: function(data) {
       if (data.column.index === 3 && data.section === 'body') {
