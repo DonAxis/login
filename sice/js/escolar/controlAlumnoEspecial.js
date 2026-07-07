@@ -1203,28 +1203,40 @@ if (typeof cargarCalificacionesMateria !== 'undefined') {
       console.log('  asignacionId:', asignacionId);
       console.log('  materiaId:', asignacionCalifActual.materiaId);
 
-      // Buscar por profesorMateriaId (coincidencia exacta con la asignación seleccionada)
-      // Evita falsos negativos por mismatch de codigoGrupo cuando la asignación fue re-creada
-      let alumnosEspeciales = await db.collection('inscripcionesEspeciales')
-        .where('profesorMateriaId', '==', asignacionId)
-        .where('activa', '==', true)
-        .get();
-
-      // Fallback: si no hay resultados por profesorMateriaId (inscripciones antiguas sin ese campo),
-      // buscar por materiaId + carreraId para no dejar al alumno invisible
-      if (alumnosEspeciales.empty) {
-        alumnosEspeciales = await db.collection('inscripcionesEspeciales')
-          .where('materiaId', '==', asignacionCalifActual.materiaId)
-          .where('carreraId', '==', asignacionCalifActual.carreraId)
+      // Query 1: coincidencia exacta con la asignación actual (periodo vigente)
+      // Query 2: por materiaId + codigoGrupo (captura inscripciones con profesorMateriaId obsoleto)
+      // Se corren en paralelo y se mergean por alumnoId para evitar duplicados
+      const [snapPorId, snapPorGrupo] = await Promise.all([
+        db.collection('inscripcionesEspeciales')
+          .where('profesorMateriaId', '==', asignacionId)
           .where('activa', '==', true)
-          .get();
+          .get(),
+        db.collection('inscripcionesEspeciales')
+          .where('materiaId', '==', asignacionCalifActual.materiaId)
+          .where('codigoGrupo', '==', asignacionCalifActual.codigoGrupo)
+          .where('activa', '==', true)
+          .get()
+      ]);
+
+      // Merge deduplicado por alumnoId
+      const alumnoIdsSeen = new Set();
+      const docsMerge = [];
+      for (const snap of [snapPorId, snapPorGrupo]) {
+        for (const doc of snap.docs) {
+          const aid = doc.data().alumnoId;
+          if (!alumnoIdsSeen.has(aid)) {
+            alumnoIdsSeen.add(aid);
+            docsMerge.push(doc);
+          }
+        }
       }
 
-      console.log('Inscripciones especiales encontradas:', alumnosEspeciales.size);
+      console.log('Inscripciones especiales encontradas:', docsMerge.length,
+        `(por ID: ${snapPorId.size}, por grupo: ${snapPorGrupo.size})`);
       
-      for (const doc of alumnosEspeciales.docs) {
+      for (const doc of docsMerge) {
         const inscripcion = doc.data();
-        
+
         const alumnoDoc = await db.collection('usuarios').doc(inscripcion.alumnoId).get();
         
         if (alumnoDoc.exists) {

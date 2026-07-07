@@ -766,18 +766,18 @@ async function verAlumnosEnMateria(materiaId, nombreMateria, profesorNombreParam
       <h2 class="titulo-seccion">Alumnos en ${nombreMateria}</h2>
       <p style="margin-bottom: 20px; color: #666;">Total: ${alumnosEnMateria.length} alumnos</p>
 
-      <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;">
-        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 130px;">
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 190px; width: fit-content;">
           <button onclick="descargarActaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
-                  class="opcion-btn" style="background: #c62828; width: 100%; margin: 0;">
+                  class="opcion-btn" style="background: linear-gradient(135deg, #c62828 0%, #8b0000 100%); width: 100%; margin: 0;">
             Acta General
           </button>
           <button onclick="descargarActaExtraordinariaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
-                  class="opcion-btn" style="background: #1565c0; width: 100%; margin: 0;">
+                  class="opcion-btn" style="background: linear-gradient(135deg, #1565c0 0%, #0a3880 100%); width: 100%; margin: 0;">
             Acta Extra
           </button>
           <button onclick="descargarActaEtsMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
-                  class="opcion-btn" style="background: #1565c0; width: 100%; margin: 0;">
+                  class="opcion-btn" style="background: linear-gradient(135deg, #1565c0 0%, #0a3880 100%); width: 100%; margin: 0;">
             Acta ETS
           </button>
         </div>
@@ -2516,18 +2516,18 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, periodo) {
       ${backBtn}
       <p style="color:#666;margin-bottom:6px;">Periodo: <strong>${periodo}</strong></p>
       <p style="color:#666;margin-bottom:18px;">Total: <strong>${alumnosEnMateria.length}</strong> alumnos</p>
-      <div style="margin-bottom:18px; display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
-        <div style="display:flex; flex-direction:column; gap:6px; min-width:130px;">
+      <div style="margin-bottom:18px;">
+        <div style="display:flex; flex-direction:column; gap:6px; min-width:190px; width:fit-content;">
           <button onclick="descargarActaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
-                  class="opcion-btn" style="background:#c62828; width:100%; margin:0;">
+                  class="opcion-btn" style="background:linear-gradient(135deg,#c62828 0%,#8b0000 100%); width:100%; margin:0;">
             Acta General
           </button>
           <button onclick="descargarActaExtraordinariaMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
-                  class="opcion-btn" style="background:#1565c0; width:100%; margin:0;">
+                  class="opcion-btn" style="background:linear-gradient(135deg,#1565c0 0%,#0a3880 100%); width:100%; margin:0;">
             Acta Extra
           </button>
           <button onclick="descargarActaEtsMateria(window._actaMateriaId, window._actaMateriaNombre, window._actaAlumnosData)"
-                  class="opcion-btn" style="background:#1565c0; width:100%; margin:0;">
+                  class="opcion-btn" style="background:linear-gradient(135deg,#1565c0 0%,#0a3880 100%); width:100%; margin:0;">
             Acta ETS
           </button>
         </div>

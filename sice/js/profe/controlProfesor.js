@@ -318,21 +318,35 @@ async function cargarAlumnosYCalificaciones() {
 
     console.log('Alumnos normales encontrados:', alumnosSnap.size);
 
-    // Buscar inscripciones especiales (exacto por asignación, con fallback legacy)
-    let especialesSnap = await db.collection('inscripcionesEspeciales')
-      .where('profesorMateriaId', '==', asignacionActual.id)
-      .where('activa', '==', true)
-      .get();
-
-    if (especialesSnap.empty) {
-      especialesSnap = await db.collection('inscripcionesEspeciales')
-        .where('materiaId', '==', asignacionActual.materiaId)
-        .where('carreraId', '==', asignacionActual.carreraId)
+    // Query 1: coincidencia exacta con la asignación actual
+    // Query 2: por materiaId + codigoGrupo (captura inscripciones con profesorMateriaId obsoleto)
+    const [snapEspId, snapEspGrupo] = await Promise.all([
+      db.collection('inscripcionesEspeciales')
+        .where('profesorMateriaId', '==', asignacionActual.id)
         .where('activa', '==', true)
-        .get();
+        .get(),
+      db.collection('inscripcionesEspeciales')
+        .where('materiaId', '==', asignacionActual.materiaId)
+        .where('codigoGrupo', '==', asignacionActual.codigoGrupo)
+        .where('activa', '==', true)
+        .get()
+    ]);
+
+    // Merge deduplicado por alumnoId
+    const _espSeen = new Set();
+    const especialesSnap = { docs: [] };
+    for (const snap of [snapEspId, snapEspGrupo]) {
+      for (const doc of snap.docs) {
+        const aid = doc.data().alumnoId;
+        if (!_espSeen.has(aid)) {
+          _espSeen.add(aid);
+          especialesSnap.docs.push(doc);
+        }
+      }
     }
-    
-    console.log('Inscripciones especiales encontradas:', especialesSnap.size);
+
+    console.log('Inscripciones especiales encontradas:', especialesSnap.docs.length,
+      `(por ID: ${snapEspId.size}, por grupo: ${snapEspGrupo.size})`);
     
     // Cargar alumnos normales
     for (const doc of alumnosSnap.docs) {
