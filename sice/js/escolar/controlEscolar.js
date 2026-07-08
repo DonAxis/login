@@ -1355,15 +1355,16 @@ async function verDetalleAlumnoEspecial(alumnoId, nombreAlumno) {
               <th style="text-align: center;">Parcial 2</th>
               <th style="text-align: center;">Parcial 3</th>
               <th style="text-align: center;">Promedio</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
       `;
-      
+
       inscripciones.forEach(insc => {
         const promedioNum = parseFloat(insc.promedio);
         let promedioColor = '#333';
-        
+
         if (!isNaN(promedioNum)) {
           if (promedioNum >= 8) {
             promedioColor = '#4caf50';
@@ -1373,20 +1374,30 @@ async function verDetalleAlumnoEspecial(alumnoId, nombreAlumno) {
             promedioColor = '#f44336';
           }
         }
-        
+
+        const _matNomSafe  = insc.materiaNombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const _profNomSafe = (insc.profesorNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const _grupoSafe   = (insc.codigoGrupo || '').replace(/'/g, "\\'");
+
         html += `
           <tr>
             <td>
               <strong>${insc.materiaNombre}</strong>
               ${insc.materiaCodigo ? '<br><small style="color: #666;">' + insc.materiaCodigo + '</small>' : ''}
             </td>
-            <td>${insc.grupoNombre}</td>
+            <td>${insc.codigoGrupo || '—'}</td>
             <td>${insc.profesorNombre || 'N/A'}</td>
             <td style="text-align: center; font-weight: bold; font-size: 1.1rem;">${insc.parcial1}</td>
             <td style="text-align: center; font-weight: bold; font-size: 1.1rem;">${insc.parcial2}</td>
             <td style="text-align: center; font-weight: bold; font-size: 1.1rem;">${insc.parcial3}</td>
             <td style="text-align: center; font-weight: bold; font-size: 1.3rem; color: ${promedioColor};">
               ${insc.promedio}
+            </td>
+            <td style="white-space:nowrap;">
+              <button onclick="verActasMateriaEspecial('${insc.materiaId}', '${_matNomSafe}', '${_profNomSafe}', '${_grupoSafe}')"
+                style="background:#6A2135;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">
+                Ver Actas
+              </button>
             </td>
           </tr>
         `;
@@ -1404,6 +1415,12 @@ async function verDetalleAlumnoEspecial(alumnoId, nombreAlumno) {
     console.error('Error al cargar detalle:', error);
     alert('Error al cargar detalle del alumno');
   }
+}
+
+// ===== ACTAS DESDE DETALLE DE ALUMNO ESPECIAL =====
+async function verActasMateriaEspecial(materiaId, materiaNombre, profesorNombre, codigoGrupo) {
+  grupoSeleccionado = { codigoGrupo };
+  await verAlumnosEnMateria(materiaId, materiaNombre, profesorNombre);
 }
 
 // ===== PLACEHOLDER PARA FUNCIONES EXTERNAS =====
