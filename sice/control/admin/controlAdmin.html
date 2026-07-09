@@ -920,23 +920,25 @@
         <div style="text-align:center;padding:20px;color:#999;">Cargando...</div>
       </div>
 
-      <!-- Filtros -->
-      <div id="histFiltros" style="display:none;flex-wrap:wrap;gap:10px;margin-bottom:14px;align-items:center;">
-        <select id="histSelCarrera" onchange="histFiltrarCarrera(this.value)"
-          style="padding:7px 12px;border:2px solid #ddd;border-radius:8px;font-size:0.85rem;cursor:pointer;min-width:160px;"
+      <!-- Barra de acciones -->
+      <div id="histFiltros" style="display:none;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center;">
+        <button id="histBtnVolver" onclick="volverALista()"
+          style="display:none;padding:7px 14px;background:#f5f5f5;border:2px solid #ddd;border-radius:8px;
+            font-size:0.85rem;font-weight:600;cursor:pointer;color:#555;"
+          onmouseover="this.style.background='#ebebeb'" onmouseout="this.style.background='#f5f5f5'">
+          ← Volver a materias
+        </button>
+        <input id="histBuscarMateria" type="text" placeholder="Buscar materia..."
+          oninput="histBuscarMateria(this.value)"
+          style="padding:7px 12px;border:2px solid #ddd;border-radius:8px;font-size:0.85rem;min-width:200px;"
           onfocus="this.style.borderColor='#bf360c';" onblur="this.style.borderColor='#ddd';">
-          <option value="">Todas las carreras</option>
-        </select>
-        <select id="histSelOperador" onchange="histFiltrarOperador(this.value)"
-          style="padding:7px 12px;border:2px solid #ddd;border-radius:8px;font-size:0.85rem;cursor:pointer;min-width:180px;"
-          onfocus="this.style.borderColor='#7b1fa2';" onblur="this.style.borderColor='#ddd';">
-          <option value="">Todos los operadores</option>
-        </select>
-        <div id="histFiltroMateriaActiva" style="display:none;align-items:center;gap:6px;background:#e8f5e9;border:1px solid #2e7d3240;padding:5px 10px;border-radius:20px;font-size:0.82rem;">
-          <span style="color:#2e7d32;font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-          <button onclick="histLimpiarMateria()" style="background:none;border:none;color:#2e7d32;cursor:pointer;font-size:1rem;line-height:1;padding:0 2px;" title="Quitar filtro">&times;</button>
-        </div>
-        <span style="font-size:0.8rem;color:#bbb;margin-left:4px;">Filtros en local — sin nueva lectura a Firestore</span>
+        <button id="histBtnRecalcular" onclick="recalcularResumen()"
+          style="padding:7px 16px;background:linear-gradient(135deg,#bf360c,#e64a19);color:white;border:none;
+            border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;margin-left:auto;
+            box-shadow:0 2px 8px rgba(191,54,12,0.3);">
+          Recalcular resumen
+        </button>
+        <span style="font-size:0.76rem;color:#ccc;">Lee todos los docs — usar solo cuando necesario</span>
       </div>
 
       <!-- Tabla -->

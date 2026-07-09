@@ -239,6 +239,150 @@ function descargarActaExtraordinarioPDF() {
 
 // ── Acta ETS ─────────────────────────────────────────────────────────────────
 
+// ── Actas Históricas ─────────────────────────────────────────────────────────
+
+function mostrarVistaCalif(vista) {
+    const esActual = vista === 'actual';
+    document.getElementById('vistaCalifActual').style.display    = esActual ? '' : 'none';
+    document.getElementById('vistaCalifHistorica').style.display = esActual ? 'none' : '';
+
+    const tabActual    = document.getElementById('tabCalifActual');
+    const tabHistorica = document.getElementById('tabCalifHistorica');
+    tabActual.style.background    = esActual ? '#43a047' : 'white';
+    tabActual.style.color         = esActual ? 'white'   : '#43a047';
+    tabHistorica.style.background = esActual ? 'white'   : '#43a047';
+    tabHistorica.style.color      = esActual ? '#43a047' : 'white';
+
+    if (!esActual) _cargarSelectMateriaHistorica();
+}
+
+async function _cargarSelectMateriaHistorica() {
+    const sel = document.getElementById('selectMateriaHistorica');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Cargando...</option>';
+    try {
+        const carreraId = (typeof carreraActivaId !== 'undefined' && carreraActivaId)
+            ? carreraActivaId
+            : (typeof usuarioActual !== 'undefined' && usuarioActual && usuarioActual.carreraId);
+        if (!carreraId) { sel.innerHTML = '<option value="">Sin carrera activa</option>'; return; }
+
+        const snap = await db.collection('materias')
+            .where('carreraId', '==', carreraId)
+            .where('activo', '==', true)
+            .get();
+
+        sel.innerHTML = '<option value="">Seleccionar materia...</option>';
+        snap.docs
+            .map(d => ({ id: d.id, nombre: d.data().nombre || '' }))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre))
+            .forEach(m => {
+                const o = document.createElement('option');
+                o.value = m.id; o.text = m.nombre;
+                sel.appendChild(o);
+            });
+    } catch (e) {
+        sel.innerHTML = '<option value="">Error al cargar</option>';
+        console.error('[ActasHist] Error cargando materias:', e);
+    }
+}
+
+async function generarActaHistorica(tipo, btn) {
+    const materiaId = document.getElementById('selectMateriaHistorica').value;
+    const ciclo     = document.getElementById('inputCicloHistorico').value.trim();
+    const campo     = tipo === 'ETS' ? 'ets' : 'extraordinario';
+    const titulo    = tipo === 'ETS' ? 'ACTA DE ETS' : 'ACTA DE EXTRAORDINARIO';
+
+    if (!materiaId) { alert('Selecciona una materia.'); return; }
+
+    const txtOrig = btn.textContent;
+    btn.textContent = 'Buscando...'; btn.disabled = true;
+
+    try {
+        const snap = await db.collection('calificaciones')
+            .where('materiaId', '==', materiaId)
+            .get();
+
+        let docs = snap.docs.map(d => d.data())
+            .filter(d => d[campo] !== null && d[campo] !== undefined);
+
+        if (ciclo) docs = docs.filter(d => d.periodoAcademico === ciclo);
+
+        if (docs.length === 0) {
+            alert(`No hay registros de ${tipo}${ciclo ? ' en el ciclo ' + ciclo : ''} para esa materia.`);
+            return;
+        }
+
+        // Matrículas desde usuarios (batch)
+        const usuariosSnaps = await Promise.all(docs.map(d => db.collection('usuarios').doc(d.alumnoId).get()));
+        const matriculaMap  = {};
+        usuariosSnaps.forEach(s => { if (s.exists) matriculaMap[s.id] = s.data().matricula || '-'; });
+
+        const materiaNombre  = docs[0].materiaNombre  || '';
+        const profesorNombre = docs[0].profesorNombre || '-';
+        const periodoLabel   = ciclo || docs[0].periodoAcademico || 'Histórico';
+
+        // Si hay varios grupos, listarlos todos
+        const grupos = [...new Set(docs.map(d => d.codigoGrupo).filter(Boolean))];
+        const grupoLabel = grupos.length === 1 ? grupos[0] : grupos.join(', ');
+
+        const alumnos = docs
+            .map(d => ({ nombre: d.alumnoNombre || '-', matricula: matriculaMap[d.alumnoId] || '-', calificacion: d[campo] }))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        // PDF
+        const doc = _acta_jsPDF(); if (!doc) return;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const fecha = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, false);
+
+        doc.setFontSize(18); doc.setFont(undefined, 'bold');
+        doc.text(titulo, 105, 25, { align: 'center' });
+        doc.setLineWidth(0.5); doc.line(30, 38, 180, 38);
+
+        doc.setFontSize(11); doc.setFont(undefined, 'normal');
+        let y = 45;
+        doc.text(`Fecha: ${fecha}`,              pageWidth - 20, y, { align: 'right' });
+        doc.text(`Materia: ${materiaNombre}`,    20, y); y += 5;
+        doc.text(`Grupo: ${grupoLabel}`,         20, y);
+        doc.text(`Ciclo: ${periodoLabel}`,       pageWidth - 20, y, { align: 'right' }); y += 5;
+        doc.text(`Profesor: ${profesorNombre}`,  20, y);
+        y += 10;
+
+        const tableData = alumnos.map((a, i) => [
+            (i + 1).toString(), a.matricula, a.nombre, String(a.calificacion)
+        ]);
+
+        doc.autoTable({
+            startY: y, margin: { bottom: 40 },
+            head: [['No.', 'Matrícula', 'Nombre del Alumno', tipo]],
+            body: tableData, theme: 'grid',
+            headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
+            styles: { fontSize: 10, cellPadding: 2 },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 10  },
+                1: { halign: 'center', cellWidth: 33  },
+                2: { halign: 'left',   cellWidth: 108 },
+                3: { halign: 'center', cellWidth: 29, fontStyle: 'bold' }
+            },
+            didParseCell: data => _acta_colorCalif(data, 3)
+        });
+
+        _acta_pie(doc, alumnos.length, doc.lastAutoTable.finalY);
+
+        const sufijo = ciclo ? `_${ciclo}` : '';
+        doc.save(`Acta_${tipo}${sufijo}_${materiaNombre.replace(/\s+/g, '_')}.pdf`);
+
+    } catch (e) {
+        console.error('[ActasHist] Error:', e);
+        alert('Error al generar acta: ' + e.message);
+    } finally {
+        btn.textContent = txtOrig; btn.disabled = false;
+    }
+}
+
+// ── Acta ETS ─────────────────────────────────────────────────────────────────
+
 function descargarActaEtsPDF() {
     if (!asignacionCalifActual || alumnosCalifMateria.length === 0) {
         alert('Primero selecciona una materia y carga los alumnos.');
