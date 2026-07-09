@@ -595,7 +595,7 @@ async function descargarActasMasivas(tipo, btn) {
                 calColIndex   = 4;
                 tableData     = cals.map((c, i) => {
                     const p1  = c.parciales?.parcial1 ?? null;
-                    const cal = calcularCalificacion(p1, null, null, false);
+                    const cal = redondearCalificacion(calcularCalificacion(p1, null, null, false));
                     return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(cal)];
                 });
 
@@ -605,7 +605,7 @@ async function descargarActasMasivas(tipo, btn) {
                 calColIndex   = 6;
                 tableData     = cals.map((c, i) => {
                     const p1 = c.parciales?.parcial1 ?? null, p2 = c.parciales?.parcial2 ?? null, p3 = c.parciales?.parcial3 ?? null;
-                    const cal = calcularCalificacion(p1, p2, p3, true);
+                    const cal = redondearCalificacion(calcularCalificacion(p1, p2, p3, true));
                     const p3n = (p3 != null && p3 !== 'NP') ? parseFloat(p3) : null;
                     const extraVal = c.extraordinario != null ? String(c.extraordinario) : (cal === 'NP' || (p3n !== null && p3n < 6) ? '' : '-');
                     return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(p2), fmtP(p3), fmtP(cal), extraVal];
@@ -617,7 +617,7 @@ async function descargarActasMasivas(tipo, btn) {
                 calColIndex   = 6;
                 tableData     = cals.map((c, i) => {
                     const p1 = c.parciales?.parcial1 ?? null, p2 = c.parciales?.parcial2 ?? null, p3 = c.parciales?.parcial3 ?? null;
-                    const cal = calcularCalificacion(p1, p2, p3, false);
+                    const cal = redondearCalificacion(calcularCalificacion(p1, p2, p3, false));
                     return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(p2), fmtP(p3), fmtP(cal)];
                 });
             }

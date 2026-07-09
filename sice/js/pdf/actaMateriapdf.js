@@ -65,8 +65,8 @@ async function descargarActaMateria(materiaId, nombreMateria, alumnosEnMateria) 
     const tableData = [];
     alumnosEnMateria.forEach((alumno, index) => {
       const p1 = alumno.parcial1, p2 = alumno.parcial2, p3 = alumno.parcial3;
-      const calNum = calcularCalificacion(toNum(p1), toNum(p2), toNum(p3), tieneExamenFinalActa);
-      const calStr = calNum === 'NP' ? 'NP' : calNum !== null ? calNum.toFixed(1) : '-';
+      const calNum = redondearCalificacion(calcularCalificacion(toNum(p1), toNum(p2), toNum(p3), tieneExamenFinalActa));
+      const calStr = calNum === 'NP' ? 'NP' : calNum !== null ? String(calNum) : '-';
 
       if (esMaestriaActa) {
         tableData.push([
