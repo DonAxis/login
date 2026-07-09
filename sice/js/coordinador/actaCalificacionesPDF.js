@@ -657,6 +657,8 @@ async function descargarActasMasivas(tipo, btn) {
 
 // ── Panel Actas ───────────────────────────────────────────────────────────────
 
+let _actasHistAlumnosCache = null;
+
 async function inicializarSeccionActas() {
     const sel        = document.getElementById('selectMateriaActas');
     const contenedor = document.getElementById('contenedorVistaActas');
@@ -688,6 +690,17 @@ async function inicializarSeccionActas() {
         console.error('[Actas] Error cargando materias:', e);
         sel.innerHTML = '<option value="">Error al cargar</option>';
     }
+
+    // Resetear sección Históricas
+    _actasHistAlumnosCache = null;
+    const histInput = document.getElementById('inputActasHistAlumno');
+    const histResul = document.getElementById('actasHistResultados');
+    const histDet   = document.getElementById('actasHistDetalle');
+    const histBusq  = document.getElementById('actasHistBusqueda');
+    if (histInput) histInput.value    = '';
+    if (histResul) histResul.innerHTML = '';
+    if (histDet)   histDet.style.display  = 'none';
+    if (histBusq)  histBusq.style.display = '';
 }
 
 async function cargarVistaActas() {
@@ -835,4 +848,297 @@ function _renderVistaActas(asig) {
             </table>
         </div>
         <div style="padding:8px 0 0; font-size:0.83rem; color:#888;">Total: ${alumnosCalifMateria.length} alumno(s)</div>`;
+}
+
+// ── Actas Históricas — buscador por alumno ────────────────────────────────────
+
+async function buscarAlumnosActasHist() {
+    const input = document.getElementById('inputActasHistAlumno');
+    const lista = document.getElementById('actasHistResultados');
+    if (!input || !lista) return;
+
+    const termino   = input.value.trim().toLowerCase();
+    const carreraId = usuarioActual && usuarioActual.carreraId;
+    if (!termino) { lista.innerHTML = ''; return; }
+    if (!carreraId) return;
+
+    lista.innerHTML = '<p style="color:#888; padding:10px 15px;">Buscando...</p>';
+
+    try {
+        if (!_actasHistAlumnosCache) {
+            const snap = await db.collection('usuarios')
+                .where('rol',       '==', 'alumno')
+                .where('carreraId', '==', carreraId)
+                .get();
+            _actasHistAlumnosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+
+        const res = _actasHistAlumnosCache
+            .filter(a =>
+                (a.nombre    || '').toLowerCase().includes(termino) ||
+                (a.matricula || '').toLowerCase().includes(termino)
+            )
+            .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+        if (res.length === 0) {
+            lista.innerHTML = '<p style="color:#888; padding:10px 15px;">Sin resultados.</p>';
+            return;
+        }
+
+        const items = res.slice(0, 30).map(a => `
+            <div onclick="verActasAlumno('${a.id}','${(a.nombre||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${a.matricula||''}')"
+              style="padding:12px 16px; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
+              onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+                <div>
+                    <div style="font-weight:600; color:#333;">${a.nombre || '-'}</div>
+                    <div style="font-size:0.83rem; color:#888;">Mat: ${a.matricula || '-'} &nbsp;·&nbsp; Grupo: ${a.codigoGrupo || 'Especial'} &nbsp;·&nbsp; Periodo ${a.periodo || '-'}</div>
+                </div>
+                <div style="color:#bbb; padding-left:8px;">&#8250;</div>
+            </div>`).join('');
+
+        lista.innerHTML = items +
+            (res.length > 30 ? `<p style="color:#999; padding:8px 15px; font-size:0.82rem;">Mostrando 30 de ${res.length}. Refina la búsqueda.</p>` : '');
+
+    } catch (e) {
+        lista.innerHTML = `<p style="color:red; padding:10px 15px;">Error: ${e.message}</p>`;
+    }
+}
+
+async function verActasAlumno(alumnoId, alumnoNombre, matricula) {
+    const busq = document.getElementById('actasHistBusqueda');
+    const det  = document.getElementById('actasHistDetalle');
+    if (!busq || !det) return;
+
+    busq.style.display = 'none';
+    det.style.display  = '';
+    det.innerHTML = '<p style="color:#888; padding:20px 0;">Cargando historial...</p>';
+
+    const btnVolver = `<button onclick="volverActasHist()"
+        style="padding:7px 14px; background:#f5f5f5; border:1px solid #ddd; border-radius:6px; cursor:pointer; font-size:0.88rem; margin-bottom:14px;">
+        ← Volver</button>`;
+
+    try {
+        const histDoc = await db.collection('historialAcademico').doc(alumnoId).get();
+
+        if (!histDoc.exists) {
+            det.innerHTML = `${btnVolver}<p style="color:#888;">Sin historial académico registrado.</p>`;
+            return;
+        }
+
+        const materias = (histDoc.data().materias || [])
+            .filter(m => m.calificacion !== null && m.calificacion !== undefined && m.valida !== false)
+            .sort((a, b) => (a.periodo || 0) - (b.periodo || 0) || (a.materiaNombre || '').localeCompare(b.materiaNombre || ''));
+
+        if (materias.length === 0) {
+            det.innerHTML = `${btnVolver}<p style="color:#888; margin-top:4px;">Sin calificaciones registradas.</p>`;
+            return;
+        }
+
+        const rows = materias.map((m, i) => {
+            const tipo     = m.acr === 'ETS' ? 'ETS' : m.acr === 'EXT' ? 'EXT' : 'GENERAL';
+            const btnLabel = tipo === 'ETS'  ? 'Acta ETS'
+                           : tipo === 'EXT'  ? 'Acta Extraordinario'
+                           :                   'Acta General';
+            const btnGrad  = tipo === 'ETS'  ? 'linear-gradient(135deg,#1565c0,#0a3880)'
+                           : tipo === 'EXT'  ? 'linear-gradient(135deg,#6a1b9a,#4a148c)'
+                           :                   'linear-gradient(135deg,#c62828,#8b0000)';
+            const calStr   = m.calificacion == null ? '-' : m.calificacion === 'NP' ? 'NP' : String(m.calificacion);
+            const calColor = (!isNaN(parseFloat(calStr)) && parseFloat(calStr) < 6) ? '#f44336' : '#333';
+
+            return `<tr style="background:${i % 2 === 0 ? '#fafafa' : 'white'}">
+                <td style="padding:8px 10px;">${m.materiaNombre || '-'}</td>
+                <td style="text-align:center; padding:8px 6px; color:#666;">${m.periodo || '-'}</td>
+                <td style="text-align:center; font-weight:700; color:${calColor}; padding:8px 6px;">${calStr}</td>
+                <td style="text-align:center; padding:8px 6px; color:#666; font-size:0.82rem;">${m.acr || '-'}</td>
+                <td style="text-align:center; padding:8px 6px; color:#666; font-size:0.82rem;">${m.periodoAcademico || '-'}</td>
+                <td style="padding:8px 6px; text-align:center;">
+                    <button onclick="descargarActaHistoricaAlumno('${alumnoId}','${m.materiaId}','${tipo}',this)"
+                      style="padding:5px 10px; background:${btnGrad}; color:white; border:none; border-radius:5px; font-size:0.8rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                      ${btnLabel}
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        det.innerHTML = `
+            ${btnVolver}
+            <div style="margin-bottom:14px;">
+                <div style="font-weight:700; color:#333; font-size:1rem;">${alumnoNombre}</div>
+                <div style="font-size:0.83rem; color:#888;">Matrícula: ${matricula || '-'}</div>
+            </div>
+            <div style="overflow-x:auto; border-radius:8px; border:1px solid #e0e0e0; overflow:hidden;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                    <thead>
+                        <tr style="background:#6c1d45; color:white;">
+                            <th style="padding:10px; text-align:left;">Materia</th>
+                            <th style="text-align:center; padding:10px; width:55px;">Sem.</th>
+                            <th style="text-align:center; padding:10px; width:70px;">Cal.</th>
+                            <th style="text-align:center; padding:10px; width:55px;">Acr.</th>
+                            <th style="text-align:center; padding:10px; width:85px;">Ciclo</th>
+                            <th style="text-align:center; padding:10px; width:160px;">Acta</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+            <div style="padding:8px 0 0; font-size:0.83rem; color:#888;">${materias.length} materia(s) acreditada(s)</div>`;
+
+    } catch (e) {
+        det.innerHTML = `${btnVolver}<p style="color:red; margin-top:4px;">Error: ${e.message}</p>`;
+    }
+}
+
+function volverActasHist() {
+    const busq = document.getElementById('actasHistBusqueda');
+    const det  = document.getElementById('actasHistDetalle');
+    if (busq) busq.style.display = '';
+    if (det)  det.style.display  = 'none';
+}
+
+async function descargarActaHistoricaAlumno(alumnoId, materiaId, tipo, btn) {
+    const txtOrig = btn.textContent;
+    btn.textContent = 'Generando...'; btn.disabled = true;
+
+    try {
+        // Leer el doc del alumno para obtener codigoGrupo (ID: alumnoId_materiaId)
+        const calRef = db.collection('calificaciones').doc(`${alumnoId}_${materiaId}`);
+        const calDoc = await calRef.get();
+        if (!calDoc.exists) { alert('No se encontró el registro de calificaciones.'); return; }
+
+        const refData        = calDoc.data();
+        const codigoGrupo    = refData.codigoGrupo    || '-';
+        const materiaNombre  = refData.materiaNombre  || 'Materia';
+        const profesorNombre = refData.profesorNombre || '-';
+        const periodoLabel   = refData.periodoAcademico || refData.periodo || '';
+        const carreraId      = refData.carreraId;
+
+        // Cargar todos los registros de esa materia, filtrar por grupo en memoria
+        const snap    = await db.collection('calificaciones').where('materiaId', '==', materiaId).get();
+        let calDocs   = snap.docs.map(d => d.data()).filter(d => d.codigoGrupo === codigoGrupo);
+
+        if (tipo === 'ETS') {
+            calDocs = calDocs.filter(c => c.ets !== null && c.ets !== undefined);
+        } else if (tipo === 'EXT') {
+            calDocs = calDocs.filter(c => c.extraordinario !== null && c.extraordinario !== undefined);
+        }
+
+        if (calDocs.length === 0) {
+            alert(`No hay registros de ${tipo === 'GENERAL' ? 'calificaciones' : tipo} para este grupo.`);
+            return;
+        }
+
+        // Flags de carrera (necesarios para columnas de GENERAL)
+        let tieneExFinal = false, esUnParcial = false;
+        if (carreraId) {
+            [tieneExFinal, esUnParcial] = await Promise.all([
+                obtenerTieneExamenFinal(carreraId),
+                obtenerEsUnParcial(carreraId)
+            ]);
+        }
+
+        // Matrículas en batch
+        const alumnoIds = [...new Set(calDocs.map(c => c.alumnoId))];
+        const chunks    = [];
+        for (let i = 0; i < alumnoIds.length; i += 30) chunks.push(alumnoIds.slice(i, i + 30));
+        const userSnaps = await Promise.all(
+            chunks.map(ch => db.collection('usuarios').where(firebase.firestore.FieldPath.documentId(), 'in', ch).get())
+        );
+        const matMap = {};
+        userSnaps.forEach(s => s.docs.forEach(d => { matMap[d.id] = d.data().matricula || '-'; }));
+
+        calDocs.sort((a, b) => (a.alumnoNombre || '').localeCompare(b.alumnoNombre || ''));
+
+        // Generar PDF (mismo formato que las actas del periodo actual)
+        const doc = _acta_jsPDF(); if (!doc) return;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const fecha = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        const titulo = tipo === 'ETS'  ? 'ACTA DE ETS'
+                     : tipo === 'EXT'  ? 'ACTA DE EXTRAORDINARIO'
+                     :                   'ACTA DE CALIFICACIONES';
+
+        if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, tieneExFinal);
+
+        doc.setFontSize(18); doc.setFont(undefined, 'bold');
+        doc.text(titulo, 105, 25, { align: 'center' });
+        doc.setLineWidth(0.5); doc.line(30, 38, 180, 38);
+
+        doc.setFontSize(11); doc.setFont(undefined, 'normal');
+        let y = 45;
+        doc.text(`Fecha: ${fecha}`,            pageWidth - 20, y, { align: 'right' });
+        doc.text(`Materia: ${materiaNombre}`,   20, y); y += 5;
+        doc.text(`Grupo: ${codigoGrupo}`,       20, y);
+        if (periodoLabel) doc.text(`Ciclo: ${periodoLabel}`, pageWidth - 20, y, { align: 'right' });
+        y += 5;
+        doc.text(`Profesor: ${profesorNombre}`, 20, y);
+        y += 10;
+
+        const fmtP = v => (v == null) ? '-' : v === 'NP' ? 'NP' : String(v);
+        let head, columnStyles, calColIndex, tableData;
+
+        if (tipo === 'ETS') {
+            head         = [['No.', 'Matrícula', 'Nombre del Alumno', 'ETS']];
+            columnStyles = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:108}, 3:{halign:'center',cellWidth:29,fontStyle:'bold'} };
+            calColIndex  = 3;
+            tableData    = calDocs.map((c, i) => [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', String(c.ets)]);
+
+        } else if (tipo === 'EXT') {
+            head         = [['No.', 'Matrícula', 'Nombre del Alumno', 'Extraordinario']];
+            columnStyles = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:108}, 3:{halign:'center',cellWidth:29,fontStyle:'bold'} };
+            calColIndex  = 3;
+            tableData    = calDocs.map((c, i) => [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', String(c.extraordinario)]);
+
+        } else if (esUnParcial) {
+            head         = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'Calificación']];
+            columnStyles = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:97}, 3:{halign:'center',cellWidth:15}, 4:{halign:'center',cellWidth:25,fontStyle:'bold'} };
+            calColIndex  = 4;
+            tableData    = calDocs.map((c, i) => {
+                const p1  = c.parciales?.parcial1 ?? null;
+                const cal = calcularCalificacion(p1, null, null, false);
+                return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(cal)];
+            });
+
+        } else if (tieneExFinal) {
+            head         = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'E.F', 'Calificación', 'Extraordinario']];
+            columnStyles = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:52}, 3:{halign:'center',cellWidth:13}, 4:{halign:'center',cellWidth:13}, 5:{halign:'center',cellWidth:13}, 6:{halign:'center',cellWidth:20,fontStyle:'bold'}, 7:{halign:'center',cellWidth:26} };
+            calColIndex  = 6;
+            tableData    = calDocs.map((c, i) => {
+                const p1 = c.parciales?.parcial1 ?? null, p2 = c.parciales?.parcial2 ?? null, p3 = c.parciales?.parcial3 ?? null;
+                const cal = calcularCalificacion(p1, p2, p3, true);
+                const p3n = (p3 != null && p3 !== 'NP') ? parseFloat(p3) : null;
+                const extraVal = c.extraordinario != null ? String(c.extraordinario) : (cal === 'NP' || (p3n !== null && p3n < 6) ? '' : '-');
+                return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(p2), fmtP(p3), fmtP(cal), extraVal];
+            });
+
+        } else {
+            head         = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'D3', 'Calificación']];
+            columnStyles = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:70}, 3:{halign:'center',cellWidth:14}, 4:{halign:'center',cellWidth:14}, 5:{halign:'center',cellWidth:14}, 6:{halign:'center',cellWidth:25,fontStyle:'bold'} };
+            calColIndex  = 6;
+            tableData    = calDocs.map((c, i) => {
+                const p1 = c.parciales?.parcial1 ?? null, p2 = c.parciales?.parcial2 ?? null, p3 = c.parciales?.parcial3 ?? null;
+                const cal = calcularCalificacion(p1, p2, p3, false);
+                return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(p2), fmtP(p3), fmtP(cal)];
+            });
+        }
+
+        doc.autoTable({
+            startY: y, margin: { bottom: 40 },
+            head, body: tableData, theme: 'grid',
+            headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
+            styles: { fontSize: 10, cellPadding: 2 },
+            columnStyles,
+            didParseCell: data => _acta_colorCalif(data, calColIndex)
+        });
+
+        _acta_pie(doc, calDocs.length, doc.lastAutoTable.finalY);
+
+        const sufijo = periodoLabel ? `_${periodoLabel}` : '';
+        doc.save(`Acta_${tipo}${sufijo}_${materiaNombre.replace(/\s+/g, '_')}.pdf`);
+
+    } catch (e) {
+        console.error('[ActasHistAlumno] Error:', e);
+        alert('Error al generar acta: ' + e.message);
+    } finally {
+        btn.textContent = txtOrig; btn.disabled = false;
+    }
 }
