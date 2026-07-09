@@ -508,12 +508,16 @@ async function descargarActasMasivas(tipo, btn) {
               .get()
         ]);
 
-        // Índice de calificaciones del periodo actual: "codigoGrupo_materiaId" → [calData]
-        const calIdx = {};
+        // Índice de calificaciones: calIdx filtra por periodo (GENERAL), calIdxAll incluye todo (ETS/EXT)
+        // ETS y EXT pueden existir en docs con c.periodo de un ciclo anterior al actual
+        const calIdx    = {};
+        const calIdxAll = {};
         calSnap.docs.forEach(d => {
             const c = d.data();
-            if (c.periodo !== periodo) return;
             const k = `${c.codigoGrupo}_${c.materiaId}`;
+            if (!calIdxAll[k]) calIdxAll[k] = [];
+            calIdxAll[k].push(c);
+            if (c.periodo !== periodo) return;
             if (!calIdx[k]) calIdx[k] = [];
             calIdx[k].push(c);
         });
@@ -542,7 +546,8 @@ async function descargarActasMasivas(tipo, btn) {
         let actasGeneradas = 0;
 
         for (const asig of asigs) {
-            let cals = calIdx[`${asig.codigoGrupo}_${asig.materiaId}`] || [];
+            const srcIdx = (tipo === 'GENERAL') ? calIdx : calIdxAll;
+            let cals = srcIdx[`${asig.codigoGrupo}_${asig.materiaId}`] || [];
 
             if (tipo === 'ETS') {
                 cals = cals.filter(c => c.ets !== null && c.ets !== undefined);
@@ -658,6 +663,7 @@ async function descargarActasMasivas(tipo, btn) {
 // ── Panel Actas ───────────────────────────────────────────────────────────────
 
 let _actasHistAlumnosCache = null;
+let _actasHistCarreraNombre = null;
 
 async function inicializarSeccionActas() {
     const sel        = document.getElementById('selectMateriaActas');
@@ -691,8 +697,16 @@ async function inicializarSeccionActas() {
         sel.innerHTML = '<option value="">Error al cargar</option>';
     }
 
+    // Actualizar label del periodo en Descarga Masiva
+    const spanPer = document.getElementById('spanPeriodoMasiva');
+    if (spanPer) {
+        spanPer.textContent = (typeof periodoActualCarrera !== 'undefined' && periodoActualCarrera)
+            ? periodoActualCarrera : '(sin periodo)';
+    }
+
     // Resetear sección Históricas
-    _actasHistAlumnosCache = null;
+    _actasHistAlumnosCache  = null;
+    _actasHistCarreraNombre = null;
     const histInput = document.getElementById('inputActasHistAlumno');
     const histResul = document.getElementById('actasHistResultados');
     const histDet   = document.getElementById('actasHistDetalle');
@@ -873,6 +887,13 @@ async function buscarAlumnosActasHist() {
             _actasHistAlumnosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         }
 
+        if (!_actasHistCarreraNombre) {
+            try {
+                const cDoc = await db.collection('carreras').doc(carreraId).get();
+                _actasHistCarreraNombre = cDoc.exists ? (cDoc.data().nombre || carreraId) : carreraId;
+            } catch (_) { _actasHistCarreraNombre = carreraId; }
+        }
+
         const res = _actasHistAlumnosCache
             .filter(a =>
                 (a.nombre    || '').toLowerCase().includes(termino) ||
@@ -885,19 +906,40 @@ async function buscarAlumnosActasHist() {
             return;
         }
 
-        const items = res.slice(0, 30).map(a => `
-            <div onclick="verActasAlumno('${a.id}','${(a.nombre||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${a.matricula||''}')"
-              style="padding:12px 16px; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
-              onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
-                <div>
-                    <div style="font-weight:600; color:#333;">${a.nombre || '-'}</div>
-                    <div style="font-size:0.83rem; color:#888;">Mat: ${a.matricula || '-'} &nbsp;·&nbsp; Grupo: ${a.codigoGrupo || 'Especial'} &nbsp;·&nbsp; Periodo ${a.periodo || '-'}</div>
-                </div>
-                <div style="color:#bbb; padding-left:8px;">&#8250;</div>
-            </div>`).join('');
+        const filas = res.slice(0, 30).map(a => {
+            const nombreEsc = (a.nombre || '-').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const matEsc    = (a.matricula || '').replace(/'/g, "\\'");
+            return `<tr onmouseover="this.style.background='#f9f5f7'" onmouseout="this.style.background=''"
+                       style="cursor:pointer;" onclick="verActasAlumno('${a.id}','${nombreEsc}','${matEsc}')">
+                <td style="padding:10px 12px; font-weight:600; color:#333;">${a.nombre || '-'}</td>
+                <td style="padding:10px 12px; color:#555; text-align:center;">${a.matricula || '-'}</td>
+                <td style="padding:10px 12px; color:#555;">${_actasHistCarreraNombre}</td>
+                <td style="padding:10px 12px; color:#555; text-align:center;">${a.periodo || '-'}</td>
+                <td style="padding:10px 12px; text-align:center;">
+                    <button onclick="event.stopPropagation(); verActasAlumno('${a.id}','${nombreEsc}','${matEsc}')"
+                      style="padding:5px 12px; background:linear-gradient(135deg,#6c1d45,#4a1230); color:white; border:none; border-radius:5px; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                      Ver Actas
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
 
-        lista.innerHTML = items +
-            (res.length > 30 ? `<p style="color:#999; padding:8px 15px; font-size:0.82rem;">Mostrando 30 de ${res.length}. Refina la búsqueda.</p>` : '');
+        lista.innerHTML = `
+            <div style="overflow-x:auto; border-radius:8px; border:1px solid #e0e0e0; overflow:hidden; margin-top:4px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                    <thead>
+                        <tr style="background:#6c1d45; color:white;">
+                            <th style="padding:10px 12px; text-align:left;">Nombre</th>
+                            <th style="padding:10px 12px; text-align:center; width:120px;">Matrícula</th>
+                            <th style="padding:10px 12px; text-align:left;">Carrera</th>
+                            <th style="padding:10px 12px; text-align:center; width:100px;">Periodo Actual</th>
+                            <th style="padding:10px 12px; text-align:center; width:110px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filas}</tbody>
+                </table>
+            </div>` +
+            (res.length > 30 ? `<p style="color:#999; padding:8px 4px; font-size:0.82rem;">Mostrando 30 de ${res.length}. Refina la búsqueda.</p>` : '');
 
     } catch (e) {
         lista.innerHTML = `<p style="color:red; padding:10px 15px;">Error: ${e.message}</p>`;
@@ -926,7 +968,11 @@ async function verActasAlumno(alumnoId, alumnoNombre, matricula) {
         }
 
         const materias = (histDoc.data().materias || [])
-            .filter(m => m.calificacion !== null && m.calificacion !== undefined && m.valida !== false)
+            .filter(m =>
+                m.valida !== false &&
+                m.periodoAcademico != null &&
+                m.calificacion != null
+            )
             .sort((a, b) => (a.periodo || 0) - (b.periodo || 0) || (a.materiaNombre || '').localeCompare(b.materiaNombre || ''));
 
         if (materias.length === 0) {
