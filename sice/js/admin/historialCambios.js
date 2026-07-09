@@ -3,9 +3,10 @@
 //   "lista"   → 1 lectura (config/cambiosResumen) → muestra materias con conteo
 //   "detalle" → N lecturas where(materiaNombre==x) → muestra cambios de esa materia
 
-let _histResumen     = null;
-let _histMatActual   = '';
-let _histDetalleDatos = [];
+let _histResumen        = null;
+let _histMatActual      = '';
+let _histDetalleDatos   = [];
+let _histSoloSospechosos = false;
 
 // ─── Abrir / cerrar ──────────────────────────────────────────────────────────
 
@@ -215,20 +216,178 @@ async function seleccionarMateria(nombre) {
   }
 }
 
-function renderHistDetalle() {
-  const datos = _histDetalleDatos;
+// ─── Helpers de análisis ─────────────────────────────────────────────────────
 
+function _esRegistroCalif(d) {
+  return d.antes && d.antes.parciales !== undefined;
+}
+
+function _esSospechoso(antes, despues) {
+  if (!antes || !despues) return false;
+
+  // Parcial que subió
+  if (antes.parciales && despues.parciales) {
+    for (const k of ['parcial1', 'parcial2', 'parcial3']) {
+      const a = antes.parciales[k], b = despues.parciales[k];
+      if (typeof a === 'number' && typeof b === 'number' && b > a) return true;
+    }
+  }
+
+  // Falta que bajó
+  if (antes.faltas && despues.faltas) {
+    for (const k of ['falta1', 'falta2', 'falta3']) {
+      const a = antes.faltas[k], b = despues.faltas[k];
+      if (typeof a === 'number' && typeof b === 'number' && b < a) return true;
+    }
+  }
+
+  // Promedio pasó de reprobado a aprobado (umbral 6 o 7.5)
+  const ap = antes.promedio, dp = despues.promedio;
+  if (typeof ap === 'number' && typeof dp === 'number') {
+    if ((ap < 6 && dp >= 6) || (ap < 7.5 && dp >= 7.5)) return true;
+  }
+
+  return false;
+}
+
+function _diffCalifFaltas(antes, despues) {
+  if (!antes || !despues) return '<span style="color:#ccc;">—</span>';
+
+  const filas = [];
+
+  // Parciales
+  const etiqP = { parcial1: 'P1', parcial2: 'P2', parcial3: 'P3' };
+  for (const [k, label] of Object.entries(etiqP)) {
+    const a = (antes.parciales || {})[k];
+    const b = (despues.parciales || {})[k];
+    if (a === undefined && b === undefined) continue;
+    if (String(a) === String(b)) continue;
+
+    const subio = typeof a === 'number' && typeof b === 'number' && b > a;
+    const bajo  = typeof a === 'number' && typeof b === 'number' && b < a;
+    const color = subio ? '#bf360c' : (bajo ? '#1565c0' : '#555');
+    const icono = subio ? ' ↑' : (bajo ? ' ↓' : '');
+    const aStr  = a === null || a === undefined ? '—' : a;
+    const bStr  = b === null || b === undefined ? '—' : b;
+
+    filas.push(
+      `<span style="font-size:0.78rem;">` +
+      `<strong style="color:#888;min-width:20px;display:inline-block;">${label}</strong> ` +
+      `<span style="color:#aaa;">${aStr}</span> → ` +
+      `<strong style="color:${color};">${bStr}${icono}</strong>` +
+      `</span>`
+    );
+  }
+
+  // Faltas
+  const etiqF = { falta1: 'F1', falta2: 'F2', falta3: 'F3' };
+  for (const [k, label] of Object.entries(etiqF)) {
+    const a = (antes.faltas || {})[k];
+    const b = (despues.faltas || {})[k];
+    if (a === undefined && b === undefined) continue;
+    if (String(a) === String(b)) continue;
+
+    const bajo  = typeof a === 'number' && typeof b === 'number' && b < a;
+    const subio = typeof a === 'number' && typeof b === 'number' && b > a;
+    // Falta que baja es sospechoso → naranja; falta que sube es normal → azul
+    const color = bajo ? '#e65100' : (subio ? '#1565c0' : '#555');
+    const icono = bajo ? ' ↓' : (subio ? ' ↑' : '');
+    const aStr  = a === null || a === undefined ? '—' : a;
+    const bStr  = b === null || b === undefined ? '—' : b;
+
+    filas.push(
+      `<span style="font-size:0.78rem;">` +
+      `<strong style="color:#888;min-width:20px;display:inline-block;">${label}</strong> ` +
+      `<span style="color:#aaa;">${aStr}</span> → ` +
+      `<strong style="color:${color};">${bStr}${icono}</strong>` +
+      `</span>`
+    );
+  }
+
+  // Promedio resultante
+  const ap = antes.promedio, dp = despues.promedio;
+  if (String(ap) !== String(dp)) {
+    const subio = typeof ap === 'number' && typeof dp === 'number' && dp > ap;
+    const color = subio ? '#bf360c' : '#555';
+    filas.push(
+      `<span style="font-size:0.78rem;border-top:1px dashed #eee;display:block;padding-top:2px;margin-top:2px;">` +
+      `<strong style="color:#888;min-width:20px;display:inline-block;">Prom</strong> ` +
+      `<span style="color:#aaa;">${ap ?? '—'}</span> → ` +
+      `<strong style="color:${color};">${dp ?? '—'}</strong>` +
+      `</span>`
+    );
+  }
+
+  if (filas.length === 0) {
+    return '<span style="color:#ccc;font-size:0.78rem;">sin diff</span>';
+  }
+  return filas.join('<br>');
+}
+
+function _diffBoletaGlobal(antes, despues) {
+  if (!antes || !despues) return '<span style="color:#ccc;">—</span>';
+  const partes = [];
+  const ap = antes.promedio, dp = despues.promedio;
+  if (String(ap) !== String(dp)) {
+    partes.push(`<span style="font-size:0.78rem;"><strong style="color:#888;">Prom</strong> ` +
+      `<span style="color:#aaa;">${ap ?? '—'}</span> → <strong style="color:#7b1fa2;">${dp ?? '—'}</strong></span>`);
+  }
+  if (antes.acreditacion !== despues.acreditacion) {
+    partes.push(`<span style="font-size:0.75rem;color:#666;">${antes.acreditacion||'—'} → ` +
+      `<strong style="color:#1565c0;">${despues.acreditacion||'—'}</strong></span>`);
+  }
+  if (antes.periodoAcademico !== despues.periodoAcademico) {
+    partes.push(`<span style="font-size:0.72rem;color:#aaa;">período: ${antes.periodoAcademico||'—'} → ` +
+      `<strong>${despues.periodoAcademico||'—'}</strong></span>`);
+  }
+  return partes.length ? partes.join('<br>') : '<span style="color:#ccc;font-size:0.78rem;">sin diff</span>';
+}
+
+// ─── Render detalle ───────────────────────────────────────────────────────────
+
+function renderHistDetalle() {
+  // Solo registros del panel de calificaciones (tienen parciales/faltas)
+  const califDatos = _histDetalleDatos.filter(_esRegistroCalif);
+  const sospechosos = califDatos.filter(d => _esSospechoso(d.antes, d.despues));
+
+  const mostrar = _histSoloSospechosos ? sospechosos : califDatos;
+
+  // Header con stats + botón de filtro
   document.getElementById('histStats').innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span style="background:#bf360c;color:white;padding:5px 14px;border-radius:8px;
         font-size:0.9rem;font-weight:700;">${_histMatActual}</span>
-      <span style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d3240;padding:4px 12px;
-        border-radius:8px;font-size:0.82rem;font-weight:700;">${datos.length} cambios reales</span>
+
+      <span style="background:#e3f2fd;color:#1565c0;border:1px solid #1565c040;
+        padding:4px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;">
+        ${califDatos.length} cambios en calificaciones/faltas
+      </span>
+
+      ${sospechosos.length > 0 ? `
+        <span style="background:#fff3e0;color:#e65100;border:1px solid #e6510040;
+          padding:4px 12px;border-radius:8px;font-size:0.8rem;font-weight:700;">
+          ⚠ ${sospechosos.length} sospechosos
+        </span>` : `
+        <span style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d3240;
+          padding:4px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;">
+          ✓ Sin irregularidades detectadas
+        </span>`}
+
+      <button onclick="histToggleSospechosos()"
+        style="margin-left:auto;padding:5px 14px;border-radius:8px;font-size:0.82rem;
+          font-weight:600;cursor:pointer;transition:all 0.2s;
+          background:${_histSoloSospechosos ? '#e65100' : '#fff3e0'};
+          color:${_histSoloSospechosos ? 'white' : '#e65100'};
+          border:2px solid #e65100${_histSoloSospechosos ? '' : '80'};">
+        ${_histSoloSospechosos ? '⚠ Mostrando solo sospechosos' : '⚠ Solo sospechosos'}
+      </button>
     </div>`;
 
-  if (datos.length === 0) {
+  if (mostrar.length === 0) {
     document.getElementById('histTabla').innerHTML =
-      '<div style="text-align:center;padding:30px;color:#999;">Sin cambios reales para esta materia.</div>';
+      `<div style="text-align:center;padding:30px;color:#999;">
+        ${_histSoloSospechosos ? 'No hay registros sospechosos en esta materia.' : 'Sin cambios de calificaciones/faltas para esta materia.'}
+      </div>`;
     return;
   }
 
@@ -238,23 +397,6 @@ function renderHistDetalle() {
     return d.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' })
       + '<br><span style="color:#aaa;font-size:0.72rem;">'
       + d.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }) + '</span>';
-  }
-
-  function diffCambio(antes, despues) {
-    if (!antes || !despues) return '<span style="color:#ccc;">—</span>';
-    const partes = [];
-    const ap = antes.promedio   !== undefined ? antes.promedio   : null;
-    const dp = despues.promedio !== undefined ? despues.promedio : null;
-    if (String(ap) !== String(dp)) {
-      partes.push(`<span style="color:#999;">${ap ?? '—'}</span> → <strong style="color:#bf360c;">${dp ?? '—'}</strong>`);
-    }
-    if (antes.acreditacion !== despues.acreditacion) {
-      partes.push(`<span style="font-size:0.74rem;color:#666;">${antes.acreditacion||'—'} → <strong style="color:#1565c0;">${despues.acreditacion||'—'}</strong></span>`);
-    }
-    if (antes.periodoAcademico !== despues.periodoAcademico) {
-      partes.push(`<span style="font-size:0.72rem;color:#888;">período: ${antes.periodoAcademico||'—'} → <strong>${despues.periodoAcademico||'—'}</strong></span>`);
-    }
-    return partes.length ? partes.join('<br>') : '<span style="color:#ccc;font-size:0.78rem;">sin diff</span>';
   }
 
   function rolChip(rol) {
@@ -269,6 +411,7 @@ function renderHistDetalle() {
     <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
       <thead>
         <tr style="background:#f5f5f5;position:sticky;top:0;z-index:1;">
+          <th style="padding:9px 10px;text-align:left;color:#555;font-weight:700;border-bottom:2px solid #e0e0e0;white-space:nowrap;width:1%"></th>
           <th style="padding:9px 10px;text-align:left;color:#555;font-weight:700;border-bottom:2px solid #e0e0e0;white-space:nowrap;">Fecha</th>
           <th style="padding:9px 10px;text-align:left;color:#555;font-weight:700;border-bottom:2px solid #e0e0e0;">Alumno</th>
           <th style="padding:9px 10px;text-align:left;color:#555;font-weight:700;border-bottom:2px solid #e0e0e0;">Carrera</th>
@@ -277,8 +420,15 @@ function renderHistDetalle() {
         </tr>
       </thead>
       <tbody>
-        ${datos.map((d, i) => `
-          <tr style="border-bottom:1px solid #f0f0f0;${i%2===1?'background:#fafafa;':''}">
+        ${mostrar.map((d, i) => {
+          const sosp = _esSospechoso(d.antes, d.despues);
+          const rowBg = sosp ? '#fff8f0' : (i%2===1 ? '#fafafa' : '');
+          const borderL = sosp ? 'border-left:3px solid #e65100;' : '';
+          return `
+          <tr style="border-bottom:1px solid #f0f0f0;background:${rowBg};${borderL}">
+            <td style="padding:8px 6px;text-align:center;vertical-align:top;">
+              ${sosp ? '<span title="Cambio sospechoso" style="font-size:1rem;">⚠</span>' : ''}
+            </td>
             <td style="padding:8px 10px;color:#777;white-space:nowrap;vertical-align:top;">${formatFecha(d.fechaCambio)}</td>
             <td style="padding:8px 10px;vertical-align:top;">
               <div style="font-weight:600;color:#333;">${d.alumnoNombre || '—'}</div>
@@ -292,17 +442,26 @@ function renderHistDetalle() {
               <div style="font-weight:600;color:#333;font-size:0.82rem;">${d.cambiadoPorNombre || '—'}</div>
               <div style="margin-top:3px;">${rolChip(d.cambiadoPorRol)}</div>
             </td>
-            <td style="padding:8px 10px;vertical-align:top;line-height:1.6;">${diffCambio(d.antes, d.despues)}</td>
-          </tr>`).join('')}
+            <td style="padding:8px 10px;vertical-align:top;line-height:1.7;">${_diffCalifFaltas(d.antes, d.despues)}</td>
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>
-    <div style="text-align:right;padding:8px 6px 2px;font-size:0.76rem;color:#bbb;">${datos.length} registros</div>
+    <div style="text-align:right;padding:8px 6px 2px;font-size:0.76rem;color:#bbb;">
+      ${mostrar.length} de ${califDatos.length} registros
+    </div>
   `;
 }
 
+function histToggleSospechosos() {
+  _histSoloSospechosos = !_histSoloSospechosos;
+  renderHistDetalle();
+}
+
 function volverALista() {
-  _histMatActual    = '';
-  _histDetalleDatos = [];
+  _histMatActual       = '';
+  _histDetalleDatos    = [];
+  _histSoloSospechosos = false;
   _uiEstadoLista();
   renderHistLista();
 }

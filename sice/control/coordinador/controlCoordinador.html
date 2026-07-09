@@ -827,6 +827,30 @@
   </div>
   </div>
 
+  <!-- Descarga Masiva -->
+  <div style="background:white; padding:16px 20px; border-radius:10px; margin-bottom:20px; border:1px solid #e0e0e0;">
+   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div>
+     <h4 style="margin:0 0 3px; color:#333; font-size:1rem;">Descarga Masiva — Periodo Actual</h4>
+     <p style="margin:0; font-size:0.82rem; color:#888;">Genera un PDF con todas las actas de la carrera en el ciclo activo</p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+     <button onclick="descargarActasMasivas('GENERAL', this)"
+       style="padding:8px 15px; background:linear-gradient(135deg,#c62828,#8b0000); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
+      Todas — Actas Generales
+     </button>
+     <button onclick="descargarActasMasivas('ETS', this)"
+       style="padding:8px 15px; background:linear-gradient(135deg,#1565c0,#0a3880); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
+      Todas — Actas ETS
+     </button>
+     <button onclick="descargarActasMasivas('EXT', this)"
+       style="padding:8px 15px; background:linear-gradient(135deg,#6a1b9a,#4a148c); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
+      Todas — Actas Extraordinario
+     </button>
+    </div>
+   </div>
+  </div>
+
   <div id="contenedorCalificaciones" style="display: none;">
   <div style="background: white; padding: 20px; border-radius: 10px;">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">

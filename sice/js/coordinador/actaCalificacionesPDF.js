@@ -438,3 +438,211 @@ function descargarActaEtsPDF() {
         alert('Error al generar PDF. Verifica que jsPDF esté cargado correctamente.');
     }
 }
+
+// ── Descarga Masiva (periodo actual, todas las materias de la carrera) ─────────
+// Genera un único PDF con todas las actas concatenadas (una por materia).
+// No produce ZIP ni WinRAR — el navegador descarga directamente el .pdf.
+
+async function descargarActasMasivas(tipo, btn) {
+    if (typeof window.jspdf === 'undefined') {
+        alert('Error: jsPDF no está cargado. Recarga la página.');
+        return;
+    }
+
+    const txtOrig = btn.textContent;
+    btn.textContent = 'Generando...'; btn.disabled = true;
+
+    // Overlay de progreso — se elimina en finally
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:32px 40px;text-align:center;min-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+            <div style="font-size:17px;font-weight:bold;color:#333;margin-bottom:10px;">Generando Actas</div>
+            <div id="_mv_msg" style="font-size:14px;color:#666;margin-bottom:18px;">Cargando datos del periodo...</div>
+            <div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;">
+                <div id="_mv_bar" style="height:100%;background:#43a047;width:5%;border-radius:3px;transition:width 0.5s;"></div>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    const setProgreso = (msg, pct) => {
+        const el = document.getElementById('_mv_msg');
+        const bar = document.getElementById('_mv_bar');
+        if (el)  el.textContent  = msg;
+        if (bar) bar.style.width = pct + '%';
+    };
+
+    try {
+        const carreraId = usuarioActual && usuarioActual.carreraId;
+        const periodo   = typeof periodoActualCarrera !== 'undefined' ? periodoActualCarrera : null;
+
+        if (!carreraId || !periodo) {
+            alert('No se pudo determinar la carrera o el periodo activo.');
+            return;
+        }
+
+        setProgreso('Consultando asignaciones y calificaciones en Firebase...', 15);
+
+        // Cargar todo en paralelo: asignaciones, calificaciones, alumnos, flags de carrera
+        const [pmSnap, calSnap, tieneExFinal, esUnParcial, alumnosSnap] = await Promise.all([
+            db.collection('profesorMaterias')
+              .where('carreraId', '==', carreraId)
+              .where('activa',    '==', true)
+              .get(),
+            db.collection('calificaciones')
+              .where('carreraId', '==', carreraId)
+              .get(),
+            obtenerTieneExamenFinal(carreraId),
+            obtenerEsUnParcial(carreraId),
+            db.collection('usuarios')
+              .where('rol',       '==', 'alumno')
+              .where('carreraId', '==', carreraId)
+              .get()
+        ]);
+
+        // Índice de calificaciones del periodo actual: "codigoGrupo_materiaId" → [calData]
+        const calIdx = {};
+        calSnap.docs.forEach(d => {
+            const c = d.data();
+            if (c.periodo !== periodo) return;
+            const k = `${c.codigoGrupo}_${c.materiaId}`;
+            if (!calIdx[k]) calIdx[k] = [];
+            calIdx[k].push(c);
+        });
+
+        // Mapa alumnoId → matrícula
+        const matMap = {};
+        alumnosSnap.docs.forEach(d => { matMap[d.id] = d.data().matricula || '-'; });
+
+        // Ordenar asignaciones por nombre de materia
+        const asigs = pmSnap.docs.map(d => d.data())
+            .sort((a, b) => (a.materiaNombre || '').localeCompare(b.materiaNombre || ''));
+
+        setProgreso(`Generando PDF con ${asigs.length} materias...`, 55);
+
+        const { jsPDF } = window.jspdf;
+        const doc       = new jsPDF({ format: 'letter' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const fecha     = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+        const fmtP      = v => (v == null) ? '-' : v === 'NP' ? 'NP' : String(v);
+
+        const tituloActa = tipo === 'GENERAL' ? 'ACTA DE CALIFICACIONES'
+                         : tipo === 'ETS'     ? 'ACTA DE ETS'
+                         :                      'ACTA DE EXTRAORDINARIO';
+
+        let primeraPagina  = true;
+        let actasGeneradas = 0;
+
+        for (const asig of asigs) {
+            let cals = calIdx[`${asig.codigoGrupo}_${asig.materiaId}`] || [];
+
+            if (tipo === 'ETS') {
+                cals = cals.filter(c => c.ets !== null && c.ets !== undefined);
+            } else if (tipo === 'EXT') {
+                cals = cals.filter(c => c.extraordinario !== null && c.extraordinario !== undefined);
+            }
+            if (cals.length === 0) continue;
+
+            if (!primeraPagina) doc.addPage();
+            primeraPagina = false;
+            actasGeneradas++;
+
+            if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc, tieneExFinal);
+
+            // Encabezado
+            doc.setFontSize(18); doc.setFont(undefined, 'bold');
+            doc.text(tituloActa, 105, 25, { align: 'center' });
+            doc.setLineWidth(0.5); doc.line(30, 38, 180, 38);
+
+            doc.setFontSize(11); doc.setFont(undefined, 'normal');
+            let y = 45;
+            doc.text(`Fecha: ${fecha}`,                   pageWidth - 20, y, { align: 'right' });
+            doc.text(`Materia: ${asig.materiaNombre}`,    20, y); y += 5;
+            doc.text(`Grupo: ${asig.codigoGrupo}`,        20, y);
+            doc.text(`Periodo: ${periodo}`,               pageWidth - 20, y, { align: 'right' }); y += 5;
+            doc.text(`Profesor: ${asig.profesorNombre}`,  20, y);
+            y += 10;
+
+            // Ordenar alumnos por nombre
+            cals.sort((a, b) => (a.alumnoNombre || '').localeCompare(b.alumnoNombre || ''));
+
+            // Tabla y columnas según tipo de acta y de carrera
+            let head, columnStyles, calColIndex, tableData;
+
+            if (tipo === 'ETS') {
+                head          = [['No.', 'Matrícula', 'Nombre del Alumno', 'ETS']];
+                columnStyles  = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:108}, 3:{halign:'center',cellWidth:29,fontStyle:'bold'} };
+                calColIndex   = 3;
+                tableData     = cals.map((c, i) => [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', String(c.ets)]);
+
+            } else if (tipo === 'EXT') {
+                head          = [['No.', 'Matrícula', 'Nombre del Alumno', 'Extraordinario']];
+                columnStyles  = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:108}, 3:{halign:'center',cellWidth:29,fontStyle:'bold'} };
+                calColIndex   = 3;
+                tableData     = cals.map((c, i) => [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', String(c.extraordinario)]);
+
+            } else if (esUnParcial) {
+                head          = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'Calificación']];
+                columnStyles  = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:97}, 3:{halign:'center',cellWidth:15}, 4:{halign:'center',cellWidth:25,fontStyle:'bold'} };
+                calColIndex   = 4;
+                tableData     = cals.map((c, i) => {
+                    const p1  = c.parciales?.parcial1 ?? null;
+                    const cal = calcularCalificacion(p1, null, null, false);
+                    return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(cal)];
+                });
+
+            } else if (tieneExFinal) {
+                head          = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'E.F', 'Calificación', 'Extraordinario']];
+                columnStyles  = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:52}, 3:{halign:'center',cellWidth:13}, 4:{halign:'center',cellWidth:13}, 5:{halign:'center',cellWidth:13}, 6:{halign:'center',cellWidth:20,fontStyle:'bold'}, 7:{halign:'center',cellWidth:26} };
+                calColIndex   = 6;
+                tableData     = cals.map((c, i) => {
+                    const p1 = c.parciales?.parcial1 ?? null, p2 = c.parciales?.parcial2 ?? null, p3 = c.parciales?.parcial3 ?? null;
+                    const cal = calcularCalificacion(p1, p2, p3, true);
+                    const p3n = (p3 != null && p3 !== 'NP') ? parseFloat(p3) : null;
+                    const extraVal = c.extraordinario != null ? String(c.extraordinario) : (cal === 'NP' || (p3n !== null && p3n < 6) ? '' : '-');
+                    return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(p2), fmtP(p3), fmtP(cal), extraVal];
+                });
+
+            } else {
+                head          = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'D3', 'Calificación']];
+                columnStyles  = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:70}, 3:{halign:'center',cellWidth:14}, 4:{halign:'center',cellWidth:14}, 5:{halign:'center',cellWidth:14}, 6:{halign:'center',cellWidth:25,fontStyle:'bold'} };
+                calColIndex   = 6;
+                tableData     = cals.map((c, i) => {
+                    const p1 = c.parciales?.parcial1 ?? null, p2 = c.parciales?.parcial2 ?? null, p3 = c.parciales?.parcial3 ?? null;
+                    const cal = calcularCalificacion(p1, p2, p3, false);
+                    return [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(p1), fmtP(p2), fmtP(p3), fmtP(cal)];
+                });
+            }
+
+            doc.autoTable({
+                startY: y, margin: { bottom: 40 },
+                head, body: tableData, theme: 'grid',
+                headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                styles: { fontSize: 10, cellPadding: 2 },
+                columnStyles,
+                didParseCell: data => _acta_colorCalif(data, calColIndex)
+            });
+
+            _acta_pie(doc, cals.length, doc.lastAutoTable.finalY);
+        }
+
+        if (actasGeneradas === 0) {
+            const label = tipo === 'GENERAL' ? 'calificaciones' : tipo;
+            alert(`No hay registros de ${label} para el periodo ${periodo}.`);
+            return;
+        }
+
+        setProgreso(`Descargando PDF (${actasGeneradas} actas)...`, 95);
+
+        const nomTipo = tipo === 'GENERAL' ? 'Generales' : tipo;
+        doc.save(`Actas_${nomTipo}_${carreraId}_${periodo}.pdf`);
+        console.log(`[ActasMasivas] ${actasGeneradas} actas generadas — tipo ${tipo}, periodo ${periodo}`);
+
+    } catch (e) {
+        console.error('[ActasMasivas] Error:', e);
+        alert('Error al generar actas: ' + e.message);
+    } finally {
+        overlay.remove();
+        btn.textContent = txtOrig; btn.disabled = false;
+    }
+}
