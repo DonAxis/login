@@ -508,16 +508,12 @@ async function descargarActasMasivas(tipo, btn) {
               .get()
         ]);
 
-        // Índice de calificaciones: calIdx filtra por periodo (GENERAL), calIdxAll incluye todo (ETS/EXT)
-        // ETS y EXT pueden existir en docs con c.periodo de un ciclo anterior al actual
-        const calIdx    = {};
-        const calIdxAll = {};
+        // Índice de calificaciones sin filtro de periodo: el scope lo da profesorMaterias (activa=true).
+        // calificaciones.periodo puede estar desfasado si los profesores capturaron en ciclo anterior.
+        const calIdx = {};
         calSnap.docs.forEach(d => {
             const c = d.data();
             const k = `${c.codigoGrupo}_${c.materiaId}`;
-            if (!calIdxAll[k]) calIdxAll[k] = [];
-            calIdxAll[k].push(c);
-            if (c.periodo !== periodo) return;
             if (!calIdx[k]) calIdx[k] = [];
             calIdx[k].push(c);
         });
@@ -546,8 +542,7 @@ async function descargarActasMasivas(tipo, btn) {
         let actasGeneradas = 0;
 
         for (const asig of asigs) {
-            const srcIdx = (tipo === 'GENERAL') ? calIdx : calIdxAll;
-            let cals = srcIdx[`${asig.codigoGrupo}_${asig.materiaId}`] || [];
+            let cals = calIdx[`${asig.codigoGrupo}_${asig.materiaId}`] || [];
 
             if (tipo === 'ETS') {
                 cals = cals.filter(c => c.ets !== null && c.ets !== undefined);
@@ -683,15 +678,27 @@ async function inicializarSeccionActas() {
             .get();
 
         sel.innerHTML = '<option value="">Seleccionar materia...</option>';
-        snap.docs
+        const asigs = snap.docs
             .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => (a.materiaNombre || '').localeCompare(b.materiaNombre || ''))
-            .forEach(asig => {
+            .sort((a, b) => (a.codigoGrupo || '').localeCompare(b.codigoGrupo || '') || (a.materiaNombre || '').localeCompare(b.materiaNombre || ''));
+
+        const gruposMap = {};
+        asigs.forEach(asig => {
+            const g = asig.codigoGrupo || 'Sin grupo';
+            if (!gruposMap[g]) gruposMap[g] = [];
+            gruposMap[g].push(asig);
+        });
+        Object.keys(gruposMap).sort().forEach(grupo => {
+            const optgrp = document.createElement('optgroup');
+            optgrp.label = `Grupo ${grupo}`;
+            gruposMap[grupo].forEach(asig => {
                 const o = document.createElement('option');
                 o.value       = asig.id;
-                o.textContent = `${asig.materiaNombre} — ${asig.codigoGrupo}`;
-                sel.appendChild(o);
+                o.textContent = asig.materiaNombre;
+                optgrp.appendChild(o);
             });
+            sel.appendChild(optgrp);
+        });
     } catch (e) {
         console.error('[Actas] Error cargando materias:', e);
         sel.innerHTML = '<option value="">Error al cargar</option>';
@@ -1063,9 +1070,16 @@ async function descargarActaHistoricaAlumno(alumnoId, materiaId, tipo, btn) {
         let calDocs   = snap.docs.map(d => d.data()).filter(d => d.codigoGrupo === codigoGrupo);
 
         if (tipo === 'ETS') {
-            calDocs = calDocs.filter(c => c.ets !== null && c.ets !== undefined);
+            // El grado ETS puede estar en c.ets o bien en c.promedio con c.acreditacion='ETS'
+            calDocs = calDocs.filter(c =>
+                (c.ets !== null && c.ets !== undefined) ||
+                c.acreditacion === 'ETS'
+            );
         } else if (tipo === 'EXT') {
-            calDocs = calDocs.filter(c => c.extraordinario !== null && c.extraordinario !== undefined);
+            calDocs = calDocs.filter(c =>
+                (c.extraordinario !== null && c.extraordinario !== undefined) ||
+                c.acreditacion === 'EXT'
+            );
         }
 
         if (calDocs.length === 0) {
@@ -1126,13 +1140,14 @@ async function descargarActaHistoricaAlumno(alumnoId, materiaId, tipo, btn) {
             head         = [['No.', 'Matrícula', 'Nombre del Alumno', 'ETS']];
             columnStyles = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:108}, 3:{halign:'center',cellWidth:29,fontStyle:'bold'} };
             calColIndex  = 3;
-            tableData    = calDocs.map((c, i) => [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', String(c.ets)]);
+            // c.ets si está capturado; si no, c.promedio (cuando Boleta Global guardó el grado en promedio con acreditacion=ETS)
+            tableData    = calDocs.map((c, i) => [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(c.ets ?? c.promedio)]);
 
         } else if (tipo === 'EXT') {
             head         = [['No.', 'Matrícula', 'Nombre del Alumno', 'Extraordinario']];
             columnStyles = { 0:{halign:'center',cellWidth:10}, 1:{halign:'center',cellWidth:33}, 2:{halign:'left',cellWidth:108}, 3:{halign:'center',cellWidth:29,fontStyle:'bold'} };
             calColIndex  = 3;
-            tableData    = calDocs.map((c, i) => [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', String(c.extraordinario)]);
+            tableData    = calDocs.map((c, i) => [(i+1).toString(), matMap[c.alumnoId]||'-', c.alumnoNombre||'-', fmtP(c.extraordinario ?? c.promedio)]);
 
         } else if (esUnParcial) {
             head         = [['No.', 'Matrícula', 'Nombre del Alumno', 'D1', 'Calificación']];
