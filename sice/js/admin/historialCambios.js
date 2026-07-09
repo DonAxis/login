@@ -2,8 +2,9 @@
 // Auditoría de cambios manuales de calificaciones (colección registroCambios)
 
 let _histDatos = [];
-let _histFiltroCarrera = '';
+let _histFiltroCarrera  = '';
 let _histFiltroOperador = '';
+let _histFiltroMateria  = '';
 
 function mostrarHistorialCambios() {
   document.getElementById('modalHistorialCambios').style.display = 'block';
@@ -15,8 +16,8 @@ function cerrarHistorialCambios() {
 }
 
 async function cargarHistorialCambios() {
-  const contStats  = document.getElementById('histStats');
-  const contTabla  = document.getElementById('histTabla');
+  const contStats   = document.getElementById('histStats');
+  const contTabla   = document.getElementById('histTabla');
   const contFiltros = document.getElementById('histFiltros');
 
   contStats.innerHTML  = '<div style="text-align:center;padding:20px;color:#999;">Cargando registros...</div>';
@@ -24,6 +25,7 @@ async function cargarHistorialCambios() {
   contFiltros.style.display = 'none';
   _histFiltroCarrera  = '';
   _histFiltroOperador = '';
+  _histFiltroMateria  = '';
 
   try {
     const snap = await db.collection('registroCambios')
@@ -31,7 +33,14 @@ async function cargarHistorialCambios() {
       .get();
 
     _histDatos = [];
-    snap.forEach(doc => _histDatos.push({ id: doc.id, ...doc.data() }));
+    snap.forEach(doc => {
+      const d = { id: doc.id, ...doc.data() };
+      // Excluir registros donde antes.promedio era null (primeras capturas, no son cambios reales)
+      const antProm = (d.antes && d.antes.promedio !== undefined) ? d.antes.promedio : null;
+      const desProm = (d.despues && d.despues.promedio !== undefined) ? d.despues.promedio : null;
+      if (antProm === null && desProm !== null) return;
+      _histDatos.push(d);
+    });
 
     renderHistStats();
     renderHistTabla();
@@ -81,7 +90,7 @@ function renderHistStats() {
   }
 
   const topOps      = Object.entries(porOperador).sort((a,b)=>b[1]-a[1]).slice(0, 6);
-  const topMaterias = Object.entries(porMateria).sort((a,b)=>b[1]-a[1]).slice(0, 6);
+  const topMaterias = Object.entries(porMateria).sort((a,b)=>b[1]-a[1]).slice(0, 8);
   const topPeriodos = Object.entries(porPeriodo).sort((a,b)=>b[1]-a[1]).slice(0, 5);
 
   function chip(label, n, color) {
@@ -97,13 +106,29 @@ function renderHistStats() {
     </div>`;
   }
 
+  // Materia rows son clickeables — usan data-mat para evitar problemas de escape
+  function materiaRow(mat, n) {
+    const encoded = encodeURIComponent(mat);
+    const activa  = _histFiltroMateria === mat;
+    const bg      = activa ? '#2e7d3215' : 'transparent';
+    const border  = activa ? '1px solid #2e7d3240' : '1px solid #f0f0f0';
+    return `<div data-mat="${encoded}" onclick="histFiltrarMateria(this)"
+      style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;font-size:0.82rem;
+             border-bottom:${border};cursor:pointer;border-radius:6px;background:${bg};transition:background 0.15s;"
+      onmouseover="this.style.background='#2e7d3210'"
+      onmouseout="this.style.background='${bg}'">
+      <span style="color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:175px;" title="${mat}">${mat}</span>
+      <span style="background:#2e7d32;color:white;padding:1px 8px;border-radius:10px;font-weight:700;font-size:0.73rem;margin-left:8px;flex-shrink:0;">${n}</span>
+    </div>`;
+  }
+
   document.getElementById('histStats').innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:12px;">
 
       <!-- Total -->
       <div style="background:linear-gradient(135deg,#bf360c,#e64a19);color:white;padding:16px 22px;border-radius:12px;min-width:130px;text-align:center;box-shadow:0 4px 14px rgba(191,54,12,0.35);flex-shrink:0;">
         <div style="font-size:2.4rem;font-weight:700;line-height:1;">${total}</div>
-        <div style="font-size:0.78rem;opacity:0.9;margin-top:4px;">cambios registrados</div>
+        <div style="font-size:0.78rem;opacity:0.9;margin-top:4px;">cambios reales</div>
       </div>
 
       <!-- Por Carrera -->
@@ -126,10 +151,13 @@ function renderHistStats() {
         ${topOps.map(([op,n])=>rankRow(op,n,'#7b1fa2')).join('')}
       </div>
 
-      <!-- Top Materias -->
+      <!-- Top Materias — clickeables -->
       <div style="flex:1;min-width:220px;background:#e8f5e9;border-radius:12px;padding:12px 16px;border-left:4px solid #2e7d32;">
-        <div style="font-size:0.72rem;font-weight:700;color:#2e7d32;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.6px;">Materias más editadas</div>
-        ${topMaterias.map(([mat,n])=>rankRow(mat,n,'#2e7d32')).join('')}
+        <div style="font-size:0.72rem;font-weight:700;color:#2e7d32;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.6px;">
+          Materias más editadas
+          <span style="font-weight:400;text-transform:none;color:#888;letter-spacing:0;"> · toca para filtrar</span>
+        </div>
+        ${topMaterias.map(([mat,n])=>materiaRow(mat,n)).join('')}
       </div>
 
     </div>
@@ -140,6 +168,18 @@ function renderHistTabla() {
   let datos = _histDatos;
   if (_histFiltroCarrera)  datos = datos.filter(d => d.carreraId === _histFiltroCarrera);
   if (_histFiltroOperador) datos = datos.filter(d => (d.cambiadoPorNombre || d.cambiadoPor) === _histFiltroOperador);
+  if (_histFiltroMateria)  datos = datos.filter(d => (d.materiaNombre || d.materiaId) === _histFiltroMateria);
+
+  // Indicador de filtro activo de materia
+  const indEl = document.getElementById('histFiltroMateriaActiva');
+  if (indEl) {
+    if (_histFiltroMateria) {
+      indEl.style.display = 'inline-flex';
+      indEl.querySelector('span').textContent = _histFiltroMateria;
+    } else {
+      indEl.style.display = 'none';
+    }
+  }
 
   const cont = document.getElementById('histTabla');
 
@@ -160,7 +200,7 @@ function renderHistTabla() {
     if (!antes || !despues) return '<span style="color:#ccc;">—</span>';
     const partes = [];
 
-    const ap = antes.promedio  !== undefined ? antes.promedio  : null;
+    const ap = antes.promedio   !== undefined ? antes.promedio   : null;
     const dp = despues.promedio !== undefined ? despues.promedio : null;
     if (String(ap) !== String(dp)) {
       const as = ap === null ? '<span style="color:#bbb;">—</span>' : `<span style="color:#999;">${ap}</span>`;
@@ -236,6 +276,20 @@ function histFiltrarCarrera(val) {
 
 function histFiltrarOperador(val) {
   _histFiltroOperador = val;
+  renderHistTabla();
+}
+
+function histFiltrarMateria(el) {
+  const mat = decodeURIComponent(el.dataset.mat);
+  // Toggle: si ya está activa, deselecciona
+  _histFiltroMateria = (_histFiltroMateria === mat) ? '' : mat;
+  renderHistStats();   // para actualizar el highlight del row
+  renderHistTabla();
+}
+
+function histLimpiarMateria() {
+  _histFiltroMateria = '';
+  renderHistStats();
   renderHistTabla();
 }
 
