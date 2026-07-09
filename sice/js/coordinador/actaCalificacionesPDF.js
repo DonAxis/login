@@ -722,6 +722,8 @@ async function inicializarSeccionActas() {
     if (histResul) histResul.innerHTML = '';
     if (histDet)   histDet.style.display  = 'none';
     if (histBusq)  histBusq.style.display = '';
+
+    cargarAlumnosActasHist();
 }
 
 async function cargarVistaActas() {
@@ -873,17 +875,12 @@ function _renderVistaActas(asig) {
 
 // ── Actas Históricas — buscador por alumno ────────────────────────────────────
 
-async function buscarAlumnosActasHist() {
-    const input = document.getElementById('inputActasHistAlumno');
-    const lista = document.getElementById('actasHistResultados');
-    if (!input || !lista) return;
-
-    const termino   = input.value.trim().toLowerCase();
+async function cargarAlumnosActasHist() {
+    const lista     = document.getElementById('actasHistResultados');
     const carreraId = usuarioActual && usuarioActual.carreraId;
-    if (!termino) { lista.innerHTML = ''; return; }
-    if (!carreraId) return;
+    if (!lista || !carreraId) return;
 
-    lista.innerHTML = '<p style="color:#888; padding:10px 15px;">Buscando...</p>';
+    lista.innerHTML = '<p style="color:#888; padding:10px 15px;">Cargando alumnos...</p>';
 
     try {
         if (!_actasHistAlumnosCache) {
@@ -893,64 +890,74 @@ async function buscarAlumnosActasHist() {
                 .get();
             _actasHistAlumnosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         }
-
         if (!_actasHistCarreraNombre) {
             try {
                 const cDoc = await db.collection('carreras').doc(carreraId).get();
                 _actasHistCarreraNombre = cDoc.exists ? (cDoc.data().nombre || carreraId) : carreraId;
             } catch (_) { _actasHistCarreraNombre = carreraId; }
         }
-
-        const res = _actasHistAlumnosCache
-            .filter(a =>
-                (a.nombre    || '').toLowerCase().includes(termino) ||
-                (a.matricula || '').toLowerCase().includes(termino)
-            )
-            .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
-
-        if (res.length === 0) {
-            lista.innerHTML = '<p style="color:#888; padding:10px 15px;">Sin resultados.</p>';
-            return;
-        }
-
-        const filas = res.slice(0, 30).map(a => {
-            const nombreEsc = (a.nombre || '-').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const matEsc    = (a.matricula || '').replace(/'/g, "\\'");
-            return `<tr onmouseover="this.style.background='#f9f5f7'" onmouseout="this.style.background=''"
-                       style="cursor:pointer;" onclick="verActasAlumno('${a.id}','${nombreEsc}','${matEsc}')">
-                <td style="padding:10px 12px; font-weight:600; color:#333;">${a.nombre || '-'}</td>
-                <td style="padding:10px 12px; color:#555; text-align:center;">${a.matricula || '-'}</td>
-                <td style="padding:10px 12px; color:#555;">${_actasHistCarreraNombre}</td>
-                <td style="padding:10px 12px; color:#555; text-align:center;">${a.periodo || '-'}</td>
-                <td style="padding:10px 12px; text-align:center;">
-                    <button onclick="event.stopPropagation(); verActasAlumno('${a.id}','${nombreEsc}','${matEsc}')"
-                      style="padding:5px 12px; background:linear-gradient(135deg,#6c1d45,#4a1230); color:white; border:none; border-radius:5px; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap;">
-                      Ver Actas
-                    </button>
-                </td>
-            </tr>`;
-        }).join('');
-
-        lista.innerHTML = `
-            <div style="overflow-x:auto; border-radius:8px; border:1px solid #e0e0e0; overflow:hidden; margin-top:4px;">
-                <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
-                    <thead>
-                        <tr style="background:#6c1d45; color:white;">
-                            <th style="padding:10px 12px; text-align:left;">Nombre</th>
-                            <th style="padding:10px 12px; text-align:center; width:120px;">Matrícula</th>
-                            <th style="padding:10px 12px; text-align:left;">Carrera</th>
-                            <th style="padding:10px 12px; text-align:center; width:100px;">Periodo Actual</th>
-                            <th style="padding:10px 12px; text-align:center; width:110px;">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody>${filas}</tbody>
-                </table>
-            </div>` +
-            (res.length > 30 ? `<p style="color:#999; padding:8px 4px; font-size:0.82rem;">Mostrando 30 de ${res.length}. Refina la búsqueda.</p>` : '');
-
+        _renderAlumnosActasHist('');
     } catch (e) {
         lista.innerHTML = `<p style="color:red; padding:10px 15px;">Error: ${e.message}</p>`;
     }
+}
+
+function buscarAlumnosActasHist() {
+    if (!_actasHistAlumnosCache) return;
+    const input = document.getElementById('inputActasHistAlumno');
+    _renderAlumnosActasHist(input ? input.value.trim().toLowerCase() : '');
+}
+
+function _renderAlumnosActasHist(termino) {
+    const lista = document.getElementById('actasHistResultados');
+    if (!lista || !_actasHistAlumnosCache) return;
+
+    const res = (termino
+        ? _actasHistAlumnosCache.filter(a =>
+            (a.nombre    || '').toLowerCase().includes(termino) ||
+            (a.matricula || '').toLowerCase().includes(termino))
+        : _actasHistAlumnosCache
+    ).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+    if (res.length === 0) {
+        lista.innerHTML = '<p style="color:#888; padding:10px 15px;">Sin resultados.</p>';
+        return;
+    }
+
+    const filas = res.map(a => {
+        const nombreEsc = (a.nombre || '-').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const matEsc    = (a.matricula || '').replace(/'/g, "\\'");
+        return `<tr onmouseover="this.style.background='#f9f5f7'" onmouseout="this.style.background=''"
+                   style="cursor:pointer;" onclick="verActasAlumno('${a.id}','${nombreEsc}','${matEsc}')">
+            <td style="padding:10px 12px; font-weight:600; color:#333;">${a.nombre || '-'}</td>
+            <td style="padding:10px 12px; color:#555; text-align:center;">${a.matricula || '-'}</td>
+            <td style="padding:10px 12px; color:#555;">${_actasHistCarreraNombre || ''}</td>
+            <td style="padding:10px 12px; color:#555; text-align:center;">${a.periodo || '-'}</td>
+            <td style="padding:10px 12px; text-align:center;">
+                <button onclick="event.stopPropagation(); verActasAlumno('${a.id}','${nombreEsc}','${matEsc}')"
+                  style="padding:5px 12px; background:linear-gradient(135deg,#6c1d45,#4a1230); color:white; border:none; border-radius:5px; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                  Ver Actas
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    lista.innerHTML = `
+        <div style="overflow-x:auto; border-radius:8px; border:1px solid #e0e0e0; overflow:hidden; margin-top:4px;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#6c1d45; color:white;">
+                        <th style="padding:10px 12px; text-align:left;">Nombre</th>
+                        <th style="padding:10px 12px; text-align:center; width:120px;">Matrícula</th>
+                        <th style="padding:10px 12px; text-align:left;">Carrera</th>
+                        <th style="padding:10px 12px; text-align:center; width:100px;">Periodo Actual</th>
+                        <th style="padding:10px 12px; text-align:center; width:110px;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+            </table>
+        </div>` +
+        (res.length > 100 ? `<p style="color:#999; padding:8px 4px; font-size:0.82rem;">${res.length} alumnos — escribe para filtrar.</p>` : '');
 }
 
 async function verActasAlumno(alumnoId, alumnoNombre, matricula) {
@@ -1005,7 +1012,7 @@ async function verActasAlumno(alumnoId, alumnoNombre, matricula) {
                 <td style="text-align:center; padding:8px 6px; color:#666; font-size:0.82rem;">${m.acr || '-'}</td>
                 <td style="text-align:center; padding:8px 6px; color:#666; font-size:0.82rem;">${m.periodoAcademico || '-'}</td>
                 <td style="padding:8px 6px; text-align:center;">
-                    <button onclick="descargarActaHistoricaAlumno('${alumnoId}','${m.materiaId}','${tipo}',this)"
+                    <button onclick="descargarActaHistoricaAlumno('${alumnoId}','${m.materiaId}','${tipo}','${m.periodoAcademico || ''}',this)"
                       style="padding:5px 10px; background:${btnGrad}; color:white; border:none; border-radius:5px; font-size:0.8rem; font-weight:600; cursor:pointer; white-space:nowrap;">
                       ${btnLabel}
                     </button>
@@ -1048,7 +1055,7 @@ function volverActasHist() {
     if (det)  det.style.display  = 'none';
 }
 
-async function descargarActaHistoricaAlumno(alumnoId, materiaId, tipo, btn) {
+async function descargarActaHistoricaAlumno(alumnoId, materiaId, tipo, periodoAcad, btn) {
     const txtOrig = btn.textContent;
     btn.textContent = 'Generando...'; btn.disabled = true;
 
@@ -1066,24 +1073,18 @@ async function descargarActaHistoricaAlumno(alumnoId, materiaId, tipo, btn) {
         const carreraId      = refData.carreraId;
 
         // Cargar todos los registros de esa materia, filtrar por grupo en memoria
-        const snap    = await db.collection('calificaciones').where('materiaId', '==', materiaId).get();
-        let calDocs   = snap.docs.map(d => d.data()).filter(d => d.codigoGrupo === codigoGrupo);
+        const snap  = await db.collection('calificaciones').where('materiaId', '==', materiaId).get();
+        let calDocs = snap.docs.map(d => d.data()).filter(d => d.codigoGrupo === codigoGrupo);
 
-        if (tipo === 'ETS') {
-            // El grado ETS puede estar en c.ets o bien en c.promedio con c.acreditacion='ETS'
-            calDocs = calDocs.filter(c =>
-                (c.ets !== null && c.ets !== undefined) ||
-                c.acreditacion === 'ETS'
-            );
-        } else if (tipo === 'EXT') {
-            calDocs = calDocs.filter(c =>
-                (c.extraordinario !== null && c.extraordinario !== undefined) ||
-                c.acreditacion === 'EXT'
-            );
+        // Acotar al periodo histórico: usa periodoAcad (de historialAcademico) para scopear
+        // en registros viejos c.ets/c.extraordinario pueden ser null aunque el grado esté en c.promedio
+        if (periodoAcad) {
+            const docsDelPeriodo = calDocs.filter(d => d.periodo === periodoAcad);
+            if (docsDelPeriodo.length > 0) calDocs = docsDelPeriodo;
         }
 
         if (calDocs.length === 0) {
-            alert(`No hay registros de ${tipo === 'GENERAL' ? 'calificaciones' : tipo} para este grupo.`);
+            alert('No se encontraron registros de calificaciones para esta materia y grupo.');
             return;
         }
 
