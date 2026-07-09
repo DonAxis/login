@@ -208,6 +208,11 @@
       <p style="color: rgba(0,0,0,0.65);">Reportes y estadísticas</p>
     </div>
 
+    <div class="opcion" onclick="mostrarHistorialCambios()" style="background: linear-gradient(135deg, #bf360c 0%, #e64a19 100%); border-color: transparent;">
+      <h3 style="color: white;">Historial de Cambios</h3>
+      <p style="color: rgba(255,255,255,0.88);">Auditoría de calificaciones editadas manualmente</p>
+    </div>
+
     <div class="opcion" onclick="mostrarCambiosProgramados()" style="background: linear-gradient(135deg, #f9a825 0%, #fbc02d 100%); border-color: transparent;">
       <h3 style="color: #4a3000;">Cambios Programados</h3>
       <p style="color: rgba(0,0,0,0.65);">Cambios masivos sobre la base de datos</p>
@@ -894,6 +899,48 @@
     </div>
   </div>
 
+  <!-- MODAL HISTORIAL DE CAMBIOS -->
+  <div id="modalHistorialCambios" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:2000;overflow-y:auto;backdrop-filter:blur(3px);">
+    <div class="modal-content-animated" style="background:white;border-radius:20px;max-width:1100px;width:94%;margin:30px auto;padding:28px 30px 24px;box-shadow:0 25px 80px rgba(0,0,0,0.4);">
+
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;padding-bottom:16px;border-bottom:3px solid #bf360c;">
+        <div>
+          <h2 style="margin:0;color:#bf360c;font-size:1.6rem;">Historial de Cambios de Calificaciones</h2>
+          <p style="margin:5px 0 0 0;color:#888;font-size:0.85rem;">Cambios manuales registrados por coordinadores y control escolar</p>
+        </div>
+        <button onclick="cerrarHistorialCambios()"
+          style="background:none;border:none;font-size:2rem;cursor:pointer;color:#bbb;line-height:1;padding:0;width:36px;height:36px;border-radius:50%;transition:all 0.2s;flex-shrink:0;"
+          onmouseover="this.style.background='#f5f5f5';this.style.color='#333';"
+          onmouseout="this.style.background='none';this.style.color='#bbb';">&times;</button>
+      </div>
+
+      <!-- Stats -->
+      <div id="histStats" style="margin-bottom:18px;">
+        <div style="text-align:center;padding:20px;color:#999;">Cargando...</div>
+      </div>
+
+      <!-- Filtros -->
+      <div id="histFiltros" style="display:none;flex-wrap:wrap;gap:10px;margin-bottom:14px;align-items:center;">
+        <select id="histSelCarrera" onchange="histFiltrarCarrera(this.value)"
+          style="padding:7px 12px;border:2px solid #ddd;border-radius:8px;font-size:0.85rem;cursor:pointer;min-width:160px;"
+          onfocus="this.style.borderColor='#bf360c';" onblur="this.style.borderColor='#ddd';">
+          <option value="">Todas las carreras</option>
+        </select>
+        <select id="histSelOperador" onchange="histFiltrarOperador(this.value)"
+          style="padding:7px 12px;border:2px solid #ddd;border-radius:8px;font-size:0.85rem;cursor:pointer;min-width:180px;"
+          onfocus="this.style.borderColor='#7b1fa2';" onblur="this.style.borderColor='#ddd';">
+          <option value="">Todos los operadores</option>
+        </select>
+        <span style="font-size:0.8rem;color:#bbb;margin-left:4px;">Filtros aplicados en local (sin nueva lectura a Firestore)</span>
+      </div>
+
+      <!-- Tabla -->
+      <div id="histTabla" style="max-height:55vh;overflow-y:auto;border:1px solid #f0f0f0;border-radius:10px;"></div>
+
+    </div>
+  </div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -908,5 +955,6 @@
   <script src="../../js/escolar/cambioPeriodo.js"></script>
   <script src="../../js/admin/vigia.js"></script>
   <script src="../../js/admin/respaldo.js"></script>
+  <script src="../../js/admin/historialCambios.js"></script>
 </body>
 </html>
