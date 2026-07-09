@@ -46,7 +46,15 @@ function _acta_encabezado(doc, titulo) {
 }
 
 function _acta_pie(doc, total, startY) {
+    const pageHeight = doc.internal.pageSize.getHeight();
     let finalY = startY + 10;
+
+    // Si las firmas no caben en la página actual, abrir una nueva
+    if (finalY + 45 > pageHeight) {
+        doc.addPage();
+        finalY = 20;
+    }
+
     doc.setFontSize(10);
     doc.setFont(undefined, 'bold');
     doc.text(`Total de alumnos: ${total}`, 20, finalY);
