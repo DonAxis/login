@@ -654,3 +654,185 @@ async function descargarActasMasivas(tipo, btn) {
         btn.textContent = txtOrig; btn.disabled = false;
     }
 }
+
+// ── Panel Actas ───────────────────────────────────────────────────────────────
+
+async function inicializarSeccionActas() {
+    const sel        = document.getElementById('selectMateriaActas');
+    const contenedor = document.getElementById('contenedorVistaActas');
+    if (!sel) return;
+    if (contenedor) contenedor.style.display = 'none';
+
+    sel.innerHTML = '<option value="">Cargando...</option>';
+
+    const carreraId = usuarioActual && usuarioActual.carreraId;
+    if (!carreraId) { sel.innerHTML = '<option value="">Sin carrera activa</option>'; return; }
+
+    try {
+        const snap = await db.collection('profesorMaterias')
+            .where('carreraId', '==', carreraId)
+            .where('activa',    '==', true)
+            .get();
+
+        sel.innerHTML = '<option value="">Seleccionar materia...</option>';
+        snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (a.materiaNombre || '').localeCompare(b.materiaNombre || ''))
+            .forEach(asig => {
+                const o = document.createElement('option');
+                o.value       = asig.id;
+                o.textContent = `${asig.materiaNombre} — ${asig.codigoGrupo}`;
+                sel.appendChild(o);
+            });
+    } catch (e) {
+        console.error('[Actas] Error cargando materias:', e);
+        sel.innerHTML = '<option value="">Error al cargar</option>';
+    }
+}
+
+async function cargarVistaActas() {
+    const sel        = document.getElementById('selectMateriaActas');
+    const contenedor = document.getElementById('contenedorVistaActas');
+    if (!sel || !contenedor) return;
+
+    if (!sel.value) { contenedor.style.display = 'none'; return; }
+
+    contenedor.innerHTML = '<p style="color:#888; padding:20px 0;">Cargando...</p>';
+    contenedor.style.display = '';
+
+    try {
+        const carreraId = usuarioActual && usuarioActual.carreraId;
+
+        const pmDoc = await db.collection('profesorMaterias').doc(sel.value).get();
+        if (!pmDoc.exists) { contenedor.innerHTML = '<p style="color:red;">Materia no encontrada.</p>'; return; }
+        const asig = { id: pmDoc.id, ...pmDoc.data() };
+
+        // Fijar globals que usan las funciones PDF
+        asignacionCalifActual = asig;
+        [tieneExamenFinalCoord, esMaestriaCoord] = await Promise.all([
+            obtenerTieneExamenFinal(carreraId),
+            obtenerEsUnParcial(carreraId)
+        ]);
+
+        // Query por materiaId (campo único, sin índice compuesto), filtrar grupo en memoria
+        const calSnap = await db.collection('calificaciones').where('materiaId', '==', asig.materiaId).get();
+        const calDocs = calSnap.docs.filter(d => d.data().codigoGrupo === asig.codigoGrupo);
+
+        if (calDocs.length === 0) {
+            alumnosCalifMateria = [];
+            contenedor.innerHTML = '<p style="color:#888; margin-top:12px;">Sin calificaciones registradas para esta materia.</p>';
+            return;
+        }
+
+        // Matrículas en batch (máx 30 por consulta 'in')
+        const alumnoIds = [...new Set(calDocs.map(d => d.data().alumnoId))];
+        const chunks    = [];
+        for (let i = 0; i < alumnoIds.length; i += 30) chunks.push(alumnoIds.slice(i, i + 30));
+        const userSnaps = await Promise.all(
+            chunks.map(ch =>
+                db.collection('usuarios')
+                  .where(firebase.firestore.FieldPath.documentId(), 'in', ch)
+                  .get()
+            )
+        );
+        const matMap = {};
+        userSnaps.forEach(s => s.docs.forEach(d => { matMap[d.id] = d.data().matricula || '-'; }));
+
+        // Construir alumnosCalifMateria con el formato que esperan las funciones PDF
+        alumnosCalifMateria = calDocs.map(d => {
+            const c = d.data();
+            return {
+                id:        c.alumnoId,
+                nombre:    c.alumnoNombre || '-',
+                matricula: matMap[c.alumnoId] || '-',
+                calificaciones: {
+                    parcial1:          c.parciales?.parcial1 ?? null,
+                    parcial2:          c.parciales?.parcial2 ?? null,
+                    parcial3:          c.parciales?.parcial3 ?? null,
+                    extraordinario:    c.extraordinario      ?? null,
+                    ets:               c.ets                 ?? null,
+                    falta1:            c.faltas?.falta1       ?? null,
+                    falta2:            c.faltas?.falta2       ?? null,
+                    falta3:            c.faltas?.falta3       ?? null,
+                    _hasExtraDropdown: false
+                }
+            };
+        }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        _renderVistaActas(asig);
+
+    } catch (e) {
+        console.error('[Actas] Error:', e);
+        contenedor.innerHTML = '<p style="color:red;">Error: ' + e.message + '</p>';
+    }
+}
+
+function _renderVistaActas(asig) {
+    const contenedor = document.getElementById('contenedorVistaActas');
+    if (!contenedor) return;
+
+    const fmtP = v => (v == null) ? '-' : v === 'NP' ? 'NP' : String(v);
+
+    let thExtra, rowsFn;
+    if (esMaestriaCoord) {
+        thExtra = '<th style="text-align:center; padding:8px 6px; width:60px;">D1</th>';
+        rowsFn  = c => `<td style="text-align:center; padding:6px;">${fmtP(c.parcial1)}</td>`;
+    } else if (tieneExamenFinalCoord) {
+        thExtra = '<th style="text-align:center; padding:8px 6px;">D1</th><th style="text-align:center; padding:8px 6px;">D2</th><th style="text-align:center; padding:8px 6px;">E.F</th>';
+        rowsFn  = c => `<td style="text-align:center; padding:6px;">${fmtP(c.parcial1)}</td><td style="text-align:center; padding:6px;">${fmtP(c.parcial2)}</td><td style="text-align:center; padding:6px;">${fmtP(c.parcial3)}</td>`;
+    } else {
+        thExtra = '<th style="text-align:center; padding:8px 6px;">D1</th><th style="text-align:center; padding:8px 6px;">D2</th><th style="text-align:center; padding:8px 6px;">D3</th>';
+        rowsFn  = c => `<td style="text-align:center; padding:6px;">${fmtP(c.parcial1)}</td><td style="text-align:center; padding:6px;">${fmtP(c.parcial2)}</td><td style="text-align:center; padding:6px;">${fmtP(c.parcial3)}</td>`;
+    }
+
+    const rows = alumnosCalifMateria.map((a, i) => {
+        let cal;
+        try { cal = calcularPromedioAlumno(a); } catch (_) { cal = null; }
+        const calStr   = (cal == null) ? '-' : cal === 'NP' ? 'NP' : String(cal);
+        const calColor = (!isNaN(parseFloat(calStr)) && parseFloat(calStr) < 6) ? '#f44336' : '#388e3c';
+        return `<tr style="background:${i % 2 === 0 ? '#fafafa' : 'white'}">
+            <td style="text-align:center; padding:6px 8px; color:#888;">${i + 1}</td>
+            <td style="text-align:center; padding:6px 8px;">${a.matricula}</td>
+            <td style="padding:6px 10px;">${a.nombre}</td>
+            ${rowsFn(a.calificaciones)}
+            <td style="text-align:center; font-weight:700; color:${calColor}; padding:6px 8px;">${calStr}</td>
+        </tr>`;
+    }).join('');
+
+    contenedor.innerHTML = `
+        <div style="background:#f5f5f5; border-radius:8px; padding:14px 18px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+                <div style="font-weight:700; color:#333; font-size:0.97rem;">${asig.materiaNombre}</div>
+                <div style="font-size:0.85rem; color:#666; margin-top:3px;">Grupo: ${asig.codigoGrupo} &nbsp;·&nbsp; Prof: ${asig.profesorNombre} &nbsp;·&nbsp; ${alumnosCalifMateria.length} alumno(s)</div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button onclick="descargarActaPDF()"
+                  style="padding:8px 14px; background:linear-gradient(135deg,#c62828,#8b0000); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
+                  Acta General
+                </button>
+                <button onclick="descargarActaExtraordinarioPDF()"
+                  style="padding:8px 14px; background:linear-gradient(135deg,#6a1b9a,#4a148c); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
+                  Acta Extraordinario
+                </button>
+                <button onclick="descargarActaEtsPDF()"
+                  style="padding:8px 14px; background:linear-gradient(135deg,#1565c0,#0a3880); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
+                  Acta ETS
+                </button>
+            </div>
+        </div>
+        <div style="overflow-x:auto; border-radius:8px; border:1px solid #e0e0e0; overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#6c1d45; color:white;">
+                        <th style="text-align:center; padding:8px 6px; width:40px;">No.</th>
+                        <th style="text-align:center; padding:8px 6px; width:130px;">Matrícula</th>
+                        <th style="padding:8px 10px; text-align:left;">Nombre</th>
+                        ${thExtra}
+                        <th style="text-align:center; padding:8px 6px; width:90px;">Calificación</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+        <div style="padding:8px 0 0; font-size:0.83rem; color:#888;">Total: ${alumnosCalifMateria.length} alumno(s)</div>`;
+}

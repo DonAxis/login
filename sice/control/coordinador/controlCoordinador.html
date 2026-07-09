@@ -284,6 +284,11 @@
  <p>Ver y editar calificaciones</p>
  </div>
 
+ <div class="menu-card" onclick="mostrarSeccion('actas')">
+ <h3>Actas</h3>
+ <p>Imprimir y descargar actas de calificaciones</p>
+ </div>
+
  <div class="menu-card" onclick="mostrarSeccion('periodos')">
  <h3>Periodos</h3>
  <p>Gestionar periodos academicos</p>
@@ -797,34 +802,58 @@
  <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
  </div>
 
- <!-- Toggle Periodo Actual / Actas Históricas -->
- <div style="display:flex; margin-bottom:20px; border-radius:8px; overflow:hidden; border:2px solid #43a047;">
-  <button id="tabCalifActual" onclick="mostrarVistaCalif('actual')"
-    style="flex:1; padding:10px; background:#43a047; color:white; border:none; font-weight:600; cursor:pointer; font-size:0.95rem; transition:all 0.2s;">
-    Periodo Actual
-  </button>
-  <button id="tabCalifHistorica" onclick="mostrarVistaCalif('historica')"
-    style="flex:1; padding:10px; background:white; color:#43a047; border:none; font-weight:600; cursor:pointer; font-size:0.95rem; transition:all 0.2s;">
-    Actas Históricas
-  </button>
+ <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+ <h3 style="margin-top: 0;">Seleccionar Materia</h3>
+ <div>
+ <label style="display: block; margin-bottom: 5px; font-weight: 600;">Materia:</label>
+ <select id="selectMateriaCalif" onchange="cargarCalificacionesMateria()"
+ style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
+ <option value="">Seleccionar materia...</option>
+ </select>
+ <small style="color: #666; display: block; margin-top: 5px;">
+ Selecciona una materia y grupo para ver y editar calificaciones
+ </small>
+ </div>
  </div>
 
- <!-- VISTA: Periodo Actual -->
- <div id="vistaCalifActual">
-  <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-  <h3 style="margin-top: 0;">Seleccionar Materia</h3>
-  <div style="display: grid; gap: 15px;">
-  <div>
-  <label style="display: block; margin-bottom: 5px; font-weight: 600;">Materia:</label>
-  <select id="selectMateriaCalif" onchange="cargarCalificacionesMateria()"
-  style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;">
-  <option value="">Seleccionar materia...</option>
-  </select>
-  <small style="color: #666; display: block; margin-top: 5px;">
-  Selecciona una materia y grupo para ver y editar calificaciones
-  </small>
-  </div>
-  </div>
+ <div id="contenedorCalificaciones" style="display: none;">
+ <div style="background: white; padding: 20px; border-radius: 10px;">
+ <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+ <div>
+ <h3 style="margin: 0;" id="tituloMateriaCalif">Materia</h3>
+ <p style="margin: 5px 0; color: #666;" id="infoMateriaCalif">Informacion de la materia</p>
+ </div>
+ <div style="display: flex; flex-direction: column; gap: 6px; min-width: 190px;">
+ <button onclick="guardarTodasCalificacionesCoord()"
+ style="padding: 10px 16px; background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.95rem; width: 100%;">
+ Guardar Calificaciones
+ </button>
+ <div style="border-top: 1px solid #ccc; margin: 2px 0;"></div>
+ <button onclick="descargarActaPDF()"
+ style="padding: 8px 16px; background: linear-gradient(135deg, #c62828 0%, #8b0000 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; width: 100%;">
+ Acta General
+ </button>
+ <button id="btnActaExtraordinario" onclick="descargarActaExtraordinarioPDF()"
+ style="padding: 8px 16px; background: linear-gradient(135deg, #1565c0 0%, #0a3880 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; width: 100%;">
+ Acta Extra
+ </button>
+ <button id="btnActaETS" onclick="descargarActaEtsPDF()"
+ style="padding: 8px 16px; background: linear-gradient(135deg, #1565c0 0%, #0a3880 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; width: 100%;">
+ Acta ETS
+ </button>
+ </div>
+ </div>
+ <div id="tablaCalificacionesCoord"></div>
+ </div>
+ </div>
+
+ </div>
+
+ <!-- SECCION: ACTAS -->
+ <div id="seccionActas" class="seccion-contenido">
+  <div class="seccion-header">
+   <h2>Actas</h2>
+   <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
   </div>
 
   <!-- Descarga Masiva -->
@@ -851,72 +880,20 @@
    </div>
   </div>
 
-  <div id="contenedorCalificaciones" style="display: none;">
-  <div style="background: white; padding: 20px; border-radius: 10px;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-  <div>
-  <h3 style="margin: 0;" id="tituloMateriaCalif">Materia</h3>
-  <p style="margin: 5px 0; color: #666;" id="infoMateriaCalif">Informacion de la materia</p>
+  <!-- Acta por Materia (solo lectura) -->
+  <div style="background:white; padding:20px; border-radius:10px; margin-bottom:20px;">
+   <h3 style="margin-top:0; margin-bottom:15px;">Acta por Materia</h3>
+   <div>
+    <label style="display:block; margin-bottom:5px; font-weight:600;">Materia:</label>
+    <select id="selectMateriaActas" onchange="cargarVistaActas()"
+      style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px;">
+     <option value="">Seleccionar materia...</option>
+    </select>
+   </div>
+   <div id="contenedorVistaActas" style="display:none; margin-top:16px;"></div>
   </div>
-  <div style="display: flex; flex-direction: column; gap: 6px; min-width: 190px;">
-  <button onclick="guardarTodasCalificacionesCoord()"
-  style="padding: 10px 16px; background: linear-gradient(135deg, #216A32 0%, #21596A 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.95rem; width: 100%;">
-  Guardar Calificaciones
-  </button>
-  <div style="border-top: 1px solid #ccc; margin: 2px 0;"></div>
-  <button onclick="descargarActaPDF()"
-  style="padding: 8px 16px; background: linear-gradient(135deg, #c62828 0%, #8b0000 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; width: 100%;">
-  Acta General
-  </button>
-  <button id="btnActaExtraordinario" onclick="descargarActaExtraordinarioPDF()"
-  style="padding: 8px 16px; background: linear-gradient(135deg, #1565c0 0%, #0a3880 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; width: 100%;">
-  Acta Extra
-  </button>
-  <button id="btnActaETS" onclick="descargarActaEtsPDF()"
-  style="padding: 8px 16px; background: linear-gradient(135deg, #1565c0 0%, #0a3880 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; width: 100%;">
-  Acta ETS
-  </button>
-  </div>
-  </div>
-  <div id="tablaCalificacionesCoord"></div>
-  </div>
-  </div>
- </div>
 
- <!-- VISTA: Actas Históricas -->
- <div id="vistaCalifHistorica" style="display:none;">
-  <div style="background:white; padding:20px; border-radius:10px;">
-   <div style="background:#e3f2fd; border-left:4px solid #1976d2; padding:12px 15px; border-radius:4px; margin-bottom:20px; font-size:0.9rem; color:#1565c0;">
-    Genera actas de ETS o Extraordinario de ciclos anteriores. El ciclo es opcional — si lo omites, incluye todos los registros disponibles de esa materia.
-   </div>
-   <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px;">
-    <div>
-     <label style="display:block; margin-bottom:5px; font-weight:600; color:#333;">Materia</label>
-     <select id="selectMateriaHistorica"
-       style="width:100%; padding:10px; border:2px solid #ddd; border-radius:6px; font-size:0.95rem;">
-       <option value="">Cargando...</option>
-     </select>
-    </div>
-    <div>
-     <label style="display:block; margin-bottom:5px; font-weight:600; color:#333;">
-      Ciclo <span style="font-weight:400; color:#888;">(opcional, ej. 2024-1)</span>
-     </label>
-     <input type="text" id="inputCicloHistorico" placeholder="ej. 2024-1"
-       style="width:100%; padding:10px; border:2px solid #ddd; border-radius:6px; font-size:0.95rem; box-sizing:border-box;">
-    </div>
-   </div>
-   <div style="display:flex; gap:10px;">
-    <button onclick="generarActaHistorica('ETS', this)"
-      style="padding:10px 24px; background:linear-gradient(135deg,#1565c0,#0a3880); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.95rem;">
-     Acta ETS
-    </button>
-    <button onclick="generarActaHistorica('EXT', this)"
-      style="padding:10px 24px; background:linear-gradient(135deg,#6a1b9a,#4a148c); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.95rem;">
-     Acta Extraordinario
-    </button>
-   </div>
-  </div>
- </div>
+  <!-- Actas Históricas — pendiente de definir -->
 
  </div>
 

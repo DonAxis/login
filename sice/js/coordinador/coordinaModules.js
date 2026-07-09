@@ -63,6 +63,9 @@ async function mostrarSeccion(seccion) {
                 inicializarBoletaGlobal(usuarioActual?.carreraId || null);
                 buscarAlumnoBoletaGlobal();
                 break;
+            case 'actas':
+                inicializarSeccionActas();
+                break;
             case 'herramientas':
                 // No precarga — botones bajo demanda
                 break;
