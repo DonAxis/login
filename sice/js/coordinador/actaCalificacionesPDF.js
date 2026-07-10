@@ -451,7 +451,7 @@ function descargarActaEtsPDF() {
 // Genera un único PDF con todas las actas concatenadas (una por materia).
 // No produce ZIP ni WinRAR — el navegador descarga directamente el .pdf.
 
-async function descargarActasMasivas(tipo, btn) {
+async function descargarActasMasivas(tipo, btn, optsOverride) {
     if (typeof window.jspdf === 'undefined') {
         alert('Error: jsPDF no está cargado. Recarga la página.');
         return;
@@ -481,8 +481,8 @@ async function descargarActasMasivas(tipo, btn) {
     };
 
     try {
-        const carreraId = usuarioActual && usuarioActual.carreraId;
-        const periodo   = typeof periodoActualCarrera !== 'undefined' ? periodoActualCarrera : null;
+        const carreraId = (optsOverride && optsOverride.carreraId) || (usuarioActual && usuarioActual.carreraId);
+        const periodo   = (optsOverride && optsOverride.periodo)   || (typeof periodoActualCarrera !== 'undefined' ? periodoActualCarrera : null);
 
         if (!carreraId || !periodo) {
             alert('No se pudo determinar la carrera o el periodo activo.');

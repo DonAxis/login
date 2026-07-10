@@ -255,6 +255,26 @@ function mostrarGruposCarrera() {
   let html = `<div style="grid-column:1/-1; margin-bottom:10px;">
     <h2 class="titulo-seccion">${carreraSeleccionada.nombre}</h2>
     <p style="color:#666;">Selecciona un grupo</p>
+  </div>
+  <div style="grid-column:1/-1; background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:16px 20px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div>
+      <div style="font-weight:600; color:#333; font-size:0.97rem;">Descarga Masiva — Periodo: <span style="color:#6c1d45;">${periodoActual}</span></div>
+      <div style="font-size:0.82rem; color:#888; margin-top:2px;">Genera un PDF con todas las actas de la carrera</div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button onclick="descargarActasMasivasEscolar('GENERAL', this)"
+        style="padding:8px 14px; background:linear-gradient(135deg,#c62828,#8b0000); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.85rem;">
+        Todas — Actas Generales
+      </button>
+      <button onclick="descargarActasMasivasEscolar('ETS', this)"
+        style="padding:8px 14px; background:linear-gradient(135deg,#1565c0,#0a3880); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.85rem;">
+        Todas — Actas ETS
+      </button>
+      <button onclick="descargarActasMasivasEscolar('EXT', this)"
+        style="padding:8px 14px; background:linear-gradient(135deg,#6a1b9a,#4a148c); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.85rem;">
+        Todas — Actas Extraordinario
+      </button>
+    </div>
   </div>`;
 
   if (gruposUnicos.length === 0) {
@@ -2590,4 +2610,10 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, periodo) {
     console.error('Error al cargar acta histórica:', error);
     alert('Error al cargar alumnos: ' + error.message);
   }
+}
+
+// ── Descarga Masiva de Actas ───────────────────────────────────────────────
+function descargarActasMasivasEscolar(tipo, btn) {
+  if (!carreraSeleccionada) { alert('Selecciona una carrera primero.'); return; }
+  descargarActasMasivas(tipo, btn, { carreraId: carreraSeleccionada.id, periodo: periodoActual });
 }
