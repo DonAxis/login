@@ -2615,5 +2615,12 @@ async function verAlumnosActaHistorica(materiaId, materiaNombre, periodo) {
 // ── Descarga Masiva de Actas ───────────────────────────────────────────────
 function descargarActasMasivasEscolar(tipo, btn) {
   if (!carreraSeleccionada) { alert('Selecciona una carrera primero.'); return; }
-  descargarActasMasivas(tipo, btn, { carreraId: carreraSeleccionada.id, periodo: periodoActual });
+  const label = tipo === 'GENERAL' ? 'Generales' : tipo === 'ETS' ? 'ETS' : 'Extraordinario';
+  const nombreCarr = `${carreraSeleccionada.nombre} (${periodoActual})`;
+  if (!confirm(`¿Generar todas las Actas ${label} de ${nombreCarr}?\n\nEsta operación consulta todas las calificaciones de la carrera.`)) return;
+  descargarActasMasivas(tipo, btn, {
+    carreraId:     carreraSeleccionada.id,
+    periodo:       periodoActual,
+    nombreCarrera: nombreCarr
+  });
 }
