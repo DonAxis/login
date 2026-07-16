@@ -60,7 +60,7 @@ async function mostrarSeccion(seccion) {
                 cargarReporteProfesores();
                 break;
             case 'boletaGlobal':
-                inicializarBoletaGlobal(usuarioActual?.carreraId || null);
+                inicializarBoletaGlobal(usuarioActual?.carreraId || null, false, false, true);
                 buscarAlumnoBoletaGlobal();
                 break;
             case 'actas':
@@ -2947,6 +2947,7 @@ async function mostrarFormAlumno(alumnoId = null) {
     for (let i = 1; i <= numeroPeriodos; i++) {
         periodosHtml += `<option value="${i}">${i}°</option>`;
     }
+    periodosHtml += `<option value="graduado">— Egresado (sin grupo)</option>`;
 
     const html = `
     <form onsubmit="guardarAlumno(event, '${alumnoId || ''}')">
@@ -2970,14 +2971,14 @@ async function mostrarFormAlumno(alumnoId = null) {
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
         <div class="form-grupo">
           <label>Periodo: *</label>
-          <select id="periodoAlumno" required onchange="actualizarPreviewGrupoCoord()">
+          <select id="periodoAlumno" required onchange="manejarPeriodoAlumno()">
             ${periodosHtml}
           </select>
         </div>
-        
-        <div class="form-grupo">
+
+        <div class="form-grupo" id="divTurnoAlumno">
           <label>Turno: *</label>
-          <select id="turnoAlumno" required onchange="actualizarPreviewGrupoCoord()">
+          <select id="turnoAlumno" onchange="actualizarPreviewGrupoCoord()">
             <option value="1">Matutino</option>
             <option value="2">Vespertino</option>
             <option value="3">Nocturno</option>
@@ -2985,19 +2986,19 @@ async function mostrarFormAlumno(alumnoId = null) {
           </select>
         </div>
       </div>
-      
-      <div class="form-grupo">
+
+      <div class="form-grupo" id="divOrdenAlumno">
         <label>Orden del Grupo:</label>
         <input type="text" id="ordenAlumno" value="01" maxlength="2" onchange="actualizarPreviewGrupoCoord()"
           style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
         <small style="color: #666;">Numero de grupo dentro del periodo/turno (01, 02, 03...)</small>
       </div>
-      
+
       <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #1976d2; text-align: center;" id="previewGrupoCoord">
         <em style="color: #999;">Selecciona periodo y turno para ver el codigo de grupo</em>
       </div>
-      
-      <div class="form-grupo">
+
+      <div class="form-grupo" id="divActivoAlumno">
         <label>
           <input type="checkbox" id="activoAlumno" checked>
           Alumno activo
@@ -3021,12 +3022,26 @@ async function mostrarFormAlumno(alumnoId = null) {
 }
 
 
+function manejarPeriodoAlumno() {
+    const esGraduado = document.getElementById('periodoAlumno').value === 'graduado';
+    ['divTurnoAlumno', 'divOrdenAlumno', 'divActivoAlumno'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = esGraduado ? 'none' : '';
+    });
+    actualizarPreviewGrupoCoord();
+}
+
 function actualizarPreviewGrupoCoord() {
     const periodo = document.getElementById('periodoAlumno').value;
     const turno = document.getElementById('turnoAlumno').value;
     const orden = document.getElementById('ordenAlumno').value || '01';
 
     const previewDiv = document.getElementById('previewGrupoCoord');
+
+    if (periodo === 'graduado') {
+        previewDiv.innerHTML = '<span style="color:#e65100;font-weight:700;">Egresado — Sin grupo asignado</span>';
+        return;
+    }
 
     if (!periodo || !turno) {
         previewDiv.innerHTML = '<em style="color: #999;">Selecciona periodo y turno para ver el codigo</em>';
@@ -3064,14 +3079,19 @@ async function cargarDatosAlumno(alumnoId) {
             document.getElementById('nombreAlumno').value = alumno.nombre;
             document.getElementById('matriculaAlumno').value = alumno.matricula || '';
             document.getElementById('emailAlumno').value = alumno.email;
-            document.getElementById('periodoAlumno').value = alumno.periodo || '';
-            document.getElementById('turnoAlumno').value = alumno.turno || '1';
-            document.getElementById('ordenAlumno').value = alumno.orden || '01';
-            document.getElementById('activoAlumno').checked = alumno.activo;
 
-            // Actualizar preview
+            if (alumno.graduado === true) {
+                document.getElementById('periodoAlumno').value = 'graduado';
+            } else {
+                document.getElementById('periodoAlumno').value = alumno.periodo || '';
+                document.getElementById('turnoAlumno').value = alumno.turno || '1';
+                document.getElementById('ordenAlumno').value = alumno.orden || '01';
+                document.getElementById('activoAlumno').checked = alumno.activo;
+            }
+
+            // Actualizar preview y visibilidad
             setTimeout(() => {
-                actualizarPreviewGrupoCoord();
+                manejarPeriodoAlumno();
             }, 100);
         }
     } catch (error) {
@@ -3086,19 +3106,25 @@ async function guardarAlumno(event, alumnoId) {
     const nombre = document.getElementById('nombreAlumno').value.trim();
     const matricula = document.getElementById('matriculaAlumno').value.trim();
     const email = document.getElementById('emailAlumno').value.trim();
-    const periodo = parseInt(document.getElementById('periodoAlumno').value);
+    const periodoVal = document.getElementById('periodoAlumno').value;
+    const esGraduado = periodoVal === 'graduado';
     const turno = document.getElementById('turnoAlumno').value;
     const orden = document.getElementById('ordenAlumno').value || '01';
-    const activo = document.getElementById('activoAlumno').checked;
+    const activo = esGraduado ? false : document.getElementById('activoAlumno').checked;
 
-    if (!periodo || !turno) {
-        alert('Debes seleccionar periodo y turno');
+    if (!periodoVal) {
+        alert('Debes seleccionar un periodo');
+        return;
+    }
+    if (!esGraduado && !turno) {
+        alert('Debes seleccionar turno');
         return;
     }
 
-    // Generar codigo de grupo
+    const numeroPeriodos = carreraActualData?.numeroPeriodos || 9;
+    const periodo = esGraduado ? numeroPeriodos : parseInt(periodoVal);
     const ordenFormateado = orden.toString().padStart(2, '0');
-    const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
+    const codigoGrupo = esGraduado ? null : `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
 
     const userData = {
         nombre: nombre,
@@ -3106,18 +3132,18 @@ async function guardarAlumno(event, alumnoId) {
         email: email.toLowerCase(),
         rol: 'alumno',
         periodo: periodo,
-        turno: turno,
-        orden: ordenFormateado,
+        turno: esGraduado ? null : turno,
+        orden: esGraduado ? null : ordenFormateado,
         codigoGrupo: codigoGrupo,
         carreraId: usuarioActual.carreraId,
-        activo: activo
+        activo: activo,
+        graduado: esGraduado ? true : false
     };
 
     // Si es nuevo alumno, agregar info adicional
     if (!alumnoId) {
         userData.periodoIngreso = periodoActualCarrera;
         userData.generacion = periodoActualCarrera;
-        userData.graduado = false;
         userData.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
     }
 

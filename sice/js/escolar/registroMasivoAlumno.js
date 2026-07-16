@@ -15,7 +15,8 @@ async function cargarPeriodosParaMasivo() {
     for (let i = 1; i <= numeroPeriodos; i++) {
       select.innerHTML += `<option value="${i}">${i}°</option>`;
     }
-    
+    select.innerHTML += `<option value="graduado">— Egresado (sin grupo)</option>`;
+
     console.log(`${numeroPeriodos} periodos cargados para registro masivo`);
     
   } catch (error) {
@@ -28,9 +29,20 @@ function actualizarPreviewGrupoMasivo() {
   const periodo = document.getElementById('periodoMasivo').value;
   const turno = document.getElementById('turnoMasivo').value;
   const orden = document.getElementById('ordenMasivo').value || '01';
-  
+
   const previewDiv = document.getElementById('previewGrupoMasivo');
-  
+  const divTurno   = document.getElementById('divTurnoMasivo');
+  const divOrden   = document.getElementById('divOrdenMasivo');
+
+  const esGraduado = periodo === 'graduado';
+  if (divTurno) divTurno.style.display = esGraduado ? 'none' : '';
+  if (divOrden) divOrden.style.display = esGraduado ? 'none' : '';
+
+  if (esGraduado) {
+    previewDiv.innerHTML = '<span style="color:#e65100;font-weight:700;">Egresados — Sin grupo asignado</span>';
+    return;
+  }
+
   if (!periodo || !turno) {
     previewDiv.innerHTML = '<em style="color: #999;">Selecciona periodo, turno y orden para ver el código</em>';
     return;
@@ -157,12 +169,17 @@ async function procesarRegistroMasivo(event) {
   const matriculas = document.getElementById('matriculasMasivo').value.trim().split('\n').filter(m => m.trim());
   const emails = document.getElementById('emailsMasivo').value.trim().split('\n').filter(e => e.trim());
   
-  if (!periodo || !turno) {
-    alert('Debes seleccionar periodo y turno');
+  const esGraduado = periodo === 'graduado';
+
+  if (!periodo) {
+    alert('Debes seleccionar un periodo');
     return;
   }
-  
-  if (!orden || orden.length !== 2) {
+  if (!esGraduado && !turno) {
+    alert('Debes seleccionar turno');
+    return;
+  }
+  if (!esGraduado && (!orden || orden.length !== 2)) {
     alert('El orden debe ser de 2 digitos (Ej: 01, 02, 03)');
     return;
   }
@@ -177,24 +194,22 @@ async function procesarRegistroMasivo(event) {
     return;
   }
   
-  // Construir código de grupo
-  const ordenFormateado = orden.toString().padStart(2, '0');
-  const codigoGrupo = `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
-  
+  const ordenFormateado = esGraduado ? null : orden.toString().padStart(2, '0');
+  const codigoGrupo     = esGraduado ? null : `${carreraActualData.codigo}-${turno}${periodo}${ordenFormateado}`;
+  const numeroPeriodosCarrera = carreraActualData?.numeroPeriodos || 9;
+
   const turnosNombres = {
     '1': 'Matutino',
     '2': 'Vespertino',
     '3': 'Nocturno',
     '4': 'Sabatino'
   };
-  
-  console.log('DEBUG - Datos para registro masivo:');
-  console.log('  Periodo:', periodo);
-  console.log('  Turno:', turno, '-', turnosNombres[turno]);
-  console.log('  Orden:', ordenFormateado);
-  console.log('  Codigo de grupo:', codigoGrupo);
-  
-  if (!confirm(`Registrar ${nombres.length} alumnos?\n\nGrupo: ${codigoGrupo}\nTurno: ${turnosNombres[turno]}\nPeriodo: ${periodo}\nOrden: ${ordenFormateado}`)) {
+
+  const confirmMsg = esGraduado
+    ? `Registrar ${nombres.length} egresado(s)?\n\nCarrera: ${carreraActualData.nombre || carreraActualData.codigo}\nSin grupo asignado`
+    : `Registrar ${nombres.length} alumnos?\n\nGrupo: ${codigoGrupo}\nTurno: ${turnosNombres[turno]}\nPeriodo: ${periodo}\nOrden: ${ordenFormateado}`;
+
+  if (!confirm(confirmMsg)) {
     return;
   }
   
@@ -227,15 +242,15 @@ async function procesarRegistroMasivo(event) {
         email: email,
         rol: 'alumno',
         codigoGrupo: codigoGrupo,
-        periodo: parseInt(periodo),
-        semestreActual: parseInt(periodo),
-        turno: parseInt(turno),
-        orden: ordenFormateado,
+        periodo: esGraduado ? numeroPeriodosCarrera : parseInt(periodo),
+        semestreActual: esGraduado ? numeroPeriodosCarrera : parseInt(periodo),
+        turno: esGraduado ? null : parseInt(turno),
+        orden: esGraduado ? null : ordenFormateado,
         carreraId: usuarioActual.carreraId,
-        activo: true,
+        activo: esGraduado ? false : true,
         periodoIngreso: periodoActualCarrera,
         generacion: periodoActualCarrera,
-        graduado: false,
+        graduado: esGraduado ? true : false,
         fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
         registroMasivo: true,
         fechaRegistroMasivo: new Date().toISOString()
@@ -265,10 +280,14 @@ async function procesarRegistroMasivo(event) {
   mensaje += `Exitosos: ${exitosos}\n`;
   mensaje += `Fallidos: ${fallidos}\n`;
   mensaje += `Total procesados: ${nombres.length}\n`;
-  mensaje += `Grupo: ${codigoGrupo}\n`;
-  mensaje += `Turno: ${turnosNombres[turno]}\n`;
-  mensaje += `Periodo: ${periodo}\n`;
-  mensaje += `Orden: ${ordenFormateado}\n`;
+  if (esGraduado) {
+    mensaje += `Tipo: Egresados (sin grupo)\n`;
+  } else {
+    mensaje += `Grupo: ${codigoGrupo}\n`;
+    mensaje += `Turno: ${turnosNombres[turno]}\n`;
+    mensaje += `Periodo: ${periodo}\n`;
+    mensaje += `Orden: ${ordenFormateado}\n`;
+  }
   mensaje += `Periodo academico: ${periodoActualCarrera}\n\n`;
   
   if (erroresDetallados.length > 0) {
