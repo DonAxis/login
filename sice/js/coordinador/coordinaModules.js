@@ -2844,9 +2844,10 @@ function aplicarFiltrosAlumnos() {
                 </div>
                 <div class="item-acciones">
                     <button onclick="editarAlumno('${id}')" class="btn-editar">Editar</button>
-                    <button onclick="toggleActivoUsuario('${id}', 'alumno', ${!alumno.activo})" class="botAzu">
-                        ${alumno.activo ? 'Desactivar' : 'Activar'}
-                    </button>
+                    ${alumno.graduado
+                        ? `<button disabled style="background:#e65100;color:white;border:none;padding:6px 14px;border-radius:6px;font-weight:700;font-size:0.85rem;cursor:default;opacity:0.85;">Egresado</button>`
+                        : `<button onclick="toggleActivoUsuario('${id}', 'alumno', ${!alumno.activo})" class="botAzu">${alumno.activo ? 'Desactivar' : 'Activar'}</button>`
+                    }
                 </div>
             </div>
         `;
@@ -6283,116 +6284,120 @@ async function eliminarAlumno(alumnoId) {
 }
 
 
-// ===== HISTORIAL DE ALUMNOS ===== asdas
+// ===== HISTORIAL DE ALUMNOS =====
 
 function mostrarHistorialAlumnos() {
     const html = `
-    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; margin: 20px auto;">
-      <h3 style="margin: 0 0 20px 0; color: #6A2135;">Historial de Alumnos</h3>
-      
-      <div style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Filtrar por estado:</label>
-        <select id="filtroEstadoHistorial" onchange="cargarHistorialAlumnos()" 
-                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
-          <option value="todos">Todos los alumnos</option>
-          <option value="activos">Solo activos</option>
-          <option value="inactivos">Solo inactivos</option>
-        </select>
+    <div style="background:white; padding:24px; border-radius:15px; max-width:860px; margin:20px auto;">
+      <h3 style="margin:0 0 16px 0; color:#6A2135;">Historial de Alumnos</h3>
+
+      <!-- Buscador -->
+      <input type="text" id="busquedaHistorial" placeholder="Buscar por nombre o matrícula..."
+             oninput="_renderHistorial()"
+             style="width:100%; padding:10px 14px; border:2px solid #ddd; border-radius:8px;
+                    font-size:0.95rem; margin-bottom:12px; box-sizing:border-box;"
+             onfocus="this.style.borderColor='#6A2135'" onblur="this.style.borderColor='#ddd'">
+
+      <!-- Filtros de estado -->
+      <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+        <button id="hFiltroTodos"     onclick="_setFiltroHistorial('todos')"    class="filtro-btn filtro-btn-activo">Todos</button>
+        <button id="hFiltroActivo"    onclick="_setFiltroHistorial('activo')"   class="filtro-btn">Activo</button>
+        <button id="hFiltroInactivo"  onclick="_setFiltroHistorial('inactivo')" class="filtro-btn">Inactivo</button>
+        <button id="hFiltroGraduado"  onclick="_setFiltroHistorial('graduado')" class="filtro-btn">Egresado</button>
       </div>
-      
-      <div id="listaHistorialAlumnos" style="max-height: 500px; overflow-y: auto;">
-        Cargando...
-      </div>
-      
-      <div style="margin-top: 20px;">
-        <button onclick="cerrarModal()" style="width: 100%; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; font-weight: 600; cursor: pointer;">
-          Cerrar
-        </button>
-      </div>
-    </div>
-  `;
+
+      <!-- Contador -->
+      <div id="contadorHistorial" style="font-size:0.82rem; color:#888; margin-bottom:10px;"></div>
+
+      <!-- Lista -->
+      <div id="listaHistorialAlumnos" style="max-height:480px; overflow-y:auto; border:1px solid #eee; border-radius:8px;"></div>
+
+      <button onclick="cerrarModal()" style="width:100%; margin-top:16px; padding:11px; background:#f5f5f5;
+              border:2px solid #ddd; border-radius:8px; font-weight:600; cursor:pointer;">Cerrar</button>
+    </div>`;
 
     document.getElementById('contenidoModal').innerHTML = html;
     document.getElementById('modalGenerico').style.display = 'flex';
 
-    cargarHistorialAlumnos();
+    _hFiltroActual = 'todos';
+    _renderHistorial();
+    // Foco automático en el buscador
+    setTimeout(() => document.getElementById('busquedaHistorial')?.focus(), 80);
 }
 
-async function cargarHistorialAlumnos() {
-    const container = document.getElementById('listaHistorialAlumnos');
-    const filtro = document.getElementById('filtroEstadoHistorial').value;
+let _hFiltroActual = 'todos';
 
-    try {
-        let query = db.collection('usuarios')
-            .where('rol', '==', 'alumno')
-            .where('carreraId', '==', usuarioActual.carreraId);
+function _setFiltroHistorial(val) {
+    _hFiltroActual = val;
+    ['Todos','Activo','Inactivo','Graduado'].forEach(f => {
+        const btn = document.getElementById(`hFiltro${f}`);
+        if (btn) btn.classList.remove('filtro-btn-activo');
+    });
+    const mapa = { todos:'Todos', activo:'Activo', inactivo:'Inactivo', graduado:'Graduado' };
+    const btn = document.getElementById(`hFiltro${mapa[val]}`);
+    if (btn) btn.classList.add('filtro-btn-activo');
+    _renderHistorial();
+}
 
-        if (filtro === 'activos') {
-            query = query.where('activo', '==', true);
-        } else if (filtro === 'inactivos') {
-            query = query.where('activo', '==', false);
+function _renderHistorial() {
+    const container  = document.getElementById('listaHistorialAlumnos');
+    const contador   = document.getElementById('contadorHistorial');
+    if (!container) return;
+
+    const busqueda = (document.getElementById('busquedaHistorial')?.value || '').toLowerCase().trim();
+
+    // Usar cache en memoria — cero lecturas Firestore
+    let lista = (_alumnosCache || []).filter(item => {
+        const a = item.data;
+        if (_hFiltroActual === 'activo'   && (!a.activo || a.graduado))  return false;
+        if (_hFiltroActual === 'inactivo' && (a.activo  || a.graduado))  return false;
+        if (_hFiltroActual === 'graduado' && !a.graduado)                 return false;
+        if (busqueda) {
+            const nombre = (a.nombre || '').toLowerCase();
+            const mat    = (a.matricula || '').toLowerCase();
+            if (!nombre.includes(busqueda) && !mat.includes(busqueda)) return false;
         }
+        return true;
+    });
 
-        const snapshot = await query.get();
+    lista.sort((a, b) => (a.data.nombre || '').localeCompare(b.data.nombre || '', 'es'));
 
-        if (snapshot.empty) {
-            container.innerHTML = '<p style="text-align: center; color: #999;">No hay alumnos</p>';
-            return;
-        }
+    if (contador) contador.textContent = `${lista.length} alumno${lista.length !== 1 ? 's' : ''}`;
 
-        let html = '<div style="display: grid; gap: 15px;">';
-
-        for (const doc of snapshot.docs) {
-            const alumno = doc.data();
-
-            // Obtener calificaciones del alumno
-            const calificaciones = await db.collection('calificaciones')
-                .where('alumnoId', '==', doc.id)
-                .get();
-
-            const materiasMap = {};
-
-            calificaciones.forEach(calDoc => {
-                const cal = calDoc.data();
-                const materiaId = cal.materiaId;
-
-                if (!materiasMap[materiaId]) {
-                    materiasMap[materiaId] = {
-                        materiaNombre: cal.materiaNombre || materiaId,
-                        periodo: cal.periodo,
-                        parciales: cal.parciales || {}
-                    };
-                }
-            });
-
-            const numMaterias = Object.keys(materiasMap).length;
-            const estado = alumno.activo ? 'Activo' : 'Inactivo';
-            const colorEstado = alumno.activo ? '#28a745' : '#dc3545';
-
-            html += `
-        <div style="padding: 15px; border: 2px solid #ddd; border-radius: 10px; background: white;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <h4 style="margin: 0 0 5px 0;">${alumno.nombre} <span style="color: ${colorEstado}; font-size: 0.9rem;">(${estado})</span></h4>
-              <p style="margin: 5px 0; color: #666;">Matrícula: ${alumno.matricula || 'N/A'}</p>
-              <p style="margin: 5px 0; color: #666;">Materias cursadas: ${numMaterias}</p>
-            </div>
-            <button onclick="verDetalleHistorial('${doc.id}', '${alumno.nombre}')" 
-                    style="padding: 10px 20px; background: #21596A; color: white; border: none; border-radius: 8px; cursor: pointer;">
-              Ver Historial Completo
-            </button>
-          </div>
-        </div>
-      `;
-        }
-
-        html += '</div>';
-        container.innerHTML = html;
-
-    } catch (error) {
-        console.error('Error:', error);
-        container.innerHTML = '<p style="color: red;">Error al cargar historial</p>';
+    if (!lista.length) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:30px;">Sin resultados</p>';
+        return;
     }
+
+    const badgeEstado = a =>
+        a.graduado  ? `<span style="background:#e65100;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;">Egresado</span>`
+        : a.activo  ? `<span style="background:#e8f5e9;color:#2e7d32;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;">Activo</span>`
+                    : `<span style="background:#ffebee;color:#c62828;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;">Inactivo</span>`;
+
+    const rows = lista.map(item => {
+        const a  = item.data;
+        const id = item.id;
+        const grupo = a.codigoGrupo || (a.graduado ? 'Egresado' : 'Sin grupo');
+        const rowBg = a.graduado ? '#fff8e1' : !a.activo ? '#fff5f5' : 'white';
+        return `
+        <div style="display:flex; justify-content:space-between; align-items:center;
+                    padding:10px 14px; border-bottom:1px solid #eee; background:${rowBg};">
+          <div>
+            <span style="font-weight:600; color:#222;">${a.nombre}</span>
+            &nbsp;${badgeEstado(a)}
+            <div style="font-size:0.82rem; color:#666; margin-top:3px;">
+              Matrícula: <strong>${a.matricula || '—'}</strong> &nbsp;·&nbsp; ${grupo}
+            </div>
+          </div>
+          <button onclick="verDetalleHistorial('${id}', '${(a.nombre || '').replace(/'/g, "\\'")}')"
+                  style="padding:7px 16px; background:#21596A; color:white; border:none;
+                         border-radius:6px; font-weight:600; cursor:pointer; font-size:0.85rem; white-space:nowrap;">
+            Ver Historial
+          </button>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = rows;
 }
 
 // ===== verDetalleHistorial =====
