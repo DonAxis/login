@@ -247,12 +247,10 @@ async function cargarMateriasYCalificaciones() {
     obtenerTieneExamenFinal(alumnoActual.carreraId || ''),
     obtenerEsUnParcial(alumnoActual.carreraId || '')
   ]);
-  // UPAV: 1 departamental por cuatrimestre pero no usa formato de maestría
-  const esUnParcialFinal = esUnParcial && alumnoActual.carreraId !== 'UPAV';
 
   // Si ya tenemos datos en memoria, renderizar sin ir a Firestore
   if (materiasCache !== null) {
-    renderizarMaterias(materiasCache, tieneEF, esUnParcialFinal);
+    renderizarMaterias(materiasCache, tieneEF, esUnParcial);
     return;
   }
 
