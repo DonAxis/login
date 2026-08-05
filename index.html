@@ -243,11 +243,16 @@ async function mostrarInformacionAlumno(desdeCache = false) {
 
 async function cargarMateriasYCalificaciones() {
   const container = document.getElementById('listaMaterias');
-  const tieneEF = await obtenerTieneExamenFinal(alumnoActual.carreraId || '');
+  const [tieneEF, esUnParcial] = await Promise.all([
+    obtenerTieneExamenFinal(alumnoActual.carreraId || ''),
+    obtenerEsUnParcial(alumnoActual.carreraId || '')
+  ]);
+  // UPAV: 1 departamental por cuatrimestre pero no usa formato de maestría
+  const esUnParcialFinal = esUnParcial && alumnoActual.carreraId !== 'UPAV';
 
   // Si ya tenemos datos en memoria, renderizar sin ir a Firestore
   if (materiasCache !== null) {
-    renderizarMaterias(materiasCache, tieneEF);
+    renderizarMaterias(materiasCache, tieneEF, esUnParcialFinal);
     return;
   }
 
@@ -304,7 +309,7 @@ async function cargarMateriasYCalificaciones() {
 
     console.log('Total materias procesadas:', materias.length);
     materiasCache = materias;
-    renderizarMaterias(materias, tieneEF);
+    renderizarMaterias(materias, tieneEF, esUnParcial);
 
   } catch (error) {
     console.error('Error:', error);
@@ -312,8 +317,48 @@ async function cargarMateriasYCalificaciones() {
   }
 }
 
-function renderizarMaterias(materias, tieneEF = false) {
+function renderizarMaterias(materias, tieneEF = false, esUnParcial = false) {
   const container = document.getElementById('listaMaterias');
+
+  if (esUnParcial) {
+    let html = `
+      <div style="background: white; padding: 20px; border-radius: 10px;">
+        <h3 style="color: #6A2135; margin: 0 0 20px 0; text-align: center;">Boleta de Calificaciones</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #6A2135; color: white;">
+              <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 140px;">Calificación</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    materias.forEach(materia => {
+      const p1 = materia.parcial1;
+      const calificacion = (p1 !== '-' && p1 !== null && p1 !== undefined)
+        ? (p1 === 'NP' ? 'NP' : String(redondearCalificacion(parseFloat(p1))))
+        : '-';
+      html += `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px; border: 1px solid #ddd;">
+            <strong>${materia.nombre}</strong>
+            <br><small style="color: #666;">Profesor: ${materia.profesor}</small>
+          </td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.3rem; font-weight: bold; background: #f0f7ff; color: ${calificacion === 'NP' ? '#a60d24' : '#6A2135'};">
+            ${calificacion}
+          </td>
+        </tr>
+      `;
+    });
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+    container.innerHTML = html;
+    return;
+  }
+
   const labelP3 = tieneEF ? 'Examen Final' : 'Parcial 3';
 
   let html = `

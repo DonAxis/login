@@ -210,6 +210,7 @@ async function seleccionarCarrera(carreraId, skipHistory = false) {
   if (!carreraSeleccionada) return;
 
   inscEspPorGrupo = {};
+  _cacheMateriasActa = null;
 
   try {
     const [configDoc, inscSnap] = await Promise.all([
@@ -306,7 +307,7 @@ function mostrarGruposCarrera() {
 
 // ===== SELECCIONAR GRUPO → muestra opciones =====
 function seleccionarGrupo(codigoGrupo, skipHistory = false) {
-  grupoSeleccionado = { codigoGrupo };
+  grupoSeleccionado = { codigoGrupo, carreraId: carreraSeleccionada.id };
 
   const normalesGrupo  = alumnosData.filter(a => a.codigoGrupo === codigoGrupo && a.tipoAlumno !== 'especial').length;
   const especialesGrupo = new Set((inscEspPorGrupo[codigoGrupo] || []).map(i => i.alumnoId)).size;
