@@ -1,131 +1,157 @@
-// Vigía — herramienta de mantenimiento puntual
+// Vigía — Reparación de periodo en calificaciones
+// Problema: cuando profesorMaterias.periodo se guardó como número (ej: 2, 3) en vez de
+// string académico (ej: "2026-2", "2026-3"), las calificaciones quedan con periodo inválido.
+// Consecuencias:
+//   · "Cambiar Periodo" no las archiva ni sella periodoAcademico en historialAcademico
+//   · Boleta Global muestra esas materias como "Cursando" indefinidamente
+//   · "Acta por Materia" no las incluye en el selector de periodos
+//
+// Esta función recorre TODAS las carreras, detecta calificaciones con periodo inválido,
+// les asigna el periodoAnterior de su carrera y sella historialAcademico.
+// Es idempotente: sólo modifica docs con periodo que no cumpla el formato YYYY-N.
 
 async function accionVigia() {
-  const CARRERAS_DESTINO = ['TA', 'TC', 'TI', 'TT'];
-  const NOMBRES_CARRERAS = {
-    TA: 'Técnico en Administración',
-    TC: 'Técnico en Contaduría',
-    TI: 'Técnico en Informática',
-    TT: 'Técnico en Admon. Emp. Turísticas'
-  };
-
-  function normalizar(nombre) {
-    return (nombre || '').trim().toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/\s+/g, ' ');
+  function invalido(p) {
+    return !p || !/^\d{4}-\d+$/.test(String(p));
   }
 
   try {
-    const [tiacSnap, ...destinoSnaps] = await Promise.all([
-      db.collection('materias').where('carreraId', '==', 'TIAC').get(),
-      ...CARRERAS_DESTINO.map(c => db.collection('materias').where('carreraId', '==', c).get())
-    ]);
+    // 1. Cargar todas las carreras y el config de periodo de cada una
+    const carrerasSnap = await db.collection('carreras').get();
+    const carreras = carrerasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    const tiacMaterias = tiacSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.nombre || '').localeCompare(b.nombre, 'es'));
-
-    const destinoMaterias = {};
-    CARRERAS_DESTINO.forEach((c, i) => {
-      destinoMaterias[c] = destinoSnaps[i].docs.map(d => ({ id: d.id, ...d.data() }));
-    });
-
-    let cntExactas = 0, cntNorm = 0, cntSinMatch = 0;
-
-    const filas = tiacMaterias.map(tm => {
-      const nmTiac = normalizar(tm.nombre);
-      const cols = CARRERAS_DESTINO.map(c => {
-        const mats = destinoMaterias[c];
-        const exacto = mats.find(m => m.nombre === tm.nombre);
-        if (exacto) return { status: 'exacto' };
-        const norm = mats.find(m => normalizar(m.nombre) === nmTiac);
-        if (norm) return { status: 'norm', nombre: norm.nombre };
-        return { status: 'none' };
-      });
-
-      const tieneSinMatch = cols.some(c => c.status === 'none');
-      const tieneNorm     = cols.some(c => c.status === 'norm');
-      if (tieneSinMatch) cntSinMatch++;
-      else if (tieneNorm) cntNorm++;
-      else cntExactas++;
-
-      return { tm, cols };
-    });
-
-    // --- HTML del reporte ---
-    const headCols = CARRERAS_DESTINO.map(c =>
-      `<th>${c}<br><small>${NOMBRES_CARRERAS[c]}</small></th>`
-    ).join('');
-
-    const filasBadRows = filas.filter(({ cols }) =>
-      cols.some(c => c.status !== 'exacto')
+    const configSnaps = await Promise.all(
+      carreras.map(c => db.collection('config').doc(`periodo_${c.id}`).get())
     );
 
-    const renderTabla = (rows, titulo, color) => {
-      if (!rows.length) return `<p style="color:${color};font-weight:600;">✅ Ninguna en esta categoría.</p>`;
-      const trs = rows.map(({ tm, cols }) => {
-        const celdas = cols.map(col => {
-          if (col.status === 'exacto') return `<td class="ok">✅</td>`;
-          if (col.status === 'norm')   return `<td class="warn" title="En destino: «${col.nombre}»">⚠️<br><small>${col.nombre}</small></td>`;
-          return `<td class="bad">❌<br><small>no encontrada</small></td>`;
-        }).join('');
-        return `<tr><td class="nombre">${tm.nombre}</td><td class="codigo">${tm.codigo || '—'}</td>${celdas}</tr>`;
-      }).join('');
-      return `<h3 style="color:${color};margin-top:28px;">${titulo}</h3>
-        <table><thead><tr><th>Materia TIAC</th><th>Código</th>${headCols}</tr></thead>
-        <tbody>${trs}</tbody></table>`;
-    };
+    // Mapa carreraId → { nombre, periodoActual, periodoAnterior }
+    // Solo carreras que ya tuvieron un cambio de periodo (tienen periodoAnterior)
+    const carreraConfig = {};
+    carreras.forEach((c, i) => {
+      const cfg = configSnaps[i];
+      if (!cfg.exists) return;
+      const data = cfg.data();
+      if (!data.periodoAnterior) return;
+      carreraConfig[c.id] = {
+        nombre:          c.nombre || c.id,
+        periodoActual:   data.periodo,
+        periodoAnterior: data.periodoAnterior
+      };
+    });
 
-    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Auditoría TIAC</title>
-<style>
-  body { font-family: sans-serif; padding: 24px; background: #f5f5f5; color: #222; }
-  h2   { color: #1b5e20; margin-bottom: 6px; }
-  .resumen { display: flex; gap: 14px; margin: 16px 0 24px; flex-wrap: wrap; }
-  .chip    { padding: 8px 18px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; }
-  table    { border-collapse: collapse; width: 100%; background: white; margin-bottom: 8px; }
-  th       { padding: 9px 12px; background: #37474f; color: white; border: 1px solid #555; font-size: 0.85rem; text-align: left; }
-  td       { padding: 8px 12px; border: 1px solid #ddd; font-size: 0.88rem; vertical-align: middle; }
-  td.nombre  { font-weight: 600; min-width: 220px; }
-  td.codigo  { color: #888; font-size: 0.8rem; }
-  td.ok    { background: #e8f5e9; color: #2e7d32; text-align: center; }
-  td.warn  { background: #fff8e1; color: #e65100; text-align: center; font-size: 0.8rem; }
-  td.bad   { background: #ffebee; color: #c62828; text-align: center; font-weight: 700; font-size: 0.8rem; }
-  tr:hover td { background: #fafafa; }
-  td.ok:hover, td.warn:hover, td.bad:hover { filter: brightness(0.96); }
-</style></head><body>
-<h2>Auditoría de Materias: TIAC → Carreras Destino</h2>
-<p style="color:#666;">Total materias TIAC: <strong>${tiacMaterias.length}</strong></p>
-<div class="resumen">
-  <span class="chip" style="background:#e8f5e9;color:#2e7d32;">✅ Exactas en todas: ${cntExactas}</span>
-  <span class="chip" style="background:#fff8e1;color:#e65100;">⚠️ Diferencia acento/mayús: ${cntNorm}</span>
-  <span class="chip" style="background:#ffebee;color:#c62828;">❌ Sin match en alguna carrera: ${cntSinMatch}</span>
-</div>
+    if (Object.keys(carreraConfig).length === 0) {
+      alert('Ninguna carrera tiene "periodoAnterior" registrado.\nEjecuta "Cambiar Periodo" primero en cada carrera.');
+      return;
+    }
 
-${renderTabla(
-  filas.filter(({ cols }) => cols.some(c => c.status === 'none')),
-  '❌ Sin match en alguna carrera destino',
-  '#c62828'
-)}
+    // 2. Leer TODAS las calificaciones y detectar las afectadas
+    const calSnap = await db.collection('calificaciones').get();
 
-${renderTabla(
-  filas.filter(({ cols }) => cols.every(c => c.status !== 'none') && cols.some(c => c.status === 'norm')),
-  '⚠️ Match por normalización (diferencia de acentos o mayúsculas)',
-  '#e65100'
-)}
+    const afectadosPorCarrera = {};
+    calSnap.docs.forEach(doc => {
+      const c = doc.data();
+      if (!carreraConfig[c.carreraId]) return;   // carrera sin config o sin periodoAnterior
+      if (invalido(c.periodo)) {
+        if (!afectadosPorCarrera[c.carreraId]) afectadosPorCarrera[c.carreraId] = [];
+        afectadosPorCarrera[c.carreraId].push(doc);
+      }
+    });
 
-${cntExactas === tiacMaterias.length
-  ? '<p style="color:#2e7d32;font-weight:700;font-size:1.1rem;margin-top:20px;">🎉 Todas las materias coinciden exactamente en las 4 carreras.</p>'
-  : ''}
+    const carrerasAfectadas = Object.keys(afectadosPorCarrera);
+    const totalCals = carrerasAfectadas.reduce((s, cid) => s + afectadosPorCarrera[cid].length, 0);
 
-</body></html>`;
+    if (totalCals === 0) {
+      alert('✅ Sin problemas detectados.\nNo hay calificaciones con periodo inválido en ninguna carrera.');
+      return;
+    }
 
-    const win = window.open('', '_blank', 'width=960,height=720');
-    if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
-    win.document.write(html);
-    win.document.close();
+    // 3. Confirmar con resumen por carrera
+    const resumen = carrerasAfectadas.map(cid => {
+      const cfg = carreraConfig[cid];
+      return `  • ${cfg.nombre}: ${afectadosPorCarrera[cid].length} calificaciones → periodo "${cfg.periodoAnterior}"`;
+    }).join('\n');
+
+    const ok = confirm(
+      `VIGÍA — REPARACIÓN DE PERIODO EN CALIFICACIONES\n\n` +
+      `Carreras afectadas:\n${resumen}\n\n` +
+      `Total: ${totalCals} calificaciones\n\n` +
+      `Acciones:\n` +
+      `  1. Corrige "periodo" en cada calificación afectada\n` +
+      `  2. Sella "periodoAcademico" en historialAcademico de cada alumno\n\n` +
+      `Los datos ya válidos no se modifican.\n\n¿Continuar?`
+    );
+    if (!ok) return;
+
+    // 4. Corregir calificaciones.periodo
+    let batch = db.batch();
+    let bc = 0;
+
+    for (const cid of carrerasAfectadas) {
+      const periodoAnterior = carreraConfig[cid].periodoAnterior;
+      for (const doc of afectadosPorCarrera[cid]) {
+        batch.update(doc.ref, { periodo: periodoAnterior });
+        if (++bc === 499) { await batch.commit(); batch = db.batch(); bc = 0; }
+      }
+    }
+    if (bc > 0) await batch.commit();
+
+    // 5. Actualizar historialAcademico — agrupar por alumnoId
+    const calPorAlumno = {};
+    carrerasAfectadas.forEach(cid => {
+      const periodoAnterior = carreraConfig[cid].periodoAnterior;
+      afectadosPorCarrera[cid].forEach(doc => {
+        const c = doc.data();
+        if (!c.alumnoId) return;
+        if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = { periodoAnterior, cals: {} };
+        calPorAlumno[c.alumnoId].cals[c.materiaId] = c;
+      });
+    });
+
+    const alumnoIds = Object.keys(calPorAlumno);
+    const histSnaps = await Promise.all(
+      alumnoIds.map(id => db.collection('historialAcademico').doc(id).get())
+    );
+
+    batch = db.batch(); bc = 0;
+    const ahora = firebase.firestore.FieldValue.serverTimestamp();
+    let alumnosActualizados = 0;
+
+    for (const histSnap of histSnaps) {
+      if (!histSnap.exists) continue;
+      const { periodoAnterior, cals } = calPorAlumno[histSnap.id];
+      let cambiado = false;
+
+      const materiasActualizadas = (histSnap.data().materias || []).map(mat => {
+        if (mat.periodoAcademico) return mat;     // ya sellada — no pisar
+        const cal = cals[mat.materiaId];
+        if (!cal) return mat;                     // esta materia no fue afectada
+        cambiado = true;
+        const { calificacion, acr } = _calificacionFinal(cal);
+        return Object.assign({}, mat, { calificacion, acr, periodoAcademico: periodoAnterior });
+      });
+
+      if (!cambiado) continue;
+      batch.set(
+        db.collection('historialAcademico').doc(histSnap.id),
+        { materias: materiasActualizadas, fechaActualizacion: ahora },
+        { merge: true }
+      );
+      alumnosActualizados++;
+      if (++bc === 499) { await batch.commit(); batch = db.batch(); bc = 0; }
+    }
+    if (bc > 0) await batch.commit();
+
+    alert(
+      `✅ Vigía completado\n\n` +
+      `• ${totalCals} calificaciones corregidas\n` +
+      `• ${alumnosActualizados} alumnos actualizados en historial académico\n\n` +
+      `Detalle por carrera:\n${resumen}\n\n` +
+      `Boleta Global ya no mostrará esas materias como "Cursando".\n` +
+      `"Acta por Materia" ya incluirá esos periodos en el selector.`
+    );
 
   } catch (e) {
+    console.error('[Vigía] Error:', e);
     alert('Error en Vigía: ' + e.message);
   }
 }

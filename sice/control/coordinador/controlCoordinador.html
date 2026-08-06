@@ -304,6 +304,30 @@
  <p>Expediente completo de materias y calificaciones por alumno</p>
  </div>
 
+ <div class="menu-card" id="menuTiac" onclick="mostrarSeccion('tiac')" style="display:none; border-color:#7b1fa2;">
+  <h3 style="color:#7b1fa2;">Transferencia TIAC</h3>
+  <p>Auditoría y transferencia de alumnos a carrera técnica</p>
+ </div>
+
+ </div>
+
+ <!-- SECCION: TIAC — solo visible para carreraId === 'TIAC' -->
+ <div id="seccionTiac" class="seccion-contenido">
+  <div class="seccion-header">
+   <h2 style="color:#7b1fa2;">Transferencia TIAC</h2>
+   <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+  </div>
+  <div style="background:#f3e5f5; border-left:4px solid #7b1fa2; padding:14px 18px; border-radius:8px; margin-bottom:20px; font-size:0.92rem; color:#333;">
+   Los alumnos de TIAC que terminan 2° semestre se transfieren a una de las 4 carreras técnicas
+   conservando todas sus calificaciones de los semestres 1 y 2.
+  </div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px;">
+   <button onclick="auditarMateriasTiac(this)"
+     style="padding:11px 22px; background:linear-gradient(135deg,#6a1b9a,#4a148c); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.95rem;">
+    Auditar coincidencia de materias
+   </button>
+  </div>
+  <div id="tiacAuditResultado"></div>
  </div>
 
  <!-- SECCION: CARRERAS -->
@@ -883,16 +907,6 @@
   <!-- Acta por Materia (solo lectura) -->
   <div style="background:white; padding:20px; border-radius:10px; margin-bottom:20px;">
    <h3 style="margin-top:0; margin-bottom:15px;">Acta por Materia</h3>
-
-   <!-- Alerta de reparación: visible cuando hay datos del semestre anterior sin periodo válido -->
-   <div id="alertaRepararPeriodo" style="display:none; background:#fff3e0; border-left:4px solid #ff9800; border-radius:6px; padding:12px 16px; margin-bottom:14px; font-size:0.88rem;">
-    <strong>⚠ Datos del semestre anterior sin periodo registrado</strong>
-    <p style="margin:6px 0 10px 0; color:#555;">Las calificaciones del semestre anterior tienen un periodo inválido almacenado. Esto impide que aparezcan aquí y provoca que Boleta Global las muestre como "Cursando".</p>
-    <button onclick="repararPeriodoCals(this)"
-      style="padding:7px 16px; background:linear-gradient(135deg,#e65100,#bf360c); color:white; border:none; border-radius:5px; font-weight:600; cursor:pointer; font-size:0.86rem;">
-      Reparar datos del periodo anterior
-    </button>
-   </div>
 
    <div>
     <label style="display:block; margin-bottom:5px; font-weight:600;">Materia:</label>

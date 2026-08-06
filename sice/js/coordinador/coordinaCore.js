@@ -413,6 +413,10 @@ async function establecerCarreraActual(carreraId, color) {
         // Recargar periodo específico de esta carrera
         await cargarPeriodoActual();
 
+        // Mostrar tarjeta TIAC solo para esa carrera
+        const menuTiac = document.getElementById('menuTiac');
+        if (menuTiac) menuTiac.style.display = carreraId === 'TIAC' ? '' : 'none';
+
         console.log(`Carrera actual establecida: ${carrera.nombre} (${color})`);
 
     } catch (error) {
