@@ -4,6 +4,110 @@
 //   tieneExamenFinalCoord, esMaestriaCoord,
 //   calcularPromedioAlumno
 
+// ── Reparación de datos: periodo inválido en calificaciones ──────────────────
+// Úsala cuando las calificaciones del semestre anterior no aparecen en "Acta por Materia"
+// y Boleta Global sigue mostrando "Cursando" después de cambiar periodo.
+// Causa: profesorMaterias.periodo se guardó como número (ej: 2) en vez de "2026-2".
+async function repararPeriodoCals(btn) {
+    const carreraId = usuarioActual && usuarioActual.carreraId;
+    if (!carreraId) { alert('Sin carrera activa.'); return; }
+
+    // Obtener periodoAnterior desde config
+    const configDoc = await db.collection('config').doc(`periodo_${carreraId}`).get();
+    if (!configDoc.exists) { alert('No hay configuración de periodo para esta carrera.'); return; }
+    const periodoAnterior = configDoc.data().periodoAnterior;
+    if (!periodoAnterior) { alert('No hay periodo anterior registrado. ¿Ya corriste Cambiar Periodo?'); return; }
+
+    const total = await (async () => {
+        const snap = await db.collection('calificaciones').where('carreraId', '==', carreraId).get();
+        return snap.docs.filter(d => { const p = d.data().periodo; return !p || !/^\d{4}-\d+$/.test(String(p)); }).length;
+    })();
+
+    if (total === 0) { alert('No se encontraron calificaciones con periodo inválido. Los datos ya están correctos.'); return; }
+
+    const ok = confirm(
+        `Se encontraron ${total} calificaciones sin periodo académico válido.\n\n` +
+        `Se les asignará el periodo anterior: "${periodoAnterior}"\n` +
+        `También se actualizará el historial académico de los alumnos afectados.\n\n` +
+        `¿Continuar?`
+    );
+    if (!ok) return;
+
+    const txtOrig = btn.textContent;
+    btn.textContent = 'Reparando...'; btn.disabled = true;
+
+    try {
+        // Leer todas las calificaciones de la carrera
+        const calSnap = await db.collection('calificaciones').where('carreraId', '==', carreraId).get();
+        const afectados = calSnap.docs.filter(d => {
+            const p = d.data().periodo;
+            return !p || !/^\d{4}-\d+$/.test(String(p));
+        });
+
+        if (afectados.length === 0) { alert('Sin datos a reparar.'); return; }
+
+        // 1. Corregir calificaciones.periodo
+        let batch = db.batch(); let bc = 0;
+        afectados.forEach(doc => {
+            batch.update(doc.ref, { periodo: periodoAnterior });
+            bc++;
+            if (bc === 499) { batch.commit(); batch = db.batch(); bc = 0; }
+        });
+        if (bc > 0) await batch.commit();
+
+        // 2. Sellar periodoAcademico en historialAcademico
+        const calPorAlumno = {};
+        afectados.forEach(doc => {
+            const c = doc.data();
+            if (!c.alumnoId) return;
+            if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = {};
+            calPorAlumno[c.alumnoId][c.materiaId] = c;
+        });
+
+        const alumnoIds = Object.keys(calPorAlumno);
+        const histSnaps = await Promise.all(alumnoIds.map(id => db.collection('historialAcademico').doc(id).get()));
+
+        batch = db.batch(); bc = 0;
+        const ahora = firebase.firestore.FieldValue.serverTimestamp();
+
+        histSnaps.forEach(histSnap => {
+            if (!histSnap.exists) return;
+            const calsAlumno = calPorAlumno[histSnap.id] || {};
+            let cambiado = false;
+            const materiasActualizadas = (histSnap.data().materias || []).map(mat => {
+                if (mat.periodoAcademico) return mat;
+                const cal = calsAlumno[mat.materiaId];
+                if (!cal) return mat;
+                cambiado = true;
+                const { calificacion, acr } = _calificacionFinal(cal);
+                return Object.assign({}, mat, { calificacion, acr, periodoAcademico: periodoAnterior });
+            });
+            if (!cambiado) return;
+            batch.set(
+                db.collection('historialAcademico').doc(histSnap.id),
+                { materias: materiasActualizadas, fechaActualizacion: ahora },
+                { merge: true }
+            );
+            bc++;
+            if (bc === 499) { batch.commit(); batch = db.batch(); bc = 0; }
+        });
+        if (bc > 0) await batch.commit();
+
+        alert(
+            `Reparación completada:\n` +
+            `• ${afectados.length} calificaciones → periodo "${periodoAnterior}"\n` +
+            `• ${alumnoIds.length} alumnos procesados en historial académico\n\n` +
+            `Recarga la página para ver los cambios.`
+        );
+
+    } catch (e) {
+        console.error('[RepararPeriodo] Error:', e);
+        alert('Error durante la reparación: ' + e.message);
+    } finally {
+        btn.textContent = txtOrig; btn.disabled = false;
+    }
+}
+
 function actualizarBotonesActaPDF() {
     const btnExtra = document.getElementById('btnActaExtraordinario');
     const btnETS   = document.getElementById('btnActaETS');
@@ -640,8 +744,14 @@ async function onMateriaActasChange() {
             .filter(p => /^\d{4}-\d+$/.test(p))
             .sort((a, b) => b.localeCompare(a));
 
+        // Detectar si hay docs con periodo inválido y mostrar alerta de reparación
+        const hayInvalidos = _actasCalifCache.some(c => { const p = c.periodo; return !p || !/^\d{4}-\d+$/.test(String(p)); });
+        const alertaEl = document.getElementById('alertaRepararPeriodo');
+        if (alertaEl) alertaEl.style.display = hayInvalidos ? '' : 'none';
+
         if (periodos.length === 0) {
-            selPer.innerHTML = '<option value="">Sin registros</option>';
+            selPer.innerHTML = '<option value="">Sin registros válidos — usa "Reparar datos" si ves la alerta</option>';
+            divPer.style.display = '';
             return;
         }
 
