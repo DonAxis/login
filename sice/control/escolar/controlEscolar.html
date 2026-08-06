@@ -144,6 +144,7 @@
       <button id="btnPanelBuscar"       class="tab-btn"        onclick="mostrarPanelEscolar('buscar')">Buscar</button>
       <button id="btnPanelExAlumnos"    class="tab-btn"        onclick="mostrarPanelEscolar('exAlumnos')">Ex Alumnos</button>
       <button id="btnPanelConfig"       class="tab-btn"        onclick="mostrarPanelEscolar('config')">Configuracion</button>
+      <button id="btnPanelActas"        class="tab-btn"        onclick="mostrarPanelEscolar('actas')">Actas PDF</button>
     </nav>
 
     <!-- ═══════════════════════════════════ PANEL 1: ALUMNOS ═══════════════════════════════════ -->
@@ -342,6 +343,63 @@
           </button>
           <div id="cfgMsgEscolar" class="cfg-msg"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════ PANEL 8: ACTAS PDF ════════════════════════════════════ -->
+    <div id="panelActas" class="panel-escolar">
+      <div style="padding:24px;">
+
+        <!-- Selector de carrera -->
+        <div style="background:#f5f5f5; border-radius:10px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap;">
+          <div>
+            <label style="display:block; font-weight:700; color:#555; margin-bottom:8px; font-size:0.9rem;">Carrera</label>
+            <select id="selectCarreraActasEscolar" onchange="onCarreraActasEscolarChange()"
+              style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:280px; font-size:0.95rem;">
+              <option value="">-- Selecciona una carrera --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Acta por Materia -->
+        <div style="background:white; border:2px solid #e0e0e0; border-radius:12px; padding:22px; margin-bottom:20px;">
+          <h3 style="color:#6A2135; margin:0 0 16px; font-size:1rem; font-weight:700;">Acta por Materia</h3>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600; color:#555; font-size:0.88rem;">Materia</label>
+              <select id="selectMateriaActas" onchange="onMateriaActasChange()"
+                style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:280px;">
+                <option value="">-- Primero selecciona una carrera --</option>
+              </select>
+            </div>
+            <div id="divPeriodoActas" style="display:none;">
+              <label style="display:block; margin-bottom:5px; font-weight:600; color:#555; font-size:0.88rem;">Periodo</label>
+              <select id="selectPeriodoActas" onchange="cargarActasPorPeriodo()"
+                style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:160px;">
+                <option value="">Seleccionar periodo...</option>
+              </select>
+            </div>
+          </div>
+          <div id="contenedorVistaActas" style="display:none;"></div>
+        </div>
+
+        <!-- Actas Historicas por Alumno -->
+        <div style="background:white; border:2px solid #e0e0e0; border-radius:12px; padding:22px;">
+          <h3 style="color:#6A2135; margin:0 0 16px; font-size:1rem; font-weight:700;">Actas Historicas por Alumno</h3>
+          <div id="actasHistBusqueda">
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+              <input type="text" id="inputActasHistAlumno" placeholder="Buscar por nombre o matricula..."
+                oninput="buscarAlumnosActasHist()"
+                style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:260px; flex:1; max-width:420px; font-size:0.95rem;">
+              <button onclick="buscarAlumnosActasHist()" class="btn-accion">Buscar</button>
+            </div>
+            <div id="actasHistResultados">
+              <p style="color:#999; text-align:center; padding:20px 0;">Selecciona una carrera para ver los alumnos.</p>
+            </div>
+          </div>
+          <div id="actasHistDetalle" style="display:none;"></div>
+        </div>
+
       </div>
     </div>
 

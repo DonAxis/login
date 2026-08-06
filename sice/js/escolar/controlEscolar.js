@@ -10,6 +10,7 @@ let materiaSeleccionada = null;
 let periodoActual = '2026-1';
 let listaHistorial = [];
 let inscEspPorGrupo = {}; // { codigoGrupo: [{ alumnoId, materiaId }] } — especiales activos de la carrera seleccionada
+let _actasCarreraOverride = null; // carreraId activa en el panel Actas (override para actaCalificacionesPDF.js)
 
 // ===== PROTECCIÓN DE PÁGINA =====
 auth.onAuthStateChanged(async (user) => {
@@ -72,7 +73,7 @@ async function inicializar() {
 
   // Restaurar panel desde hash del navegador (recarga en pestaña específica)
   const hashPanel = location.hash.replace('#', '').split('/')[0];
-  const panelesValidos = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config'];
+  const panelesValidos = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config', 'actas'];
   const panelInicial = panelesValidos.includes(hashPanel) ? hashPanel : 'alumnos';
   mostrarPanelEscolar(panelInicial, true);
   history.replaceState({ panel: panelInicial, nivel: 'panel' }, '', '#' + panelInicial);
@@ -1927,7 +1928,7 @@ function mostrarPanelEscolar(panel, skipHistory = false) {
     if (el) el.style.display = 'none';
   });
 
-  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config'];
+  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config', 'actas'];
   paneles.forEach(p => {
     const el = document.getElementById(`panel${p.charAt(0).toUpperCase() + p.slice(1)}`);
     const btn = document.getElementById(`btnPanel${p.charAt(0).toUpperCase() + p.slice(1)}`);
@@ -1954,6 +1955,7 @@ function mostrarPanelEscolar(panel, skipHistory = false) {
     inicializarBoletaGlobal(null, false, true);
     buscarAlumnoBoletaGlobal();
   }
+  if (panel === 'actas') _inicializarSelectCarrerasActas();
   if (!skipHistory) {
     history.pushState({ panel, nivel: 'panel' }, '', '#' + panel);
   }
@@ -2074,6 +2076,42 @@ async function avanzarYActualizarFila(alumnoId) {
     fila.style.background = '#e8f5e9';
     setTimeout(() => { fila.style.background = ''; }, 2000);
   } catch (_) { /* la tabla se actualizará si el usuario vuelve a buscar */ }
+}
+
+// ═══ PANEL ACTAS PDF ═══
+
+function _inicializarSelectCarrerasActas() {
+  const sel = document.getElementById('selectCarreraActasEscolar');
+  if (!sel) return;
+  if (sel.options.length > 1) return; // ya poblado
+  [...carrerasData]
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+    .forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nombre;
+      sel.appendChild(opt);
+    });
+}
+
+function onCarreraActasEscolarChange() {
+  const sel = document.getElementById('selectCarreraActasEscolar');
+  _actasCarreraOverride = sel ? sel.value : null;
+
+  const selMat  = document.getElementById('selectMateriaActas');
+  const divPer  = document.getElementById('divPeriodoActas');
+  const cont    = document.getElementById('contenedorVistaActas');
+  const histRes = document.getElementById('actasHistResultados');
+
+  if (!_actasCarreraOverride) {
+    if (selMat)  selMat.innerHTML = '<option value="">-- Primero selecciona una carrera --</option>';
+    if (divPer)  divPer.style.display = 'none';
+    if (cont)    cont.style.display = 'none';
+    if (histRes) histRes.innerHTML = '<p style="color:#999; text-align:center; padding:20px 0;">Selecciona una carrera para ver los alumnos.</p>';
+    return;
+  }
+
+  inicializarSeccionActas();
 }
 
 // ═══ HISTORIAL DEL NAVEGADOR (popstate) ═══

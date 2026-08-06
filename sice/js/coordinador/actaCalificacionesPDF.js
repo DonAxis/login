@@ -13,6 +13,19 @@ function actualizarBotonesActaPDF() {
     btnETS.style.display   = visible ? '' : 'none';
 }
 
+// Fallback para contextos sin coordinaModules.js (ej. controlEscolar)
+if (typeof calcularPromedioAlumno !== 'function') {
+    window.calcularPromedioAlumno = function(alumno) {
+        const p1 = alumno.calificaciones.parcial1;
+        const p2 = alumno.calificaciones.parcial2;
+        const p3 = alumno.calificaciones.parcial3;
+        const cal = calcularCalificacion(p1, p2, p3, tieneExamenFinalCoord);
+        if (cal === null) return '-';
+        if (cal === 'NP') return 'NP';
+        return String(redondearCalificacion(cal));
+    };
+}
+
 // ── helpers internos ──────────────────────────────────────────────────────────
 
 function _acta_encabezado(doc, titulo) {
@@ -533,7 +546,8 @@ async function inicializarSeccionActas() {
     _actasMatMap        = {};
     _actasAlumnosRender = [];
 
-    const carreraId = usuarioActual && usuarioActual.carreraId;
+    const carreraId = (typeof _actasCarreraOverride !== 'undefined' && _actasCarreraOverride)
+        || (usuarioActual && usuarioActual.carreraId);
     if (!carreraId) { sel.innerHTML = '<option value="">Sin carrera activa</option>'; return; }
 
     try {
@@ -600,7 +614,8 @@ async function onMateriaActasChange() {
     if (!sel.value) return;
 
     const materiaId  = sel.value;
-    const carreraId  = usuarioActual && usuarioActual.carreraId;
+    const carreraId  = (typeof _actasCarreraOverride !== 'undefined' && _actasCarreraOverride)
+        || (usuarioActual && usuarioActual.carreraId);
     if (!carreraId) return;
 
     selPer.innerHTML = '<option value="">Cargando periodos...</option>';
@@ -928,7 +943,8 @@ function _generarActaIndividual(idx, btn) {
 
 async function cargarAlumnosActasHist() {
     const lista     = document.getElementById('actasHistResultados');
-    const carreraId = usuarioActual && usuarioActual.carreraId;
+    const carreraId = (typeof _actasCarreraOverride !== 'undefined' && _actasCarreraOverride)
+        || (usuarioActual && usuarioActual.carreraId);
     if (!lista || !carreraId) return;
 
     lista.innerHTML = '<p style="color:#888; padding:10px 15px;">Cargando alumnos...</p>';
