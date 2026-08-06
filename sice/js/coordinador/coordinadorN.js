@@ -47,21 +47,23 @@ if (typeof usuarioActual !== 'undefined' && usuarioActual) {
 console.log('Panel de Coordinador cargado exitosamente');
 
 // ===== AUDITORÍA MATERIAS TIAC =====
+
+const _TIAC_CARRERAS_DESTINO = ['TA', 'TC', 'TI', 'TT'];
+const _TIAC_NOMBRES_CARRERAS = {
+  TA: 'Técnico en Administración',
+  TC: 'Técnico en Contaduría',
+  TI: 'Técnico en Informática',
+  TT: 'Técnico en Admon. Emp. Turísticas'
+};
+let _tiacProblemRows = [];
+
+function _tiacNormalizar(s) {
+  return (s || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
 async function auditarMateriasTiac(btn) {
-  const CARRERAS_DESTINO = ['TA', 'TC', 'TI', 'TT'];
-  const NOMBRES_CARRERAS = {
-    TA: 'Técnico en Administración',
-    TC: 'Técnico en Contaduría',
-    TI: 'Técnico en Informática',
-    TT: 'Técnico en Admon. Emp. Turísticas'
-  };
-
-  function normalizar(s) {
-    return (s || '').trim().toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/\s+/g, ' ');
-  }
-
   const resultado = document.getElementById('tiacAuditResultado');
   resultado.innerHTML = '<p style="color:#888;">Consultando Firebase...</p>';
   if (btn) btn.disabled = true;
@@ -69,7 +71,7 @@ async function auditarMateriasTiac(btn) {
   try {
     const [tiacSnap, ...destinoSnaps] = await Promise.all([
       db.collection('materias').where('carreraId', '==', 'TIAC').get(),
-      ...CARRERAS_DESTINO.map(c => db.collection('materias').where('carreraId', '==', c).get())
+      ..._TIAC_CARRERAS_DESTINO.map(c => db.collection('materias').where('carreraId', '==', c).get())
     ]);
 
     const tiacMaterias = tiacSnap.docs
@@ -77,85 +79,126 @@ async function auditarMateriasTiac(btn) {
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre, 'es'));
 
     const destinoMaterias = {};
-    CARRERAS_DESTINO.forEach((c, i) => {
+    _TIAC_CARRERAS_DESTINO.forEach((c, i) => {
       destinoMaterias[c] = destinoSnaps[i].docs.map(d => ({ id: d.id, ...d.data() }));
     });
 
-    let cntExactas = 0, cntNorm = 0, cntSinMatch = 0;
+    let cntOk = 0, cntSinMatch = 0;
 
+    // norm y exacto son ambos ✅ — solo 'none' es problema real
     const filas = tiacMaterias.map(tm => {
-      const nmTiac = normalizar(tm.nombre);
-      const cols = CARRERAS_DESTINO.map(c => {
+      const nmTiac = _tiacNormalizar(tm.nombre);
+      const cols = _TIAC_CARRERAS_DESTINO.map(c => {
         const exacto = destinoMaterias[c].find(m => m.nombre === tm.nombre);
-        if (exacto) return { status: 'exacto' };
-        const norm = destinoMaterias[c].find(m => normalizar(m.nombre) === nmTiac);
-        if (norm) return { status: 'norm', nombre: norm.nombre };
+        if (exacto) return { status: 'ok' };
+        const norm = destinoMaterias[c].find(m => _tiacNormalizar(m.nombre) === nmTiac);
+        if (norm) return { status: 'ok' };
         return { status: 'none' };
       });
 
       const tieneSinMatch = cols.some(c => c.status === 'none');
-      const tieneNorm     = cols.some(c => c.status === 'norm');
       if (tieneSinMatch) cntSinMatch++;
-      else if (tieneNorm) cntNorm++;
-      else cntExactas++;
+      else cntOk++;
 
-      return { tm, cols };
+      return {
+        tm,
+        cols,
+        faltantes: _TIAC_CARRERAS_DESTINO.filter((c, i) => cols[i].status === 'none')
+      };
     });
 
-    // Render
-    const headCols = CARRERAS_DESTINO.map(c =>
-      `<th style="padding:9px 10px;background:#4a148c;color:white;border:1px solid #666;font-size:0.82rem;min-width:90px;">${c}<br><small style="font-weight:400;">${NOMBRES_CARRERAS[c]}</small></th>`
+    _tiacProblemRows = filas.filter(f => f.faltantes.length > 0);
+
+    const headCols = _TIAC_CARRERAS_DESTINO.map(c =>
+      `<th style="padding:9px 10px;background:#4a148c;color:white;border:1px solid #666;font-size:0.82rem;min-width:90px;">${c}<br><small style="font-weight:400;">${_TIAC_NOMBRES_CARRERAS[c]}</small></th>`
     ).join('');
 
-    const renderSeccion = (rows, titulo, color) => {
-      if (!rows.length) return '';
-      const trs = rows.map(({ tm, cols }) => {
-        const celdas = cols.map(col => {
-          if (col.status === 'exacto') return `<td style="background:#e8f5e9;color:#2e7d32;text-align:center;padding:7px;">✅</td>`;
-          if (col.status === 'norm')   return `<td style="background:#fff8e1;color:#e65100;text-align:center;padding:7px;font-size:0.78rem;" title="En destino: «${col.nombre}»">⚠️<br>${col.nombre}</td>`;
-          return `<td style="background:#ffebee;color:#c62828;text-align:center;padding:7px;font-weight:700;">❌</td>`;
-        }).join('');
+    let tablaHtml = '';
+    if (_tiacProblemRows.length > 0) {
+      const trs = _tiacProblemRows.map(({ tm, cols, faltantes }, idx) => {
+        const celdas = cols.map(col =>
+          col.status === 'ok'
+            ? `<td style="background:#e8f5e9;color:#2e7d32;text-align:center;padding:7px;">✅</td>`
+            : `<td style="background:#ffebee;color:#c62828;text-align:center;padding:7px;font-weight:700;">❌</td>`
+        ).join('');
         return `<tr>
           <td style="padding:8px 10px;border:1px solid #ddd;font-weight:600;font-size:0.88rem;">${tm.nombre}</td>
           <td style="padding:8px 10px;border:1px solid #ddd;color:#999;font-size:0.8rem;">${tm.codigo || '—'}</td>
           ${celdas}
+          <td style="padding:8px 10px;border:1px solid #ddd;text-align:center;">
+            <button id="btnAgregar_${idx}" onclick="agregarMateriaFaltante(${idx}, this)"
+              style="padding:5px 12px;background:#7b1fa2;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">
+              Agregar en ${faltantes.join(', ')}
+            </button>
+          </td>
         </tr>`;
       }).join('');
-      return `<h4 style="color:${color};margin:20px 0 8px;">${titulo}</h4>
-        <table style="border-collapse:collapse;width:100%;background:white;margin-bottom:4px;">
+
+      tablaHtml = `
+        <h4 style="color:#c62828;margin:20px 0 8px;">❌ Materias sin coincidencia en alguna carrera</h4>
+        <table style="border-collapse:collapse;width:100%;background:white;">
           <thead><tr>
             <th style="padding:9px 10px;background:#37474f;color:white;border:1px solid #555;text-align:left;">Materia TIAC</th>
             <th style="padding:9px 10px;background:#37474f;color:white;border:1px solid #555;text-align:left;">Código</th>
             ${headCols}
+            <th style="padding:9px 10px;background:#37474f;color:white;border:1px solid #555;text-align:center;">Acción</th>
           </tr></thead>
           <tbody>${trs}</tbody>
         </table>`;
-    };
+    }
 
     const chips = `
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-        <span style="padding:7px 16px;border-radius:20px;background:#e8f5e9;color:#2e7d32;font-weight:700;font-size:0.88rem;">✅ Exactas en las 4 carreras: ${cntExactas}</span>
-        <span style="padding:7px 16px;border-radius:20px;background:#fff8e1;color:#e65100;font-weight:700;font-size:0.88rem;">⚠️ Diferencia acento/mayús: ${cntNorm}</span>
-        <span style="padding:7px 16px;border-radius:20px;background:#ffebee;color:#c62828;font-weight:700;font-size:0.88rem;">❌ Sin match en alguna carrera: ${cntSinMatch}</span>
+        <span style="padding:7px 16px;border-radius:20px;background:#e8f5e9;color:#2e7d32;font-weight:700;font-size:0.88rem;">✅ Presentes en las 4 carreras: ${cntOk}</span>
+        <span style="padding:7px 16px;border-radius:20px;background:#ffebee;color:#c62828;font-weight:700;font-size:0.88rem;">❌ Faltante en alguna carrera: ${cntSinMatch}</span>
       </div>`;
 
-    const sinMatchRows  = filas.filter(({ cols }) => cols.some(c => c.status === 'none'));
-    const normRows      = filas.filter(({ cols }) => cols.every(c => c.status !== 'none') && cols.some(c => c.status === 'norm'));
-    const okMsg = cntExactas === tiacMaterias.length
-      ? `<p style="color:#2e7d32;font-weight:700;margin-top:16px;">🎉 Todas las materias (${tiacMaterias.length}) coinciden exactamente en las 4 carreras.</p>`
+    const okMsg = cntSinMatch === 0
+      ? `<p style="color:#2e7d32;font-weight:700;margin-top:16px;">🎉 Todas las materias (${tiacMaterias.length}) están presentes en las 4 carreras.</p>`
       : '';
 
     resultado.innerHTML = `
       <p style="color:#555;margin-bottom:12px;">Total materias TIAC: <strong>${tiacMaterias.length}</strong></p>
-      ${chips}
-      ${renderSeccion(sinMatchRows, '❌ Sin match en alguna carrera destino', '#c62828')}
-      ${renderSeccion(normRows, '⚠️ Coincidencia por normalización (acentos o mayúsculas distintos)', '#e65100')}
-      ${okMsg}`;
+      ${chips}${tablaHtml}${okMsg}`;
 
   } catch (e) {
     resultado.innerHTML = `<p style="color:#c62828;">Error: ${e.message}</p>`;
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+async function agregarMateriaFaltante(idx, btn) {
+  const fila = _tiacProblemRows[idx];
+  if (!fila) return;
+  const { tm, faltantes } = fila;
+
+  const nombres = faltantes.map(c => _TIAC_NOMBRES_CARRERAS[c]).join('\n• ');
+  if (!confirm(`¿Agregar "${tm.nombre}" en:\n• ${nombres}\n\nSe copiará con el mismo nombre, código y créditos de TIAC.`)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Agregando...';
+
+  try {
+    const batch = db.batch();
+    faltantes.forEach(carreraId => {
+      batch.set(db.collection('materias').doc(), {
+        nombre:        tm.nombre,
+        codigo:        tm.codigo  || '',
+        creditosSatca: tm.creditosSatca || 0,
+        creditosTepic: tm.creditosTepic || 0,
+        activo:        true,
+        carreraId
+      });
+    });
+    await batch.commit();
+
+    btn.textContent = `✅ Agregada en ${faltantes.join(', ')}`;
+    btn.style.background = '#2e7d32';
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Error — reintentar';
+    alert('Error al agregar: ' + e.message);
   }
 }
 
