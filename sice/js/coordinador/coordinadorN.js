@@ -226,6 +226,8 @@ async function cargarAlumnosTiac(btn) {
   }
 }
 
+let _tiacGrupoSeleccionado = {}; // uid → { grupoId, codigoGrupo, turno }
+
 function mostrarFormTransferTiac(uid, btnEl) {
   const formDiv = document.getElementById(`formTiac_${uid}`);
   if (!formDiv) return;
@@ -245,7 +247,7 @@ function mostrarFormTransferTiac(uid, btnEl) {
       <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:12px; align-items:end;">
         <div>
           <label style="display:block; font-weight:600; font-size:0.83rem; color:#4a148c; margin-bottom:5px;">Carrera destino</label>
-          <select id="selCarreraTiac_${uid}" onchange="cargarGruposDestinoTiac('${uid}', this.value)"
+          <select id="selCarreraTiac_${uid}" onchange="cargarInfoDestinoTiac('${uid}', this.value)"
             style="width:100%; padding:9px; border:2px solid #ce93d8; border-radius:6px; font-size:0.9rem; background:white;">
             <option value="">Seleccionar carrera...</option>
             <option value="TA">Técnico en Administración</option>
@@ -254,12 +256,8 @@ function mostrarFormTransferTiac(uid, btnEl) {
             <option value="TT">Técnico en Admon. Emp. Turísticas</option>
           </select>
         </div>
-        <div>
-          <label style="display:block; font-weight:600; font-size:0.83rem; color:#4a148c; margin-bottom:5px;">Grupo en carrera destino</label>
-          <select id="selGrupoTiac_${uid}" disabled
-            style="width:100%; padding:9px; border:2px solid #ce93d8; border-radius:6px; font-size:0.9rem; background:white;">
-            <option value="">Primero elige la carrera</option>
-          </select>
+        <div id="infoDestinoTiac_${uid}" style="background:white; border:2px solid #ce93d8; border-radius:6px; padding:9px 12px; font-size:0.85rem; color:#888; min-height:42px; display:flex; flex-direction:column; justify-content:center;">
+          Elige la carrera para ver grupo y periodo
         </div>
         <button onclick="ejecutarTransferenciaTiac('${uid}', this)"
           style="padding:10px 20px; background:linear-gradient(135deg,#1b5e20,#2e7d32); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem; white-space:nowrap;">
@@ -271,45 +269,50 @@ function mostrarFormTransferTiac(uid, btnEl) {
   formDiv.style.display = 'block';
 }
 
-async function cargarGruposDestinoTiac(uid, carreraId) {
-  const sel = document.getElementById(`selGrupoTiac_${uid}`);
-  if (!sel) return;
+async function cargarInfoDestinoTiac(uid, carreraId) {
+  const infoDiv = document.getElementById(`infoDestinoTiac_${uid}`);
+  if (!infoDiv) return;
+
+  delete _tiacGrupoSeleccionado[uid];
+
   if (!carreraId) {
-    sel.innerHTML = '<option value="">Primero elige la carrera</option>';
-    sel.disabled = true;
+    infoDiv.innerHTML = 'Elige la carrera para ver grupo y periodo';
+    infoDiv.style.color = '#888';
     return;
   }
 
-  sel.innerHTML = '<option value="">Cargando grupos...</option>';
-  sel.disabled = true;
+  infoDiv.innerHTML = '<em style="color:#aaa;">Cargando...</em>';
 
   try {
-    const snap = await db.collection('grupos')
-      .where('carreraId', '==', carreraId)
-      .where('activo', '==', true)
-      .get();
+    const [gruposSnap, configDoc] = await Promise.all([
+      db.collection('grupos').where('carreraId', '==', carreraId).where('activo', '==', true).get(),
+      db.collection('config').doc(`periodo_${carreraId}`).get()
+    ]);
 
-    const grupos = snap.docs
+    const grupos = gruposSnap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.semestre || 0) - (b.semestre || 0));
+      .sort((a, b) => (a.codigoGrupo || '').localeCompare(b.codigoGrupo || ''));
+
+    const periodoActual = configDoc.exists ? configDoc.data().periodo : '—';
 
     if (!grupos.length) {
-      sel.innerHTML = '<option value="">Sin grupos activos en esta carrera</option>';
+      infoDiv.innerHTML = `<span style="color:#c62828;">Sin grupos activos en esta carrera</span><br>
+        <span style="color:#555;">Periodo actual: <strong>${periodoActual}</strong></span>`;
       return;
     }
 
-    sel.innerHTML = '<option value="">Seleccionar grupo...</option>' +
-      grupos.map(g => {
-        const codigo = `${carreraId}-${g.codigoGrupo}`;
-        const turnoNombre = _TIAC_TURNOS[g.turno] || '—';
-        return `<option value="${g.id}" data-codigo="${codigo}" data-turno="${g.turno || ''}">
-          Sem. ${g.semestre || '?'} — ${g.nombre || g.codigoGrupo} (${turnoNombre})
-        </option>`;
-      }).join('');
-    sel.disabled = false;
+    const g = grupos[0]; // grupo 1 (primero al ordenar por codigoGrupo)
+    const codigoGrupo = `${carreraId}-${g.codigoGrupo}`;
+    const turnoNombre = _TIAC_TURNOS[g.turno] || '—';
+
+    _tiacGrupoSeleccionado[uid] = { grupoId: g.id, codigoGrupo, turno: g.turno || '' };
+
+    infoDiv.innerHTML = `
+      <div style="color:#222; font-weight:600; margin-bottom:3px;">Grupo: ${codigoGrupo} — ${turnoNombre}</div>
+      <div style="color:#555; font-size:0.82rem;">Periodo actual de la carrera: <strong style="color:#6a1b9a;">${periodoActual}</strong></div>`;
 
   } catch (e) {
-    sel.innerHTML = `<option value="">Error: ${e.message}</option>`;
+    infoDiv.innerHTML = `<span style="color:#c62828;">Error: ${e.message}</span>`;
   }
 }
 
@@ -318,19 +321,18 @@ async function ejecutarTransferenciaTiac(uid, btnEl) {
   if (!alumno) return;
 
   const selCarrera = document.getElementById(`selCarreraTiac_${uid}`);
-  const selGrupo   = document.getElementById(`selGrupoTiac_${uid}`);
-
   const carreraDestinoId    = selCarrera?.value;
-  const grupoDocId          = selGrupo?.value;
-  const opcion              = selGrupo?.selectedOptions[0];
-  const codigoGrupoNuevo    = opcion?.dataset?.codigo || '';
-  const turnoNuevo          = opcion?.dataset?.turno  || '';
   const carreraNombreDestino = selCarrera?.selectedOptions[0]?.text || carreraDestinoId;
+  const grupoData           = _tiacGrupoSeleccionado[uid];
 
-  if (!carreraDestinoId || !grupoDocId) {
-    alert('Selecciona carrera y grupo destino antes de confirmar.');
+  if (!carreraDestinoId || !grupoData) {
+    alert('Selecciona la carrera destino. Asegúrate de que la carrera tenga grupos activos.');
     return;
   }
+
+  const grupoDocId       = grupoData.grupoId;
+  const codigoGrupoNuevo = grupoData.codigoGrupo;
+  const turnoNuevo       = grupoData.turno;
 
   const periodoNuevo = Math.max(3, Number(alumno.periodo) || 3);
 
