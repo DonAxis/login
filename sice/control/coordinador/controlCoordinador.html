@@ -885,9 +885,16 @@
    <h3 style="margin-top:0; margin-bottom:15px;">Acta por Materia</h3>
    <div>
     <label style="display:block; margin-bottom:5px; font-weight:600;">Materia:</label>
-    <select id="selectMateriaActas" onchange="cargarVistaActas()"
+    <select id="selectMateriaActas" onchange="onMateriaActasChange()"
       style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px;">
      <option value="">Seleccionar materia...</option>
+    </select>
+   </div>
+   <div id="divPeriodoActas" style="display:none; margin-top:12px;">
+    <label style="display:block; margin-bottom:5px; font-weight:600;">Periodo:</label>
+    <select id="selectPeriodoActas" onchange="cargarActasPorPeriodo()"
+      style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px;">
+     <option value="">Seleccionar periodo...</option>
     </select>
    </div>
    <div id="contenedorVistaActas" style="display:none; margin-top:16px;"></div>
