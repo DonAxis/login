@@ -284,31 +284,14 @@ async function cargarInfoDestinoTiac(uid, carreraId) {
   infoDiv.innerHTML = '<em style="color:#aaa;">Cargando...</em>';
 
   try {
-    const [gruposSnap, configDoc] = await Promise.all([
-      db.collection('grupos').where('carreraId', '==', carreraId).where('activo', '==', true).get(),
-      db.collection('config').doc(`periodo_${carreraId}`).get()
-    ]);
-
-    const grupos = gruposSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.codigoGrupo || '').localeCompare(b.codigoGrupo || ''));
-
+    const configDoc = await db.collection('config').doc(`periodo_${carreraId}`).get();
     const periodoActual = configDoc.exists ? configDoc.data().periodo : '—';
+    const codigoGrupo = `${carreraId}-1301`;
 
-    if (!grupos.length) {
-      infoDiv.innerHTML = `<span style="color:#c62828;">Sin grupos activos en esta carrera</span><br>
-        <span style="color:#555;">Periodo actual: <strong>${periodoActual}</strong></span>`;
-      return;
-    }
-
-    const g = grupos[0]; // grupo 1 (primero al ordenar por codigoGrupo)
-    const codigoGrupo = `${carreraId}-${g.codigoGrupo}`;
-    const turnoNombre = _TIAC_TURNOS[g.turno] || '—';
-
-    _tiacGrupoSeleccionado[uid] = { grupoId: g.id, codigoGrupo, turno: g.turno || '' };
+    _tiacGrupoSeleccionado[uid] = { codigoGrupo, turno: '' };
 
     infoDiv.innerHTML = `
-      <div style="color:#222; font-weight:600; margin-bottom:3px;">Grupo: ${codigoGrupo} — ${turnoNombre}</div>
+      <div style="color:#222; font-weight:600; margin-bottom:3px;">Grupo asignado: <span style="color:#4a148c;">${codigoGrupo}</span></div>
       <div style="color:#555; font-size:0.82rem;">Periodo actual de la carrera: <strong style="color:#6a1b9a;">${periodoActual}</strong></div>`;
 
   } catch (e) {
@@ -326,11 +309,10 @@ async function ejecutarTransferenciaTiac(uid, btnEl) {
   const grupoData           = _tiacGrupoSeleccionado[uid];
 
   if (!carreraDestinoId || !grupoData) {
-    alert('Selecciona la carrera destino. Asegúrate de que la carrera tenga grupos activos.');
+    alert('Selecciona la carrera destino.');
     return;
   }
 
-  const grupoDocId       = grupoData.grupoId;
   const codigoGrupoNuevo = grupoData.codigoGrupo;
   const turnoNuevo       = grupoData.turno;
 
