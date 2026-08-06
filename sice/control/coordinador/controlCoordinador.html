@@ -889,7 +889,13 @@
  <div id="seccionActas" class="seccion-contenido" style="background:#f0f2f5;">
   <div class="seccion-header">
    <h2>Actas</h2>
-   <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+   <div style="display:flex;gap:8px;">
+    <button onclick="recargarActas(this)"
+      style="padding:8px 14px;background:linear-gradient(135deg,#1976d2,#0d47a1);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.88rem;">
+     Recargar datos
+    </button>
+    <button onclick="volverMenu()" class="btn-volver">← Volver al Menu</button>
+   </div>
   </div>
 
   <!-- Descarga Masiva -->

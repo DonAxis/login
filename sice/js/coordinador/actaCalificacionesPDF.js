@@ -533,6 +533,30 @@ let _actasCalifCache    = []; // calificaciones de la materia seleccionada (toda
 let _actasMatMap        = {}; // alumnoId → matrícula
 let _actasAlumnosRender = []; // alumnos del periodo seleccionado (para actas individuales)
 
+async function recargarActas(btn) {
+    const sel    = document.getElementById('selectMateriaActas');
+    const selPer = document.getElementById('selectPeriodoActas');
+    if (!sel || !sel.value) return; // sin materia seleccionada no hay nada que recargar
+
+    const periodoAnterior = selPer ? selPer.value : '';
+    const txtOrig = btn.textContent;
+    btn.textContent = 'Recargando...'; btn.disabled = true;
+
+    try {
+        await onMateriaActasChange();
+        // Si había un periodo seleccionado, intentar re-seleccionarlo
+        if (periodoAnterior && selPer) {
+            const opt = Array.from(selPer.options).find(o => o.value === periodoAnterior);
+            if (opt) {
+                selPer.value = periodoAnterior;
+                cargarActasPorPeriodo();
+            }
+        }
+    } finally {
+        btn.textContent = txtOrig; btn.disabled = false;
+    }
+}
+
 async function inicializarSeccionActas() {
     const sel        = document.getElementById('selectMateriaActas');
     const divPer     = document.getElementById('divPeriodoActas');
