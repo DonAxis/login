@@ -660,6 +660,14 @@ async function descargarActasMasivas(tipo, btn, optsOverride) {
 let _actasHistAlumnosCache      = null;
 let _actasHistCarreraNombre     = null;
 let _actasHistMateriasActuales  = []; // materias del alumno abierto, indexadas para el PDF
+let _actasGruposData            = []; // [{asig, alumnos}] para render multi-grupo
+
+function _activarGrupoActa(idx) {
+    const ctx = _actasGruposData[idx];
+    if (!ctx) return;
+    asignacionCalifActual = ctx.asig;
+    alumnosCalifMateria   = ctx.alumnos;
+}
 
 async function inicializarSeccionActas() {
     const sel        = document.getElementById('selectMateriaActas');
@@ -673,33 +681,27 @@ async function inicializarSeccionActas() {
     if (!carreraId) { sel.innerHTML = '<option value="">Sin carrera activa</option>'; return; }
 
     try {
-        const snap = await db.collection('profesorMaterias')
+        // Consultar materias directamente — funciona aunque profesorMaterias esté vacía
+        // (después de cambiar periodo, profesorMaterias se elimina pero materias persiste)
+        const snap = await db.collection('materias')
             .where('carreraId', '==', carreraId)
-            .where('activa',    '==', true)
+            .where('activo',    '==', true)
             .get();
 
-        sel.innerHTML = '<option value="">Seleccionar materia...</option>';
-        const asigs = snap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => (a.codigoGrupo || '').localeCompare(b.codigoGrupo || '') || (a.materiaNombre || '').localeCompare(b.materiaNombre || ''));
-
-        const gruposMap = {};
-        asigs.forEach(asig => {
-            const g = asig.codigoGrupo || 'Sin grupo';
-            if (!gruposMap[g]) gruposMap[g] = [];
-            gruposMap[g].push(asig);
-        });
-        Object.keys(gruposMap).sort().forEach(grupo => {
-            const optgrp = document.createElement('optgroup');
-            optgrp.label = `Grupo ${grupo}`;
-            gruposMap[grupo].forEach(asig => {
-                const o = document.createElement('option');
-                o.value       = asig.id;
-                o.textContent = asig.materiaNombre;
-                optgrp.appendChild(o);
-            });
-            sel.appendChild(optgrp);
-        });
+        if (snap.empty) {
+            sel.innerHTML = '<option value="">Sin materias registradas</option>';
+        } else {
+            sel.innerHTML = '<option value="">Seleccionar materia...</option>';
+            snap.docs
+                .map(d => ({ id: d.id, nombre: d.data().nombre || '' }))
+                .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                .forEach(m => {
+                    const o = document.createElement('option');
+                    o.value       = m.id;
+                    o.textContent = m.nombre;
+                    sel.appendChild(o);
+                });
+        }
     } catch (e) {
         console.error('[Actas] Error cargando materias:', e);
         sel.innerHTML = '<option value="">Error al cargar</option>';
@@ -738,22 +740,21 @@ async function cargarVistaActas() {
     contenedor.style.display = '';
 
     try {
-        const carreraId = usuarioActual && usuarioActual.carreraId;
+        const materiaId     = sel.value;
+        const materiaNombre = sel.options[sel.selectedIndex]?.text || '';
+        const carreraId     = usuarioActual && usuarioActual.carreraId;
 
-        const pmDoc = await db.collection('profesorMaterias').doc(sel.value).get();
-        if (!pmDoc.exists) { contenedor.innerHTML = '<p style="color:red;">Materia no encontrada.</p>'; return; }
-        const asig = { id: pmDoc.id, ...pmDoc.data() };
-
-        // Fijar globals que usan las funciones PDF
-        asignacionCalifActual = asig;
         [tieneExamenFinalCoord, esMaestriaCoord] = await Promise.all([
             obtenerTieneExamenFinal(carreraId),
             obtenerEsUnParcial(carreraId)
         ]);
 
-        // Query por materiaId (campo único, sin índice compuesto), filtrar grupo en memoria
-        const calSnap = await db.collection('calificaciones').where('materiaId', '==', asig.materiaId).get();
-        const calDocs = calSnap.docs.filter(d => d.data().codigoGrupo === asig.codigoGrupo);
+        // Consultar por materiaId — no requiere profesorMaterias activos
+        // Filtrar carreraId en memoria para evitar índice compuesto en Firestore
+        const calSnap = await db.collection('calificaciones')
+            .where('materiaId', '==', materiaId)
+            .get();
+        const calDocs = calSnap.docs.filter(d => d.data().carreraId === carreraId);
 
         if (calDocs.length === 0) {
             alumnosCalifMateria = [];
@@ -775,10 +776,19 @@ async function cargarVistaActas() {
         const matMap = {};
         userSnaps.forEach(s => s.docs.forEach(d => { matMap[d.id] = d.data().matricula || '-'; }));
 
-        // Construir alumnosCalifMateria con el formato que esperan las funciones PDF
-        alumnosCalifMateria = calDocs.map(d => {
-            const c = d.data();
-            return {
+        // Agrupar por periodo + codigoGrupo (más reciente primero)
+        const gruposMap = {};
+        calDocs.forEach(doc => {
+            const c   = doc.data();
+            const key = `${c.periodo || ''}\x00${c.codigoGrupo || ''}`;
+            if (!gruposMap[key]) gruposMap[key] = {
+                periodo:        c.periodo        || '-',
+                codigoGrupo:    c.codigoGrupo    || '-',
+                profesorNombre: c.profesorNombre || '-',
+                materiaNombre:  c.materiaNombre  || materiaNombre,
+                alumnos:        []
+            };
+            gruposMap[key].alumnos.push({
                 id:        c.alumnoId,
                 nombre:    c.alumnoNombre || '-',
                 matricula: matMap[c.alumnoId] || '-',
@@ -788,15 +798,50 @@ async function cargarVistaActas() {
                     parcial3:          c.parciales?.parcial3 ?? null,
                     extraordinario:    c.extraordinario      ?? null,
                     ets:               c.ets                 ?? null,
-                    falta1:            c.faltas?.falta1       ?? null,
-                    falta2:            c.faltas?.falta2       ?? null,
-                    falta3:            c.faltas?.falta3       ?? null,
+                    falta1:            c.faltas?.falta1      ?? null,
+                    falta2:            c.faltas?.falta2      ?? null,
+                    falta3:            c.faltas?.falta3      ?? null,
                     _hasExtraDropdown: false
                 }
-            };
-        }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+            });
+        });
 
-        _renderVistaActas(asig);
+        const grupos = Object.values(gruposMap).sort((a, b) => {
+            if (a.periodo !== b.periodo) return b.periodo.localeCompare(a.periodo);
+            return a.codigoGrupo.localeCompare(b.codigoGrupo);
+        });
+
+        _actasGruposData = grupos.map(g => ({
+            asig:   { materiaNombre: g.materiaNombre, codigoGrupo: g.codigoGrupo, profesorNombre: g.profesorNombre, periodo: g.periodo },
+            alumnos: g.alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre))
+        }));
+
+        if (_actasGruposData.length === 1) {
+            asignacionCalifActual = _actasGruposData[0].asig;
+            alumnosCalifMateria   = _actasGruposData[0].alumnos;
+            _renderVistaActas(asignacionCalifActual);
+        } else {
+            // Múltiples grupos (distintos periodos o grupos simultáneos) — mostrar apilados
+            contenedor.innerHTML = _actasGruposData.map((ctx, idx) => `
+                <div style="margin-bottom:20px; border:1px solid #e0e0e0; border-radius:10px; overflow:hidden;">
+                    <div style="background:#4a4a5a; color:white; padding:9px 16px; font-weight:600; font-size:0.88rem;">
+                        Periodo: ${ctx.asig.periodo} &nbsp;·&nbsp; Grupo: ${ctx.asig.codigoGrupo}
+                    </div>
+                    <div id="_actaDiv_${idx}" style="padding:12px;"></div>
+                </div>`
+            ).join('');
+
+            _actasGruposData.forEach((ctx, idx) => {
+                asignacionCalifActual = ctx.asig;
+                alumnosCalifMateria   = ctx.alumnos;
+                _renderVistaActas(ctx.asig, document.getElementById(`_actaDiv_${idx}`), idx);
+            });
+
+            // Restaurar el último grupo como activo (por si el usuario descarga sin hacer click)
+            const last = _actasGruposData.length - 1;
+            asignacionCalifActual = _actasGruposData[last].asig;
+            alumnosCalifMateria   = _actasGruposData[last].alumnos;
+        }
 
     } catch (e) {
         console.error('[Actas] Error:', e);
@@ -804,9 +849,11 @@ async function cargarVistaActas() {
     }
 }
 
-function _renderVistaActas(asig) {
-    const contenedor = document.getElementById('contenedorVistaActas');
+function _renderVistaActas(asig, targetEl, grupoIdx) {
+    const contenedor = targetEl || document.getElementById('contenedorVistaActas');
     if (!contenedor) return;
+    // En multi-grupo, los botones activan primero el contexto correcto antes de generar el PDF
+    const prefix = (grupoIdx != null && grupoIdx >= 0) ? `_activarGrupoActa(${grupoIdx}); ` : '';
 
     const fmtP = v => (v == null) ? '-' : v === 'NP' ? 'NP' : String(v);
 
@@ -843,15 +890,15 @@ function _renderVistaActas(asig) {
                 <div style="font-size:0.85rem; color:#666; margin-top:3px;">Grupo: ${asig.codigoGrupo} &nbsp;·&nbsp; Prof: ${asig.profesorNombre} &nbsp;·&nbsp; ${alumnosCalifMateria.length} alumno(s)</div>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button onclick="descargarActaPDF()"
+                <button onclick="${prefix}descargarActaPDF()"
                   style="padding:8px 14px; background:linear-gradient(135deg,#c62828,#8b0000); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
                   Acta General
                 </button>
-                <button onclick="descargarActaExtraordinarioPDF()"
+                <button onclick="${prefix}descargarActaExtraordinarioPDF()"
                   style="padding:8px 14px; background:linear-gradient(135deg,#6a1b9a,#4a148c); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
                   Acta Extraordinario
                 </button>
-                <button onclick="descargarActaEtsPDF()"
+                <button onclick="${prefix}descargarActaEtsPDF()"
                   style="padding:8px 14px; background:linear-gradient(135deg,#1565c0,#0a3880); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.87rem;">
                   Acta ETS
                 </button>
