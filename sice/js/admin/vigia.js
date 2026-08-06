@@ -1,14 +1,6 @@
-// Vigía — Reparación de periodo en calificaciones
-// Problema: cuando profesorMaterias.periodo se guardó como número (ej: 2, 3) en vez de
-// string académico (ej: "2026-2", "2026-3"), las calificaciones quedan con periodo inválido.
-// Consecuencias:
-//   · "Cambiar Periodo" no las archiva ni sella periodoAcademico en historialAcademico
-//   · Boleta Global muestra esas materias como "Cursando" indefinidamente
-//   · "Acta por Materia" no las incluye en el selector de periodos
-//
-// Esta función recorre TODAS las carreras, detecta calificaciones con periodo inválido,
-// les asigna el periodoAnterior de su carrera y sella historialAcademico.
-// Es idempotente: sólo modifica docs con periodo que no cumpla el formato YYYY-N.
+// Vigía — Reparación de periodo inválido en calificaciones e historialAcademico
+// Cubre semestral (2026-2), cuatrimestral (2026-3) y trimestral (2026-4).
+// Usa _calificacionFinal() de cambioPeriodo.js (cargado antes en controlAdmin.html).
 
 async function accionVigia() {
   function invalido(p) {
@@ -16,7 +8,7 @@ async function accionVigia() {
   }
 
   try {
-    // 1. Cargar todas las carreras y el config de periodo de cada una
+    // 1. Cargar carreras y su periodoAnterior desde config/periodo_{carreraId}
     const carrerasSnap = await db.collection('carreras').get();
     const carreras = carrerasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -24,8 +16,6 @@ async function accionVigia() {
       carreras.map(c => db.collection('config').doc(`periodo_${c.id}`).get())
     );
 
-    // Mapa carreraId → { nombre, periodoActual, periodoAnterior }
-    // Solo carreras que ya tuvieron un cambio de periodo (tienen periodoAnterior)
     const carreraConfig = {};
     carreras.forEach((c, i) => {
       const cfg = configSnaps[i];
@@ -33,24 +23,24 @@ async function accionVigia() {
       const data = cfg.data();
       if (!data.periodoAnterior) return;
       carreraConfig[c.id] = {
-        nombre:          c.nombre || c.id,
-        periodoActual:   data.periodo,
+        nombre: c.nombre || c.id,
+        periodoActual: data.periodo,
         periodoAnterior: data.periodoAnterior
       };
     });
 
     if (Object.keys(carreraConfig).length === 0) {
-      alert('Ninguna carrera tiene "periodoAnterior" registrado.\nEjecuta "Cambiar Periodo" primero en cada carrera.');
+      alert('No se encontró config de carreras con periodoAnterior. Nada que reparar.');
       return;
     }
 
-    // 2. Leer TODAS las calificaciones y detectar las afectadas
+    // 2. Leer TODAS las calificaciones y detectar las con periodo inválido
     const calSnap = await db.collection('calificaciones').get();
 
     const afectadosPorCarrera = {};
     calSnap.docs.forEach(doc => {
       const c = doc.data();
-      if (!carreraConfig[c.carreraId]) return;   // carrera sin config o sin periodoAnterior
+      if (!carreraConfig[c.carreraId]) return;
       if (invalido(c.periodo)) {
         if (!afectadosPorCarrera[c.carreraId]) afectadosPorCarrera[c.carreraId] = [];
         afectadosPorCarrera[c.carreraId].push(doc);
@@ -58,100 +48,117 @@ async function accionVigia() {
     });
 
     const carrerasAfectadas = Object.keys(afectadosPorCarrera);
-    const totalCals = carrerasAfectadas.reduce((s, cid) => s + afectadosPorCarrera[cid].length, 0);
-
-    if (totalCals === 0) {
-      alert('✅ Sin problemas detectados.\nNo hay calificaciones con periodo inválido en ninguna carrera.');
+    if (carrerasAfectadas.length === 0) {
+      alert('✅ Vigía: No se encontraron calificaciones con periodo inválido. Todo está bien.');
       return;
     }
 
-    // 3. Confirmar con resumen por carrera
-    const resumen = carrerasAfectadas.map(cid => {
+    // 3. Mostrar resumen y confirmar
+    let resumen = 'VIGÍA — Reparación de periodo en calificaciones\n\n';
+    resumen += 'Carreras afectadas:\n';
+    let totalDocs = 0;
+    carrerasAfectadas.forEach(cid => {
+      const cnt = afectadosPorCarrera[cid].length;
       const cfg = carreraConfig[cid];
-      return `  • ${cfg.nombre}: ${afectadosPorCarrera[cid].length} calificaciones → periodo "${cfg.periodoAnterior}"`;
-    }).join('\n');
+      resumen += `• ${cfg.nombre}: ${cnt} calificaciones → periodo = "${cfg.periodoAnterior}"\n`;
+      totalDocs += cnt;
+    });
+    resumen += `\nTotal a corregir: ${totalDocs} calificaciones\n\n¿Continuar?`;
 
-    const ok = confirm(
-      `VIGÍA — REPARACIÓN DE PERIODO EN CALIFICACIONES\n\n` +
-      `Carreras afectadas:\n${resumen}\n\n` +
-      `Total: ${totalCals} calificaciones\n\n` +
-      `Acciones:\n` +
-      `  1. Corrige "periodo" en cada calificación afectada\n` +
-      `  2. Sella "periodoAcademico" en historialAcademico de cada alumno\n\n` +
-      `Los datos ya válidos no se modifican.\n\n¿Continuar?`
-    );
-    if (!ok) return;
+    if (!confirm(resumen)) return;
 
     // 4. Corregir calificaciones.periodo
     let batch = db.batch();
     let bc = 0;
+    let calCorregidas = 0;
 
     for (const cid of carrerasAfectadas) {
       const periodoAnterior = carreraConfig[cid].periodoAnterior;
       for (const doc of afectadosPorCarrera[cid]) {
         batch.update(doc.ref, { periodo: periodoAnterior });
-        if (++bc === 499) { await batch.commit(); batch = db.batch(); bc = 0; }
+        calCorregidas++;
+        if (++bc === 499) {
+          await batch.commit();
+          batch = db.batch();
+          bc = 0;
+        }
       }
     }
     if (bc > 0) await batch.commit();
 
-    // 5. Actualizar historialAcademico — agrupar por alumnoId
+    // 5. Estampar periodoAcademico en historialAcademico
+    // Agrupar calificaciones por alumno
     const calPorAlumno = {};
-    carrerasAfectadas.forEach(cid => {
+    for (const cid of carrerasAfectadas) {
       const periodoAnterior = carreraConfig[cid].periodoAnterior;
-      afectadosPorCarrera[cid].forEach(doc => {
+      for (const doc of afectadosPorCarrera[cid]) {
         const c = doc.data();
-        if (!c.alumnoId) return;
-        if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = { periodoAnterior, cals: {} };
+        if (!calPorAlumno[c.alumnoId]) {
+          calPorAlumno[c.alumnoId] = { periodoAnterior, cals: {} };
+        }
         calPorAlumno[c.alumnoId].cals[c.materiaId] = c;
-      });
-    });
+      }
+    }
 
     const alumnoIds = Object.keys(calPorAlumno);
-    const histSnaps = await Promise.all(
-      alumnoIds.map(id => db.collection('historialAcademico').doc(id).get())
-    );
 
-    batch = db.batch(); bc = 0;
+    // Leer historialAcademico en lotes de 30
+    const CHUNK = 30;
+    const histSnaps = [];
+    for (let i = 0; i < alumnoIds.length; i += CHUNK) {
+      const lote = alumnoIds.slice(i, i + CHUNK);
+      const snaps = await Promise.all(
+        lote.map(id => db.collection('historialAcademico').doc(id).get())
+      );
+      histSnaps.push(...snaps);
+    }
+
+    batch = db.batch();
+    bc = 0;
+    let histActualizados = 0;
     const ahora = firebase.firestore.FieldValue.serverTimestamp();
-    let alumnosActualizados = 0;
 
     for (const histSnap of histSnaps) {
       if (!histSnap.exists) continue;
-      const { periodoAnterior, cals } = calPorAlumno[histSnap.id];
-      let cambiado = false;
+      const alumnoId = histSnap.id;
+      const { periodoAnterior, cals } = calPorAlumno[alumnoId];
+      const materiasExistentes = histSnap.data().materias || [];
 
-      const materiasActualizadas = (histSnap.data().materias || []).map(mat => {
-        if (mat.periodoAcademico) return mat;     // ya sellada — no pisar
+      let cambiado = false;
+      const materiasActualizadas = materiasExistentes.map(mat => {
+        if (mat.periodoAcademico) return mat; // ya cerrada — no pisar
         const cal = cals[mat.materiaId];
-        if (!cal) return mat;                     // esta materia no fue afectada
+        if (!cal) return mat;
         cambiado = true;
         const { calificacion, acr } = _calificacionFinal(cal);
         return Object.assign({}, mat, { calificacion, acr, periodoAcademico: periodoAnterior });
       });
 
       if (!cambiado) continue;
+
       batch.set(
-        db.collection('historialAcademico').doc(histSnap.id),
+        db.collection('historialAcademico').doc(alumnoId),
         { materias: materiasActualizadas, fechaActualizacion: ahora },
         { merge: true }
       );
-      alumnosActualizados++;
-      if (++bc === 499) { await batch.commit(); batch = db.batch(); bc = 0; }
+      histActualizados++;
+
+      if (++bc === 499) {
+        await batch.commit();
+        batch = db.batch();
+        bc = 0;
+      }
     }
     if (bc > 0) await batch.commit();
 
     alert(
-      `✅ Vigía completado\n\n` +
-      `• ${totalCals} calificaciones corregidas\n` +
-      `• ${alumnosActualizados} alumnos actualizados en historial académico\n\n` +
-      `Detalle por carrera:\n${resumen}\n\n` +
-      `Boleta Global ya no mostrará esas materias como "Cursando".\n` +
-      `"Acta por Materia" ya incluirá esos periodos en el selector.`
+      `✅ Vigía completada\n\n` +
+      `Calificaciones corregidas: ${calCorregidas}\n` +
+      `Historiales actualizados: ${histActualizados}`
     );
 
   } catch (e) {
-    console.error('[Vigía] Error:', e);
+    console.error('Error en Vigía:', e);
     alert('Error en Vigía: ' + e.message);
   }
 }

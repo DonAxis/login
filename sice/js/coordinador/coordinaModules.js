@@ -1367,7 +1367,7 @@ async function guardarAsignacionProfesor(event) {
                 profesorId: profesorId,
                 profesorNombre: profesorNombre,
                 codigoGrupo: codigoGrupo,
-                periodo: periodo,
+                periodo: periodoActualCarrera,
                 turno: turno,
                 turnoNombre: turnoTexto,
                 orden: orden,
@@ -1810,7 +1810,7 @@ async function guardarAsignacionesAsignar2() {
                 profesorId: select.value,
                 profesorNombre: profesorNombre,
                 codigoGrupo: select.dataset.codigoGrupo,
-                periodo: parseInt(select.dataset.periodo),
+                periodo: periodoActualCarrera,
                 turno: parseInt(select.dataset.turno),
                 turnoNombre: turnoTexto,
                 orden: orden
