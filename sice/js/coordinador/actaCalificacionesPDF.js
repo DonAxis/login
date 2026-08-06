@@ -635,8 +635,10 @@ async function onMateriaActasChange() {
             snaps.forEach(s => s.docs.forEach(d => { _actasMatMap[d.id] = d.data().matricula || '-'; }));
         }
 
-        // Periodos únicos, más reciente primero
-        const periodos = [...new Set(_actasCalifCache.map(c => c.periodo || ''))].filter(Boolean).sort((a, b) => b.localeCompare(a));
+        // Periodos únicos en formato académico YYYY-N (filtra datos con semestre numérico)
+        const periodos = [...new Set(_actasCalifCache.map(c => c.periodo || ''))]
+            .filter(p => /^\d{4}-\d+$/.test(p))
+            .sort((a, b) => b.localeCompare(a));
 
         if (periodos.length === 0) {
             selPer.innerHTML = '<option value="">Sin registros</option>';
@@ -738,6 +740,8 @@ function _renderActasPorMateriaPeriodo(grupos, periodo, materiaNombre, contenedo
         }).replace(/"/g, '&quot;');
 
         const btnStyle = (bg) => `padding:8px 14px;background:${bg};color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.86rem;`;
+        const hasExtra = g.alumnos.some(a => a.calificaciones.extraordinario != null);
+        const hasETS   = g.alumnos.some(a => a.calificaciones.ets != null);
 
         return `
         <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -748,9 +752,10 @@ function _renderActasPorMateriaPeriodo(grupos, periodo, materiaNombre, contenedo
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button onclick="_actaGrupalPorPeriodo('${g.codigoGrupo}','${periodo}','GENERAL')"
                   style="${btnStyle('linear-gradient(135deg,#c62828,#8b0000)')}">Acta General</button>
-                ${!esMaestriaCoord ? `
+                ${!esMaestriaCoord && hasExtra ? `
                 <button onclick="_actaGrupalPorPeriodo('${g.codigoGrupo}','${periodo}','EXTRA')"
-                  style="${btnStyle('linear-gradient(135deg,#6a1b9a,#4a148c)')}">Acta Extraordinario</button>
+                  style="${btnStyle('linear-gradient(135deg,#6a1b9a,#4a148c)')}">Acta Extraordinario</button>` : ''}
+                ${!esMaestriaCoord && hasETS ? `
                 <button onclick="_actaGrupalPorPeriodo('${g.codigoGrupo}','${periodo}','ETS')"
                   style="${btnStyle('linear-gradient(135deg,#1565c0,#0a3880)')}">Acta ETS</button>` : ''}
             </div>
