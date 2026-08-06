@@ -711,6 +711,7 @@ function cargarActasPorPeriodo() {
                 parcial3:          c.parciales?.parcial3 ?? null,
                 extraordinario:    c.extraordinario      ?? null,
                 ets:               c.ets                 ?? null,
+                promedio:          c.promedio            ?? null,
                 falta1:            c.faltas?.falta1      ?? null,
                 falta2:            c.faltas?.falta2      ?? null,
                 falta3:            c.faltas?.falta3      ?? null,
@@ -792,8 +793,12 @@ function _renderActasPorMateriaPeriodo(grupos, periodo, materiaNombre, contenedo
             const calStr   = (cal == null) ? '-' : cal === 'NP' ? 'NP' : String(cal);
             const calColor = (!isNaN(parseFloat(calStr)) && parseFloat(calStr) < 6) ? '#f44336' : '#388e3c';
             const acr      = a.acreditacion || '-';
-            const extraStr = fmtP(a.calificaciones.extraordinario);
-            const etsStr   = fmtP(a.calificaciones.ets);
+            const extraStr = a.calificaciones.extraordinario != null
+                ? fmtP(a.calificaciones.extraordinario)
+                : (a.acreditacion === 'EXT' && a.calificaciones.promedio != null ? fmtP(a.calificaciones.promedio) : '-');
+            const etsStr   = a.calificaciones.ets != null
+                ? fmtP(a.calificaciones.ets)
+                : (a.acreditacion === 'ETS' && a.calificaciones.promedio != null ? fmtP(a.calificaciones.promedio) : '-');
 
             const tdAcr   = !esMaestriaCoord ? `<td style="text-align:center;padding:6px;font-size:0.82rem;">${acr}</td>` : '';
             const tdExtra = !esMaestriaCoord ? `<td style="text-align:center;padding:6px;">${extraStr}</td><td style="text-align:center;padding:6px;">${etsStr}</td>` : '';
@@ -882,6 +887,8 @@ function _generarActaIndividual(idx, btn) {
     btn.textContent = '...'; btn.disabled = true;
 
     try {
+        if (typeof window.jspdf === 'undefined') { alert('Error: jsPDF no está cargado. Recarga la página.'); return; }
+        const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
 
         const asig = {
@@ -900,7 +907,13 @@ function _generarActaIndividual(idx, btn) {
         const p1   = cal.parciales?.parcial1 ?? null;
         const p2   = cal.parciales?.parcial2 ?? null;
         const p3   = cal.parciales?.parcial3 ?? null;
-        const calFinal = redondearCalificacion(calcularCalificacion(p1, p2, p3, tieneExamenFinalCoord));
+        // Si hay acreditación ETS/EXT, usar promedio guardado; si no, calcular de parciales
+        const calFinal = (cal.acreditacion === 'ETS' || cal.acreditacion === 'EXT') && cal.promedio != null
+            ? redondearCalificacion(cal.promedio)
+            : redondearCalificacion(calcularCalificacion(p1, p2, p3, tieneExamenFinalCoord));
+        // ETS y Extra: usar campo específico; si es null pero la acreditación lo indica, usar promedio
+        const etsValPDF   = cal.ets           != null ? fmtP(cal.ets)           : (cal.acreditacion === 'ETS' && cal.promedio != null ? fmtP(cal.promedio) : '-');
+        const extraValPDF = cal.extraordinario != null ? fmtP(cal.extraordinario) : (cal.acreditacion === 'EXT' && cal.promedio != null ? fmtP(cal.promedio) : '-');
 
         let head, body, colStyles;
         if (esMaestriaCoord) {
@@ -909,11 +922,11 @@ function _generarActaIndividual(idx, btn) {
             colStyles = { 0:{cellWidth:35,halign:'center'}, 1:{cellWidth:70}, 2:{cellWidth:20,halign:'center'}, 3:{cellWidth:25,halign:'center',fontStyle:'bold'}, 4:{cellWidth:30,halign:'center'} };
         } else if (tieneExamenFinalCoord) {
             head      = [['Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'E.F', 'Calificación', 'Extra', 'ETS', 'Acreditación']];
-            body      = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), fmtP(calFinal), fmtP(cal.extraordinario), fmtP(cal.ets), cal.acreditacion || '-']];
+            body      = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), fmtP(calFinal), extraValPDF, etsValPDF, cal.acreditacion || '-']];
             colStyles = { 0:{cellWidth:30,halign:'center'}, 1:{cellWidth:50}, 2:{cellWidth:13,halign:'center'}, 3:{cellWidth:13,halign:'center'}, 4:{cellWidth:13,halign:'center'}, 5:{cellWidth:20,halign:'center',fontStyle:'bold'}, 6:{cellWidth:18,halign:'center'}, 7:{cellWidth:15,halign:'center'}, 8:{cellWidth:20,halign:'center'} };
         } else {
             head      = [['Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'D3', 'Calificación', 'Extra', 'ETS', 'Acreditación']];
-            body      = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), fmtP(calFinal), fmtP(cal.extraordinario), fmtP(cal.ets), cal.acreditacion || '-']];
+            body      = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), fmtP(calFinal), extraValPDF, etsValPDF, cal.acreditacion || '-']];
             colStyles = { 0:{cellWidth:30,halign:'center'}, 1:{cellWidth:55}, 2:{cellWidth:13,halign:'center'}, 3:{cellWidth:13,halign:'center'}, 4:{cellWidth:13,halign:'center'}, 5:{cellWidth:20,halign:'center',fontStyle:'bold'}, 6:{cellWidth:18,halign:'center'}, 7:{cellWidth:15,halign:'center'}, 8:{cellWidth:20,halign:'center'} };
         }
 
