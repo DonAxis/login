@@ -331,56 +331,97 @@ async function ejecutarTransferenciaTiac(uid, btnEl) {
   btnEl.textContent = 'Transfiriendo...';
 
   try {
-    const [histSnap, matDestinoSnap, carreraDestinoDoc, calSnap] = await Promise.all([
+    const [histSnap, matDestinoSnap, matTiacSnap, carreraDestinoDoc, calSnap] = await Promise.all([
       db.collection('historialAcademico').doc(uid).get(),
       db.collection('materias').where('carreraId', '==', carreraDestinoId).get(),
+      db.collection('materias').where('carreraId', '==', 'TIAC').get(),
       db.collection('carreras').doc(carreraDestinoId).get(),
       db.collection('calificaciones').where('alumnoId', '==', uid).get()
     ]);
 
-    const ahora            = firebase.firestore.FieldValue.serverTimestamp();
+    const ahora = firebase.firestore.FieldValue.serverTimestamp();
     const carreraDestinoNombre = carreraDestinoDoc.exists ? carreraDestinoDoc.data().nombre : carreraDestinoId;
 
-    // --- Batch 1: usuarios + calificaciones (pueden ser muchas) ---
-    let batch = db.batch();
-    let bc = 0;
+    // Mapa nombre normalizado → { id, nombre } de la carrera destino
+    const destinoPorNombre = {};
+    // Mapa destinoMateriaId → nombre canónico (para lookup por ID)
+    const destinoNombrePorId = {};
+    matDestinoSnap.docs.forEach(d => {
+      const data = d.data();
+      const key  = _tiacNormalizar(data.nombre || '');
+      destinoPorNombre[key]     = { id: d.id, ...data };
+      destinoNombrePorId[d.id]  = data.nombre || '';
+    });
 
-    batch.update(db.collection('usuarios').doc(uid), {
+    // Mapa tiacMateriaId → destinoMateriaId (coincidencia por nombre normalizado)
+    const idMap = {}; // tiacId → destinoId
+    matTiacSnap.docs.forEach(d => {
+      const key = _tiacNormalizar(d.data().nombre || '');
+      if (destinoPorNombre[key]) idMap[d.id] = destinoPorNombre[key].id;
+    });
+
+    // --- Batch 1: usuarios ---
+    await db.collection('usuarios').doc(uid).update({
       carreraId:          carreraDestinoId,
       periodo:            periodoNuevo,
       codigoGrupo:        codigoGrupoNuevo,
       turno:              turnoNuevo,
       fechaActualizacion: ahora
     });
-    bc++;
+
+    // --- Batch 2: calificaciones ---
+    // Para cada calificacion de TIAC: si tiene mapping crear nuevo doc con destinoId y borrar el viejo
+    let batch = db.batch();
+    let bc = 0;
+    const flushBatch = async () => { if (bc > 0) { await batch.commit(); batch = db.batch(); bc = 0; } };
 
     for (const doc of calSnap.docs) {
-      batch.update(doc.ref, { carreraId: carreraDestinoId });
-      if (++bc >= 490) { await batch.commit(); batch = db.batch(); bc = 0; }
+      const c = doc.data();
+      const destinoId = idMap[c.materiaId];
+      if (destinoId) {
+        // Crear doc con el materiaId correcto de la carrera destino
+        const nuevoDocRef = db.collection('calificaciones').doc(`${uid}_${destinoId}`);
+        batch.set(nuevoDocRef, {
+          ...c,
+          materiaId:    destinoId,
+          materiaNombre: destinoNombrePorId[destinoId] || c.materiaNombre,
+          carreraId:    carreraDestinoId
+        });
+        batch.delete(doc.ref); // eliminar el doc con materiaId de TIAC
+        bc += 2;
+      } else {
+        // Sin mapping (no debería ocurrir en alumnos TIAC) — solo actualizar carreraId
+        batch.update(doc.ref, { carreraId: carreraDestinoId });
+        bc++;
+      }
+      if (bc >= 490) await flushBatch();
     }
-    if (bc > 0) await batch.commit();
+    await flushBatch();
 
-    // --- Batch 2: historialAcademico ---
-    const materiaIdsActuales = new Set();
-    const materiasActuales   = [];
+    // --- Batch 3: historialAcademico ---
+    // Reasignar materiaIds de TIAC → destino en el historial, conservando calificaciones
+    const materiasRemapeadas = [];
 
     if (histSnap.exists) {
       (histSnap.data().materias || []).forEach(m => {
-        materiaIdsActuales.add(m.materiaId);
-        materiasActuales.push(m);
+        const destinoId = idMap[m.materiaId];
+        materiasRemapeadas.push({
+          ...m,
+          materiaId:    destinoId || m.materiaId, // remapar si existe, si no conservar
+          materiaNombre: destinoNombrePorId[destinoId] || m.materiaNombre
+        });
       });
     }
 
-    // Agregar materias de la carrera destino semestre >= 3 que no estén ya en el historial
-    const materiasNuevas = [];
-    matDestinoSnap.docs.forEach(doc => {
-      const m = doc.data();
-      if (m.activo === false) return;
-      if (materiaIdsActuales.has(doc.id)) return;
+    // Agregar materias semestre >= 3 de la carrera destino que no estén ya en el historial
+    const idsEnHistorial = new Set(materiasRemapeadas.map(m => m.materiaId));
+    matDestinoSnap.docs.forEach(d => {
+      const m = d.data();
+      if (m.activo === false || idsEnHistorial.has(d.id)) return;
       const per = Number(m.periodo) || 0;
       if (per < 3) return;
-      materiasNuevas.push({
-        materiaId:        doc.id,
+      materiasRemapeadas.push({
+        materiaId:        d.id,
         materiaNombre:    m.nombre || '',
         periodo:          per,
         calificacion:     null,
@@ -390,18 +431,15 @@ async function ejecutarTransferenciaTiac(uid, btnEl) {
       });
     });
 
-    const materiasMerged = [...materiasActuales, ...materiasNuevas];
     const histRef = db.collection('historialAcademico').doc(uid);
-
     if (histSnap.exists) {
       await histRef.update({
         carreraId:          carreraDestinoId,
         carreraNombre:      carreraDestinoNombre,
-        materias:           materiasMerged,
+        materias:           materiasRemapeadas,
         fechaActualizacion: ahora
       });
     } else {
-      // Sin historial previo: crear con todas las materias de la carrera destino
       const todasMaterias = matDestinoSnap.docs
         .filter(d => d.data().activo !== false)
         .map(d => ({
