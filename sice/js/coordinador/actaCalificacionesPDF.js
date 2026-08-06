@@ -660,32 +660,31 @@ async function descargarActasMasivas(tipo, btn, optsOverride) {
 let _actasHistAlumnosCache      = null;
 let _actasHistCarreraNombre     = null;
 let _actasHistMateriasActuales  = []; // materias del alumno abierto, indexadas para el PDF
-let _actasGruposData            = []; // [{asig, alumnos}] para render multi-grupo
-
-function _activarGrupoActa(idx) {
-    const ctx = _actasGruposData[idx];
-    if (!ctx) return;
-    asignacionCalifActual = ctx.asig;
-    alumnosCalifMateria   = ctx.alumnos;
-}
+let _actasCalifCache    = []; // calificaciones de la materia seleccionada (todas las periodos)
+let _actasMatMap        = {}; // alumnoId → matrícula
+let _actasAlumnosRender = []; // alumnos del periodo seleccionado (para actas individuales)
 
 async function inicializarSeccionActas() {
     const sel        = document.getElementById('selectMateriaActas');
+    const divPer     = document.getElementById('divPeriodoActas');
     const contenedor = document.getElementById('contenedorVistaActas');
     if (!sel) return;
-    if (contenedor) contenedor.style.display = 'none';
 
     sel.innerHTML = '<option value="">Cargando...</option>';
+    if (divPer)     divPer.style.display     = 'none';
+    if (contenedor) contenedor.style.display = 'none';
+    _actasCalifCache    = [];
+    _actasMatMap        = {};
+    _actasAlumnosRender = [];
 
     const carreraId = usuarioActual && usuarioActual.carreraId;
     if (!carreraId) { sel.innerHTML = '<option value="">Sin carrera activa</option>'; return; }
 
     try {
-        // Consultar materias directamente — funciona aunque profesorMaterias esté vacía
-        // (después de cambiar periodo, profesorMaterias se elimina pero materias persiste)
+        // Consultar materias directamente — sin filtro activo para evitar problemas de campo
+        // y mostrar todas las materias históricas (útil para generar actas de periodos pasados)
         const snap = await db.collection('materias')
             .where('carreraId', '==', carreraId)
-            .where('activo',    '==', true)
             .get();
 
         if (snap.empty) {
