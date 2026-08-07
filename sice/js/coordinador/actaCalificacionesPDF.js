@@ -900,7 +900,6 @@ function _generarActaIndividual(idx, btn) {
     const alumno = _actasAlumnosRender[idx];
     if (!alumno) { alert('Alumno no encontrado.'); return; }
 
-    // Buscar la calificación en cache para saber el periodo y grupo
     const sel    = document.getElementById('selectPeriodoActas');
     const selMat = document.getElementById('selectMateriaActas');
     const periodo = sel ? sel.value : '';
@@ -915,43 +914,68 @@ function _generarActaIndividual(idx, btn) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
 
-        const asig = {
+        asignacionCalifActual = {
             materiaNombre:  cal.materiaNombre  || (selMat ? selMat.options[selMat.selectedIndex]?.text : ''),
             codigoGrupo:    cal.codigoGrupo    || '-',
             profesorNombre: cal.profesorNombre || '-',
             periodo
         };
 
-        // Usar _acta_encabezado requiere que asignacionCalifActual esté set
-        asignacionCalifActual = asig;
-
-        const y = _acta_encabezado(doc, 'ACTA INDIVIDUAL DE CALIFICACIÓN');
-
         const fmtP = v => (v == null) ? '-' : v === 'NP' ? 'NP' : String(v);
-        const p1   = cal.parciales?.parcial1 ?? null;
-        const p2   = cal.parciales?.parcial2 ?? null;
-        const p3   = cal.parciales?.parcial3 ?? null;
-        // Si hay acreditación ETS/EXT, usar promedio guardado; si no, calcular de parciales
-        const calFinal = (cal.acreditacion === 'ETS' || cal.acreditacion === 'EXT') && cal.promedio != null
-            ? redondearCalificacion(cal.promedio)
-            : redondearCalificacion(calcularCalificacion(p1, p2, p3, tieneExamenFinalCoord));
-        // ETS y Extra: usar campo específico; si es null pero la acreditación lo indica, usar promedio
-        const etsValPDF   = cal.ets           != null ? fmtP(cal.ets)           : (cal.acreditacion === 'ETS' && cal.promedio != null ? fmtP(cal.promedio) : '-');
-        const extraValPDF = cal.extraordinario != null ? fmtP(cal.extraordinario) : (cal.acreditacion === 'EXT' && cal.promedio != null ? fmtP(cal.promedio) : '-');
+        const p1 = cal.parciales?.parcial1 ?? null;
+        const p2 = cal.parciales?.parcial2 ?? null;
+        const p3 = cal.parciales?.parcial3 ?? null;
 
-        let head, body, colStyles;
-        if (esMaestriaCoord) {
-            head      = [['Matrícula', 'Nombre del Alumno', 'D1', 'Calificación', 'Acreditación']];
-            body      = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(calFinal), cal.acreditacion || '-']];
-            colStyles = { 0:{cellWidth:35,halign:'center'}, 1:{cellWidth:70}, 2:{cellWidth:20,halign:'center'}, 3:{cellWidth:25,halign:'center',fontStyle:'bold'}, 4:{cellWidth:30,halign:'center'} };
+        // Valor ETS y Extra con fallback de Boleta Global (que solo escribe promedio, no ets/extraordinario)
+        const etsVal   = cal.ets           != null ? cal.ets
+                       : (cal.acreditacion === 'ETS' && cal.promedio != null ? cal.promedio : null);
+        const extraVal = cal.extraordinario != null ? cal.extraordinario
+                       : (cal.acreditacion === 'EXT' && cal.promedio != null ? cal.promedio : null);
+
+        // Prioridad: ETS > Extra > Calificación con parciales
+        const tipo = etsVal != null ? 'ETS' : extraVal != null ? 'EXT' : 'GENERAL';
+
+        const titulo = tipo === 'ETS' ? 'ACTA DE ETS'
+                     : tipo === 'EXT' ? 'ACTA DE EXTRAORDINARIO'
+                     :                  'ACTA INDIVIDUAL DE CALIFICACIÓN';
+
+        const y = _acta_encabezado(doc, titulo);
+
+        let head, body, colStyles, calColIndex;
+
+        if (tipo === 'ETS') {
+            head        = [['Matrícula', 'Nombre del Alumno', 'ETS']];
+            body        = [[alumno.matricula, alumno.nombre, fmtP(etsVal)]];
+            colStyles   = { 0:{cellWidth:35,halign:'center'}, 1:{cellWidth:115}, 2:{cellWidth:30,halign:'center',fontStyle:'bold'} };
+            calColIndex = 2;
+
+        } else if (tipo === 'EXT') {
+            head        = [['Matrícula', 'Nombre del Alumno', 'Extraordinario']];
+            body        = [[alumno.matricula, alumno.nombre, fmtP(extraVal)]];
+            colStyles   = { 0:{cellWidth:35,halign:'center'}, 1:{cellWidth:105}, 2:{cellWidth:40,halign:'center',fontStyle:'bold'} };
+            calColIndex = 2;
+
+        } else if (esMaestriaCoord) {
+            const calFinal = redondearCalificacion(calcularCalificacion(p1, null, null, false));
+            head        = [['Matrícula', 'Nombre del Alumno', 'D1', 'Calificación']];
+            body        = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(calFinal)]];
+            colStyles   = { 0:{cellWidth:35,halign:'center'}, 1:{cellWidth:80}, 2:{cellWidth:20,halign:'center'}, 3:{cellWidth:25,halign:'center',fontStyle:'bold'} };
+            calColIndex = 3;
+
         } else if (tieneExamenFinalCoord) {
-            head      = [['Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'E.F', 'Calificación', 'Extra', 'ETS', 'Acreditación']];
-            body      = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), fmtP(calFinal), extraValPDF, etsValPDF, cal.acreditacion || '-']];
-            colStyles = { 0:{cellWidth:30,halign:'center'}, 1:{cellWidth:50}, 2:{cellWidth:13,halign:'center'}, 3:{cellWidth:13,halign:'center'}, 4:{cellWidth:13,halign:'center'}, 5:{cellWidth:20,halign:'center',fontStyle:'bold'}, 6:{cellWidth:18,halign:'center'}, 7:{cellWidth:15,halign:'center'}, 8:{cellWidth:20,halign:'center'} };
+            const calFinal = cal.promedio != null ? redondearCalificacion(cal.promedio)
+                           : redondearCalificacion(calcularCalificacion(p1, p2, p3, true));
+            head        = [['Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'E.F', 'Calificación']];
+            body        = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), fmtP(calFinal)]];
+            colStyles   = { 0:{cellWidth:30,halign:'center'}, 1:{cellWidth:65}, 2:{cellWidth:13,halign:'center'}, 3:{cellWidth:13,halign:'center'}, 4:{cellWidth:13,halign:'center'}, 5:{cellWidth:20,halign:'center',fontStyle:'bold'} };
+            calColIndex = 5;
+
         } else {
-            head      = [['Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'D3', 'Calificación', 'Extra', 'ETS', 'Acreditación']];
-            body      = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), fmtP(calFinal), extraValPDF, etsValPDF, cal.acreditacion || '-']];
-            colStyles = { 0:{cellWidth:30,halign:'center'}, 1:{cellWidth:55}, 2:{cellWidth:13,halign:'center'}, 3:{cellWidth:13,halign:'center'}, 4:{cellWidth:13,halign:'center'}, 5:{cellWidth:20,halign:'center',fontStyle:'bold'}, 6:{cellWidth:18,halign:'center'}, 7:{cellWidth:15,halign:'center'}, 8:{cellWidth:20,halign:'center'} };
+            const calFinal = redondearCalificacion(calcularCalificacion(p1, p2, p3, false));
+            head        = [['Matrícula', 'Nombre del Alumno', 'D1', 'D2', 'D3', 'Calificación']];
+            body        = [[alumno.matricula, alumno.nombre, fmtP(p1), fmtP(p2), fmtP(p3), fmtP(calFinal)]];
+            colStyles   = { 0:{cellWidth:30,halign:'center'}, 1:{cellWidth:70}, 2:{cellWidth:13,halign:'center'}, 3:{cellWidth:13,halign:'center'}, 4:{cellWidth:13,halign:'center'}, 5:{cellWidth:20,halign:'center',fontStyle:'bold'} };
+            calColIndex = 5;
         }
 
         doc.autoTable({
@@ -960,13 +984,13 @@ function _generarActaIndividual(idx, btn) {
             headStyles: { fillColor: [108, 29, 69], textColor: 255, fontStyle: 'bold', halign: 'center' },
             styles: { fontSize: 10, cellPadding: 3 },
             columnStyles: colStyles,
-            didParseCell: data => _acta_colorCalif(data, head[0].indexOf('Calificación'))
+            didParseCell: data => _acta_colorCalif(data, calColIndex)
         });
 
         _acta_pie(doc, 1, doc.lastAutoTable.finalY);
 
         const nombreSafe = (alumno.nombre || 'alumno').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').replace(/\s+/g, '_');
-        doc.save(`Acta_${nombreSafe}_${periodo}.pdf`);
+        doc.save(`Acta_${tipo}_${nombreSafe}_${periodo}.pdf`);
 
     } catch (e) {
         console.error('[ActaIndividual] Error:', e);
