@@ -907,21 +907,40 @@ async function avanzarAlumnoIndividual(alumnoId) {
       db.collection('config').doc(`periodo_${alumno.carreraId}`).get()
     ]);
 
-    const cicloActual   = configDoc.exists ? configDoc.data().periodo : '(desconocido)';
-    const materiasHist  = histDoc.exists ? (histDoc.data().materias || []) : [];
-    const cicloYaCerrado = materiasHist
-      .filter(m => m.periodo === periodoActual)
-      .some(m => !!m.periodoAcademico);
+    const cicloActual = configDoc.exists ? configDoc.data().periodo : '(desconocido)';
 
-    if (!cicloYaCerrado) {
+    // Verificación primaria: campo periodoActualCiclo en el alumno.
+    // Se guarda en cada avance; si coincide con el config actual, el coordinador
+    // aún no cerró el periodo → bloquear sin importar qué diga historialAcademico.
+    const alumnoEnPeriodo = alumno.periodoActualCiclo || null;
+    if (alumnoEnPeriodo && alumnoEnPeriodo === cicloActual) {
       alert(
-        `No se puede avanzar todavía.\n\n` +
-        `Ciclo actual: ${cicloActual}\n\n` +
-        `El ${nombrePeriodo.toLowerCase()} ${periodoActual} de ${alumno.nombre} ` +
-        `aún no ha sido cerrado.\n\n` +
+        `No se puede reinscribir todavía.\n\n` +
+        `${alumno.nombre} ya está inscrito en el periodo ${cicloActual} ` +
+        `y el coordinador aún no lo ha cerrado.\n\n` +
         `Pide al coordinador que ejecute "Cambiar Periodo" primero.`
       );
       return;
+    }
+
+    // Verificación de respaldo: para alumnos sin periodoActualCiclo (registros previos),
+    // comprobar que el historial académico ya tiene el semestre cerrado.
+    if (!alumnoEnPeriodo) {
+      const materiasHist = histDoc.exists ? (histDoc.data().materias || []) : [];
+      const cicloYaCerrado = materiasHist
+        .filter(m => m.periodo === periodoActual)
+        .some(m => !!m.periodoAcademico);
+
+      if (!cicloYaCerrado) {
+        alert(
+          `No se puede avanzar todavía.\n\n` +
+          `Ciclo actual: ${cicloActual}\n\n` +
+          `El ${nombrePeriodo.toLowerCase()} ${periodoActual} de ${alumno.nombre} ` +
+          `aún no ha sido cerrado.\n\n` +
+          `Pide al coordinador que ejecute "Cambiar Periodo" primero.`
+        );
+        return;
+      }
     }
     // ────────────────────────────────────────────────────────────────────────
 
@@ -938,10 +957,11 @@ async function avanzarAlumnoIndividual(alumnoId) {
     if (!confirmacion) return;
 
     const updateData = {
-      periodo:        nuevoPeriodo,
-      semestreActual: nuevoSemestre,
-      codigoGrupo:    nuevoCodigoGrupo,
-      ultimoCambio:   firebase.firestore.FieldValue.serverTimestamp()
+      periodo:            nuevoPeriodo,
+      semestreActual:     nuevoSemestre,
+      codigoGrupo:        nuevoCodigoGrupo,
+      periodoActualCiclo: cicloActual,   // periodo académico activo al momento del avance
+      ultimoCambio:       firebase.firestore.FieldValue.serverTimestamp()
     };
     if (esPasante) updateData.pasante = true;
     await db.collection('usuarios').doc(alumnoId).update(updateData);
