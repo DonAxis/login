@@ -1981,6 +1981,15 @@ function _poblarCarrerasAprobar() {
 
 // ═══ PANEL APROBAR: buscar y listar alumnos ═══
 
+async function onCarreraAprobarChange(carreraId) {
+  const el = document.getElementById('periodoActual');
+  if (!carreraId) { el.textContent = '-'; return; }
+  try {
+    const doc = await db.collection('config').doc(`periodo_${carreraId}`).get();
+    el.textContent = doc.exists ? (doc.data().periodo || '-') : '-';
+  } catch (_) {}
+}
+
 async function cargarAlumnosParaAprobar() {
   const carreraId = document.getElementById('filtroCarreraAprobar').value;
   const busqueda  = (document.getElementById('busquedaAprobar').value || '').trim().toLowerCase();
@@ -1994,12 +2003,18 @@ async function cargarAlumnosParaAprobar() {
   contenedor.innerHTML = '<p style="color:#999;padding:12px;">Buscando...</p>';
 
   try {
-    let query = db.collection('usuarios')
-      .where('rol', '==', 'alumno')
-      .where('carreraId', '==', carreraId)
-      .where('activo', '==', true);
+    const [snap, configDoc] = await Promise.all([
+      db.collection('usuarios')
+        .where('rol', '==', 'alumno')
+        .where('carreraId', '==', carreraId)
+        .where('activo', '==', true)
+        .get(),
+      db.collection('config').doc(`periodo_${carreraId}`).get()
+    ]);
 
-    const snap = await query.get();
+    const periodoConfig = configDoc.exists ? configDoc.data().periodo : null;
+    document.getElementById('periodoActual').textContent = periodoConfig || '-';
+
     let alumnos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     if (busqueda) {
@@ -2016,8 +2031,13 @@ async function cargarAlumnosParaAprobar() {
       return;
     }
 
+    const legendaPeriodo = periodoConfig
+      ? `<span style="font-size:0.82rem;color:#555;">Periodo activo de la carrera: <strong>${periodoConfig}</strong> &nbsp;|&nbsp; 🔴 alumno ya inscrito en este periodo &nbsp; 🟢 puede avanzar</span>`
+      : '';
+
     let html = `
-      <p style="color:#666;font-size:0.85rem;margin-bottom:12px;">${alumnos.length} alumno(s) encontrado(s)</p>
+      <p style="color:#666;font-size:0.85rem;margin-bottom:6px;">${alumnos.length} alumno(s) encontrado(s)</p>
+      <p style="margin-bottom:12px;">${legendaPeriodo}</p>
       <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
         <thead>
@@ -2027,6 +2047,7 @@ async function cargarAlumnosParaAprobar() {
             <th style="padding:10px 12px;text-align:center;">Semestre</th>
             <th style="padding:10px 12px;text-align:left;">Periodo</th>
             <th style="padding:10px 12px;text-align:left;">Grupo</th>
+            <th style="padding:10px 12px;text-align:center;">Último periodo</th>
             <th style="padding:10px 12px;text-align:center;">Acción</th>
           </tr>
         </thead>
@@ -2034,6 +2055,18 @@ async function cargarAlumnosParaAprobar() {
     `;
 
     alumnos.forEach(a => {
+      const ultimoPeriodo = a.periodoActualCiclo || null;
+      const bloqueado = ultimoPeriodo && periodoConfig && ultimoPeriodo === periodoConfig;
+
+      let chipPeriodo;
+      if (!ultimoPeriodo) {
+        chipPeriodo = '<span style="color:#999;font-size:0.82rem;">—</span>';
+      } else if (bloqueado) {
+        chipPeriodo = `<span style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;">🔴 ${ultimoPeriodo}</span>`;
+      } else {
+        chipPeriodo = `<span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;">🟢 ${ultimoPeriodo}</span>`;
+      }
+
       html += `
         <tr style="border-bottom:1px solid #eee;" id="fila-aprobar-${a.id}">
           <td style="padding:10px 12px;">${a.nombre || '-'}</td>
@@ -2041,6 +2074,7 @@ async function cargarAlumnosParaAprobar() {
           <td style="padding:10px 12px;text-align:center;">${a.semestreActual || '-'}</td>
           <td style="padding:10px 12px;">${a.periodo || '-'}</td>
           <td style="padding:10px 12px;">${a.codigoGrupo || '-'}</td>
+          <td style="padding:10px 12px;text-align:center;" id="chip-periodo-${a.id}">${chipPeriodo}</td>
           <td style="padding:10px 12px;text-align:center;">
             <button onclick="avanzarYActualizarFila('${a.id}')"
               style="padding:6px 14px;background:linear-gradient(135deg,#216A32,#4caf50);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem;">
@@ -2073,6 +2107,13 @@ async function avanzarYActualizarFila(alumnoId) {
     fila.cells[2].textContent = a.semestreActual || '-';
     fila.cells[3].textContent = a.periodo || '-';
     fila.cells[4].textContent = a.codigoGrupo || '-';
+
+    // Actualizar chip de último periodo
+    const chipCell = document.getElementById(`chip-periodo-${alumnoId}`);
+    if (chipCell && a.periodoActualCiclo) {
+      chipCell.innerHTML = `<span style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;">🔴 ${a.periodoActualCiclo}</span>`;
+    }
+
     fila.style.background = '#e8f5e9';
     setTimeout(() => { fila.style.background = ''; }, 2000);
   } catch (_) { /* la tabla se actualizará si el usuario vuelve a buscar */ }

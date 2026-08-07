@@ -248,7 +248,8 @@
           <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
             <div>
               <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Carrera</label>
-              <select id="filtroCarreraAprobar" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
+              <select id="filtroCarreraAprobar" onchange="onCarreraAprobarChange(this.value)"
+                style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; min-width:220px;">
                 <option value="">-- Selecciona Carrera --</option>
               </select>
             </div>
