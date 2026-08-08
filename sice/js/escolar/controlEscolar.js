@@ -294,12 +294,14 @@ function mostrarGruposCarrera() {
     });
   }
 
-  const tieneEspeciales = alumnosData.some(a => a.carreraId === carreraSeleccionada.id && a.tipoAlumno === 'especial');
-  if (tieneEspeciales) {
+  const numEspActivos = alumnosData.filter(a => a.carreraId === carreraSeleccionada.id && a.tipoAlumno === 'especial').length;
+  const numEspInsc    = new Set(Object.values(inscEspPorGrupo).flat().map(i => i.alumnoId)).size;
+  const numEspeciales = Math.max(numEspActivos, numEspInsc);
+  if (numEspeciales > 0) {
     html += `
       <div class="grupo-card" onclick="verAlumnosEspeciales()" style="background:#fff3cd; border-left:4px solid #ff9800;">
         <h4>Especiales</h4>
-        <p>Alumnos de grupos cambiantes</p>
+        <p style="font-weight:bold; color:#e65100;">${numEspeciales} alumno${numEspeciales !== 1 ? 's' : ''}</p>
       </div>`;
   }
 
@@ -386,13 +388,22 @@ function verAlumnosGrupo() {
       <tbody>`;
 
   alumnos.forEach(alumno => {
-    const _nomSafe = alumno.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    html += `<tr>
+    const _nomSafe   = alumno.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const esEspecial = alumnoIdsEsp.has(alumno.uid);
+    const badge      = esEspecial
+      ? '<span style="background:#ff9800;color:white;padding:1px 6px;border-radius:3px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:5px;">ESPECIAL</span>'
+      : '';
+    const rowStyle = esEspecial ? ' style="background:#fff8e1;"' : '';
+    html += `<tr${rowStyle}>
       <td><strong>${alumno.matricula || 'N/A'}</strong></td>
-      <td>${alumno.nombre}</td>
-      <td>${alumno.periodo || periodoActual}</td>
+      <td>${alumno.nombre}${badge}</td>
+      <td>${alumno.periodo || '-'}</td>
       <td style="white-space:nowrap;">
         <button onclick="verHistorialCompleto('${alumno.uid}', '${_nomSafe}')">Ver Historial</button>
+        <button onclick="verBoletaGlobalAlumno('${alumno.uid}', false)"
+          style="background:#388e3c;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
+          Boleta
+        </button>
         <button onclick="toggleActivoAlumno('${alumno.uid}', '${_nomSafe}', false, 'grupo')"
           style="background:#dc3545;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
           Desactivar
@@ -1167,25 +1178,21 @@ async function verAlumnosEspeciales() {
       return;
     }
     
-    // Obtener inscripciones de cada alumno
+    // Contar materias por alumno desde inscEspPorGrupo (ya cargado, sin N+1)
+    const materiasPorAlumno = {};
+    Object.values(inscEspPorGrupo).forEach(inscArr => {
+      inscArr.forEach(({ alumnoId, materiaId }) => {
+        if (!materiasPorAlumno[alumnoId]) materiasPorAlumno[alumnoId] = new Set();
+        materiasPorAlumno[alumnoId].add(materiaId);
+      });
+    });
+
     const alumnosArray = [];
-    
-    for (const doc of alumnosSnap.docs) {
-      const alumno = {
-        id: doc.id,
-        ...doc.data()
-      };
-      
-      // Contar materias inscritas
-      const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
-        .where('alumnoId', '==', doc.id)
-        .where('activa', '==', true)
-        .get();
-      
-      alumno.numMaterias = inscripcionesSnap.size;
-      
+    alumnosSnap.docs.forEach(doc => {
+      const alumno       = { id: doc.id, ...doc.data() };
+      alumno.numMaterias = (materiasPorAlumno[doc.id] || new Set()).size;
       alumnosArray.push(alumno);
-    }
+    });
     
     // Ordenar alfabéticamente
     alumnosArray.sort((a, b) => a.nombre.localeCompare(b.nombre));

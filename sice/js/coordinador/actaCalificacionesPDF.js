@@ -651,13 +651,32 @@ async function onMateriaActasChange() {
             obtenerEsUnParcial(carreraId)
         ]);
 
-        // Carga todas las calificaciones de la materia; filtra carreraId en memoria
-        const calSnap = await db.collection('calificaciones')
-            .where('materiaId', '==', materiaId)
-            .get();
-        _actasCalifCache = calSnap.docs
+        // Cargar calificaciones activas e historialCalificaciones en paralelo.
+        // historialCalificaciones contiene los datos congelados al cierre de cada periodo
+        // (escrito por archivarCalificaciones). Para ciclos anteriores es la fuente correcta,
+        // ya que los docs en calificaciones pueden haber sido sobreescritos por el periodo nuevo.
+        const [calSnap, histCalSnap] = await Promise.all([
+            db.collection('calificaciones').where('materiaId', '==', materiaId).get(),
+            db.collection('historialCalificaciones').where('materiaId', '==', materiaId).get()
+        ]);
+
+        // Merge: primero calificaciones (periodo actual), luego historial sobreescribe los
+        // periodos anteriores con los datos archivados (más confiables que los actuales).
+        const _merged = new Map();
+        calSnap.docs
             .filter(d => d.data().carreraId === carreraId)
-            .map(d => ({ id: d.id, ...d.data() }));
+            .forEach(d => {
+                const c = d.data();
+                if (c.alumnoId && c.periodo) _merged.set(`${c.alumnoId}_${c.periodo}`, { id: d.id, ...c });
+            });
+        histCalSnap.docs
+            .filter(d => d.data().carreraId === carreraId)
+            .forEach(d => {
+                const c = d.data();
+                const p = c.periodoArchivado || c.periodo || '';
+                if (c.alumnoId && p) _merged.set(`${c.alumnoId}_${p}`, { id: d.id, ...c, periodo: p });
+            });
+        _actasCalifCache = Array.from(_merged.values());
 
         // Pre-cargar matrículas
         const alumnoIds = [...new Set(_actasCalifCache.map(c => c.alumnoId))];

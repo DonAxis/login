@@ -856,29 +856,49 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     const HEAD   = [['#', 'MATERIA', 'ACR', 'CICLO', 'CAL.']];
     const startY = y;
 
+    // ── Columna izquierda ─────────────────────────────────────────────────────
     doc.autoTable({ ...tableComun, startY,
       margin: { left: 20, right: col2X, bottom: 44 },
       head: HEAD, body: leftRows,
       didDrawCell: hookNivel
     });
-    const leftFinalY = doc.lastAutoTable.finalY;
+    const leftFinalY   = doc.lastAutoTable.finalY;
+    const leftLastPage = doc.internal.getCurrentPageInfo().pageNumber;
+
+    // Borde izq: tope en página 1, fondo en la última página de esta columna
     doc.setDrawColor(VINO[0], VINO[1], VINO[2]);
     doc.setLineWidth(0.4);
-    doc.line(20,    startY,     pageWidth - col2X, startY);
-    doc.line(20,    leftFinalY, pageWidth - col2X, leftFinalY);
+    doc.setPage(1);
+    doc.line(20, startY,    pageWidth - col2X, startY);
+    doc.setPage(leftLastPage);
+    doc.line(20, leftFinalY, pageWidth - col2X, leftFinalY);
 
+    // ── Columna derecha — siempre arranca desde página 1 ─────────────────────
+    // Si la col izq desbordó a páginas adicionales, sin el setPage(1) la col der
+    // comenzaría en la última página de la izq (dato desplazado).
+    doc.setPage(1);
     doc.autoTable({ ...tableComun, startY,
       margin: { left: col2X, right: 20, bottom: 44 },
       head: HEAD, body: rightRows,
       didDrawCell: hookNivel
     });
-    const rightFinalY = doc.lastAutoTable.finalY;
+    const rightFinalY   = doc.lastAutoTable.finalY;
+    const rightLastPage = doc.internal.getCurrentPageInfo().pageNumber;
+
+    // Borde der: tope en página 1, fondo en la última página de esta columna
     doc.setDrawColor(VINO[0], VINO[1], VINO[2]);
     doc.setLineWidth(0.4);
-    doc.line(col2X, startY,      pageWidth - 20, startY);
+    doc.setPage(1);
+    doc.line(col2X, startY,     pageWidth - 20, startY);
+    doc.setPage(rightLastPage);
     doc.line(col2X, rightFinalY, pageWidth - 20, rightFinalY);
 
-    y = Math.max(leftFinalY, rightFinalY) + 3;
+    // Ir a la última página para totales y firmas
+    const maxLastPage = Math.max(leftLastPage, rightLastPage);
+    doc.setPage(maxLastPage);
+    y = (leftLastPage === rightLastPage
+      ? Math.max(leftFinalY, rightFinalY)
+      : leftLastPage > rightLastPage ? leftFinalY : rightFinalY) + 3;
 
     // Totales y firmas
     if (y + 46 > pageHeight) { doc.addPage(); y = 20; }
