@@ -782,11 +782,22 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
           : (periodoActual > 0 && Number(m.periodo) === periodoActual
               && !m.periodoAcademico && !calMap[m.materiaId]?.periodoAcademico);
 
-        // Calificación efectiva: historialAcademico (si ya tiene periodoAcademico) → calMap fallback
+        // Calificación efectiva:
+        // - Si calMap tiene datos del MISMO ciclo que periodoAcademico → calMap (más fresco;
+        //   cubre especiales cuya calificación fue capturada/actualizada después del cierre de periodo)
+        // - Si calMap tiene ciclo distinto o no existe → historialAcademico (dato archivado)
+        // - Sin periodoAcademico → calMap directo
         let calEfectiva, acrEfectiva;
         if (m.periodoAcademico) {
-          calEfectiva = m.calificacion;
-          acrEfectiva = m.acr;
+          const calInMap = calMap[m.materiaId];
+          if (calInMap && calInMap.periodo === m.periodoAcademico) {
+            const ef = _efectivaPDF(m.materiaId);
+            calEfectiva = ef.cal;
+            acrEfectiva = ef.acr;
+          } else {
+            calEfectiva = m.calificacion;
+            acrEfectiva = m.acr;
+          }
         } else {
           const ef = _efectivaPDF(m.materiaId);
           calEfectiva = ef.cal;

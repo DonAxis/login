@@ -1214,7 +1214,7 @@ async function verAlumnosEspeciales() {
             <th>Matrícula</th>
             <th>Nombre</th>
             <th>Correo</th>
-            <th>Periodo</th>
+            <th>Ciclo</th>
             <th>Materias</th>
             <th>Acciones</th>
           </tr>
@@ -1231,7 +1231,7 @@ async function verAlumnosEspeciales() {
             <span style="background: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; margin-left: 5px;">ESPECIAL</span>
           </td>
           <td style="font-size: 0.85rem; color: #666;">${alumno.email || 'N/A'}</td>
-          <td>${alumno.periodo || periodoActual}</td>
+          <td>${alumno.periodoActualCiclo || periodoActual || '-'}</td>
           <td style="text-align: center; font-weight: bold; color: #4caf50;">
             ${alumno.numMaterias}
           </td>
