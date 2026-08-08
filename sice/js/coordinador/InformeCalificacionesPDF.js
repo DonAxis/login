@@ -291,7 +291,10 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
       doc.setLineWidth(0.3);
       doc.line(25,  firmasY, 95,  firmasY);
       doc.line(115, firmasY, 185, firmasY);
-      // TODO: definir cargos de firmantes
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      doc.text('Profesor',    60,  firmasY + 5, { align: 'center' });
+      doc.text('Coordinador', 150, firmasY + 5, { align: 'center' });
     }
 
     // Pie de página en todas las páginas

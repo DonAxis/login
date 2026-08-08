@@ -345,8 +345,8 @@ async function descargarHistorialAlumnoPDF(alumnoId, nombreAlumno) {
     doc.line(115, firmasY, 185, firmasY);
     doc.setFontSize(9);
     doc.setFont(undefined, 'normal');
-    // TODO: definir cargos de firmantes
-    doc.setFont(undefined, 'normal');
+    doc.text('Profesor',    60,  firmasY + 5, { align: 'center' });
+    doc.text('Coordinador', 150, firmasY + 5, { align: 'center' });
 
     // Pie de página — número de página
     const numPages = doc.internal.getNumberOfPages();
