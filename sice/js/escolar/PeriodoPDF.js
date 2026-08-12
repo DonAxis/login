@@ -52,7 +52,19 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       }
     }
 
+    // ── Fallback de nombres desde historialCalificaciones ────────
+    const histCalNombres = {}; // materiaId → nombre
+    try {
+      const histSnap = await db.collection('historialCalificaciones')
+        .where('alumnoId', '==', alumnoId).get();
+      histSnap.forEach(d => {
+        const h = d.data();
+        if (h.materiaId && h.materiaNombre) histCalNombres[h.materiaId] = h.materiaNombre;
+      });
+    } catch (_) {}
+
     // ── Filtrar al periodo solicitado ─────────────────────────────
+    const PERIODO_VALIDO_PPDF = /^\d{4}-\d+$/;
     const normP = v => (v === null || v === undefined || v === '') ? 'N/A' : String(v);
     const registros = [];
     calSnap.forEach(calDoc => {
@@ -75,7 +87,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       const str = v => (v !== null && v !== undefined) ? String(v) : '-';
 
       registros.push({
-        materiaNombre: cal.materiaNombre || 'Sin nombre',
+        materiaNombre: cal.materiaNombre || histCalNombres[cal.materiaId] || 'Sin nombre',
         p1: str(p1Raw), f1: str(cal.faltas?.falta1 ?? null),
         p2: str(p2Raw), f2: str(cal.faltas?.falta2 ?? null),
         p3: str(p3Raw), f3: (tieneEF || esMaestria) ? '-' : str(cal.faltas?.falta3 ?? null),
@@ -115,7 +127,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     doc.setTextColor(0, 0, 0);
     doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 27, { align: 'center' });
     const tituloDoc    = esInforme ? 'INFORME DE CALIFICACIONES' : 'CALIFICACIONES DEL PERIODO';
-    const labelPeriodo = esInforme ? 'ACTUAL' : (periodoKey ?? '');
+    const labelPeriodo = (periodoKey && PERIODO_VALIDO_PPDF.test(periodoKey)) ? periodoKey : (esInforme ? 'ACTUAL' : (periodoKey ?? ''));
     doc.setFontSize(11);
     doc.text(tituloDoc, pageWidth / 2, 34, { align: 'center' });
     doc.setLineWidth(0.5);
@@ -246,7 +258,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     }
 
     const nombre   = nombreAlumno.replace(/\s+/g, '_');
-    const sufijoPer = esInforme ? 'Actual' : (periodoKey ?? '');
+    const sufijoPer = labelPeriodo || (periodoKey ?? '');
     doc.save(`Calificaciones_${sufijoPer}_${nombre}.pdf`);
 
   } catch (error) {

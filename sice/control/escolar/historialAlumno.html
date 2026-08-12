@@ -508,8 +508,9 @@
           const mats = (porPeriodo[p] || []).filter(_tieneDato);
           if (mats.length > 0) { _matsActuales = mats; _periodoMostrado = p; break; }
         }
+        const _labelPeriodo = _h.periodoActual || _periodoMostrado;
         const htmlPeriodos = _matsActuales.length > 0
-          ? `<h3 class="periodo-titulo">Periodo Actual${_periodoMostrado ? ' — ' + _periodoMostrado : ''}</h3>`
+          ? `<h3 class="periodo-titulo">Periodo Actual${_labelPeriodo ? ' — ' + _labelPeriodo : ''}</h3>`
             + _construirTablaConFaltasArray(_matsActuales)
           : '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas para el periodo actual.</p>';
 
