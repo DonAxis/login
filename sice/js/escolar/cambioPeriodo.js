@@ -1,5 +1,8 @@
 // ===== FUNCIONES DE PERIODO - MODIFICADO PARA SOPORTAR DIFERENTES TIPOS =====
 
+let _egresadosConfig = null;   // { carreraCodigo, numeroPeriodos, cicloActual }
+let _egresadosPendientes = []; // alumnos del último periodo detectados al cerrar
+
 // MODIFICADO: Generar lista de periodos disponibles según el tipo de carrera
 function generarPeriodos(periodosAnio = 2) {
   const periodos = [];
@@ -211,20 +214,27 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     progressBar.style.width = '25%';
     progressText.textContent = 'Cargando datos de alumnos...';
 
-    const alumnosSnap = await db.collection('usuarios')
-      .where('rol', '==', 'alumno')
-      .where('carreraId', '==', carreraId)
-      .where('activo', '==', true)
-      .get();
+    const [alumnosSnap, carreraDoc] = await Promise.all([
+      db.collection('usuarios')
+        .where('rol', '==', 'alumno')
+        .where('carreraId', '==', carreraId)
+        .where('activo', '==', true)
+        .get(),
+      db.collection('carreras').doc(carreraId).get()
+    ]);
+
+    const carreraCodigo = carreraDoc.exists ? (carreraDoc.data().codigo || carreraId) : carreraId;
 
     const alumnoDataMap = {};
     alumnosSnap.docs.forEach(doc => {
       const a = doc.data();
-      // semestreActual puede no existir en alumnos creados antes de este campo — usar periodo como fallback
       alumnoDataMap[doc.id] = {
         nombre: a.nombre,
         matricula: a.matricula,
-        semestreActual: a.semestreActual || Number(a.periodo) || null
+        semestreActual: a.semestreActual || Number(a.periodo) || null,
+        periodo: Number(a.periodo) || 1,
+        turno: a.turno || '1',
+        orden: String(a.orden || '01').padStart(2, '0')
       };
     });
 
@@ -292,9 +302,34 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     // 6. COMPLETADO
     progressBar.style.width = '100%';
     progressText.textContent = 'Cambio completado!';
-    
+
+    // Detectar alumnos que completaron el último periodo de la carrera
+    _egresadosPendientes = Object.entries(alumnoDataMap)
+      .filter(([, a]) => a.periodo >= numeroPeriodos)
+      .map(([uid, a]) => ({ uid, nombre: a.nombre || '', matricula: a.matricula || '', semActual: a.semestreActual }));
+    _egresadosConfig = { carreraCodigo, numeroPeriodos, cicloActual: nuevoPeriodo };
+
     // Mostrar resumen
     setTimeout(() => {
+      const egresadosHTML = _egresadosPendientes.length === 0 ? '' : (() => {
+        const filas = _egresadosPendientes.map((a, i) =>
+          '<div id="egresado_' + i + '" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:white;border-radius:6px;">' +
+            '<div><span style="font-weight:600;">' + a.nombre + '</span>' +
+            (a.matricula ? '<span style="color:#888;font-size:0.85rem;margin-left:8px;">' + a.matricula + '</span>' : '') +
+            '</div>' +
+            '<button onclick="_marcarPasanteIndividual(' + i + ',this)" style="padding:5px 12px;background:#7986cb;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">Pasante</button>' +
+          '</div>'
+        ).join('');
+        return `
+          <div style="background:#e8eaf6;border-left:4px solid #3f51b5;padding:15px;border-radius:8px;margin-bottom:15px;">
+            <h4 style="margin:0 0 8px 0;color:#283593;">Alumnos que completaron el último ${nombrePeriodo.toLowerCase()} (${_egresadosPendientes.length})</h4>
+            <p style="margin:0 0 12px 0;font-size:0.875rem;color:#555;">Puedes marcarlos como Pasantes ahora o desde "Gestionar Alumnos".</p>
+            <button onclick="_marcarTodosPasantes(this)" style="margin-bottom:12px;padding:9px 18px;background:#3f51b5;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Marcar todos como Pasantes</button>
+            <div style="display:grid;gap:6px;">${filas}</div>
+          </div>
+        `;
+      })();
+
       const html = `
         <div style="background: white; padding: 30px; border-radius: 15px; max-width: 600px; margin: 20px auto;">
           <h3 style="margin: 0 0 20px 0; color: #216A32; text-align: center;">
@@ -330,14 +365,16 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
             </div>
           </div>
 
-          <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+          <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
             <strong>Siguiente paso — Alumnos:</strong>
             <p style="margin: 5px 0 0 0;">
               Los alumnos <strong>no avanzan automáticamente</strong>. Ve a "Gestionar Alumnos"
               y usa el botón <em>Avanzar Periodo</em> o <em>Desactivar</em> en cada alumno.
             </p>
           </div>
-          
+
+          ${egresadosHTML}
+
           <button onclick="location.reload()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.1rem;">
             Actualizar Panel
           </button>
@@ -1134,6 +1171,82 @@ async function generarHistorialAcademicoMasivo() {
         </button>
       </div>
     `;
+  }
+}
+
+// Marca UN alumno como Pasante desde el resumen post-cambio de periodo
+async function _marcarPasanteIndividual(idx, btn) {
+  if (!_egresadosConfig) return;
+  const alumno = _egresadosPendientes[idx];
+  if (!alumno || alumno._marcado) return;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const { carreraCodigo, numeroPeriodos, cicloActual } = _egresadosConfig;
+    const nuevoSemestre = (alumno.semActual || numeroPeriodos) + 1;
+    await db.collection('usuarios').doc(alumno.uid).update({
+      periodo:            numeroPeriodos + 1,
+      semestreActual:     nuevoSemestre,
+      codigoGrupo:        carreraCodigo + '-PASANTE',
+      pasante:            true,
+      periodoActualCiclo: cicloActual,
+      ultimoCambio:       firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alumno._marcado = true;
+    btn.textContent = '✓';
+    btn.style.background = '#4caf50';
+    const row = document.getElementById('egresado_' + idx);
+    if (row) row.style.opacity = '0.5';
+  } catch (e) {
+    console.error('Error al marcar pasante:', e);
+    btn.disabled = false;
+    btn.textContent = 'Pasante';
+    alert('Error: ' + e.message);
+  }
+}
+
+// Marca TODOS los egresados detectados como Pasantes en un batch
+async function _marcarTodosPasantes(btn) {
+  if (!_egresadosConfig || !_egresadosPendientes.length) return;
+  const pendientes = _egresadosPendientes.filter(a => !a._marcado);
+  if (!pendientes.length) { alert('Todos ya fueron marcados.'); return; }
+  if (!confirm('¿Marcar ' + pendientes.length + ' alumno(s) como Pasantes?')) return;
+  btn.disabled = true;
+  btn.textContent = 'Marcando...';
+  try {
+    const { carreraCodigo, numeroPeriodos, cicloActual } = _egresadosConfig;
+    const ahora = firebase.firestore.FieldValue.serverTimestamp();
+    let batch = db.batch();
+    let count = 0;
+    for (const alumno of pendientes) {
+      const nuevoSemestre = (alumno.semActual || numeroPeriodos) + 1;
+      batch.update(db.collection('usuarios').doc(alumno.uid), {
+        periodo:            numeroPeriodos + 1,
+        semestreActual:     nuevoSemestre,
+        codigoGrupo:        carreraCodigo + '-PASANTE',
+        pasante:            true,
+        periodoActualCiclo: cicloActual,
+        ultimoCambio:       ahora
+      });
+      alumno._marcado = true;
+      count++;
+      if (count === 499) { await batch.commit(); batch = db.batch(); count = 0; }
+    }
+    if (count > 0) await batch.commit();
+    btn.textContent = '✓ ' + pendientes.length + ' marcados';
+    btn.style.background = '#4caf50';
+    _egresadosPendientes.forEach((_, i) => {
+      const row = document.getElementById('egresado_' + i);
+      if (!row) return;
+      row.style.opacity = '0.5';
+      const rowBtn = row.querySelector('button');
+      if (rowBtn) { rowBtn.textContent = '✓'; rowBtn.disabled = true; rowBtn.style.background = '#4caf50'; }
+    });
+  } catch (e) {
+    console.error('Error al marcar pasantes en batch:', e);
+    btn.disabled = false;
+    btn.textContent = 'Marcar todos como Pasantes';
+    alert('Error: ' + e.message);
   }
 }
 
