@@ -690,7 +690,9 @@ async function onMateriaActasChange() {
                       .get()
                 )
             );
-            snaps.forEach(s => s.docs.forEach(d => { _actasMatMap[d.id] = d.data().matricula || '-'; }));
+            snaps.forEach(s => s.docs.forEach(d => {
+                _actasMatMap[d.id] = { matricula: d.data().matricula || '-', nombre: d.data().nombre || '' };
+            }));
         }
 
         // Periodos únicos en formato académico YYYY-N (filtra datos con semestre numérico)
@@ -745,8 +747,8 @@ function cargarActasPorPeriodo() {
         };
         gruposMap[key].alumnos.push({
             id:             c.alumnoId,
-            nombre:         c.alumnoNombre || '-',
-            matricula:      _actasMatMap[c.alumnoId] || '-',
+            nombre:         c.alumnoNombre || _actasMatMap[c.alumnoId]?.nombre || '-',
+            matricula:      _actasMatMap[c.alumnoId]?.matricula || '-',
             acreditacion:   c.acreditacion || null,
             calificaciones: {
                 parcial1:          c.parciales?.parcial1 ?? null,

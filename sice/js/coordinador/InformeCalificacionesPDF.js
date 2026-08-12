@@ -54,12 +54,34 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
       }
     } catch (_) {}
 
-    // Cache de materias
+    // Cache de materias y fallback de nombres/periodos desde historialCalificaciones
     const materiasCache = {};
+    const histCalNombres = {}; // materiaId → nombre (fallback)
+    const histCalPeriodo = {}; // alumnoId_materiaId → periodo (fallback)
+    try {
+      const histCalSnap = await db.collection('historialCalificaciones')
+        .where('alumnoId', '==', alumnoId)
+        .get();
+      histCalSnap.docs.forEach(d => {
+        const h = d.data();
+        if (h.materiaId && h.materiaNombre) histCalNombres[h.materiaId] = h.materiaNombre;
+        const key = `${h.alumnoId}_${h.materiaId}`;
+        const p = h.periodoArchivado || h.periodo || '';
+        if (p && /^\d{4}-\d+$/.test(p)) histCalPeriodo[key] = p;
+      });
+    } catch (_) {}
+
     const registros = [];
+    const PERIODO_VALIDO = /^\d{4}-\d+$/;
 
     for (const calDoc of calSnap.docs) {
       const cal = calDoc.data();
+
+      // Resolver periodo: debe tener formato YYYY-N; si no, intentar fallback
+      let periodoResuelto = (cal.periodo && PERIODO_VALIDO.test(cal.periodo))
+        ? cal.periodo
+        : (histCalPeriodo[`${cal.alumnoId}_${cal.materiaId}`] || null);
+      if (!periodoResuelto) continue; // sin periodo válido conocido, omitir el registro
 
       let materiaNombre = cal.materiaNombre || '';
       if (!materiaNombre && cal.materiaId) {
@@ -69,7 +91,9 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
             if (mDoc.exists) materiasCache[cal.materiaId] = mDoc.data();
           } catch (_) {}
         }
-        materiaNombre = (materiasCache[cal.materiaId] || {}).nombre || 'Sin nombre';
+        materiaNombre = (materiasCache[cal.materiaId] || {}).nombre
+          || histCalNombres[cal.materiaId]
+          || 'Sin nombre';
       }
 
       const p1Raw = cal.parciales?.parcial1 ?? null;
@@ -98,7 +122,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
       const f3 = tieneExamenFinalInforme ? '-' : (cal.faltas?.falta3 ?? '-');
 
       registros.push({
-        periodo: cal.periodo || 'N/A',
+        periodo: periodoResuelto,
         materiaNombre,
         p1: String(p1), f1: String(f1),
         p2: String(p2), f2: String(f2),
