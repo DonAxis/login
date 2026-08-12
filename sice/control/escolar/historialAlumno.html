@@ -383,7 +383,7 @@
         // Datos del alumno para tarjeta resumen del informe
         _h.alumnoId     = alumnoId;
         _h.alumnoNombre = nombreAlumno;
-        _h.grupo        = alumnoData.codigoGrupo || '';
+        _h.grupo        = alumnoData.codigoGrupo || (alumnoData.tipoAlumno === 'especial' ? 'Especial' : '');
         _h.turnoNum     = alumnoData.turno       || null;
         _h.semestreNum  = alumnoData.periodo     || null;
 

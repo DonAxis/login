@@ -34,7 +34,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     if (alumnoDoc.exists) {
       const a = alumnoDoc.data();
       noControl   = a.matricula    || '';
-      grupo       = a.codigoGrupo  || '';
+      grupo       = a.codigoGrupo  || (a.tipoAlumno === 'especial' ? 'Especial' : '');
       turnoStr    = _TURNOS_PPDF[a.turno]       || String(a.turno    || '');
       semestreStr = _SEMESTRES_PPDF[a.periodo]  || String(a.periodo  || '');
 
@@ -52,8 +52,8 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       }
     }
 
-    // ── Fallback de nombres desde historialCalificaciones ────────
-    const histCalNombres = {}; // materiaId → nombre
+    // ── Fallback de nombres: historialCalificaciones → materias ──
+    const histCalNombres = {}; // materiaId → nombre (nivel 2)
     try {
       const histSnap = await db.collection('historialCalificaciones')
         .where('alumnoId', '==', alumnoId).get();
@@ -62,14 +62,15 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
         if (h.materiaId && h.materiaNombre) histCalNombres[h.materiaId] = h.materiaNombre;
       });
     } catch (_) {}
+    const materiasCache = {}; // materiaId → doc data (nivel 3, lazy)
 
     // ── Filtrar al periodo solicitado ─────────────────────────────
     const PERIODO_VALIDO_PPDF = /^\d{4}-\d+$/;
     const normP = v => (v === null || v === undefined || v === '') ? 'N/A' : String(v);
     const registros = [];
-    calSnap.forEach(calDoc => {
+    for (const calDoc of calSnap.docs) {
       const cal = calDoc.data();
-      if (periodoKey !== null && normP(cal.periodo) !== periodoKey) return;
+      if (periodoKey !== null && normP(cal.periodo) !== periodoKey) continue;
 
       const p1Raw = cal.parciales?.parcial1 ?? null;
       const p2Raw = cal.parciales?.parcial2 ?? null;
@@ -86,8 +87,19 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
 
       const str = v => (v !== null && v !== undefined) ? String(v) : '-';
 
+      let materiaNombre = cal.materiaNombre || histCalNombres[cal.materiaId] || '';
+      if (!materiaNombre && cal.materiaId) {
+        if (!materiasCache[cal.materiaId]) {
+          try {
+            const mDoc = await db.collection('materias').doc(cal.materiaId).get();
+            if (mDoc.exists) materiasCache[cal.materiaId] = mDoc.data();
+          } catch (_) {}
+        }
+        materiaNombre = (materiasCache[cal.materiaId] || {}).nombre || 'Sin nombre';
+      }
+
       registros.push({
-        materiaNombre: cal.materiaNombre || histCalNombres[cal.materiaId] || 'Sin nombre',
+        materiaNombre,
         p1: str(p1Raw), f1: str(cal.faltas?.falta1 ?? null),
         p2: str(p2Raw), f2: str(cal.faltas?.falta2 ?? null),
         p3: str(p3Raw), f3: (tieneEF || esMaestria) ? '-' : str(cal.faltas?.falta3 ?? null),
@@ -95,7 +107,7 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
         extra: cal.extraordinario != null ? String(redondearCalificacion(cal.extraordinario)) : '',
         ets:   cal.ets            != null ? String(redondearCalificacion(cal.ets))            : ''
       });
-    });
+    }
 
     if (registros.length === 0) {
       alert(`No hay calificaciones registradas para el periodo ${periodoKey ?? 'actual'}.`);
