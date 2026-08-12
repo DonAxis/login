@@ -530,7 +530,7 @@ let _actasHistAlumnosCache      = null;
 let _actasHistCarreraNombre     = null;
 let _actasHistMateriasActuales  = []; // materias del alumno abierto, indexadas para el PDF
 let _actasCalifCache    = []; // calificaciones de la materia seleccionada (todas las periodos)
-let _actasMatMap        = {}; // alumnoId → matrícula
+let _actasMatMap        = {}; // alumnoId → { matricula, nombre }
 let _actasAlumnosRender = []; // alumnos del periodo seleccionado (para actas individuales)
 
 async function recargarActas(btn) {
