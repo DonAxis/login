@@ -239,7 +239,7 @@ async function ejecutarCambioPeriodoCarrera(event, carreraId, periodoActual, sig
     progressBar.style.width = '70%';
     progressText.textContent = 'Actualizando historial académico...';
 
-    await actualizarHistorialAcademico(carreraId, periodoActual, resultCals.docs, alumnoDataMap);
+    await actualizarHistorialAcademico(carreraId, periodoActual, resultCals.docs, alumnoDataMap, nuevoPeriodo);
 
     // 3.6 CERRAR INSCRIPCIONES ESPECIALES
     progressBar.style.width = '75%';
@@ -623,7 +623,7 @@ async function cerrarInscripcionesEspeciales(carreraId, periodoActual, calsDocs,
 //   · materias[]  → cierra el semestre actual seteando periodoAcademico en TODAS las materias
 //                   del semestre que termina (con o sin calificación capturada)
 //   · periodos[]  → arrayUnion con el registro histórico del periodo (solo alumnos con calificaciones)
-async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, alumnoDataMap) {
+async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, alumnoDataMap, nuevoPeriodo) {
   try {
     // Agrupar calificaciones por alumnoId → { materiaId: calData }
     const calPorAlumno = {};
@@ -702,11 +702,12 @@ async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, 
 
       const writeData = {
         alumnoId,
-        alumnoNombre: info.nombre || '',
-        matricula:    info.matricula || '',
+        alumnoNombre:  info.nombre || '',
+        matricula:     info.matricula || '',
         carreraId,
         fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
       };
+      if (nuevoPeriodo)           writeData.periodoActual = nuevoPeriodo;
       if (periodoEntry)           writeData.periodos = firebase.firestore.FieldValue.arrayUnion(periodoEntry);
       if (materiasActualizadas)   writeData.materias = materiasActualizadas;
 
