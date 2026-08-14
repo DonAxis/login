@@ -468,8 +468,8 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
           const chipColor = sinCap ? '#888'     : (esNP ? '#e65100' : (aprobada ? '#2e7d32' : '#c62828'));
           const chipTxt   = sinCap ? 'Sin captura' : (esNP ? 'NP' : (aprobada ? 'Aprobada' : 'Reprobada'));
           const rawAcr    = rawAcrEfectiva || null;
-          // Periodo: desde calificaciones, si no desde historialAcademico (lo setea cambiarPeriodo)
-          const rawPer    = calMap[m.id]?.periodoAcademico || histMap[m.id] || '';
+          // Periodo: desde calificaciones, si no desde historialAcademico; como default usa el periodo actual de la carrera
+          const rawPer    = calMap[m.id]?.periodoAcademico || histMap[m.id] || periodoActualCarrera || '';
 
           const esValida  = validaMap[m.id] !== false;
           const chkStyle  = esValida ? '' : 'opacity:0.45;';

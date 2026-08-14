@@ -871,8 +871,8 @@ async function cargarAsignaciones() {
             asignacionesPorPeriodo[periodo].push(asignacion);
         });
 
-        // Ordenar periodos de menor a mayor
-        const periodos = Object.keys(asignacionesPorPeriodo).map(p => parseInt(p)).sort((a, b) => a - b);
+        // Ordenar periodos (strings tipo '2026-1') de menor a mayor
+        const periodos = Object.keys(asignacionesPorPeriodo).sort();
 
         console.log('Periodos encontrados:', periodos);
         console.log('Total asignaciones:', snapshot.size);
@@ -1367,7 +1367,7 @@ async function guardarAsignacionProfesor(event) {
                 profesorId: profesorId,
                 profesorNombre: profesorNombre,
                 codigoGrupo: codigoGrupo,
-                periodo: periodoActualCarrera,
+                periodo: periodo,
                 turno: turno,
                 turnoNombre: turnoTexto,
                 orden: orden,
@@ -1810,7 +1810,7 @@ async function guardarAsignacionesAsignar2() {
                 profesorId: select.value,
                 profesorNombre: profesorNombre,
                 codigoGrupo: select.dataset.codigoGrupo,
-                periodo: periodoActualCarrera,
+                periodo: periodo,
                 turno: parseInt(select.dataset.turno),
                 turnoNombre: turnoTexto,
                 orden: orden
