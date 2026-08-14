@@ -95,13 +95,14 @@ async function actualizarBadgePendientes() {
 }
 
 function ocultarTodasSecciones() {
-  document.getElementById('menuPrefecto').style.display      = 'none';
-  document.getElementById('seccionSolicitar').style.display  = 'none';
-  document.getElementById('seccionInformes').style.display   = 'none';
-  document.getElementById('seccionDetalle').style.display    = 'none';
-  document.getElementById('seccionArchivo').style.display    = 'none';
-  document.getElementById('seccionPendientes').style.display = 'none';
-  document.getElementById('btnVolver').style.display         = 'inline-block';
+  document.getElementById('menuPrefecto').style.display         = 'none';
+  document.getElementById('seccionSolicitar').style.display     = 'none';
+  document.getElementById('seccionInformes').style.display      = 'none';
+  document.getElementById('seccionDetalle').style.display       = 'none';
+  document.getElementById('seccionArchivo').style.display       = 'none';
+  document.getElementById('seccionPendientes').style.display    = 'none';
+  document.getElementById('seccionNuevoPeriodo').style.display  = 'none';
+  document.getElementById('btnVolver').style.display            = 'inline-block';
 }
 
 // ============================================================================
@@ -1021,6 +1022,140 @@ function compartirPendientesWhatsApp() {
     `https://ilbcontrol.mx/sice/control/profe/controlProfe.html`;
 
   window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+// ============================================================================
+// NUEVO PERIODO — ARCHIVAR TODOS LOS REPORTES
+// ============================================================================
+
+async function mostrarNuevoPeriodo() {
+  ocultarTodasSecciones();
+  document.getElementById('seccionNuevoPeriodo').style.display = 'block';
+  const cont = document.getElementById('nuevoPeriodoContenido');
+  cont.innerHTML = '<div class="msg-info">Contando reportes activos...</div>';
+
+  try {
+    const snap = await db.collection('reportesPrefecto')
+      .where('archivado', '==', false).get();
+
+    const total = snap.size;
+
+    if (total === 0) {
+      cont.innerHTML = `
+        <div style="background:#e8f5e9; border-left:4px solid #43a047; padding:18px 20px;
+                    border-radius:8px; color:#2e7d32; font-size:1rem; margin-bottom:20px;">
+          No hay reportes activos. El periodo ya está limpio.
+        </div>`;
+      return;
+    }
+
+    let conPendientes = 0;
+    let completos = 0;
+    snap.docs.forEach(d => {
+      const r = d.data();
+      if ((r.profesoresPendientes || []).length > 0) conPendientes++;
+      else completos++;
+    });
+
+    cont.innerHTML = `
+      <div style="background:#fff3e0; border-left:4px solid #e65100; padding:18px 20px;
+                  border-radius:8px; margin-bottom:20px;">
+        <strong style="color:#bf360c; font-size:1rem;">Resumen de reportes activos</strong>
+        <div style="margin-top:14px; display:flex; gap:20px; flex-wrap:wrap;">
+          <div style="background:white; padding:14px 20px; border-radius:8px; text-align:center;
+                      border:2px solid #ffcc80; min-width:120px;">
+            <div style="font-size:2rem; font-weight:800; color:#e65100;">${total}</div>
+            <div style="font-size:0.82rem; color:#666; margin-top:2px;">Total activos</div>
+          </div>
+          <div style="background:white; padding:14px 20px; border-radius:8px; text-align:center;
+                      border:2px solid #a5d6a7; min-width:120px;">
+            <div style="font-size:2rem; font-weight:800; color:#2e7d32;">${completos}</div>
+            <div style="font-size:0.82rem; color:#666; margin-top:2px;">Con respuestas</div>
+          </div>
+          <div style="background:white; padding:14px 20px; border-radius:8px; text-align:center;
+                      border:2px solid #ef9a9a; min-width:120px;">
+            <div style="font-size:2rem; font-weight:800; color:#c62828;">${conPendientes}</div>
+            <div style="font-size:0.82rem; color:#666; margin-top:2px;">Sin respuestas</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#fdecea; border-left:4px solid #c62828; padding:15px 18px;
+                  border-radius:8px; margin-bottom:24px; font-size:0.92rem; color:#333;">
+        <strong style="color:#b71c1c;">Advertencia:</strong> Al confirmar, <strong>todos los
+        reportes activos</strong> pasarán al Archivo, tanto los completos como los que aún
+        tienen profesores pendientes. Esta acción no se puede deshacer.<br><br>
+        Los reportes archivados seguirán visibles en la sección <strong>Archivo</strong>
+        para consulta futura.
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block; font-weight:600; color:#b71c1c; margin-bottom:8px; font-size:0.92rem;">
+          Para continuar, escribe exactamente: <code style="background:#fdecea; padding:2px 7px; border-radius:4px; letter-spacing:1px;">NUEVO PERIODO</code>
+        </label>
+        <input type="text" id="inputConfirmarArchivado" placeholder="Escribe aquí..."
+               oninput="const ok = this.value === 'NUEVO PERIODO'; const b = document.getElementById('btnArchivarTodo'); b.disabled = !ok; b.style.opacity = ok ? '1' : '0.4'; b.style.cursor = ok ? 'pointer' : 'default';"
+               style="padding:10px 14px; border:2px solid #e57373; border-radius:8px;
+                      font-size:1rem; width:100%; max-width:300px; outline:none;"
+               autocomplete="off" spellcheck="false">
+      </div>
+
+      <button id="btnArchivarTodo" onclick="archivarTodosReportes(this)" disabled
+              style="padding:13px 28px; background:linear-gradient(135deg,#e65100,#bf360c);
+                     color:white; border:none; border-radius:8px; font-weight:700;
+                     cursor:pointer; font-size:1rem; opacity:0.4; transition:opacity 0.2s;"
+              onmouseenter="if(!this.disabled) this.style.opacity='0.85';"
+              onmouseleave="if(!this.disabled) this.style.opacity='1';">
+        Archivar todos los reportes (${total})
+      </button>
+      <div id="msgArchivarTodo" style="display:none; margin-top:16px;"></div>
+    `;
+  } catch (e) {
+    cont.innerHTML = `<div style="color:red; padding:12px;">Error: ${e.message}</div>`;
+  }
+}
+
+async function archivarTodosReportes(btn) {
+  const input = document.getElementById('inputConfirmarArchivado');
+  if (!input || input.value !== 'NUEVO PERIODO') return;
+
+  btn.disabled = true;
+  btn.style.opacity = '0.4';
+  btn.textContent = 'Archivando...';
+  const msg = document.getElementById('msgArchivarTodo');
+
+  try {
+    const snap = await db.collection('reportesPrefecto')
+      .where('archivado', '==', false).get();
+
+    if (snap.empty) {
+      msg.style.cssText = 'display:block; background:#e8f5e9; color:#2e7d32; padding:12px 16px; border-radius:8px;';
+      msg.textContent = 'No había reportes activos.';
+      btn.disabled = false;
+      btn.textContent = 'Archivar todos los reportes';
+      return;
+    }
+
+    // Dividir en chunks de 490 por límite de Firestore batch (500 ops)
+    const docs = snap.docs;
+    const CHUNK = 490;
+    for (let i = 0; i < docs.length; i += CHUNK) {
+      const batch = db.batch();
+      docs.slice(i, i + CHUNK).forEach(d => batch.update(d.ref, { archivado: true }));
+      await batch.commit();
+    }
+
+    msg.style.cssText = 'display:block; background:#e8f5e9; color:#2e7d32; padding:12px 16px; border-radius:8px;';
+    msg.textContent = `✓ ${docs.length} reportes archivados. El panel del prefecto, profesores y alumnos ya están limpios para el nuevo periodo.`;
+    btn.style.display = 'none';
+    actualizarBadgePendientes();
+
+  } catch (e) {
+    msg.style.cssText = 'display:block; background:#fdecea; color:#b71c1c; padding:12px 16px; border-radius:8px;';
+    msg.textContent = 'Error al archivar: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Reintentar';
+  }
 }
 
 console.log('Panel Prefecto cargado');
