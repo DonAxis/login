@@ -1035,10 +1035,9 @@ async function mostrarNuevoPeriodo() {
   cont.innerHTML = '<div class="msg-info">Contando reportes activos...</div>';
 
   try {
-    const snap = await db.collection('reportesPrefecto')
-      .where('archivado', '==', false).get();
-
-    const total = snap.size;
+    const snap = await db.collection('reportesPrefecto').get();
+    const activosDocs = snap.docs.filter(d => !d.data().archivado);
+    const total = activosDocs.length;
 
     if (total === 0) {
       cont.innerHTML = `
@@ -1051,7 +1050,7 @@ async function mostrarNuevoPeriodo() {
 
     let conPendientes = 0;
     let completos = 0;
-    snap.docs.forEach(d => {
+    activosDocs.forEach(d => {
       const r = d.data();
       if ((r.profesoresPendientes || []).length > 0) conPendientes++;
       else completos++;
@@ -1125,10 +1124,10 @@ async function archivarTodosReportes(btn) {
   const msg = document.getElementById('msgArchivarTodo');
 
   try {
-    const snap = await db.collection('reportesPrefecto')
-      .where('archivado', '==', false).get();
+    const snap = await db.collection('reportesPrefecto').get();
+    const docs = snap.docs.filter(d => !d.data().archivado);
 
-    if (snap.empty) {
+    if (docs.length === 0) {
       msg.style.cssText = 'display:block; background:#e8f5e9; color:#2e7d32; padding:12px 16px; border-radius:8px;';
       msg.textContent = 'No había reportes activos.';
       btn.disabled = false;
@@ -1137,7 +1136,6 @@ async function archivarTodosReportes(btn) {
     }
 
     // Dividir en chunks de 490 por límite de Firestore batch (500 ops)
-    const docs = snap.docs;
     const CHUNK = 490;
     for (let i = 0; i < docs.length; i += CHUNK) {
       const batch = db.batch();
