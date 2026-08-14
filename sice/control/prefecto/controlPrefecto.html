@@ -205,6 +205,31 @@
 
     .badge-pendiente { color: #f57c00; }
     .badge-completo  { color: #2e7d32; }
+
+    @media (max-width: 480px) {
+      body { padding: 8px; }
+
+      .header-prefecto { padding: 12px 14px; }
+      .header-prefecto h1 { font-size: 1.2rem; }
+
+      .menu-prefecto { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .card-prefecto { padding: 16px 12px; }
+      .card-prefecto h3 { font-size: 0.95rem; }
+      .card-prefecto p  { font-size: 0.8rem; }
+
+      .seccion { padding: 14px; }
+      .seccion-header { flex-wrap: wrap; gap: 8px; }
+      .seccion-header h2 { font-size: 1.1rem; }
+
+      .btn-header { padding: 7px 12px; font-size: 0.82rem; }
+      .btn-primary, .btn-secondary { font-size: 0.92rem; padding: 11px 16px; }
+
+      .modal-box { padding: 20px 16px; }
+    }
+
+    @media (max-width: 360px) {
+      .menu-prefecto { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>

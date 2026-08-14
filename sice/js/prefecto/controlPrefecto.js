@@ -776,8 +776,11 @@ async function archivarReporte() {
 
   const msgEl = document.getElementById('msgWhatsapp'); // reutiliza el área de mensajes
   try {
+    const ahora = new Date();
+    const mes = ahora.getMonth() + 1;
+    const periodoArchivado = `${ahora.getFullYear()}-${mes <= 6 ? 1 : 2}`;
     await db.collection('reportesPrefecto').doc(reporteDetalleActual.id).update({
-      archivado: true
+      archivado: true, periodoArchivado
     });
     mostrarMenu();
   } catch (e) {
@@ -811,26 +814,78 @@ async function mostrarArchivo() {
       const d = { id: doc.id, ...doc.data() };
       if (d.archivado) reportes.push(d);
     });
-    reportes.sort((a, b) => new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud));
 
     if (!reportes.length) {
       contenedor.innerHTML = '<div class="msg-info">No hay reportes archivados.</div>';
       return;
     }
 
-    contenedor.innerHTML = reportes.map(r => {
-      const pendientes = (r.profesoresPendientes || []).length;
-      const total      = Object.keys(r.profesores || {}).length;
-      const completo   = pendientes === 0;
-      const fecha      = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
-        day: '2-digit', month: 'long', year: 'numeric'
-      });
+    // Derivar clave de ciclo: usar periodoArchivado si existe, sino año de fechaSolicitud
+    function cicloDeReporte(r) {
+      if (r.periodoArchivado) return r.periodoArchivado;
+      const fecha = new Date(r.fechaSolicitud);
+      const mes = fecha.getMonth() + 1;
+      return `${fecha.getFullYear()}-${mes <= 6 ? 1 : 2}`;
+    }
+
+    // Agrupar por ciclo
+    const grupos = {};
+    reportes.forEach(r => {
+      const clave = cicloDeReporte(r);
+      if (!grupos[clave]) grupos[clave] = [];
+      grupos[clave].push(r);
+    });
+
+    // Ordenar ciclos de más reciente a más antiguo
+    const ciclos = Object.keys(grupos).sort((a, b) => {
+      const [ay, an] = a.split('-').map(Number);
+      const [by, bn] = b.split('-').map(Number);
+      return by !== ay ? by - ay : bn - an;
+    }).reverse();
+
+    contenedor.innerHTML = ciclos.map((ciclo, idx) => {
+      const lista = grupos[ciclo];
+      lista.sort((a, b) => new Date(b.fechaSolicitud) - new Date(a.fechaSolicitud));
+
+      const abierto = idx === 0; // el más reciente abierto por defecto
+      const filas = lista.map(r => {
+        const pendientes = (r.profesoresPendientes || []).length;
+        const total      = Object.keys(r.profesores || {}).length;
+        const completo   = pendientes === 0;
+        const fecha      = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
+          day: '2-digit', month: 'long', year: 'numeric'
+        });
+        return `
+          <div class="reporte-item" onclick="verDetalleReporte('${r.id}')">
+            <div class="ri-nombre">${r.alumnoNombre}</div>
+            <div class="ri-fecha">${fecha} · Grupo: ${r.codigoGrupo}</div>
+            <div class="ri-estado ${completo ? 'badge-completo' : 'badge-pendiente'}">
+              ${completo ? 'Completo' : `${pendientes} de ${total} profesor${pendientes !== 1 ? 'es' : ''} sin responder`}
+            </div>
+          </div>
+        `;
+      }).join('');
+
       return `
-        <div class="reporte-item" onclick="verDetalleReporte('${r.id}')">
-          <div class="ri-nombre">${r.alumnoNombre}</div>
-          <div class="ri-fecha">${fecha} · Grupo: ${r.codigoGrupo}</div>
-          <div class="ri-estado ${completo ? 'badge-completo' : 'badge-pendiente'}">
-            ${completo ? 'Completo' : `${pendientes} de ${total} profesor${pendientes !== 1 ? 'es' : ''} sin responder`}
+        <div style="margin-bottom:14px; border-radius:10px; overflow:hidden;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.08); border:1px solid #e0f7fa;">
+          <button onclick="toggleArchivoCiclo('ciclo_${ciclo}', this)"
+                  style="width:100%; background:linear-gradient(135deg,#006064,#00838f);
+                         color:white; border:none; padding:14px 18px; text-align:left;
+                         cursor:pointer; font-size:0.97rem; font-weight:700;
+                         display:flex; justify-content:space-between; align-items:center;">
+            <span>Ciclo ${ciclo}</span>
+            <span style="display:flex; gap:10px; align-items:center;">
+              <span style="background:rgba(255,255,255,0.2); border-radius:20px; padding:2px 10px;
+                           font-size:0.82rem; font-weight:600;">
+                ${lista.length} reporte${lista.length !== 1 ? 's' : ''}
+              </span>
+              <span class="chevron-archivo" style="font-size:1.1rem; transition:transform 0.2s;
+                                                   transform:rotate(${abierto ? '90deg' : '0deg'});">›</span>
+            </span>
+          </button>
+          <div id="ciclo_${ciclo}" style="display:${abierto ? 'block' : 'none'}; padding:12px; background:#fafafa;">
+            ${filas}
           </div>
         </div>
       `;
@@ -839,6 +894,14 @@ async function mostrarArchivo() {
   } catch (e) {
     contenedor.innerHTML = `<div class="msg-error">Error: ${e.message}</div>`;
   }
+}
+
+function toggleArchivoCiclo(id, btn) {
+  const panel = document.getElementById(id);
+  const chevron = btn.querySelector('.chevron-archivo');
+  const abierto = panel.style.display !== 'none';
+  panel.style.display = abierto ? 'none' : 'block';
+  if (chevron) chevron.style.transform = abierto ? 'rotate(0deg)' : 'rotate(90deg)';
 }
 
 // ============================================================================
@@ -1060,21 +1123,21 @@ async function mostrarNuevoPeriodo() {
       <div style="background:#fff3e0; border-left:4px solid #e65100; padding:18px 20px;
                   border-radius:8px; margin-bottom:20px;">
         <strong style="color:#bf360c; font-size:1rem;">Resumen de reportes activos</strong>
-        <div style="margin-top:14px; display:flex; gap:20px; flex-wrap:wrap;">
-          <div style="background:white; padding:14px 20px; border-radius:8px; text-align:center;
-                      border:2px solid #ffcc80; min-width:120px;">
-            <div style="font-size:2rem; font-weight:800; color:#e65100;">${total}</div>
-            <div style="font-size:0.82rem; color:#666; margin-top:2px;">Total activos</div>
+        <div style="margin-top:14px; display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+          <div style="background:white; padding:12px 8px; border-radius:8px; text-align:center;
+                      border:2px solid #ffcc80;">
+            <div style="font-size:1.8rem; font-weight:800; color:#e65100;">${total}</div>
+            <div style="font-size:0.78rem; color:#666; margin-top:2px;">Total activos</div>
           </div>
-          <div style="background:white; padding:14px 20px; border-radius:8px; text-align:center;
-                      border:2px solid #a5d6a7; min-width:120px;">
-            <div style="font-size:2rem; font-weight:800; color:#2e7d32;">${completos}</div>
-            <div style="font-size:0.82rem; color:#666; margin-top:2px;">Con respuestas</div>
+          <div style="background:white; padding:12px 8px; border-radius:8px; text-align:center;
+                      border:2px solid #a5d6a7;">
+            <div style="font-size:1.8rem; font-weight:800; color:#2e7d32;">${completos}</div>
+            <div style="font-size:0.78rem; color:#666; margin-top:2px;">Con respuestas</div>
           </div>
-          <div style="background:white; padding:14px 20px; border-radius:8px; text-align:center;
-                      border:2px solid #ef9a9a; min-width:120px;">
-            <div style="font-size:2rem; font-weight:800; color:#c62828;">${conPendientes}</div>
-            <div style="font-size:0.82rem; color:#666; margin-top:2px;">Sin respuestas</div>
+          <div style="background:white; padding:12px 8px; border-radius:8px; text-align:center;
+                      border:2px solid #ef9a9a;">
+            <div style="font-size:1.8rem; font-weight:800; color:#c62828;">${conPendientes}</div>
+            <div style="font-size:0.78rem; color:#666; margin-top:2px;">Sin respuestas</div>
           </div>
         </div>
       </div>
@@ -1089,20 +1152,23 @@ async function mostrarNuevoPeriodo() {
       </div>
 
       <div style="margin-bottom:16px;">
-        <label style="display:block; font-weight:600; color:#b71c1c; margin-bottom:8px; font-size:0.92rem;">
-          Para continuar, escribe exactamente: <code style="background:#fdecea; padding:2px 7px; border-radius:4px; letter-spacing:1px;">NUEVO PERIODO</code>
+        <label style="display:block; font-weight:600; color:#b71c1c; margin-bottom:8px; font-size:0.9rem; line-height:1.4;">
+          Para continuar, escribe exactamente:<br>
+          <span style="background:#fdecea; padding:3px 9px; border-radius:4px; letter-spacing:1px;
+                       font-family:monospace; font-size:1rem; display:inline-block; margin-top:4px;">NUEVO PERIODO</span>
         </label>
         <input type="text" id="inputConfirmarArchivado" placeholder="Escribe aquí..."
                oninput="const ok = this.value === 'NUEVO PERIODO'; const b = document.getElementById('btnArchivarTodo'); b.disabled = !ok; b.style.opacity = ok ? '1' : '0.4'; b.style.cursor = ok ? 'pointer' : 'default';"
                style="padding:10px 14px; border:2px solid #e57373; border-radius:8px;
-                      font-size:1rem; width:100%; max-width:300px; outline:none;"
+                      font-size:1rem; width:100%; max-width:280px; outline:none; box-sizing:border-box;"
                autocomplete="off" spellcheck="false">
       </div>
 
       <button id="btnArchivarTodo" onclick="archivarTodosReportes(this)" disabled
-              style="padding:13px 28px; background:linear-gradient(135deg,#e65100,#bf360c);
+              style="padding:13px 20px; background:linear-gradient(135deg,#e65100,#bf360c);
                      color:white; border:none; border-radius:8px; font-weight:700;
-                     cursor:pointer; font-size:1rem; opacity:0.4; transition:opacity 0.2s;"
+                     cursor:pointer; font-size:0.95rem; opacity:0.4; transition:opacity 0.2s;
+                     width:100%; max-width:360px; box-sizing:border-box;"
               onmouseenter="if(!this.disabled) this.style.opacity='0.85';"
               onmouseleave="if(!this.disabled) this.style.opacity='1';">
         Archivar todos los reportes (${total})
@@ -1135,11 +1201,16 @@ async function archivarTodosReportes(btn) {
       return;
     }
 
+    const ahora = new Date();
+    const mes = ahora.getMonth() + 1;
+    const n = mes <= 6 ? 1 : 2;
+    const periodoArchivado = `${ahora.getFullYear()}-${n}`;
+
     // Dividir en chunks de 490 por límite de Firestore batch (500 ops)
     const CHUNK = 490;
     for (let i = 0; i < docs.length; i += CHUNK) {
       const batch = db.batch();
-      docs.slice(i, i + CHUNK).forEach(d => batch.update(d.ref, { archivado: true }));
+      docs.slice(i, i + CHUNK).forEach(d => batch.update(d.ref, { archivado: true, periodoArchivado }));
       await batch.commit();
     }
 
