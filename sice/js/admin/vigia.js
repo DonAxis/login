@@ -1,73 +1,80 @@
 // Vigía — herramienta de mantenimiento puntual
 
-// Corrige profesorMaterias donde periodo quedó como ciclo escolar ('2026-1')
-// en lugar del número de grado (1, 2, 3...).
-// Busca el grado correcto en la colección materias via materiaId.
 async function accionVigia() {
-  const btn = event?.target;
-  if (btn) { btn.disabled = true; btn.textContent = 'Ejecutando...'; }
+  // Fusionar duplicado de Garcia Lopez Emilio Santiago (LD)
+  // CONSERVAR: LnTHWg5HDxIQDy1CLpRm (tiene historial periodos 1-8)
+  // ELIMINAR:  4ErhBhQNrTXOBjyOYqxv (duplicado, solo periodo 9)
+  const UID_CONSERVAR = 'LnTHWg5HDxIQDy1CLpRm';
+  const UID_BORRAR    = '4ErhBhQNrTXOBjyOYqxv';
+
+  const db = firebase.firestore();
+  const log = [];
 
   try {
-    // Obtener todos los docs activos de profesorMaterias
-    const snap = await db.collection('profesorMaterias').where('activa', '==', true).get();
+    // 1. Leer periodo académico actual de LD
+    const configDoc = await db.doc('config/periodo_LD').get();
+    const periodoActualCarrera = configDoc.exists ? configDoc.data().periodo : null;
+    log.push(`Periodo actual LD: ${periodoActualCarrera || '(no encontrado)'}`);
 
-    const CICLO_PATTERN = /^\d{4}-\d+$/; // detecta strings tipo '2026-1'
-    const malos = snap.docs.filter(doc => {
-      const p = doc.data().periodo;
-      return typeof p === 'string' && CICLO_PATTERN.test(p);
-    });
+    // 2. Avanzar alumno conservado a periodo 9 con el grupo correcto
+    const updateData = {
+      periodo: 9,
+      codigoGrupo: 'LD-1901',
+      turno: 1,
+    };
+    if (periodoActualCarrera) {
+      updateData.periodoActualCiclo = periodoActualCarrera;
+    }
+    await db.doc(`usuarios/${UID_CONSERVAR}`).update(updateData);
+    log.push('✅ Alumno conservado actualizado: periodo=9, grupo=LD-1901, turno=1');
 
-    if (malos.length === 0) {
-      alert('Vigía: No se encontraron documentos con periodo incorrecto. Todo está bien.');
-      if (btn) { btn.disabled = false; btn.textContent = 'Ejecutar Vigía'; }
-      return;
+    // 3. Eliminar calificaciones del duplicado
+    const califs = await db.collection('calificaciones')
+      .where('alumnoId', '==', UID_BORRAR).get();
+    if (!califs.empty) {
+      const batch1 = db.batch();
+      califs.forEach(doc => batch1.delete(doc.ref));
+      await batch1.commit();
+    }
+    log.push(`✅ Calificaciones del duplicado eliminadas: ${califs.size} doc(s)`);
+
+    // 4. Eliminar historialAcademico del duplicado
+    const histRef = db.doc(`historialAcademico/${UID_BORRAR}`);
+    const histDoc = await histRef.get();
+    if (histDoc.exists) {
+      await histRef.delete();
+      log.push('✅ historialAcademico del duplicado eliminado');
+    } else {
+      log.push('ℹ️ historialAcademico del duplicado no existía');
     }
 
-    console.log(`Vigía: encontrados ${malos.length} docs con periodo incorrecto:`, malos.map(d => d.id));
+    // 5. Eliminar inscripcionesEspeciales del duplicado (si las tuviera)
+    const insEsp = await db.collection('inscripcionesEspeciales')
+      .where('alumnoId', '==', UID_BORRAR).get();
+    if (!insEsp.empty) {
+      const batch2 = db.batch();
+      insEsp.forEach(doc => batch2.delete(doc.ref));
+      await batch2.commit();
+      log.push(`✅ InscripcionesEspeciales eliminadas: ${insEsp.size} doc(s)`);
+    }
 
-    // Recopilar materiaIds únicos para leerlos en batch
-    const materiaIds = [...new Set(malos.map(d => d.data().materiaId).filter(Boolean))];
+    // 6. Eliminar alumnoMaterias del duplicado (si las tuviera)
+    const alumMat = await db.collection('alumnoMaterias')
+      .where('alumnoId', '==', UID_BORRAR).get();
+    if (!alumMat.empty) {
+      const batch3 = db.batch();
+      alumMat.forEach(doc => batch3.delete(doc.ref));
+      await batch3.commit();
+      log.push(`✅ AlumnoMaterias eliminados: ${alumMat.size} doc(s)`);
+    }
 
-    // Leer todas las materias necesarias en paralelo
-    const materiaDocs = await Promise.all(
-      materiaIds.map(id => db.collection('materias').doc(id).get())
-    );
-    const gradoPorMateriaId = {};
-    materiaDocs.forEach(doc => {
-      if (doc.exists) {
-        const grado = doc.data().periodo;
-        if (grado != null) gradoPorMateriaId[doc.id] = Number(grado);
-      }
-    });
+    // 7. Eliminar usuario duplicado
+    await db.doc(`usuarios/${UID_BORRAR}`).delete();
+    log.push('✅ Usuario duplicado eliminado');
 
-    // Aplicar correcciones en batch
-    const batch = db.batch();
-    const errores = [];
-    let corregidos = 0;
-
-    malos.forEach(doc => {
-      const materiaId = doc.data().materiaId;
-      const gradoCorrecto = gradoPorMateriaId[materiaId];
-      if (gradoCorrecto != null) {
-        batch.update(doc.ref, { periodo: gradoCorrecto });
-        corregidos++;
-        console.log(`  Corrigiendo ${doc.id}: '${doc.data().periodo}' → ${gradoCorrecto}`);
-      } else {
-        errores.push(`${doc.id}: materiaId '${materiaId}' no encontrado en colección materias`);
-        console.warn(`  Sin grado para ${doc.id} (materiaId: ${materiaId})`);
-      }
-    });
-
-    await batch.commit();
-
-    let msg = `Vigía completado.\n\n✅ Corregidos: ${corregidos} de ${malos.length}`;
-    if (errores.length) msg += `\n\n⚠️ Sin resolver (${errores.length}):\n` + errores.join('\n');
-    alert(msg);
-
-  } catch (e) {
-    console.error('Error en Vigía:', e);
-    alert('Error en Vigía: ' + e.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Ejecutar Vigía'; }
+    alert('Vigía completado con éxito:\n\n' + log.join('\n'));
+  } catch (err) {
+    console.error('Error en vigía:', err);
+    alert('Error: ' + err.message + '\n\nLog hasta el momento:\n' + log.join('\n'));
   }
 }
