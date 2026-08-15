@@ -3121,6 +3121,10 @@ async function guardarAlumno(event, alumnoId) {
         alert('Debes seleccionar turno');
         return;
     }
+    if (!email.includes('@')) {
+        alert('El correo no es válido: debe contener @');
+        return;
+    }
 
     const numeroPeriodos = carreraActualData?.numeroPeriodos || 9;
     const periodo = esGraduado ? numeroPeriodos : parseInt(periodoVal);
@@ -3149,6 +3153,24 @@ async function guardarAlumno(event, alumnoId) {
     }
 
     try {
+        // Verificar matrícula duplicada
+        if (matricula) {
+            const matriculaSnap = await db.collection('usuarios').where('matricula', '==', matricula).get();
+            const dupMatricula = matriculaSnap.docs.find(doc => doc.id !== alumnoId);
+            if (dupMatricula) {
+                alert(`La matrícula "${matricula}" ya está registrada para: ${dupMatricula.data().nombre}\n\nNo se puede guardar.`);
+                return;
+            }
+        }
+
+        // Verificar nombre duplicado — avisa pero no bloquea
+        const nombreSnap = await db.collection('usuarios').where('nombre', '==', nombre).get();
+        const dupNombre = nombreSnap.docs.find(doc => doc.id !== alumnoId);
+        if (dupNombre) {
+            const continuar = confirm(`⚠️ El nombre "${nombre}" ya existe en otro alumno (matrícula: ${dupNombre.data().matricula || 'sin matrícula'}).\n\n¿Deseas continuar de todas formas?`);
+            if (!continuar) return;
+        }
+
         if (alumnoId) {
             // Editar
             await db.collection('usuarios').doc(alumnoId).update(userData);
