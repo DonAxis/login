@@ -520,9 +520,10 @@ async function guardarMateria(event, materiaId) {
         };
 
         if (materiaId) {
-            // Obtener nombre anterior para detectar cambio
+            // Obtener datos anteriores para detectar cambios
             const materiaActual = await db.collection('materias').doc(materiaId).get();
             const nombreAnterior = materiaActual.exists ? materiaActual.data().nombre : '';
+            const periodoAnterior = materiaActual.exists ? (materiaActual.data().periodo || 0) : 0;
 
             // Actualizar materia existente
             await db.collection('materias').doc(materiaId).update(materiaData);
@@ -547,6 +548,14 @@ async function guardarMateria(event, materiaId) {
 
                 console.log(`[guardarMateria] nombre propagado a ${pmSnap.size} profesorMaterias y ${calSnap.size} calificaciones`);
                 await _propagarNombreMateriaEnHistoriales(materiaId, nombre, usuarioActual.carreraId);
+            }
+
+            // Propagar cambio de periodo a profesorMaterias e historialAcademico
+            if (periodo !== periodoAnterior) {
+                await Promise.all([
+                    _propagarPeriodoMateriaEnProfMaterias(materiaId, periodo),
+                    _propagarPeriodoMateriaEnHistoriales(materiaId, periodo, usuarioActual.carreraId)
+                ]);
             }
 
             alert('Materia actualizada correctamente');
@@ -645,6 +654,74 @@ async function _propagarNombreMateriaEnHistoriales(materiaId, nombreNuevo, carre
         console.log(`[guardarMateria] nombre propagado a ${ops} historialAcademico`);
     } catch (e) {
         console.warn('[guardarMateria] Error propagando nombre a historialAcademico:', e);
+    }
+}
+
+// Actualiza periodo y codigoGrupo en profesorMaterias cuando cambia el periodo de una materia.
+async function _propagarPeriodoMateriaEnProfMaterias(materiaId, nuevoPeriodo) {
+    try {
+        const pmSnap = await db.collection('profesorMaterias')
+            .where('materiaId', '==', materiaId)
+            .where('activa', '==', true)
+            .get();
+        if (pmSnap.empty) return;
+
+        let batch = db.batch();
+        let ops = 0;
+        pmSnap.forEach(doc => {
+            const oldCG = doc.data().codigoGrupo || '';
+            const dashIdx = oldCG.indexOf('-');
+            if (dashIdx === -1) return;
+            const ccPart = oldCG.slice(0, dashIdx);
+            const rest = oldCG.slice(dashIdx + 1);
+            if (rest.length < 3) return; // turno(1) + periodo(1+) + orden(2)
+            const turno = rest[0];
+            const orden = rest.slice(-2);
+            const newCG = `${ccPart}-${turno}${nuevoPeriodo}${orden}`;
+            batch.update(doc.ref, { periodo: nuevoPeriodo, codigoGrupo: newCG });
+            ops++;
+        });
+        if (ops > 0) await batch.commit();
+        console.log(`[guardarMateria] periodo propagado a ${ops} profesorMaterias`);
+    } catch (e) {
+        console.warn('[guardarMateria] Error propagando periodo a profesorMaterias:', e);
+    }
+}
+
+// Actualiza periodo en historialAcademico cuando cambia el periodo de una materia.
+async function _propagarPeriodoMateriaEnHistoriales(materiaId, nuevoPeriodo, carreraId) {
+    try {
+        const alumnosSnap = await db.collection('usuarios')
+            .where('carreraId', '==', carreraId)
+            .where('rol', '==', 'alumno')
+            .where('activo', '==', true)
+            .get();
+        if (alumnosSnap.empty) return;
+
+        const alumnoIds = alumnosSnap.docs.map(d => d.id);
+        const histDocs = [];
+        for (let i = 0; i < alumnoIds.length; i += 30) {
+            const snap = await db.collection('historialAcademico')
+                .where(firebase.firestore.FieldPath.documentId(), 'in', alumnoIds.slice(i, i + 30))
+                .get();
+            snap.forEach(d => histDocs.push({ ref: d.ref, materias: d.data().materias || [] }));
+        }
+
+        let batch = db.batch();
+        let ops = 0;
+        for (const { ref, materias } of histDocs) {
+            if (!materias.some(m => m.materiaId === materiaId)) continue;
+            const actualizadas = materias.map(m =>
+                m.materiaId === materiaId ? { ...m, periodo: nuevoPeriodo } : m
+            );
+            batch.update(ref, { materias: actualizadas, fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp() });
+            ops++;
+            if (ops >= 400) { await batch.commit(); batch = db.batch(); ops = 0; }
+        }
+        if (ops > 0) await batch.commit();
+        console.log(`[guardarMateria] periodo propagado a ${ops} historialAcademico`);
+    } catch (e) {
+        console.warn('[guardarMateria] Error propagando periodo a historialAcademico:', e);
     }
 }
 
