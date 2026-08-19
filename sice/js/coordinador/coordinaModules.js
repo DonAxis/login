@@ -670,7 +670,7 @@ async function _propagarPeriodoMateriaEnProfMaterias(materiaId, nuevoPeriodo) {
         let ops = 0;
         pmSnap.forEach(doc => {
             const oldCG = doc.data().codigoGrupo || '';
-            const dashIdx = oldCG.indexOf('-');
+            const dashIdx = oldCG.lastIndexOf('-');
             if (dashIdx === -1) return;
             const ccPart = oldCG.slice(0, dashIdx);
             const rest = oldCG.slice(dashIdx + 1);
