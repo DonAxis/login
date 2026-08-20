@@ -671,6 +671,18 @@ async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, 
       calPorAlumno[c.alumnoId][c.materiaId] = c;
     }
 
+    // Materias de la carrera: necesarias para crear materias[] cuando historialAcademico no existe.
+    // Sin este fetch, alumnos que nunca tuvieron Boleta Global abierta quedan con doc creado
+    // pero sin materias[], y la boleta los muestra todos como "Cursando" tras el cambio de periodo.
+    const materiasCarreraSnap = await db.collection('materias').where('carreraId', '==', carreraId).get();
+    const materiasCarrera = {};
+    materiasCarreraSnap.docs.forEach(doc => {
+      const m = doc.data();
+      if (m.activo !== false) {
+        materiasCarrera[doc.id] = { nombre: m.nombre || '', periodo: Number(m.periodo) || 0 };
+      }
+    });
+
     // Procesar TODOS los alumnos de la carrera (no solo los que tienen calificaciones)
     const alumnoIds = Object.keys(alumnoDataMap);
     if (!alumnoIds.length) return;
@@ -733,6 +745,32 @@ async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, 
           return Object.assign({}, mat, { periodoAcademico: periodoActual });
         });
         if (!cambiado) materiasActualizadas = null;
+      } else if (Object.keys(materiasCarrera).length > 0) {
+        // historialAcademico no existe → crear materias[] completas desde el catálogo de la carrera.
+        // Esto evita que Boleta Global muestre todo como "Cursando" al abrir por primera vez tras cambio de periodo.
+        const materiasNuevas = Object.entries(materiasCarrera).map(([matId, matData]) => {
+          const mat = {
+            materiaId:        matId,
+            materiaNombre:    matData.nombre,
+            periodo:          matData.periodo,
+            calificacion:     null,
+            acr:              null,
+            periodoAcademico: null,
+            valida:           true
+          };
+          // Materias del semestre que se cierra: estampar periodoAcademico y calificación
+          if (semActual === null || matData.periodo === semActual) {
+            mat.periodoAcademico = periodoActual;
+            const cal = calsAlumno[matId];
+            if (cal) {
+              const { calificacion, acr } = _calificacionFinal(cal);
+              mat.calificacion = calificacion;
+              mat.acr          = acr;
+            }
+          }
+          return mat;
+        });
+        materiasActualizadas = materiasNuevas;
       }
 
       if (!periodoEntry && !materiasActualizadas) continue;
