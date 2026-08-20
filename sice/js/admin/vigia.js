@@ -1,30 +1,27 @@
 // Vigía — herramienta de mantenimiento puntual
 
-// Repara historialAcademico.materias[] para alumnos cuyo historial no fue
-// correctamente inicializado durante Cambiar Periodo (porque Boleta Global
-// nunca se abrió antes del cambio de periodo).
-// Idempotente: no pisa periodoAcademico que ya esté seteado.
+// Repara historialAcademico.materias[] para TODAS las carreras que hayan ejecutado
+// Cambiar Periodo, usando el periodoAnterior guardado en config/periodo_{carreraId}.
+// Idempotente: no pisa periodoAcademico ya seteado ni materias sin calificación archivada.
 async function repararHistorialPostCambioPeriodo() {
-  const carreraId = prompt('ID de la carrera a reparar (ej: MAEADM):');
-  if (!carreraId) return;
-  const periodoArchivado = prompt('Periodo cerrado a reparar (ej: 2026-1):');
-  if (!periodoArchivado) return;
-
   if (!confirm(
-    `Reparar historialAcademico para carrera "${carreraId}", periodo "${periodoArchivado}".\n\n` +
-    `Estampará periodoAcademico='${periodoArchivado}' en materias del semestre cerrado ` +
-    `para alumnos cuyo historial quedó sin materias[] tras Cambiar Periodo.\n\n` +
-    `Es seguro ejecutarlo varias veces (no pisa datos ya existentes).\n\n¿Continuar?`
+    'REPARAR HISTORIAL ACADÉMICO — TODAS LAS CARRERAS\n\n' +
+    'Busca alumnos cuyo historialAcademico.materias[] quedó sin actualizar\n' +
+    'tras Cambiar Periodo (cuando Boleta Global nunca se abrió antes del cambio).\n\n' +
+    'Usa el periodo anterior de cada carrera como referencia.\n' +
+    'No pisa datos ya correctos. Seguro de ejecutar varias veces.\n\n' +
+    '¿Continuar?'
   )) return;
 
   _asegurarModalGenerico();
   document.getElementById('contenidoModal').innerHTML = `
-    <div style="background:white;padding:40px;border-radius:15px;text-align:center;max-width:500px;margin:20px auto;">
-      <div style="font-size:18px;font-weight:600;margin-bottom:20px;">Reparando historial académico...</div>
-      <div id="vigiaStatus" style="color:#666;font-size:14px;margin-bottom:10px;">Leyendo datos...</div>
+    <div style="background:white;padding:40px;border-radius:15px;text-align:center;max-width:560px;margin:20px auto;">
+      <div style="font-size:18px;font-weight:600;margin-bottom:16px;">Reparando historial académico...</div>
+      <div id="vigiaStatus" style="color:#666;font-size:14px;margin-bottom:12px;">Leyendo carreras...</div>
       <div style="background:#e0e0e0;height:8px;border-radius:4px;overflow:hidden;">
-        <div id="vigiaBar" style="background:linear-gradient(90deg,#1b5e20,#4caf50);height:100%;width:0%;transition:width 0.3s;"></div>
+        <div id="vigiaBar" style="background:linear-gradient(90deg,#1b5e20,#4caf50);height:100%;width:0%;transition:width 0.4s;"></div>
       </div>
+      <div id="vigiaLog" style="margin-top:16px;text-align:left;font-size:0.82rem;color:#555;max-height:160px;overflow-y:auto;"></div>
     </div>
   `;
   document.getElementById('modalGenerico').style.display = 'flex';
@@ -33,154 +30,227 @@ async function repararHistorialPostCambioPeriodo() {
     const el = document.getElementById('vigiaStatus');
     if (el) el.textContent = msg;
     const bar = document.getElementById('vigiaBar');
-    if (bar && pct !== undefined) bar.style.width = pct + '%';
+    if (bar && pct !== undefined) bar.style.width = Math.min(pct, 100) + '%';
+  };
+  const addLog = (msg) => {
+    const el = document.getElementById('vigiaLog');
+    if (!el) return;
+    const line = document.createElement('div');
+    line.textContent = msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
   };
 
   const _calFinal = (cal) => {
-    if (cal.ets != null)             return { calificacion: cal.ets,            acr: 'ETS' };
-    if (cal.extraordinario != null)  return { calificacion: cal.extraordinario, acr: 'EXT' };
+    if (cal.ets != null)            return { calificacion: cal.ets,            acr: 'ETS' };
+    if (cal.extraordinario != null) return { calificacion: cal.extraordinario, acr: 'EXT' };
     const prom = cal.promedio ?? null;
     return { calificacion: prom, acr: prom !== null ? (cal.acreditacion || 'ORD') : null };
   };
 
   try {
-    // 1. Calificaciones archivadas del periodo
-    setStatus('Leyendo historialCalificaciones...', 10);
-    const histCalSnap = await db.collection('historialCalificaciones')
-      .where('carreraId', '==', carreraId)
-      .where('periodoArchivado', '==', periodoArchivado)
-      .get();
+    // 1. Todas las carreras + sus configs en paralelo
+    setStatus('Leyendo carreras...', 5);
+    const carrerasSnap = await db.collection('carreras').get();
+    const configSnaps  = await Promise.all(
+      carrerasSnap.docs.map(d => db.collection('config').doc(`periodo_${d.id}`).get())
+    );
 
-    if (histCalSnap.empty) {
-      alert(`No se encontraron calificaciones archivadas para carrera "${carreraId}" en periodo "${periodoArchivado}".\nVerifica que el periodo sea correcto y que Cambiar Periodo haya corrido.`);
-      document.getElementById('modalGenerico').style.display = 'none';
+    // Solo carreras que ya tuvieron cambio de periodo (periodoAnterior seteado)
+    const carrerasARepparar = [];
+    carrerasSnap.docs.forEach((doc, i) => {
+      const cfg = configSnaps[i];
+      if (!cfg.exists) return;
+      const periodoAnterior = cfg.data().periodoAnterior || null;
+      if (!periodoAnterior) return;
+      carrerasARepparar.push({
+        carreraId:       doc.id,
+        nombre:          doc.data().nombre || doc.id,
+        periodoAnterior
+      });
+    });
+
+    if (!carrerasARepparar.length) {
+      document.getElementById('contenidoModal').innerHTML = `
+        <div style="background:white;padding:30px;border-radius:15px;max-width:500px;margin:20px auto;">
+          <h3 style="color:#1565c0;text-align:center;margin:0 0 16px 0;">Sin carreras que reparar</h3>
+          <p style="color:#666;text-align:center;">Ninguna carrera tiene registro de cambio de periodo anterior.</p>
+          <button onclick="cerrarModal()" style="width:100%;margin-top:16px;padding:12px;background:#667eea;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Cerrar</button>
+        </div>
+      `;
       return;
     }
 
-    // Agrupar por alumnoId → { materiaId: calData }
-    const calPorAlumno = {};
-    histCalSnap.docs.forEach(doc => {
-      const c = doc.data();
-      if (!c.alumnoId) return;
-      if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = {};
-      calPorAlumno[c.alumnoId][c.materiaId] = c;
-    });
-    const alumnoIds = Object.keys(calPorAlumno);
+    addLog(`${carrerasARepparar.length} carrera(s) con periodo anterior detectadas.`);
 
-    // 2. Materias de la carrera (grado y nombre)
-    setStatus(`${alumnoIds.length} alumnos con calificaciones. Leyendo materias...`, 25);
-    const materiasSnap = await db.collection('materias')
-      .where('carreraId', '==', carreraId)
-      .get();
-    const materiaInfo = {};
-    materiasSnap.docs.forEach(doc => {
-      const m = doc.data();
-      materiaInfo[doc.id] = { nombre: m.nombre || '', periodo: Number(m.periodo) || 0 };
-    });
+    let totalReparados = 0;
+    let totalOmitidos  = 0;
+    const resumenCarreras = [];
 
-    // 3. historialAcademico de todos los alumnos afectados
-    setStatus('Leyendo historialAcademico...', 40);
-    const histSnaps = await Promise.all(
-      alumnoIds.map(id => db.collection('historialAcademico').doc(id).get())
-    );
+    // 2. Procesar cada carrera
+    for (let ci = 0; ci < carrerasARepparar.length; ci++) {
+      const { carreraId, nombre, periodoAnterior } = carrerasARepparar[ci];
+      const pct = 10 + (ci / carrerasARepparar.length) * 85;
+      setStatus(`Procesando: ${nombre} (${periodoAnterior})...`, pct);
+      addLog(`▶ ${nombre} — periodo ${periodoAnterior}`);
 
-    // 4. Reparar
-    setStatus('Reparando documentos...', 60);
-    let batchOp = db.batch();
-    let batchCount = 0;
-    let reparados = 0;
-    let omitidos = 0;
-    const ahora = firebase.firestore.FieldValue.serverTimestamp();
+      // Calificaciones archivadas del periodo cerrado
+      const histCalSnap = await db.collection('historialCalificaciones')
+        .where('carreraId', '==', carreraId)
+        .where('periodoArchivado', '==', periodoAnterior)
+        .get();
 
-    for (let i = 0; i < alumnoIds.length; i++) {
-      const alumnoId   = alumnoIds[i];
-      const histSnap   = histSnaps[i];
-      const calsAlumno = calPorAlumno[alumnoId];
-      let materiasActualizadas = null;
-
-      if (histSnap.exists && (histSnap.data().materias || []).length > 0) {
-        // Doc tiene materias[] → solo estampar las del periodo que aún están null
-        const existentes = histSnap.data().materias || [];
-        let cambiado = false;
-        const nuevas = existentes.map(mat => {
-          if (mat.periodoAcademico) return mat;        // ya cerrada — no pisar
-          const cal = calsAlumno[mat.materiaId];
-          if (!cal) return mat;                        // sin calificación archivada
-          const { calificacion, acr } = _calFinal(cal);
-          cambiado = true;
-          return Object.assign({}, mat, { calificacion, acr, periodoAcademico: periodoArchivado });
-        });
-        if (cambiado) materiasActualizadas = nuevas;
-
-      } else {
-        // Doc no existe o materias[] vacío → crear desde materias de la carrera
-        if (Object.keys(materiaInfo).length === 0) { omitidos++; continue; }
-        materiasActualizadas = Object.entries(materiaInfo).map(([matId, matData]) => {
-          const mat = {
-            materiaId:        matId,
-            materiaNombre:    matData.nombre,
-            periodo:          matData.periodo,
-            calificacion:     null,
-            acr:              null,
-            periodoAcademico: null,
-            valida:           true
-          };
-          const cal = calsAlumno[matId];
-          if (cal) {
-            const { calificacion, acr } = _calFinal(cal);
-            mat.calificacion     = calificacion;
-            mat.acr              = acr;
-            mat.periodoAcademico = periodoArchivado;
-          }
-          return mat;
-        });
+      if (histCalSnap.empty) {
+        addLog(`  ↳ Sin calificaciones archivadas — omitida.`);
+        resumenCarreras.push({ nombre, periodoAnterior, reparados: 0, omitidos: 0, sinDatos: true });
+        continue;
       }
 
-      if (!materiasActualizadas) { omitidos++; continue; }
+      // Agrupar calificaciones por alumnoId
+      const calPorAlumno = {};
+      histCalSnap.docs.forEach(doc => {
+        const c = doc.data();
+        if (!c.alumnoId) return;
+        if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = {};
+        calPorAlumno[c.alumnoId][c.materiaId] = c;
+      });
+      const alumnoIds = Object.keys(calPorAlumno);
 
-      batchOp.set(
-        db.collection('historialAcademico').doc(alumnoId),
-        { materias: materiasActualizadas, fechaActualizacion: ahora },
-        { merge: true }
+      // Materias de la carrera (grado y nombre)
+      const materiasSnap = await db.collection('materias').where('carreraId', '==', carreraId).get();
+      const materiaInfo  = {};
+      materiasSnap.docs.forEach(doc => {
+        const m = doc.data();
+        materiaInfo[doc.id] = { nombre: m.nombre || '', periodo: Number(m.periodo) || 0 };
+      });
+
+      // historialAcademico de todos los alumnos afectados
+      const histSnaps = await Promise.all(
+        alumnoIds.map(id => db.collection('historialAcademico').doc(id).get())
       );
-      batchCount++;
-      reparados++;
 
-      if (batchCount >= 490) {
-        await batchOp.commit();
-        batchOp = db.batch();
-        batchCount = 0;
-        setStatus(`Reparando... ${reparados}/${alumnoIds.length}`, 60 + (reparados / alumnoIds.length) * 35);
+      // Reparar
+      let batchOp    = db.batch();
+      let batchCount = 0;
+      let reparados  = 0;
+      let omitidos   = 0;
+      const ahora    = firebase.firestore.FieldValue.serverTimestamp();
+
+      for (let i = 0; i < alumnoIds.length; i++) {
+        const alumnoId   = alumnoIds[i];
+        const histSnap   = histSnaps[i];
+        const calsAlumno = calPorAlumno[alumnoId];
+        let materiasActualizadas = null;
+
+        if (histSnap.exists && (histSnap.data().materias || []).length > 0) {
+          // Doc tiene materias[] → estampar solo las que faltan periodoAcademico
+          const existentes = histSnap.data().materias || [];
+          let cambiado = false;
+          const nuevas = existentes.map(mat => {
+            if (mat.periodoAcademico) return mat;       // ya cerrada — no pisar
+            const cal = calsAlumno[mat.materiaId];
+            if (!cal) return mat;                       // sin calificación archivada — no tocar
+            const { calificacion, acr } = _calFinal(cal);
+            cambiado = true;
+            return Object.assign({}, mat, { calificacion, acr, periodoAcademico: periodoAnterior });
+          });
+          if (cambiado) materiasActualizadas = nuevas;
+
+        } else if (Object.keys(materiaInfo).length > 0) {
+          // Doc no existe o materias[] vacío → crear desde catálogo de la carrera
+          materiasActualizadas = Object.entries(materiaInfo).map(([matId, matData]) => {
+            const mat = {
+              materiaId:        matId,
+              materiaNombre:    matData.nombre,
+              periodo:          matData.periodo,
+              calificacion:     null,
+              acr:              null,
+              periodoAcademico: null,
+              valida:           true
+            };
+            const cal = calsAlumno[matId];
+            if (cal) {
+              const { calificacion, acr } = _calFinal(cal);
+              mat.calificacion     = calificacion;
+              mat.acr              = acr;
+              mat.periodoAcademico = periodoAnterior;
+            }
+            return mat;
+          });
+        }
+
+        if (!materiasActualizadas) { omitidos++; continue; }
+
+        batchOp.set(
+          db.collection('historialAcademico').doc(alumnoId),
+          { materias: materiasActualizadas, fechaActualizacion: ahora },
+          { merge: true }
+        );
+        batchCount++;
+        reparados++;
+
+        if (batchCount >= 490) {
+          await batchOp.commit();
+          batchOp = db.batch();
+          batchCount = 0;
+        }
       }
+
+      if (batchCount > 0) await batchOp.commit();
+
+      totalReparados += reparados;
+      totalOmitidos  += omitidos;
+      resumenCarreras.push({ nombre, periodoAnterior, reparados, omitidos, sinDatos: false });
+      addLog(`  ↳ ${reparados} reparados, ${omitidos} sin cambios.`);
     }
 
-    if (batchCount > 0) await batchOp.commit();
+    // 3. Resumen final
+    setStatus('Completado.', 100);
+    const filasResumen = resumenCarreras.map(r =>
+      `<tr style="border-bottom:1px solid #eee;">
+        <td style="padding:7px 10px;">${r.nombre}</td>
+        <td style="padding:7px 10px;text-align:center;color:#666;">${r.periodoAnterior}</td>
+        <td style="padding:7px 10px;text-align:center;font-weight:700;color:${r.reparados > 0 ? '#2e7d32' : '#888'};">${r.sinDatos ? '—' : r.reparados}</td>
+        <td style="padding:7px 10px;text-align:center;color:#888;">${r.sinDatos ? 'Sin datos' : r.omitidos}</td>
+      </tr>`
+    ).join('');
 
-    document.getElementById('contenidoModal').innerHTML = `
-      <div style="background:white;padding:30px;border-radius:15px;max-width:500px;margin:20px auto;">
-        <h3 style="color:#2e7d32;text-align:center;margin:0 0 20px 0;">Historial reparado</h3>
-        <div style="background:#e8f5e9;border-radius:8px;padding:20px;margin-bottom:20px;">
-          <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:8px;">
-            <span>Calificaciones archivadas leídas:</span><strong>${histCalSnap.size}</strong>
+    setTimeout(() => {
+      document.getElementById('contenidoModal').innerHTML = `
+        <div style="background:white;padding:30px;border-radius:15px;max-width:600px;margin:20px auto;">
+          <h3 style="color:#2e7d32;text-align:center;margin:0 0 20px 0;">Historial reparado</h3>
+          <div style="background:#e8f5e9;border-radius:8px;padding:16px 20px;margin-bottom:18px;display:flex;gap:30px;justify-content:center;">
+            <div style="text-align:center;">
+              <div style="font-size:2rem;font-weight:800;color:#2e7d32;">${totalReparados}</div>
+              <div style="font-size:0.82rem;color:#555;">historiales reparados</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:2rem;font-weight:800;color:#888;">${totalOmitidos}</div>
+              <div style="font-size:0.82rem;color:#555;">sin cambios (ya correctos)</div>
+            </div>
           </div>
-          <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:8px;">
-            <span>Alumnos con calificaciones:</span><strong>${alumnoIds.length}</strong>
+          <div style="overflow-x:auto;margin-bottom:18px;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+              <thead>
+                <tr style="background:#43a047;color:white;">
+                  <th style="padding:8px 10px;text-align:left;">Carrera</th>
+                  <th style="padding:8px 10px;text-align:center;">Periodo</th>
+                  <th style="padding:8px 10px;text-align:center;">Reparados</th>
+                  <th style="padding:8px 10px;text-align:center;">Sin cambios</th>
+                </tr>
+              </thead>
+              <tbody>${filasResumen}</tbody>
+            </table>
           </div>
-          <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:8px;">
-            <span>Historiales reparados:</span><strong style="color:#4caf50;">${reparados}</strong>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;">
-            <span>Sin cambios (ya correctos):</span><strong style="color:#888;">${omitidos}</strong>
-          </div>
+          <p style="color:#666;font-size:0.85rem;margin-bottom:16px;">
+            Los alumnos reparados ya pueden ver su Boleta Global con calificaciones en lugar de "Cursando".
+          </p>
+          <button onclick="cerrarModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#1b5e20,#2e7d32);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+            Cerrar
+          </button>
         </div>
-        <p style="color:#666;font-size:0.88rem;margin-bottom:16px;">
-          Ya puedes abrir la Boleta Global de los alumnos afectados — las materias del periodo ${periodoArchivado} deberán aparecer con calificaciones en lugar de "Cursando".
-        </p>
-        <button onclick="cerrarModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#1b5e20,#2e7d32);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
-          Cerrar
-        </button>
-      </div>
-    `;
+      `;
+    }, 600);
 
   } catch (error) {
     console.error('Error en repararHistorialPostCambioPeriodo:', error);
