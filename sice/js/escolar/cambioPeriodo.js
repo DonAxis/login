@@ -420,10 +420,12 @@ function calcularNuevoCodigoGrupo(codigoGrupoActual, nuevoSemestre) {
 // También marca los documentos de grupos como activo:false.
 async function archivarGrupos(carreraId, periodoActual) {
   try {
+    // No filtrar por profesorMaterias.periodo: ese campo puede ser número de grado (1,2,3...)
+    // o ciclo escolar ('2026-1') dependiendo de cuándo se creó. Al cambiar periodo se borran
+    // TODOS los docs de profesorMaterias de la carrera (paso 4), así que todos son del ciclo actual.
     const [pmSnap, gruposSnap] = await Promise.all([
       db.collection('profesorMaterias')
         .where('carreraId', '==', carreraId)
-        .where('periodo', '==', periodoActual)
         .get(),
       db.collection('grupos')
         .where('carreraId', '==', carreraId)
@@ -501,20 +503,46 @@ async function contarGruposArchivados(carreraId, periodo) {
   }
 }
 
-// Archivar calificaciones — filtra por carreraId en query (evita N+1 reads)
-// Requiere índice compuesto en Firestore: calificaciones → periodo ASC, carreraId ASC
+// Archivar calificaciones del periodo que cierra.
+// NO filtra por calificaciones.periodo: ese campo puede ser número de grado (1, 2, 3...)
+// en lugar del ciclo escolar ('2026-1') si los profesores guardaron con profesorMaterias
+// ya corregidos por el Vigía anterior. Se usa profesorMaterias (aún activos en paso 3,
+// se borran en paso 4) como scope del periodo actual: materiaId + codigoGrupo.
 async function archivarCalificaciones(carreraId, periodoActual) {
   try {
-    const calificacionesSnap = await db.collection('calificaciones')
-      .where('periodo', '==', periodoActual)
+    const pmSnap = await db.collection('profesorMaterias')
       .where('carreraId', '==', carreraId)
       .get();
+
+    let calDocs = [];
+
+    if (!pmSnap.empty) {
+      // Consultar calificaciones por materia+grupo en paralelo (scope confiable del ciclo actual)
+      const calSnaps = await Promise.all(
+        pmSnap.docs.map(pm => {
+          const d = pm.data();
+          return db.collection('calificaciones')
+            .where('materiaId', '==', d.materiaId)
+            .where('codigoGrupo', '==', d.codigoGrupo)
+            .get();
+        })
+      );
+      // Deduplicar por docId (alumno especial puede aparecer en varias asignaciones)
+      const docsMap = {};
+      calSnaps.forEach(snap => snap.docs.forEach(doc => { docsMap[doc.id] = doc; }));
+      calDocs = Object.values(docsMap);
+    } else {
+      // Sin profesorMaterias disponibles (caso inesperado): leer todo por carreraId
+      console.warn('archivarCalificaciones: sin profesorMaterias activos, fallback por carreraId');
+      const snap = await db.collection('calificaciones').where('carreraId', '==', carreraId).get();
+      calDocs = snap.docs;
+    }
 
     let batch = db.batch();
     let batchCount = 0;
     let contador = 0;
 
-    for (const calDoc of calificacionesSnap.docs) {
+    for (const calDoc of calDocs) {
       const historialRef = db.collection('historialCalificaciones').doc();
       batch.set(historialRef, {
         ...calDoc.data(),
@@ -537,7 +565,7 @@ async function archivarCalificaciones(carreraId, periodoActual) {
     }
 
     console.log(`Calificaciones archivadas: ${contador}`);
-    return { contador, docs: calificacionesSnap.docs };
+    return { contador, docs: calDocs };
 
   } catch (error) {
     console.error('Error al archivar calificaciones:', error);

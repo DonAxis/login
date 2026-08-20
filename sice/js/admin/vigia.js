@@ -94,21 +94,37 @@ async function repararHistorialPostCambioPeriodo() {
       setStatus(`Procesando: ${nombre} (${periodoAnterior})...`, pct);
       addLog(`▶ ${nombre} — periodo ${periodoAnterior}`);
 
-      // Calificaciones archivadas del periodo cerrado
+      // Calificaciones archivadas del periodo cerrado (fuente primaria)
       const histCalSnap = await db.collection('historialCalificaciones')
         .where('carreraId', '==', carreraId)
         .where('periodoArchivado', '==', periodoAnterior)
         .get();
 
+      let calSourceDocs = histCalSnap.docs;
+      let usandoFallback = false;
+
       if (histCalSnap.empty) {
-        addLog(`  ↳ Sin calificaciones archivadas — omitida.`);
-        resumenCarreras.push({ nombre, periodoAnterior, reparados: 0, omitidos: 0, sinDatos: true });
-        continue;
+        // historialCalificaciones vacío: el archivar falló durante el cambio de periodo
+        // (calificaciones.periodo era número de grado, no ciclo escolar).
+        // Fallback: leer calificaciones activas directamente. Solo confiable si los
+        // profesores NO han guardado calificaciones del nuevo periodo aún.
+        const calFallback = await db.collection('calificaciones')
+          .where('carreraId', '==', carreraId)
+          .get();
+
+        if (calFallback.empty) {
+          addLog(`  ↳ Sin datos en ninguna fuente — omitida.`);
+          resumenCarreras.push({ nombre, periodoAnterior, reparados: 0, omitidos: 0, sinDatos: true, fallback: false });
+          continue;
+        }
+        calSourceDocs = calFallback.docs;
+        usandoFallback = true;
+        addLog(`  ↳ ⚠ historialCalificaciones vacío. Usando calificaciones activas (${calFallback.size} docs) como respaldo.`);
       }
 
       // Agrupar calificaciones por alumnoId
       const calPorAlumno = {};
-      histCalSnap.docs.forEach(doc => {
+      calSourceDocs.forEach(doc => {
         const c = doc.data();
         if (!c.alumnoId) return;
         if (!calPorAlumno[c.alumnoId]) calPorAlumno[c.alumnoId] = {};
@@ -200,15 +216,16 @@ async function repararHistorialPostCambioPeriodo() {
 
       totalReparados += reparados;
       totalOmitidos  += omitidos;
-      resumenCarreras.push({ nombre, periodoAnterior, reparados, omitidos, sinDatos: false });
-      addLog(`  ↳ ${reparados} reparados, ${omitidos} sin cambios.`);
+      resumenCarreras.push({ nombre, periodoAnterior, reparados, omitidos, sinDatos: false, fallback: usandoFallback });
+      addLog(`  ↳ ${reparados} reparados, ${omitidos} sin cambios.${usandoFallback ? ' (respaldo desde calificaciones activas)' : ''}`);
     }
 
     // 3. Resumen final
     setStatus('Completado.', 100);
+    const hayFallback = resumenCarreras.some(r => r.fallback);
     const filasResumen = resumenCarreras.map(r =>
-      `<tr style="border-bottom:1px solid #eee;">
-        <td style="padding:7px 10px;">${r.nombre}</td>
+      `<tr style="border-bottom:1px solid #eee;${r.fallback ? 'background:#fff8e1;' : ''}">
+        <td style="padding:7px 10px;">${r.nombre}${r.fallback ? ' <span style="font-size:0.75rem;color:#f57f17;">⚠ respaldo</span>' : ''}</td>
         <td style="padding:7px 10px;text-align:center;color:#666;">${r.periodoAnterior}</td>
         <td style="padding:7px 10px;text-align:center;font-weight:700;color:${r.reparados > 0 ? '#2e7d32' : '#888'};">${r.sinDatos ? '—' : r.reparados}</td>
         <td style="padding:7px 10px;text-align:center;color:#888;">${r.sinDatos ? 'Sin datos' : r.omitidos}</td>
@@ -242,6 +259,13 @@ async function repararHistorialPostCambioPeriodo() {
               <tbody>${filasResumen}</tbody>
             </table>
           </div>
+          ${hayFallback ? `
+          <div style="background:#fff3e0;border-left:4px solid #f57f17;padding:12px 15px;border-radius:4px;margin-bottom:14px;font-size:0.82rem;color:#e65100;">
+            <strong>⚠ Carreras marcadas con "respaldo"</strong> usaron las calificaciones activas porque
+            <code>historialCalificaciones</code> estaba vacío (el archivado del cambio de periodo falló).
+            Esto es correcto si los profesores aún <em>no</em> han guardado calificaciones del nuevo periodo.
+            Si ya guardaron, esas materias podrían tener el ciclo incorrecto — revisa con el coordinador.
+          </div>` : ''}
           <p style="color:#666;font-size:0.85rem;margin-bottom:16px;">
             Los alumnos reparados ya pueden ver su Boleta Global con calificaciones en lugar de "Cursando".
           </p>
