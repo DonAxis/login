@@ -1314,124 +1314,64 @@ if (typeof cargarMateriasYCalificaciones !== 'undefined') {
     
     if (esAlumnoEspecial) {
       console.log('Alumno ESPECIAL detectado');
-      
+
       try {
+        const [tieneEF, esUnParcial] = await Promise.all([
+          obtenerTieneExamenFinal(alumnoActual.carreraId || ''),
+          obtenerEsUnParcial(alumnoActual.carreraId || '')
+        ]);
+
+        if (materiasCache !== null) {
+          renderizarMaterias(materiasCache, tieneEF, esUnParcial);
+          return;
+        }
+
         const inscripcionesSnap = await db.collection('inscripcionesEspeciales')
           .where('alumnoId', '==', alumnoActual.id)
           .where('activa', '==', true)
           .get();
-        
+
         if (inscripcionesSnap.empty) {
-          container.innerHTML = `
-            <div class="sin-datos">
-              <p>Aun no tienes materias inscritas</p>
-            </div>
-          `;
+          container.innerHTML = '<div class="sin-datos"><p>Aun no tienes materias inscritas</p></div>';
           return;
         }
-        
-        const materias = [];
-        
-        for (const doc of inscripcionesSnap.docs) {
-          const inscripcion = doc.data();
-          
-          const docId = alumnoActual.id + '_' + inscripcion.materiaId;
-          const calDoc = await db.collection('calificaciones').doc(docId).get();
-          
-          let parcial1 = '-';
-          let parcial2 = '-';
-          let parcial3 = '-';
-          
+
+        const inscripcionesData = inscripcionesSnap.docs.map(doc => doc.data());
+        const calDocs = await Promise.all(
+          inscripcionesData.map(insc =>
+            db.collection('calificaciones').doc(`${alumnoActual.id}_${insc.materiaId}`).get()
+          )
+        );
+
+        const materias = inscripcionesData.map((inscripcion, i) => {
+          const calDoc = calDocs[i];
+          let parcial1 = '-', parcial2 = '-', parcial3 = '-';
+          let extraordinario = null, ets = null;
           if (calDoc.exists) {
             const data = calDoc.data();
             parcial1 = data.parciales?.parcial1 ?? '-';
             parcial2 = data.parciales?.parcial2 ?? '-';
             parcial3 = data.parciales?.parcial3 ?? '-';
+            extraordinario = data.extraordinario ?? null;
+            ets = data.ets ?? null;
+            const acreditacion = data.acreditacion ?? null;
+            const promedio = data.promedio ?? null;
+            if (ets === null && acreditacion === 'ETS') ets = promedio;
+            if (extraordinario === null && acreditacion === 'EXT') extraordinario = promedio;
           }
-          
-          materias.push({
+          return {
             nombre: inscripcion.materiaNombre,
             codigo: inscripcion.materiaCodigo || '',
             profesor: inscripcion.profesorNombre || 'Sin asignar',
-            grupo: 'Especial',
-            parcial1: parcial1,
-            parcial2: parcial2,
-            parcial3: parcial3
-          });
-        }
-        
-        materias.sort((a, b) => a.nombre.localeCompare(b.nombre));
-        
-        let html = `
-          <div style="background: white; padding: 20px; border-radius: 10px;">
-            <h3 style="color: #6A2135; margin: 0 0 20px 0; text-align: center;">Boleta de Calificaciones</h3>
-            <div style="overflow-x: auto;">
-              <table style="width: 100%; min-width: 700px; border-collapse: collapse;">
-              <thead>
-                <tr style="background: #6A2135; color: white;">
-                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Materia</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 100px;">Grupo</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px;">Parcial 1</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px;">Parcial 2</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px;">Parcial 3</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 90px;">Promedio</th>
-                </tr>
-              </thead>
-              <tbody>
-        `;
-        
-        materias.forEach(materia => {
-          const tieneNP = materia.parcial1 === 'NP' || materia.parcial2 === 'NP' || materia.parcial3 === 'NP';
-          
-          let promedio = '-';
-          
-          if (tieneNP) {
-            promedio = '5.0';
-          } else {
-            const cals = [materia.parcial1, materia.parcial2, materia.parcial3]
-              .filter(c => c !== '-' && c !== null && c !== undefined)
-              .map(c => parseFloat(c))
-              .filter(c => !isNaN(c));
-            
-            if (cals.length > 0) {
-              promedio = (cals.reduce((a, b) => a + b, 0) / cals.length).toFixed(1);
-            }
-          }
-          
-          html += `
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding: 12px; border: 1px solid #ddd;">
-                <strong>${materia.nombre}</strong>
-                <br><small style="color: #666;">Profesor: ${materia.profesor}</small>
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; color: #666; font-weight: bold;">
-                ${materia.grupo}
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold;">
-                ${materia.parcial1}
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold;">
-                ${materia.parcial2}
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.2rem; font-weight: bold;">
-                ${materia.parcial3}
-              </td>
-              <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 1.3rem; font-weight: bold; background: #f0f7ff; color: #6A2135;">
-                ${promedio}
-              </td>
-            </tr>
-          `;
+            periodo: '',
+            parcial1, parcial2, parcial3, extraordinario, ets
+          };
         });
-        
-        html += `
-              </tbody>
-              </table>
-            </div>
-          </div>
-        `;
-        
-        container.innerHTML = html;
-        
+
+        materias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        materiasCache = materias;
+        renderizarMaterias(materias, tieneEF, esUnParcial);
+
       } catch (error) {
         console.error('Error:', error);
         container.innerHTML = '<div class="sin-datos" style="color: red;">Error al cargar informacion</div>';

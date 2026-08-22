@@ -295,6 +295,11 @@ async function cargarMateriasYCalificaciones() {
         parcial3 = data.parciales?.parcial3 ?? '-';
         extraordinario = data.extraordinario ?? null;
         ets = data.ets ?? null;
+        // Fallback: Boleta Global guarda en promedio+acreditacion, no en ets/extraordinario
+        const acreditacion = data.acreditacion ?? null;
+        const promedio = data.promedio ?? null;
+        if (ets === null && acreditacion === 'ETS') ets = promedio;
+        if (extraordinario === null && acreditacion === 'EXT') extraordinario = promedio;
       }
       return {
         nombre: materia.materiaNombre,

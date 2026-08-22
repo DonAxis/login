@@ -997,9 +997,11 @@ window.guardarBatchCalBoleta = async function(alumnoId, cambios, callback) {
         fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
       };
       if (val !== undefined) {
-        fields.promedio        = promedioMap[mid];
-        fields.acreditacion    = acr || null;
+        fields.promedio         = promedioMap[mid];
+        fields.acreditacion     = acr || null;
         fields.periodoAcademico = per || null;
+        fields.ets              = acr === 'ETS' ? promedioMap[mid] : null;
+        fields.extraordinario   = acr === 'EXT' ? promedioMap[mid] : null;
       }
       if (valida !== undefined) fields.valida = valida !== false;
       batch.set(db.collection('calificaciones').doc(`${alumnoId}_${mid}`), fields, { merge: true });
