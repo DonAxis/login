@@ -92,19 +92,20 @@ async function cargarReporte() {
     var snapU = await db.collection('usuarios').get();
     var porRol = {};
 
-    // Activos: { carreraId: { periodo: count } }
-    var alumnosActivos = {};
-    // Inactivos
-    var exGraduados = {}; // carreraId -> count
-    var exBaja      = {}; // carreraId -> count
+    // Activos con periodo: { carreraId: { periodo: count } }
+    var alumnosActivos  = {};
+    // Pasantes (activo:true, pasante:true): { carreraId: count }
+    var alumnosPasantes = {};
+    // Inactivos (activo:false): { carreraId: count }
+    var exBaja          = {};
 
     var profesoresPorCarrera = {};
     var totalUsuarios  = 0;
-    var totalActivos   = 0;
-    var totalNI        = 0; // nuevo ingreso (periodo === 1)
-    var totalReg       = 0; // regulares (periodo > 1)
-    var totalGraduados = 0;
-    var totalBaja      = 0;
+    var totalActivos   = 0; // activo:true (incluye pasantes)
+    var totalNI        = 0; // periodo === 1, no pasante
+    var totalReg       = 0; // periodo > 1,  no pasante
+    var totalPasantes  = 0; // pasante:true
+    var totalBaja      = 0; // activo:false
     var totalProfesores= 0;
 
     snapU.forEach(function(doc) {
@@ -114,21 +115,28 @@ async function cargarReporte() {
       porRol[rol] = (porRol[rol] || 0) + 1;
 
       if (rol === 'alumno') {
-        var cId    = data.carreraId || 'Sin carrera';
-        var per    = data.periodo   || 1;
-        var activo = data.activo !== false;
-        var grad   = data.graduado === true;
+        var cId       = data.carreraId || 'Sin carrera';
+        var per       = data.periodo   || 1;
+        var activo    = data.activo !== false;
+        var esPasante = data.pasante === true;
 
         if (activo) {
           totalActivos++;
           if (!alumnosActivos[cId]) alumnosActivos[cId] = {};
           alumnosActivos[cId][per] = (alumnosActivos[cId][per] || 0) + 1;
 
-          if (per <= 1) { totalNI++;  }
-          else          { totalReg++; }
+          if (esPasante) {
+            totalPasantes++;
+            alumnosPasantes[cId] = (alumnosPasantes[cId] || 0) + 1;
+          } else if (per <= 1) {
+            totalNI++;
+          } else {
+            totalReg++;
+          }
         } else {
-          if (grad) { totalGraduados++; exGraduados[cId] = (exGraduados[cId] || 0) + 1; }
-          else      { totalBaja++;      exBaja[cId]      = (exBaja[cId]      || 0) + 1; }
+          // activo:false → dado de baja manualmente
+          totalBaja++;
+          exBaja[cId] = (exBaja[cId] || 0) + 1;
         }
       }
 
@@ -190,24 +198,30 @@ async function cargarReporte() {
       '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + resumenItems + '</div>';
 
     // ===== ALUMNOS ACTIVOS =====
-    var carrerasAct = Object.keys(alumnosActivos).sort();
+    // alumnosActivos incluye pasantes (activo:true, pasante:true); los separamos al calcular totales
+    var carrerasAct       = Object.keys(alumnosActivos).sort();
     var carrerasActReales = carrerasAct.filter(function(c) { return !esPrueba(c); });
     var carrerasActPrueba = carrerasAct.filter(function(c) { return  esPrueba(c); });
 
-    var totalActivosReales = 0, totalNIReales = 0, totalRegReales = 0;
+    var totalActivosReales = 0, totalNIReales = 0, totalRegReales = 0, totalPasantesReales = 0;
     carrerasActReales.forEach(function(cId) {
+      var pasCar = alumnosPasantes[cId] || 0;
+      totalPasantesReales += pasCar;
       Object.keys(alumnosActivos[cId]).forEach(function(p) {
         var n = alumnosActivos[cId][p];
         totalActivosReales += n;
-        if (parseInt(p) <= 1) totalNIReales += n;
+        if (parseInt(p) <= 1) totalNIReales  += n;
         else                  totalRegReales += n;
       });
+      // Pasantes están contados en totalRegReales (periodo > 1); restarlos para "regulares sin pasantes"
+      totalRegReales -= pasCar;
     });
 
     function renderCarreraActiva(cId) {
       var periodos = alumnosActivos[cId];
       var total    = Object.values(periodos).reduce(function(s, v) { return s + v; }, 0);
       var niCar    = 0;
+      var pasCar   = alumnosPasantes[cId] || 0;
       var chips    = Object.keys(periodos).sort(function(a, b) { return (parseInt(a)||0)-(parseInt(b)||0); })
         .map(function(p) {
           var esNI = parseInt(p) <= 1;
@@ -219,13 +233,12 @@ async function cargarReporte() {
             '<span style="color:#555;">' + periodos[p] + '</span></span>';
         }).join(' ');
 
-      var badgeNI = niCar > 0
-        ? '<span style="font-size:0.72rem;background:#e8f5e9;color:#2e7d32;padding:2px 7px;border-radius:10px;margin-left:4px;">NI: ' + niCar + '</span>'
-        : '';
+      var badges = (niCar  > 0 ? '<span style="font-size:0.72rem;background:#e8f5e9;color:#2e7d32;padding:2px 7px;border-radius:10px;margin-left:4px;">NI: ' + niCar + '</span>' : '') +
+                   (pasCar > 0 ? '<span style="font-size:0.72rem;background:#e3f2fd;color:#1565c0;padding:2px 7px;border-radius:10px;margin-left:4px;">Pas: ' + pasCar + '</span>' : '');
 
       return '<div style="margin-bottom:8px;padding:8px 10px;background:#fafafa;border-radius:8px;border-left:3px solid #7b1fa2;">' +
         '<div style="font-weight:700;color:#333;font-size:0.85rem;margin-bottom:4px;">' +
-          (carrerasMap[cId] || cId) + ' <span style="color:#7b1fa2;font-size:0.8rem;">(' + cId + ')</span>' + badgeNI +
+          (carrerasMap[cId] || cId) + ' <span style="color:#7b1fa2;font-size:0.8rem;">(' + cId + ')</span>' + badges +
           '<span style="float:right;color:#7b1fa2;font-weight:700;">' + total + '</span>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + chips + '</div></div>';
@@ -235,8 +248,9 @@ async function cargarReporte() {
       '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
         '<span style="background:linear-gradient(135deg,#7b1fa2,#9c27b0);color:white;padding:4px 12px;border-radius:8px;font-size:1.1rem;font-weight:700;">' + totalActivosReales + '</span>' +
         '<span style="font-size:0.85rem;color:#555;">alumnos activos</span>' +
-        '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:8px;font-size:0.82rem;font-weight:600;">Nuevo ingreso (P1): ' + totalNIReales + '</span>' +
+        '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:8px;font-size:0.82rem;font-weight:600;">Nuevo ingreso: ' + totalNIReales + '</span>' +
         '<span style="background:#f3e5f5;color:#7b1fa2;padding:3px 10px;border-radius:8px;font-size:0.82rem;font-weight:600;">Regulares: ' + totalRegReales + '</span>' +
+        (totalPasantesReales > 0 ? '<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:8px;font-size:0.82rem;font-weight:600;">Pasantes: ' + totalPasantesReales + '</span>' : '') +
       '</div>';
 
     carrerasActReales.forEach(function(cId) { htmlActivos += renderCarreraActiva(cId); });
@@ -251,42 +265,27 @@ async function cargarReporte() {
     }
     contAlumnos.innerHTML = htmlActivos;
 
-    // ===== EX-ALUMNOS (inactivos) =====
+    // ===== EX-ALUMNOS (activo: false = dados de baja manualmente) =====
     if (contExAlumnos) {
-      var todasCarrerasEx = {};
-      Object.keys(exGraduados).forEach(function(c) { todasCarrerasEx[c] = true; });
-      Object.keys(exBaja).forEach(function(c)      { todasCarrerasEx[c] = true; });
-      var carrerasExReales = Object.keys(todasCarrerasEx).filter(function(c) { return !esPrueba(c); }).sort();
-      var carrerasExPrueba = Object.keys(todasCarrerasEx).filter(function(c) { return  esPrueba(c); }).sort();
+      var carrerasExReales = Object.keys(exBaja).filter(function(c) { return !esPrueba(c); }).sort();
+      var carrerasExPrueba = Object.keys(exBaja).filter(function(c) { return  esPrueba(c); }).sort();
+      var tBajaReales = carrerasExReales.reduce(function(s,c) { return s + (exBaja[c]||0); }, 0);
 
-      var tGradReales = carrerasExReales.reduce(function(s,c) { return s + (exGraduados[c]||0); }, 0);
-      var tBajaReales = carrerasExReales.reduce(function(s,c) { return s + (exBaja[c]     ||0); }, 0);
-      var tExReales   = tGradReales + tBajaReales;
-
-      if (tExReales === 0 && carrerasExPrueba.length === 0) {
-        contExAlumnos.innerHTML = '<div style="text-align:center;padding:12px;color:#999;font-size:0.85rem;">Sin ex-alumnos registrados</div>';
+      if (tBajaReales === 0 && carrerasExPrueba.length === 0) {
+        contExAlumnos.innerHTML = '<div style="text-align:center;padding:12px;color:#999;font-size:0.85rem;">Sin dados de baja registrados</div>';
       } else {
         function renderCarreraEx(cId) {
-          var grad  = exGraduados[cId] || 0;
-          var baja  = exBaja[cId]      || 0;
-          var total = grad + baja;
           return '<div style="margin-bottom:6px;padding:7px 10px;background:#fafafa;border-radius:8px;border-left:3px solid #9e9e9e;">' +
-            '<div style="font-weight:700;color:#333;font-size:0.85rem;margin-bottom:3px;">' +
+            '<div style="font-weight:700;color:#333;font-size:0.85rem;">' +
               (carrerasMap[cId] || cId) + ' <span style="color:#999;font-size:0.8rem;">(' + cId + ')</span>' +
-              '<span style="float:right;color:#757575;font-weight:700;">' + total + '</span>' +
-            '</div>' +
-            '<div style="display:flex;gap:6px;">' +
-              (grad > 0 ? '<span style="font-size:0.75rem;background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;">Graduados: ' + grad + '</span>' : '') +
-              (baja > 0 ? '<span style="font-size:0.75rem;background:#fce4ec;color:#c62828;padding:2px 8px;border-radius:10px;">Baja: '       + baja + '</span>' : '') +
+              '<span style="float:right;color:#757575;font-weight:700;">' + (exBaja[cId]||0) + '</span>' +
             '</div></div>';
         }
 
         var htmlEx =
           '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
-            '<span style="background:linear-gradient(135deg,#616161,#9e9e9e);color:white;padding:4px 12px;border-radius:8px;font-size:1.1rem;font-weight:700;">' + tExReales + '</span>' +
-            '<span style="font-size:0.85rem;color:#555;">ex-alumnos</span>' +
-            (tGradReales > 0 ? '<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:8px;font-size:0.82rem;font-weight:600;">Graduados: ' + tGradReales + '</span>' : '') +
-            (tBajaReales > 0 ? '<span style="background:#fce4ec;color:#c62828;padding:3px 10px;border-radius:8px;font-size:0.82rem;font-weight:600;">Baja: '       + tBajaReales + '</span>' : '') +
+            '<span style="background:linear-gradient(135deg,#616161,#9e9e9e);color:white;padding:4px 12px;border-radius:8px;font-size:1.1rem;font-weight:700;">' + tBajaReales + '</span>' +
+            '<span style="font-size:0.85rem;color:#555;">dados de baja (activo: false)</span>' +
           '</div>';
 
         carrerasExReales.forEach(function(cId) { htmlEx += renderCarreraEx(cId); });
