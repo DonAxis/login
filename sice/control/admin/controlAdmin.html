@@ -220,7 +220,7 @@
 
     <div class="opcion" onclick="accionVigia()" style="background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%); border-color: transparent;">
       <h3 style="color: white;">Acción Vigía</h3>
-      <p style="color: rgba(255,255,255,0.88);">Migrar créditos maestría</p>
+      <p style="color: rgba(255,255,255,0.88);">Acciones unicas</p>
     </div>
 
     <div class="opcion" onclick="crearHistorialAcademicoInicial()" style="background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%); border-color: transparent;">
@@ -682,10 +682,20 @@
         </div>
       </div>
 
-      <!-- Alumnos por Carrera / Periodo -->
+      <!-- Alumnos activos por Carrera / Periodo -->
       <div style="background: #f8f9fa; padding: 15px 18px; border-radius: 10px; border-left: 4px solid #7b1fa2; margin-bottom: 15px;">
-        <h3 style="margin: 0 0 8px 0; color: #7b1fa2; font-size: 1rem;">🎓 Alumnos por Carrera / Periodo</h3>
+        <h3 style="margin: 0 0 8px 0; color: #7b1fa2; font-size: 1rem;">🎓 Alumnos Activos por Carrera / Periodo</h3>
+        <p style="margin: 0 0 8px 0; color: #999; font-size: 0.78rem;">Verde = Nuevo Ingreso (P1) &nbsp;|&nbsp; Morado = Regulares (P2+)</p>
         <div id="reporteAlumnosContenido">
+          <div style="text-align: center; padding: 12px; color: #999; font-size: 0.85rem;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- Ex-Alumnos (inactivos) -->
+      <div style="background: #f8f9fa; padding: 15px 18px; border-radius: 10px; border-left: 4px solid #9e9e9e; margin-bottom: 15px;">
+        <h3 style="margin: 0 0 8px 0; color: #616161; font-size: 1rem;">📋 Ex-Alumnos (inactivos)</h3>
+        <p style="margin: 0 0 8px 0; color: #999; font-size: 0.78rem;">Azul = Graduados &nbsp;|&nbsp; Rojo = Dados de baja</p>
+        <div id="reporteExAlumnosContenido">
           <div style="text-align: center; padding: 12px; color: #999; font-size: 0.85rem;">Cargando...</div>
         </div>
       </div>
