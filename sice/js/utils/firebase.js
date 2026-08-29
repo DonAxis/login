@@ -2,13 +2,13 @@
 // Configuración de Firebase (versión compat)
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDVgbGLLnL8plN1qatCoEXMS6jm5CD1rVc",
-  authDomain: "registrosescolares9.firebaseapp.com",
-  projectId: "registrosescolares9",
-  storageBucket: "registrosescolares9.firebasestorage.app",
-  messagingSenderId: "1094486519116",
-  appId: "1:1094486519116:web:ca9ecd75c5d56dc7b6f3e9",
-  measurementId: "G-HJ8YJG8V3W"
+  apiKey: "AIzaSyBz6-XHbHOXvlHhiSTScY6d86ZK9m0ARq8",
+  authDomain: "registrosescolares9-dev.firebaseapp.com",
+  projectId: "registrosescolares9-dev",
+  storageBucket: "registrosescolares9-dev.firebasestorage.app",
+  messagingSenderId: "657373748694",
+  appId: "1:657373748694:web:418360489f6fc66988d877",
+  measurementId: "G-Y2R4KK8H39"
 };
 
 // Inicializar Firebase
