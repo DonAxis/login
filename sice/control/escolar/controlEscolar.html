@@ -112,6 +112,10 @@
         <h1 style="margin:0; color:#4FC99A; font-size:1.7rem;">Control Escolar</h1>
         <p id="nombreUsuario" style="margin:4px 0 0; opacity:0.85; font-size:0.95rem;">Cargando...</p>
       </div>
+      <button onclick="mostrarPanelEscolar('config')"
+        style="background:transparent; border:1.5px solid rgba(255,255,255,0.5); color:white; padding:8px 16px; border-radius:8px; font-size:0.88rem; font-weight:600; cursor:pointer;">
+        Configuracion
+      </button>
       <button onclick="cerrarSesion()" class="btn-salir">Cerrar Sesion</button>
     </div>
 
@@ -139,12 +143,13 @@
     <nav class="nav-tabs-escolar">
       <button id="btnPanelAlumnos"      class="tab-btn activo" onclick="mostrarPanelEscolar('alumnos')">Alumnos</button>
       <button id="btnPanelExAlumnos"    class="tab-btn"        onclick="mostrarPanelEscolar('exAlumnos')">Ex Alumnos</button>
-      <button id="btnPanelEditar"       class="tab-btn"        onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
+      <button id="btnPanelBuscar"       class="tab-btn"        onclick="mostrarPanelEscolar('buscar')">Buscar</button>
+      <span style="width:1px; background:#ddd; margin:0 4px; align-self:stretch;"></span>
       <button id="btnPanelBoletaGlobal" class="tab-btn"        onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button>
       <button id="btnPanelAprobar"      class="tab-btn"        onclick="mostrarPanelEscolar('aprobar')">Reinscribir</button>
-      <button id="btnPanelBuscar"       class="tab-btn"        onclick="mostrarPanelEscolar('buscar')">Buscar</button>
-      <button id="btnPanelConfig"       class="tab-btn"        onclick="mostrarPanelEscolar('config')">Configuracion</button>
       <button id="btnPanelActas"        class="tab-btn"        onclick="mostrarPanelEscolar('actas')">Actas PDF</button>
+      <span style="width:1px; background:#ddd; margin:0 4px; align-self:stretch;"></span>
+      <button id="btnPanelEditar"       class="tab-btn"        onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
     </nav>
 
     <!-- ═══════════════════════════════════ PANEL 1: ALUMNOS ═══════════════════════════════════ -->
