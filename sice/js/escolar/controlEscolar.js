@@ -2038,8 +2038,21 @@ async function cargarAlumnosParaAprobar() {
       return;
     }
 
+    // Para alumnos sin periodoActualCiclo (inscritos manualmente sin pasar por el sistema),
+    // inferir su estado desde historialAcademico para mostrar el chip correcto.
+    const sinCiclo = alumnos.filter(a => !a.periodoActualCiclo);
+    const historialMap = {};
+    if (sinCiclo.length > 0) {
+      const histSnaps = await Promise.all(
+        sinCiclo.map(a => db.collection('historialAcademico').doc(a.id).get())
+      );
+      histSnaps.forEach((snap, i) => {
+        historialMap[sinCiclo[i].id] = snap.exists ? snap.data() : null;
+      });
+    }
+
     const legendaPeriodo = periodoConfig
-      ? `<span style="font-size:0.82rem;color:#555;">Periodo activo de la carrera: <strong>${periodoConfig}</strong> &nbsp;|&nbsp; 🔴 alumno ya inscrito en este periodo &nbsp; 🟢 puede avanzar</span>`
+      ? `<span style="font-size:0.82rem;color:#555;">Periodo activo: <strong>${periodoConfig}</strong> &nbsp;|&nbsp; 🔴 ya inscrito este ciclo &nbsp; ⚠️ inscrito sin registro de ciclo &nbsp; 🟢 puede avanzar</span>`
       : '';
 
     let html = `
@@ -2063,11 +2076,28 @@ async function cargarAlumnosParaAprobar() {
 
     alumnos.forEach(a => {
       const ultimoPeriodo = a.periodoActualCiclo || null;
-      const bloqueado = ultimoPeriodo && periodoConfig && ultimoPeriodo === periodoConfig;
+      let bloqueado = !!(ultimoPeriodo && periodoConfig && ultimoPeriodo === periodoConfig);
 
       let chipPeriodo;
       if (!ultimoPeriodo) {
-        chipPeriodo = '<span style="color:#999;font-size:0.82rem;">—</span>';
+        const hist = historialMap[a.id];
+        if (hist && Array.isArray(hist.materias)) {
+          const periodoNum = Number(a.periodo) || 1;
+          const materiasDelPeriodo = hist.materias.filter(m => m.periodo === periodoNum);
+          const algunaCerrada = materiasDelPeriodo.some(m => !!m.periodoAcademico);
+          if (materiasDelPeriodo.length > 0 && !algunaCerrada) {
+            // Todas abiertas → está cursando este periodo; fue inscrito sin pasar por el sistema
+            bloqueado = true;
+            chipPeriodo = `<span style="background:#fff8e1;color:#e65100;border:1px solid #ffcc80;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;" title="Fue inscrito al periodo sin pasar por el sistema">⚠️ En periodo actual</span>`;
+          } else if (algunaCerrada) {
+            // Periodo ya cerrado en historial → puede avanzar
+            chipPeriodo = `<span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;">🟢 Puede avanzar</span>`;
+          } else {
+            chipPeriodo = '<span style="color:#999;font-size:0.82rem;">—</span>';
+          }
+        } else {
+          chipPeriodo = '<span style="color:#999;font-size:0.82rem;">—</span>';
+        }
       } else if (bloqueado) {
         chipPeriodo = `<span style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;">🔴 ${ultimoPeriodo}</span>`;
       } else {
@@ -2083,10 +2113,10 @@ async function cargarAlumnosParaAprobar() {
           <td style="padding:10px 12px;">${a.codigoGrupo || '-'}</td>
           <td style="padding:10px 12px;text-align:center;" id="chip-periodo-${a.id}">${chipPeriodo}</td>
           <td style="padding:10px 12px;text-align:center;">
-            <button onclick="avanzarYActualizarFila('${a.id}')"
-              style="padding:6px 14px;background:linear-gradient(135deg,#216A32,#4caf50);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem;">
-              Avanzar Periodo
-            </button>
+            ${bloqueado
+              ? `<button disabled style="padding:6px 14px;background:#bdbdbd;color:white;border:none;border-radius:6px;font-weight:600;font-size:0.85rem;cursor:not-allowed;">Ya inscrito</button>`
+              : `<button onclick="avanzarYActualizarFila('${a.id}')" style="padding:6px 14px;background:linear-gradient(135deg,#216A32,#4caf50);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem;">Avanzar Periodo</button>`
+            }
           </td>
         </tr>
       `;
