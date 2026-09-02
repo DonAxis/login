@@ -2052,7 +2052,7 @@ async function cargarAlumnosParaAprobar() {
     }
 
     const legendaPeriodo = periodoConfig
-      ? `<span style="font-size:0.82rem;color:#555;">Periodo activo: <strong>${periodoConfig}</strong> &nbsp;|&nbsp; 🔴 ya inscrito este ciclo &nbsp; ⚠️ inscrito sin registro de ciclo &nbsp; 🟢 puede avanzar</span>`
+      ? `<span style="font-size:0.82rem;color:#555;">Periodo activo: <strong>${periodoConfig}</strong> &nbsp;|&nbsp; 🔴 ya inscrito este ciclo &nbsp; ⚠️ inscrito sin registro de ciclo &nbsp; 🔵 alumno nuevo &nbsp; 🟢 puede avanzar</span>`
       : '';
 
     let html = `
@@ -2096,7 +2096,9 @@ async function cargarAlumnosParaAprobar() {
             chipPeriodo = '<span style="color:#999;font-size:0.82rem;">—</span>';
           }
         } else {
-          chipPeriodo = '<span style="color:#999;font-size:0.82rem;">—</span>';
+          // Sin documento de historialAcademico → alumno de nuevo ingreso
+          bloqueado = true;
+          chipPeriodo = `<span style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;" title="Sin historial académico — alumno de nuevo ingreso">🔵 Alumno nuevo</span>`;
         }
       } else if (bloqueado) {
         chipPeriodo = `<span style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;">🔴 ${ultimoPeriodo}</span>`;
