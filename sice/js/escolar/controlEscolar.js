@@ -2088,7 +2088,7 @@ async function cargarAlumnosParaAprobar() {
           if (materiasDelPeriodo.length > 0 && !algunaCerrada) {
             // Todas abiertas → está cursando este periodo; fue inscrito sin pasar por el sistema
             bloqueado = true;
-            chipPeriodo = `<span style="background:#fff8e1;color:#e65100;border:1px solid #ffcc80;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;" title="Fue inscrito al periodo sin pasar por el sistema">⚠️ En periodo actual</span>`;
+            chipPeriodo = `<span style="background:#fff8e1;color:#e65100;border:1px solid #ffcc80;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;" title="Inscrito sin registro de ciclo">⚠️ ${periodoConfig || '?'}</span>`;
           } else if (algunaCerrada) {
             // Periodo ya cerrado en historial → puede avanzar
             chipPeriodo = `<span style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;border-radius:12px;padding:3px 10px;font-size:0.82rem;font-weight:600;">🟢 Puede avanzar</span>`;
