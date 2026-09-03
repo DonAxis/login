@@ -2033,24 +2033,22 @@ async function reasignarProfesor(asignacionId) {
 }
 async function reasignarProfesorDirecto(asignacionId) {
     try {
-        // Obtener datos de la asignación actual
         const asignDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
-
-        if (!asignDoc.exists) {
-            alert('No se encontró la asignación');
-            return;
-        }
-
+        if (!asignDoc.exists) { alert('No se encontró la asignación'); return; }
         const asignActual = asignDoc.data();
+
+        // Extraer codigoCarrera del codigoGrupo (usar lastIndexOf para soportar códigos con guión, ej. "LAE-1")
+        const guion = asignActual.codigoGrupo.lastIndexOf('-');
+        const codigoCarrera = asignActual.codigoGrupo.substring(0, guion);
+        const periodoNum = asignActual.periodo;
 
         // Cargar profesores disponibles
         const profesoresValidos = [];
 
-        const profesoresPurosQuery = db.collection('usuarios')
-            .where('rol', '==', 'profesor')
-            .where('activo', '==', true);
-
-        const profesoresPurosSnap = await profesoresPurosQuery.get();
+        const [profesoresPurosSnap, coordinadoresSnap] = await Promise.all([
+            db.collection('usuarios').where('rol', '==', 'profesor').where('activo', '==', true).get(),
+            db.collection('usuarios').where('rol', '==', 'coordinador').where('activo', '==', true).get()
+        ]);
 
         profesoresPurosSnap.forEach(doc => {
             const data = doc.data();
@@ -2060,36 +2058,17 @@ async function reasignarProfesorDirecto(asignacionId) {
                     else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
                     return false;
                 });
-                if (tieneCarrera) profesoresValidos.push({
-                    id: doc.id,
-                    ...data
-                });
+                if (tieneCarrera) profesoresValidos.push({ id: doc.id, ...data });
             }
         });
-
-        const coordinadoresQuery = db.collection('usuarios')
-            .where('rol', '==', 'coordinador')
-            .where('activo', '==', true);
-
-        const coordinadoresSnap = await coordinadoresQuery.get();
 
         coordinadoresSnap.forEach(doc => {
             const data = doc.data();
             if (!data.roles || !data.roles.includes('profesor')) return;
-            let tieneAcceso = false;
-            if (data.carreras && Array.isArray(data.carreras)) {
-                tieneAcceso = data.carreras.some(c => {
-                    if (typeof c === 'string') return c === usuarioActual.carreraId;
-                    else if (typeof c === 'object' && c.carreraId) return c.carreraId === usuarioActual.carreraId;
-                    return false;
-                });
-            } else if (data.carreraId === usuarioActual.carreraId) {
-                tieneAcceso = true;
-            }
-            if (tieneAcceso) profesoresValidos.push({
-                id: doc.id,
-                ...data
-            });
+            let tieneAcceso = data.carreras && Array.isArray(data.carreras)
+                ? data.carreras.some(c => (typeof c === 'string' ? c : c.carreraId) === usuarioActual.carreraId)
+                : data.carreraId === usuarioActual.carreraId;
+            if (tieneAcceso) profesoresValidos.push({ id: doc.id, ...data });
         });
 
         profesoresValidos.sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -2101,29 +2080,66 @@ async function reasignarProfesorDirecto(asignacionId) {
             profesoresHtml += `<option value="${prof.id}" data-nombre="${prof.nombre}" ${selected}>${prof.nombre}${rolDisplay}</option>`;
         });
 
+        const turnoOpts = [
+            { v: 1, t: 'Matutino' }, { v: 2, t: 'Vespertino' },
+            { v: 3, t: 'Nocturno' }, { v: 4, t: 'Sabatino' }
+        ].map(o => `<option value="${o.v}" ${asignActual.turno == o.v ? 'selected' : ''}>${o.t}</option>`).join('');
+
+        const ordenActual = parseInt(asignActual.orden || '1');
+
         const html = `
-            <div style="background: white; padding: 30px; border-radius: 15px; max-width: 600px; margin: 20px auto;">
-                <h3 style="margin: 0 0 20px 0; color: #667eea;">Reasignar Profesor</h3>
-                
-                <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <p style="margin: 5px 0;"><strong>Materia:</strong> ${asignActual.materiaNombre}</p>
-                    <p style="margin: 5px 0;"><strong>Grupo:</strong> ${asignActual.codigoGrupo}</p>
-                    <p style="margin: 5px 0;"><strong>Profesor actual:</strong> ${asignActual.profesorNombre}</p>
+            <div style="background:white;padding:28px;border-radius:15px;max-width:620px;margin:20px auto;">
+                <h3 style="margin:0 0 4px;color:#667eea;">Gestionar Asignación</h3>
+
+                <div style="background:#f5f5f5;padding:14px 16px;border-radius:8px;margin-bottom:22px;font-size:0.92rem;">
+                    <p style="margin:4px 0;"><strong>Materia:</strong> ${asignActual.materiaNombre}</p>
+                    <p style="margin:4px 0;"><strong>Grupo actual:</strong> ${asignActual.codigoGrupo}</p>
+                    <p style="margin:4px 0;"><strong>Profesor actual:</strong> ${asignActual.profesorNombre}</p>
                 </div>
 
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nuevo Profesor:</label>
-                    <select id="nuevoProfesorReasignar" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem;">
+                <hr style="border:none;border-top:2px solid #e0e0e0;margin:0 0 20px;">
+
+                <!-- Sección 1: Reasignar Profesor -->
+                <h4 style="color:#444;margin:0 0 12px;font-size:0.88rem;text-transform:uppercase;letter-spacing:0.5px;">Reasignar Profesor</h4>
+                <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;">
+                    <select id="nuevoProfesorReasignar" style="flex:1;min-width:220px;padding:10px;border:2px solid #ddd;border-radius:8px;font-size:0.95rem;">
                         ${profesoresHtml}
                     </select>
+                    <button onclick="confirmarReasignacionProfesor('${asignacionId}')"
+                        style="padding:10px 18px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                        Cambiar Profesor
+                    </button>
                 </div>
 
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button onclick="confirmarReasignacion('${asignacionId}')" class="botAzu">
-                        Guardar Cambio
+                <hr style="border:none;border-top:2px solid #e0e0e0;margin:0 0 20px;">
+
+                <!-- Sección 2: Reasignar Grupo -->
+                <h4 style="color:#444;margin:0 0 12px;font-size:0.88rem;text-transform:uppercase;letter-spacing:0.5px;">Reasignar Grupo</h4>
+                <div style="background:#fff8e1;border-left:3px solid #ffc107;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:0.86rem;color:#555;line-height:1.4;">
+                    ⚠️ Esto <strong>mueve</strong> la asignación existente al nuevo grupo. Para tener la misma materia en un segundo grupo con otro profesor, usa <em>Asignar por Materia</em>.
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:24px;">
+                    <div>
+                        <label style="display:block;font-size:0.84rem;font-weight:600;color:#555;margin-bottom:5px;">Turno</label>
+                        <select id="nuevoTurnoReasignar" style="padding:10px;border:2px solid #ddd;border-radius:8px;min-width:140px;">
+                            ${turnoOpts}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.84rem;font-weight:600;color:#555;margin-bottom:5px;">Número de grupo</label>
+                        <input type="number" id="nuevoOrdenReasignar" min="1" max="99" value="${ordenActual}"
+                            style="padding:10px;border:2px solid #ddd;border-radius:8px;width:90px;font-size:0.95rem;">
+                    </div>
+                    <button onclick="confirmarReasignacionGrupo('${asignacionId}',${periodoNum},'${codigoCarrera}','${asignActual.codigoGrupo}')"
+                        style="padding:10px 18px;background:linear-gradient(135deg,#e65100,#ff6d00);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                        Cambiar Grupo
                     </button>
-                    <button onclick="cerrarModal()" class="btn-cancelar">
-                        Cancelar
+                </div>
+
+                <div style="text-align:right;">
+                    <button onclick="cerrarModal()"
+                        style="padding:10px 20px;background:#f5f5f5;border:2px solid #ddd;border-radius:8px;font-weight:600;cursor:pointer;">
+                        Cerrar
                     </button>
                 </div>
             </div>
@@ -2137,15 +2153,13 @@ async function reasignarProfesorDirecto(asignacionId) {
         alert('Error al cargar formulario de reasignación');
     }
 }
-async function confirmarReasignacion(asignacionId) {
+
+async function confirmarReasignacionProfesor(asignacionId) {
     const select = document.getElementById('nuevoProfesorReasignar');
     const nuevoProfesorId = select.value;
     const nuevoProfesorNombre = select.options[select.selectedIndex].dataset.nombre;
 
-    if (!nuevoProfesorId) {
-        alert('Selecciona un profesor');
-        return;
-    }
+    if (!nuevoProfesorId) { alert('Selecciona un profesor'); return; }
 
     try {
         await db.collection('profesorMaterias').doc(asignacionId).update({
@@ -2153,26 +2167,214 @@ async function confirmarReasignacion(asignacionId) {
             profesorNombre: nuevoProfesorNombre,
             fechaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
         });
-
         alert('Profesor reasignado correctamente');
         cerrarModal();
         await cargarAsignaciones();
-
     } catch (error) {
         console.error('Error:', error);
         alert('Error al reasignar: ' + error.message);
     }
 }
 
+async function confirmarReasignacionGrupo(asignacionId, periodoNum, codigoCarrera, codigoGrupoActual) {
+    const turnoEl = document.getElementById('nuevoTurnoReasignar');
+    const ordenEl = document.getElementById('nuevoOrdenReasignar');
+    const nuevoTurno = parseInt(turnoEl.value);
+    const nuevoTurnoNombre = turnoEl.options[turnoEl.selectedIndex].text;
+    const nuevoOrden = String(parseInt(ordenEl.value) || 1).padStart(2, '0');
+
+    if (!nuevoTurno || !ordenEl.value.trim()) { alert('Completa turno y número de grupo'); return; }
+
+    const nuevoCodigoGrupo = `${codigoCarrera}-${nuevoTurno}${periodoNum}${nuevoOrden}`;
+
+    if (nuevoCodigoGrupo === codigoGrupoActual) {
+        alert('El grupo seleccionado es el mismo que el actual.'); return;
+    }
+
+    try {
+        const asignDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+        const asign = asignDoc.data();
+
+        // Verificar que el grupo destino no tenga ya esta materia
+        const existenteDestino = await db.collection('profesorMaterias')
+            .where('materiaId', '==', asign.materiaId)
+            .where('codigoGrupo', '==', nuevoCodigoGrupo)
+            .where('activa', '==', true)
+            .get();
+
+        if (!existenteDestino.empty) {
+            alert(`La materia "${asign.materiaNombre}" ya tiene una asignación activa en el grupo ${nuevoCodigoGrupo}.\n\nElimínala primero si deseas reemplazarla.`);
+            return;
+        }
+
+        // Contar registros afectados antes de confirmar
+        const [calsSnap, inscSnap] = await Promise.all([
+            db.collection('calificaciones')
+                .where('materiaId', '==', asign.materiaId)
+                .where('codigoGrupo', '==', codigoGrupoActual)
+                .get(),
+            db.collection('inscripcionesEspeciales')
+                .where('materiaId', '==', asign.materiaId)
+                .where('codigoGrupo', '==', codigoGrupoActual)
+                .where('activa', '==', true)
+                .get()
+        ]);
+
+        let confirmMsg =
+            `MOVER ASIGNACIÓN AL NUEVO GRUPO\n\n` +
+            `Materia: ${asign.materiaNombre}\n` +
+            `Grupo actual: ${codigoGrupoActual}  →  Grupo nuevo: ${nuevoCodigoGrupo}\n`;
+        if (calsSnap.size > 0) confirmMsg += `\n• ${calsSnap.size} calificación(es) serán actualizadas`;
+        if (inscSnap.size > 0) confirmMsg += `\n• ${inscSnap.size} inscripción(es) especial(es) activa(s) serán actualizadas`;
+        confirmMsg += `\n\n⚠️ Esto mueve la asignación existente, no crea una nueva.\n\n¿Continuar?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        const ahora = firebase.firestore.FieldValue.serverTimestamp();
+
+        // 1. UPDATE profesorMaterias
+        await db.collection('profesorMaterias').doc(asignacionId).update({
+            codigoGrupo: nuevoCodigoGrupo,
+            turno: nuevoTurno,
+            turnoNombre: nuevoTurnoNombre,
+            orden: nuevoOrden,
+            fechaActualizacion: ahora
+        });
+
+        // 2. UPDATE calificaciones
+        if (!calsSnap.empty) {
+            let batch = db.batch(); let n = 0;
+            for (const doc of calsSnap.docs) {
+                batch.update(doc.ref, { codigoGrupo: nuevoCodigoGrupo });
+                if (++n === 499) { await batch.commit(); batch = db.batch(); n = 0; }
+            }
+            if (n > 0) await batch.commit();
+        }
+
+        // 3. UPDATE inscripcionesEspeciales activas
+        if (!inscSnap.empty) {
+            let batch = db.batch(); let n = 0;
+            for (const doc of inscSnap.docs) {
+                batch.update(doc.ref, { codigoGrupo: nuevoCodigoGrupo });
+                if (++n === 499) { await batch.commit(); batch = db.batch(); n = 0; }
+            }
+            if (n > 0) await batch.commit();
+        }
+
+        // 4. HORARIO: mover si ya no quedan asignaciones activas en el grupo viejo
+        const restantesSnap = await db.collection('profesorMaterias')
+            .where('codigoGrupo', '==', codigoGrupoActual)
+            .where('activa', '==', true)
+            .get();
+
+        let horarioMovido = false;
+        if (restantesSnap.empty) {
+            const horarioDoc = await db.collection('horarios').doc(codigoGrupoActual).get();
+            if (horarioDoc.exists) {
+                const horBatch = db.batch();
+                horBatch.set(db.collection('horarios').doc(nuevoCodigoGrupo), {
+                    ...horarioDoc.data(),
+                    codigoGrupo: nuevoCodigoGrupo,
+                    fechaSubida: ahora
+                });
+                horBatch.delete(db.collection('horarios').doc(codigoGrupoActual));
+                await horBatch.commit();
+                horarioMovido = true;
+            }
+        }
+
+        let resumen = `✓ Asignación movida a ${nuevoCodigoGrupo}`;
+        if (calsSnap.size > 0) resumen += `\n✓ ${calsSnap.size} calificación(es) actualizadas`;
+        if (inscSnap.size > 0) resumen += `\n✓ ${inscSnap.size} inscripción(es) especial(es) actualizadas`;
+        if (horarioMovido) resumen += `\n✓ Horario transferido al nuevo grupo`;
+
+        alert(resumen);
+        cerrarModal();
+        await cargarAsignaciones();
+
+    } catch (error) {
+        console.error('Error al reasignar grupo:', error);
+        alert('Error al reasignar grupo: ' + error.message);
+    }
+}
+
 
 async function eliminarAsignacion(asignacionId) {
-    if (!confirm('¿Eliminar esta asignación?\n\nSe desactivará y no aparecerá en la lista.')) return;
     try {
+        const asignDoc = await db.collection('profesorMaterias').doc(asignacionId).get();
+        if (!asignDoc.exists) { alert('No se encontró la asignación'); return; }
+        const asign = asignDoc.data();
+
+        // Revisar registros afectados antes de confirmar
+        const [calsSnap, inscSnap] = await Promise.all([
+            db.collection('calificaciones')
+                .where('materiaId', '==', asign.materiaId)
+                .where('codigoGrupo', '==', asign.codigoGrupo)
+                .get(),
+            db.collection('inscripcionesEspeciales')
+                .where('materiaId', '==', asign.materiaId)
+                .where('codigoGrupo', '==', asign.codigoGrupo)
+                .where('activa', '==', true)
+                .get()
+        ]);
+
+        let confirmMsg =
+            `¿Eliminar asignación?\n\n` +
+            `Materia: ${asign.materiaNombre}\n` +
+            `Grupo: ${asign.codigoGrupo}\n` +
+            `Profesor: ${asign.profesorNombre}\n`;
+        if (calsSnap.size > 0)
+            confirmMsg += `\n• ${calsSnap.size} calificación(es) guardadas se conservan para el archivo de fin de periodo.`;
+        if (inscSnap.size > 0)
+            confirmMsg += `\n• ${inscSnap.size} inscripción(es) especial(es) activa(s) serán cerradas.`;
+        confirmMsg += '\n\n¿Continuar?';
+
+        if (!confirm(confirmMsg)) return;
+
+        const ahora = firebase.firestore.FieldValue.serverTimestamp();
+
+        // 1. Desactivar la asignación (soft-delete para que archivarCalificaciones la incluya al cerrar periodo)
         await db.collection('profesorMaterias').doc(asignacionId).update({
             activa: false,
-            fechaFin: firebase.firestore.FieldValue.serverTimestamp()
+            fechaFin: ahora
         });
+
+        // 2. Cerrar inscripcionesEspeciales activas vinculadas
+        if (!inscSnap.empty) {
+            let batch = db.batch(); let n = 0;
+            for (const doc of inscSnap.docs) {
+                batch.update(doc.ref, {
+                    activa: false,
+                    fechaBaja: ahora,
+                    motivoBaja: 'Asignación de profesor eliminada'
+                });
+                if (++n === 499) { await batch.commit(); batch = db.batch(); n = 0; }
+            }
+            if (n > 0) await batch.commit();
+        }
+
+        // 3. Eliminar horario si ya no quedan asignaciones activas en el grupo
+        const restantesSnap = await db.collection('profesorMaterias')
+            .where('codigoGrupo', '==', asign.codigoGrupo)
+            .where('activa', '==', true)
+            .get();
+
+        let horarioBorrado = false;
+        if (restantesSnap.empty) {
+            const horarioDoc = await db.collection('horarios').doc(asign.codigoGrupo).get();
+            if (horarioDoc.exists) {
+                await db.collection('horarios').doc(asign.codigoGrupo).delete();
+                horarioBorrado = true;
+            }
+        }
+
+        let resumen = '✓ Asignación eliminada';
+        if (inscSnap.size > 0) resumen += `\n✓ ${inscSnap.size} inscripción(es) especial(es) cerradas`;
+        if (horarioBorrado) resumen += '\n✓ Horario del grupo eliminado (sin asignaciones activas)';
+
+        alert(resumen);
         await cargarAsignaciones();
+
     } catch (error) {
         console.error('Error al eliminar asignación:', error);
         alert('Error al eliminar: ' + error.message);
