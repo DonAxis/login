@@ -35,10 +35,22 @@
       background: #fff5f7;
     }
     .tab-btn.activo {
-      background: #6A2135;
-      color: white;
-      border-color: #6A2135;
+      background: #6A2135 !important;
+      color: white !important;
+      border-color: #6A2135 !important;
     }
+
+    /* Grupo 1 — Alumnos (azul pastel) */
+    .tab-g1 { background: #e8f0ff; border-color: #93b4f5; color: #1a3a8f; }
+    .tab-g1:hover { background: #d0e0ff; border-color: #6690e0; color: #1a3a8f; }
+
+    /* Grupo 2 — Académico (verde-menta pastel) */
+    .tab-g2 { background: #e6f6f2; border-color: #7ecab5; color: #0d6b55; }
+    .tab-g2:hover { background: #cceee7; border-color: #4aab90; color: #0d6b55; }
+
+    /* Grupo 3 — Admin (ámbar pastel) */
+    .tab-g3 { background: #fff6e6; border-color: #f5c07a; color: #7d4a00; }
+    .tab-g3:hover { background: #ffe9c0; border-color: #e09a40; color: #7d4a00; }
 
     /* ── Secciones de panel ── */
     .panel-escolar { display: none; }
@@ -141,15 +153,15 @@
 
     <!-- TABS DE NAVEGACIÓN -->
     <nav class="nav-tabs-escolar">
-      <button id="btnPanelAlumnos"      class="tab-btn activo" onclick="mostrarPanelEscolar('alumnos')">Alumnos</button>
-      <button id="btnPanelExAlumnos"    class="tab-btn"        onclick="mostrarPanelEscolar('exAlumnos')">Ex Alumnos</button>
-      <button id="btnPanelBuscar"       class="tab-btn"        onclick="mostrarPanelEscolar('buscar')">Buscar</button>
-      <span style="width:1px; background:#ddd; margin:0 4px; align-self:stretch;"></span>
-      <button id="btnPanelBoletaGlobal" class="tab-btn"        onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button>
-      <button id="btnPanelAprobar"      class="tab-btn"        onclick="mostrarPanelEscolar('aprobar')">Reinscribir</button>
-      <button id="btnPanelActas"        class="tab-btn"        onclick="mostrarPanelEscolar('actas')">Actas PDF</button>
-      <span style="width:1px; background:#ddd; margin:0 4px; align-self:stretch;"></span>
-      <button id="btnPanelEditar"       class="tab-btn"        onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
+      <button id="btnPanelAlumnos"      class="tab-btn tab-g1 activo" onclick="mostrarPanelEscolar('alumnos')">Alumnos</button>
+      <button id="btnPanelExAlumnos"    class="tab-btn tab-g1"        onclick="mostrarPanelEscolar('exAlumnos')">Ex Alumnos</button>
+      <button id="btnPanelBuscar"       class="tab-btn tab-g1"        onclick="mostrarPanelEscolar('buscar')">Buscar</button>
+      <span style="width:1px; background:#ccc; margin:0 14px; align-self:stretch;"></span>
+      <button id="btnPanelBoletaGlobal" class="tab-btn tab-g2"        onclick="mostrarPanelEscolar('boletaGlobal')">Boleta Global</button>
+      <button id="btnPanelAprobar"      class="tab-btn tab-g2"        onclick="mostrarPanelEscolar('aprobar')">Reinscribir</button>
+      <button id="btnPanelActas"        class="tab-btn tab-g2"        onclick="mostrarPanelEscolar('actas')">Actas PDF</button>
+      <span style="width:1px; background:#ccc; margin:0 14px; align-self:stretch;"></span>
+      <button id="btnPanelEditar"       class="tab-btn tab-g3"        onclick="mostrarPanelEscolar('editar')">Editar Datos</button>
     </nav>
 
     <!-- ═══════════════════════════════════ PANEL 1: ALUMNOS ═══════════════════════════════════ -->
