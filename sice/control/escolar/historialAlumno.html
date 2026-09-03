@@ -258,13 +258,6 @@
       const vistaEl = document.getElementById('vistaActiva');
       if (!vistaEl) return;
 
-      const periodos = Object.keys(_h.porPeriodo || {}).sort().reverse();
-
-      if (periodos.length === 0) {
-        vistaEl.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones registradas.</p>';
-        return;
-      }
-
       const nomSafe = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
       // Determinar la clave del periodo actual en porPeriodo
@@ -301,6 +294,18 @@
             <span style="font-weight:bold;font-size:1.3rem;color:#6A2135;">${_h.promedioGeneral || '—'}</span>
           </div>
         </div>`;
+
+      // Sin calificaciones: mostrar tabla vacía de materias del ciclo (o aviso si sin materias)
+      const periodos = Object.keys(_h.porPeriodo || {}).sort().reverse();
+      if (periodos.length === 0) {
+        const htmlSinCals = (_h.matsActualesCiclo && _h.matsActualesCiclo.length > 0)
+          ? `<h3 class="periodo-titulo">Periodo Actual — ${_h.periodoActual || ''}</h3>`
+            + `<p style="font-size:0.85rem;margin:0 0 12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:3px solid #1565c0;color:#0d47a1;">Sin calificaciones capturadas aún para este ciclo.</p>`
+            + _construirTablaConFaltasArray(_h.matsActualesCiclo)
+          : `<p style="color:#999;text-align:center;padding:20px;">Sin materias asignadas para este ciclo.</p>`;
+        vistaEl.innerHTML = pdfBtn + resumen + htmlSinCals;
+        return;
+      }
 
       // Mostrar todos los periodos que tengan al menos un dato capturado
       const _tieneDatoInf = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
@@ -469,6 +474,24 @@
         if (calSnap.empty) {
           _h.porPeriodo      = {};
           _h.promedioGeneral = '—';
+          // Intentar cargar materias del grupo aunque no haya calificaciones aún
+          _h.matsActualesCiclo = [];
+          if (_h.periodoActual && alumnoData.codigoGrupo) {
+            try {
+              const pmSnap = await db.collection('profesorMaterias')
+                .where('codigoGrupo', '==', alumnoData.codigoGrupo)
+                .where('activa', '==', true)
+                .get();
+              _h.matsActualesCiclo = pmSnap.docs.map(d => ({
+                materiaNombre: d.data().materiaNombre || '',
+                materiaCodigo: d.data().materiaCodigo || '',
+                periodo: _h.periodoActual,
+                parcial1: null, parcial2: null, parcial3: null,
+                falta1: null, falta2: null, falta3: null,
+                extraordinario: null, ets: null
+              }));
+            } catch (_) {}
+          }
           document.getElementById('contenido').innerHTML = `
             <div class="info-card">
               <div><strong style="color:#666;">Alumno:</strong><br>${nombreAlumno}</div>

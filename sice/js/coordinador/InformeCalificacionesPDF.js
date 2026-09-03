@@ -20,10 +20,7 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
       .where('alumnoId', '==', alumnoId)
       .get();
 
-    if (calSnap.empty) {
-      alert('Este alumno no tiene calificaciones registradas.');
-      return;
-    }
+    // calSnap.empty → continuar para generar plantilla con datos del alumno
 
     // ── Fetch datos del alumno primero (necesario para tieneExamenFinalInforme) ──
     let especialidad = '';
@@ -304,6 +301,18 @@ async function descargarInformeCalificacionesPDF(alumnoId, nombreAlumno, esOfici
           10: { halign: 'center', cellWidth: 10  }
         }
       });
+    }
+
+    // Sin periodos procesados (sin calificaciones o sin periodo válido) → generar plantilla vacía
+    if (primeraTabla) {
+      const periodoLabel = (typeof _h !== 'undefined' && _h.periodoActual) ? _h.periodoActual : '—';
+      dibujarEncabezado(doc);
+      const startY = dibujarInfoAlumno(doc, periodoLabel);
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(120);
+      doc.text('Sin materias asignadas para este ciclo.', pageWidth / 2, startY + 15, { align: 'center' });
+      doc.setTextColor(0);
     }
 
     // Firmas — solo en versión oficial (control escolar)
