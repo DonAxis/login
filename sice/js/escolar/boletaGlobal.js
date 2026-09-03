@@ -316,7 +316,10 @@ async function verBoletaGlobalAlumno(alumnoId, soloLectura = false) {
         return { cal: null, acr: null };
       }
       const h = histCalMap[materiaId];
-      return h ? { cal: h.calificacion ?? null, acr: h.acr ?? null } : { cal: null, acr: null };
+      if (!h) return { cal: null, acr: null };
+      // calificacion===0 sin doc en calificaciones → 0 de migración vigia, no calificación real
+      if (h.calificacion === 0) return { cal: null, acr: null };
+      return { cal: h.calificacion ?? null, acr: h.acr ?? null };
     };
 
     const periodoKeys = Object.keys(porPeriodo).map(Number).sort((a, b) => a - b);
@@ -795,8 +798,10 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
             calEfectiva = ef.cal;
             acrEfectiva = ef.acr;
           } else {
-            calEfectiva = m.calificacion;
-            acrEfectiva = m.acr;
+            // Sin doc en calificaciones (calInMap===undefined) + calificacion===0 → 0 de vigia, no real
+            const esVigiaCero = !calInMap && m.calificacion === 0;
+            calEfectiva = esVigiaCero ? null : m.calificacion;
+            acrEfectiva = esVigiaCero ? null : m.acr;
           }
         } else {
           const ef = _efectivaPDF(m.materiaId);

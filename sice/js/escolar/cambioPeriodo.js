@@ -768,9 +768,10 @@ async function actualizarHistorialAcademico(carreraId, periodoActual, calsDocs, 
             cambiado = true;
             return Object.assign({}, mat, { calificacion, acr, periodoAcademico: periodoActual });
           }
-          // Sin calificación: cerrar el periodo sin modificar cal/acr
+          // Sin calificación: cerrar el periodo y limpiar a null para evitar que
+          // 0s de migración vigia (sin nota real) aparezcan en PDF tras cambio de periodo
           cambiado = true;
-          return Object.assign({}, mat, { periodoAcademico: periodoActual });
+          return Object.assign({}, mat, { calificacion: null, acr: null, periodoAcademico: periodoActual });
         });
         if (!cambiado) materiasActualizadas = null;
       } else if (Object.keys(materiasCarrera).length > 0) {
