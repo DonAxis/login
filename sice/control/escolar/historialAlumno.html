@@ -253,15 +253,14 @@
       </table>`;
     }
 
-    // ── Informe de Calificaciones: TODOS los periodos con faltas (= PDF inline) ─
+    // ── Informe de Calificaciones: SOLO el periodo actual ────────────────────
     function _vistaInforme() {
       const vistaEl = document.getElementById('vistaActiva');
       if (!vistaEl) return;
 
       const nomSafe = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
-      // Determinar la clave del periodo actual en porPeriodo
-      // (puede ser '2026-1' formato académico o '4' formato semestre numérico)
+      // Clave del periodo actual en porPeriodo (YYYY-N, semestre numérico, o último disponible)
       const _todosPerKeys = Object.keys(_h.porPeriodo || {});
       let _currentPerKey = null;
       if (_h.periodoActual && _todosPerKeys.includes(String(_h.periodoActual))) {
@@ -278,7 +277,6 @@
           Descargar Informe PDF
         </button></div>`;
 
-      // Tarjeta resumen del alumno
       const turnoStr = _TURNOS_H[_h.turnoNum]      || String(_h.turnoNum      || '—');
       const semStr   = _SEMESTRES_H[_h.semestreNum] || String(_h.semestreNum  || '—');
       const resumen  = `
@@ -295,87 +293,81 @@
           </div>
         </div>`;
 
-      // Sin calificaciones: mostrar tabla vacía de materias del ciclo (o aviso si sin materias)
-      const periodos = Object.keys(_h.porPeriodo || {}).sort().reverse();
-      if (periodos.length === 0) {
-        const htmlSinCals = (_h.matsActualesCiclo && _h.matsActualesCiclo.length > 0)
-          ? `<h3 class="periodo-titulo">Periodo Actual — ${_h.periodoActual || ''}</h3>`
-            + `<p style="font-size:0.85rem;margin:0 0 12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:3px solid #1565c0;color:#0d47a1;">Sin calificaciones capturadas aún para este ciclo.</p>`
-            + _construirTablaConFaltasArray(_h.matsActualesCiclo)
-          : `<p style="color:#999;text-align:center;padding:20px;">Sin materias asignadas para este ciclo.</p>`;
-        vistaEl.innerHTML = pdfBtn + resumen + htmlSinCals;
-        return;
-      }
-
-      // Mostrar todos los periodos que tengan al menos un dato capturado
-      const _tieneDatoInf = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
+      const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
         || m.extraordinario != null || m.ets != null;
 
-      // Periodos en orden cronológico (ascendente) para el informe
-      const periodosAsc = Object.keys(_h.porPeriodo || {}).sort();
-      let contenidoPeriodos = '';
-
-      for (const p of periodosAsc) {
-        const mats = (_h.porPeriodo[p] || []).filter(_tieneDatoInf);
-        if (mats.length === 0) continue;
-        const _esActualInf  = _h.periodoActual   && String(p) === String(_h.periodoActual);
-        const _esAnterInf   = !_esActualInf && _h.periodoAnterior && String(p) === String(_h.periodoAnterior);
-        const _labelInf = _esActualInf  ? `Periodo Actual — ${p}`
-          : _esAnterInf ? `Periodo Anterior — ${p}`
-          : String(p).match(/^\d{4}-\d+$/) ? `Ciclo ${p}` : `Semestre ${p}`;
-        contenidoPeriodos += `<h3 class="periodo-titulo">${_labelInf}</h3>` + _construirTablaConFaltasArray(mats);
+      let contenido;
+      if (_currentPerKey && (_h.porPeriodo || {})[_currentPerKey]) {
+        const mats = (_h.porPeriodo[_currentPerKey] || []).filter(_tieneDato);
+        const label = _h.periodoActual
+          ? `Periodo Actual — ${_h.periodoActual}`
+          : (String(_currentPerKey).match(/^\d{4}-\d+$/) ? `Ciclo ${_currentPerKey}` : `Semestre ${_currentPerKey}`);
+        contenido = `<h3 class="periodo-titulo">${label}</h3>`
+          + (mats.length > 0
+            ? _construirTablaConFaltasArray(mats)
+            : `<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas aún para este ciclo.</p>`);
+      } else if (_h.matsActualesCiclo && _h.matsActualesCiclo.length > 0) {
+        contenido = `<h3 class="periodo-titulo">Periodo Actual — ${_h.periodoActual || ''}</h3>`
+          + `<p style="font-size:0.85rem;margin:0 0 12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:3px solid #1565c0;color:#0d47a1;">Sin calificaciones capturadas aún para este ciclo.</p>`
+          + _construirTablaConFaltasArray(_h.matsActualesCiclo);
+      } else {
+        contenido = `<p style="color:#999;text-align:center;padding:20px;">Sin materias asignadas para este ciclo.</p>`;
       }
 
-      // Periodo actual sin calificaciones: al final del informe (orden cronológico)
-      if (_h.periodoActual && !((_h.porPeriodo || {})[String(_h.periodoActual)])) {
-        if (_h.matsActualesCiclo && _h.matsActualesCiclo.length > 0) {
-          contenidoPeriodos += `<h3 class="periodo-titulo">Periodo Actual — ${_h.periodoActual}</h3>`;
-          contenidoPeriodos += `<p style="font-size:0.85rem;margin:0 0 12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:3px solid #1565c0;color:#0d47a1;">Sin calificaciones capturadas aún para este ciclo.</p>`;
-          contenidoPeriodos += _construirTablaConFaltasArray(_h.matsActualesCiclo);
-        } else {
-          contenidoPeriodos += `<div style="background:#e8f4fd;border-left:3px solid #1565c0;padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:0.88rem;color:#0d47a1;">
-            ℹ️ Periodo actual del sistema: <strong>${_h.periodoActual}</strong> — Sin calificaciones capturadas aún para este ciclo.
-          </div>`;
-        }
-      }
-
-      if (!contenidoPeriodos) {
-        contenidoPeriodos = '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas.</p>';
-      }
-
-      vistaEl.innerHTML = pdfBtn + resumen + contenidoPeriodos;
+      vistaEl.innerHTML = pdfBtn + resumen + contenido;
     }
 
-    // ── Historial Anterior: periodo previo con tabla simple + botón PDF ───────
+    // ── Historial Anterior: TODOS los periodos previos ────────────────────────
     function _vistaHistorialAnterior() {
       const vistaEl = document.getElementById('vistaActiva');
       if (!vistaEl) return;
 
-      const periodos = Object.keys(_h.porPeriodo || {}).sort().reverse();
-      // Prioridad: periodoAnterior de config si existe en datos; sino el segundo más reciente
-      const per = (_h.periodoAnterior && (_h.porPeriodo || {})[_h.periodoAnterior])
-        ? _h.periodoAnterior
-        : (periodos.length > 1 ? periodos[1] : null);
+      // Determinar clave del periodo actual (para excluirla del historial)
+      const _todosPerKeys = Object.keys(_h.porPeriodo || {});
+      let _currentPerKey = null;
+      if (_h.periodoActual && _todosPerKeys.includes(String(_h.periodoActual))) {
+        _currentPerKey = String(_h.periodoActual);
+      } else if (_h.semestreNum && _todosPerKeys.includes(String(_h.semestreNum))) {
+        _currentPerKey = String(_h.semestreNum);
+      } else if (_todosPerKeys.length > 0) {
+        _currentPerKey = _todosPerKeys.sort().at(-1);
+      }
 
-      if (!per) {
-        const _keys = Object.keys(_h.porPeriodo || {});
-        const _msgAnt = _keys.length === 1
-          ? `No hay calificaciones de periodos anteriores. Solo existe el registro del semestre ${_keys[0]}, que se muestra en la vista principal.`
-          : 'No hay periodo anterior con calificaciones registradas.';
-        vistaEl.innerHTML = `<p style="color:#999;text-align:center;padding:20px;">${_msgAnt}</p>`;
+      const periodosAnt = _todosPerKeys.filter(p => p !== _currentPerKey).sort();
+      const _tieneDato  = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
+        || m.extraordinario != null || m.ets != null;
+
+      if (periodosAnt.length === 0) {
+        vistaEl.innerHTML = `<p style="color:#999;text-align:center;padding:20px;">No hay calificaciones de periodos anteriores registradas.</p>`;
         return;
       }
 
       const nomSafe = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      const pdfBtn  = `<div style="text-align:right;margin-bottom:16px;">
-        <button class="btn-pdf rojo" style="display:inline-block;width:auto;padding:10px 20px;"
-          onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', '${per}', true)">
-          Descargar PDF (${per})
-        </button></div>`;
+      let botonesHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-bottom:16px;">';
+      for (const p of [...periodosAnt].reverse()) {
+        const labelBtn = String(p).match(/^\d{4}-\d+$/) ? p : `Semestre ${p}`;
+        botonesHtml += `<button class="btn-pdf rojo" style="width:auto;padding:8px 16px;"
+          onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', '${p}', true)">
+          PDF ${labelBtn}
+        </button>`;
+      }
+      botonesHtml += '</div>';
 
-      vistaEl.innerHTML = pdfBtn +
-        `<h3 class="periodo-titulo">Periodo Anterior — ${per}</h3>` +
-        _construirTablaUnPeriodo(per);
+      let contenido = '';
+      for (const p of periodosAnt) {
+        const mats = (_h.porPeriodo[p] || []).filter(_tieneDato);
+        if (mats.length === 0) continue;
+        const _esAnterInf = _h.periodoAnterior && String(p) === String(_h.periodoAnterior);
+        const label = _esAnterInf ? `Periodo Anterior — ${p}`
+          : (String(p).match(/^\d{4}-\d+$/) ? `Ciclo ${p}` : `Semestre ${p}`);
+        contenido += `<h3 class="periodo-titulo">${label}</h3>` + _construirTablaConFaltasArray(mats);
+      }
+
+      if (!contenido) {
+        contenido = '<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones en periodos anteriores.</p>';
+      }
+
+      vistaEl.innerHTML = botonesHtml + contenido;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
