@@ -278,12 +278,12 @@
       return `Semestre ${p}`;
     }
 
-    // ── Informe de Calificaciones: SOLO el periodo actual ────────────────────
+    // ── Informe de Calificaciones: SOLO el periodo académico actual ──────────
     function _vistaInforme() {
       const vistaEl = document.getElementById('vistaActiva');
       if (!vistaEl) return;
 
-      const nomSafe = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const nomSafe  = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const turnoStr = _TURNOS_H[_h.turnoNum]      || String(_h.turnoNum      || '—');
       const semStr   = _SEMESTRES_H[_h.semestreNum] || String(_h.semestreNum  || '—');
       const resumen  = `
@@ -300,45 +300,68 @@
           </div>
         </div>`;
 
-      // Alumno en limbo: periodo cerrado, aún no reinscrito
-      if (_alumnoEnLimbo()) {
+      // Caso: alumno pasante / carrera concluida
+      if (_h.esPasante) {
         vistaEl.innerHTML = resumen + `
-          <p style="text-align:center;padding:20px 16px;background:#fff8f0;border-radius:8px;
-                    border-left:3px solid #e67e22;color:#7a4f00;font-size:0.95rem;">
-            Alumno no inscrito en el ciclo actual
-            ${_h.periodoActual ? `<strong>(${_h.periodoActual})</strong>` : ''}.
-            Consulta el historial de periodos anteriores con el botón rojo.
-          </p>`;
+          <div style="text-align:center;padding:30px 16px;background:#f0f7f0;border-radius:8px;
+                      border:1.5px solid #81c784;color:#2e7d32;">
+            <p style="margin:0;font-size:1.1rem;font-weight:bold;">Carrera Concluida</p>
+            <p style="margin:8px 0 0;font-size:0.9rem;color:#388e3c;">
+              Este alumno ha egresado. Consulta sus calificaciones con el botón rojo.
+            </p>
+          </div>`;
         return;
       }
 
+      // El informe siempre refiere al periodo académico actual configurado
+      const _periodoInforme = _h.periodoActual;
+      const periodoLabel    = _periodoInforme
+        ? `Periodo Actual — ${_periodoInforme}`
+        : 'Periodo Actual';
+
+      const pdfPeriodoArg = JSON.stringify(_periodoInforme);
       const pdfBtn = `<div style="text-align:right;margin-bottom:16px;">
         <button class="btn-pdf azul" style="display:inline-block;width:auto;padding:10px 20px;"
-          onclick="descargarInformeCalificacionesPDF('${_h.alumnoId}', '${nomSafe}', true)">
+          onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', ${pdfPeriodoArg}, true, true)">
           Descargar Informe PDF
         </button></div>`;
 
-      const _currentPerKey = _resolverCurrentPerKey();
       const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
         || m.extraordinario != null || m.ets != null;
 
-      let contenido;
-      if (_currentPerKey && (_h.porPeriodo || {})[_currentPerKey]) {
-        const esActual = String(_currentPerKey) === String(_h.periodoActual);
-        const mats = (_h.porPeriodo[_currentPerKey] || []).filter(_tieneDato);
-        contenido = `<h3 class="periodo-titulo">${_labelPeriodo(_currentPerKey, esActual)}</h3>`
-          + (mats.length > 0
-            ? _construirTablaConFaltasArray(mats)
-            : `<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas aún para este ciclo.</p>`);
-      } else if (_h.matsActualesCiclo && _h.matsActualesCiclo.length > 0) {
-        contenido = `<h3 class="periodo-titulo">Periodo Actual — ${_h.periodoActual || ''}</h3>`
-          + `<p style="font-size:0.85rem;margin:0 0 12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:3px solid #1565c0;color:#0d47a1;">Sin calificaciones capturadas aún para este ciclo.</p>`
-          + _construirTablaConFaltasArray(_h.matsActualesCiclo);
-      } else {
-        contenido = `<p style="color:#999;text-align:center;padding:20px;">Sin materias asignadas para este ciclo.</p>`;
+      // Caso A: hay calificaciones capturadas para el ciclo actual
+      const matsPeriodoActual = _periodoInforme
+        ? ((_h.porPeriodo || {})[String(_periodoInforme)] || []).filter(_tieneDato)
+        : null;
+      if (matsPeriodoActual && matsPeriodoActual.length > 0) {
+        vistaEl.innerHTML = pdfBtn + resumen
+          + `<h3 class="periodo-titulo">${periodoLabel}</h3>`
+          + _construirTablaConFaltasArray(matsPeriodoActual);
+        return;
       }
 
-      vistaEl.innerHTML = pdfBtn + resumen + contenido;
+      // Caso B: inscrito al ciclo actual pero sin calificaciones capturadas aún
+      if (_h.matsActualesCiclo && _h.matsActualesCiclo.length > 0) {
+        vistaEl.innerHTML = pdfBtn + resumen
+          + `<h3 class="periodo-titulo">${periodoLabel}</h3>`
+          + `<p style="font-size:0.85rem;margin:0 0 12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:3px solid #1565c0;color:#0d47a1;">Sin calificaciones capturadas aún para este ciclo.</p>`
+          + _construirTablaConFaltasArray(_h.matsActualesCiclo);
+        return;
+      }
+
+      // Caso C: pendiente de inscripción al siguiente ciclo
+      vistaEl.innerHTML = resumen + `
+        <div style="text-align:center;padding:24px 16px;background:#fafafa;border-radius:8px;
+                    border:1.5px solid #bdbdbd;color:#555;">
+          <p style="margin:0 0 6px;font-size:1rem;font-weight:bold;">
+            Pendiente de inscripción
+            ${_periodoInforme ? `— <span style="color:#6A2135;">Ciclo ${_periodoInforme}</span>` : ''}
+          </p>
+          <p style="margin:0;font-size:0.88rem;color:#777;">
+            El alumno aún no ha sido inscrito al ciclo actual.
+            Una vez reinscrito aparecerán sus materias aquí.
+          </p>
+        </div>`;
     }
 
     // ── Historial Anterior: TODOS los periodos previos con PDF por ciclo ──────
@@ -422,6 +445,7 @@
         _h.grupo        = alumnoData.codigoGrupo || (alumnoData.tipoAlumno === 'especial' ? 'Especial' : '');
         _h.turnoNum     = alumnoData.turno       || null;
         _h.semestreNum  = alumnoData.periodo     || null;
+        _h.esPasante    = alumnoData.pasante === true;
 
         const [tieneEF, esMaestria, configDoc, carreraDoc] = await Promise.all([
           carreraId ? obtenerTieneExamenFinal(carreraId) : Promise.resolve(false),

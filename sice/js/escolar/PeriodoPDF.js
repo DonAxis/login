@@ -110,8 +110,20 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     }
 
     if (registros.length === 0) {
-      alert(`No hay calificaciones registradas para el periodo ${periodoKey ?? 'actual'}.`);
-      return;
+      if (!esInforme) {
+        alert(`No hay calificaciones registradas para el periodo ${periodoKey ?? 'actual'}.`);
+        return;
+      }
+      // Para Informe PDF: intentar materias del ciclo activo sin calificaciones aún
+      const matsCtx = (typeof _h !== 'undefined' && Array.isArray(_h.matsActualesCiclo))
+        ? _h.matsActualesCiclo : [];
+      for (const m of matsCtx) {
+        registros.push({
+          materiaNombre: m.materiaNombre || 'Sin nombre',
+          p1: '-', f1: '-', p2: '-', f2: '-', p3: '-', f3: '-',
+          final: '-', extra: '', ets: ''
+        });
+      }
     }
 
     // ── Promedio del periodo ──────────────────────────────────────
