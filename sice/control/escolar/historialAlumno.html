@@ -516,10 +516,11 @@
           _h.colsBeforePromedio = 5; _h.colsAfterPromedio = 2;
         }
 
-        const [calSnap, materiasSnap, histAcadDoc] = await Promise.all([
+        const [calSnap, materiasSnap, histAcadDoc, histCalSnap] = await Promise.all([
           db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
           db.collection('materias').get(),
-          db.collection('historialAcademico').doc(alumnoId).get()
+          db.collection('historialAcademico').doc(alumnoId).get(),
+          db.collection('historialCalificaciones').where('alumnoId', '==', alumnoId).get()
         ]);
 
         const materiasCache = {};
@@ -605,21 +606,53 @@
           return;
         }
 
+        // Mapa de historialCalificaciones: materiaId + periodoArchivado → doc
+        // Fuente de parciales archivados tras Cambiar Periodo (más confiable que calificaciones para ciclos pasados)
+        const histCalMap = {};
+        histCalSnap.forEach(doc => {
+          const h = doc.data();
+          if (!h.materiaId) return;
+          const p = h.periodoArchivado || h.periodo;
+          const k = `${h.materiaId}_${p}`;
+          if (!histCalMap[k]) histCalMap[k] = h;
+        });
+
         // Construir materiasMap incluyendo faltas
         const materiasMap = {};
         calSnap.forEach(doc => {
           const cal = doc.data();
           const key = `${cal.materiaId}_${cal.periodo}`;
+
+          // Parciales desde calificaciones (periodo actual)
+          let p1 = cal.parciales?.parcial1 ?? null;
+          let p2 = cal.parciales?.parcial2 ?? null;
+          let p3 = cal.parciales?.parcial3 ?? null;
+          let f1 = cal.faltas?.falta1 ?? null;
+          let f2 = cal.faltas?.falta2 ?? null;
+          let f3 = cal.faltas?.falta3 ?? null;
+
+          // Si faltan parciales, buscar en historialCalificaciones (archivados al cerrar periodo)
+          if (p1 === null && p2 === null && p3 === null) {
+            const _pRef = cal.periodoAcademico || cal.periodo;
+            const _hc = histCalMap[`${cal.materiaId}_${_pRef}`]
+                     || histCalMap[`${cal.materiaId}_${cal.periodoAcademico}`]
+                     || histCalMap[`${cal.materiaId}_${cal.periodo}`];
+            if (_hc) {
+              p1 = _hc.parciales?.parcial1 ?? null;
+              p2 = _hc.parciales?.parcial2 ?? null;
+              p3 = _hc.parciales?.parcial3 ?? null;
+              f1 = _hc.faltas?.falta1 ?? null;
+              f2 = _hc.faltas?.falta2 ?? null;
+              f3 = _hc.faltas?.falta3 ?? null;
+            }
+          }
+
           materiasMap[key] = {
             materiaNombre:  cal.materiaNombre  || materiasCache[cal.materiaId]?.nombre || 'Sin nombre',
             materiaCodigo:  cal.materiaCodigo  || materiasCache[cal.materiaId]?.codigo || '',
             periodo:        cal.periodo        || cal.periodoAcademico || 'N/A',
-            parcial1:       cal.parciales?.parcial1 ?? null,
-            parcial2:       cal.parciales?.parcial2 ?? null,
-            parcial3:       cal.parciales?.parcial3 ?? null,
-            falta1:         cal.faltas?.falta1  ?? null,
-            falta2:         cal.faltas?.falta2  ?? null,
-            falta3:         cal.faltas?.falta3  ?? null,
+            parcial1: p1, parcial2: p2, parcial3: p3,
+            falta1:   f1, falta2:   f2, falta3:   f3,
             promedio:       cal.promedio        ?? null,
             extraordinario: cal.extraordinario  ?? null,
             ets:            cal.ets             ?? null

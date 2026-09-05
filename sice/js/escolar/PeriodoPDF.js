@@ -52,14 +52,19 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       }
     }
 
-    // ── Fallback de nombres: historialCalificaciones → materias ──
-    const histCalNombres = {}; // materiaId → nombre (nivel 2)
+    // ── Fallback de nombres y parciales: historialCalificaciones → materias ──
+    const histCalNombres = {}; // materiaId → nombre
+    const histCalMapPDF  = {}; // materiaId_periodo → doc (para recuperar parciales archivados)
     try {
       const histSnap = await db.collection('historialCalificaciones')
         .where('alumnoId', '==', alumnoId).get();
       histSnap.forEach(d => {
         const h = d.data();
-        if (h.materiaId && h.materiaNombre) histCalNombres[h.materiaId] = h.materiaNombre;
+        if (!h.materiaId) return;
+        if (h.materiaNombre) histCalNombres[h.materiaId] = h.materiaNombre;
+        const p = h.periodoArchivado || h.periodo;
+        const k = `${h.materiaId}_${p}`;
+        if (!histCalMapPDF[k]) histCalMapPDF[k] = h;
       });
     } catch (_) {}
     const materiasCache = {}; // materiaId → doc data (nivel 3, lazy)
@@ -74,9 +79,27 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
           && normP(cal.periodo) !== periodoKey
           && normP(cal.periodoAcademico) !== periodoKey) continue;
 
-      const p1Raw = cal.parciales?.parcial1 ?? null;
-      const p2Raw = cal.parciales?.parcial2 ?? null;
-      const p3Raw = cal.parciales?.parcial3 ?? null;
+      // Parciales desde calificaciones; si faltan, buscar en historialCalificaciones archivados
+      let p1Raw = cal.parciales?.parcial1 ?? null;
+      let p2Raw = cal.parciales?.parcial2 ?? null;
+      let p3Raw = cal.parciales?.parcial3 ?? null;
+      let fRaw1 = cal.faltas?.falta1 ?? null;
+      let fRaw2 = cal.faltas?.falta2 ?? null;
+      let fRaw3 = cal.faltas?.falta3 ?? null;
+      if (p1Raw === null && p2Raw === null && p3Raw === null) {
+        const _pRef = cal.periodoAcademico || cal.periodo;
+        const _hc = histCalMapPDF[`${cal.materiaId}_${_pRef}`]
+                 || histCalMapPDF[`${cal.materiaId}_${cal.periodoAcademico}`]
+                 || histCalMapPDF[`${cal.materiaId}_${cal.periodo}`];
+        if (_hc) {
+          p1Raw = _hc.parciales?.parcial1 ?? null;
+          p2Raw = _hc.parciales?.parcial2 ?? null;
+          p3Raw = _hc.parciales?.parcial3 ?? null;
+          fRaw1 = _hc.faltas?.falta1 ?? null;
+          fRaw2 = _hc.faltas?.falta2 ?? null;
+          fRaw3 = _hc.faltas?.falta3 ?? null;
+        }
+      }
 
       const toN = v => (v !== null && v !== 'NP') ? Number(v) : v;
       const calNum = esMaestria
@@ -102,9 +125,9 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
 
       registros.push({
         materiaNombre,
-        p1: str(p1Raw), f1: str(cal.faltas?.falta1 ?? null),
-        p2: str(p2Raw), f2: str(cal.faltas?.falta2 ?? null),
-        p3: str(p3Raw), f3: (tieneEF || esMaestria) ? '-' : str(cal.faltas?.falta3 ?? null),
+        p1: str(p1Raw), f1: str(fRaw1),
+        p2: str(p2Raw), f2: str(fRaw2),
+        p3: str(p3Raw), f3: (tieneEF || esMaestria) ? '-' : str(fRaw3),
         final,
         extra: cal.extraordinario != null ? String(redondearCalificacion(cal.extraordinario)) : '',
         ets:   cal.ets            != null ? String(redondearCalificacion(cal.ets))            : ''
