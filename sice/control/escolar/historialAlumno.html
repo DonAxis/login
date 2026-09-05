@@ -313,30 +313,34 @@
         return;
       }
 
-      // El informe siempre refiere al periodo académico actual configurado
-      const _periodoInforme = _h.periodoActual;
-      const periodoLabel    = _periodoInforme
-        ? `Periodo Actual — ${_periodoInforme}`
+      // Etiqueta siempre usa el ciclo configurado (independiente de cómo está guardado el campo periodo en Firestore)
+      const periodoLabel = _h.periodoActual
+        ? `Periodo Actual — ${_h.periodoActual}`
         : 'Periodo Actual';
 
-      const pdfPeriodoArg = JSON.stringify(_periodoInforme);
+      const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
+        || m.extraordinario != null || m.ets != null;
+
+      // Resolver la clave real en porPeriodo (puede ser '2026-1' o un número de grado '3',
+      // dependiendo de cómo se guardó calificaciones.periodo en Firestore)
+      const _currentPerKey = _resolverCurrentPerKey();
+
+      // Para el PDF usamos la clave real como filtro (así coincide con cal.periodo en Firestore)
+      const pdfPeriodoArg = JSON.stringify(_currentPerKey);
       const pdfBtn = `<div style="text-align:right;margin-bottom:16px;">
         <button class="btn-pdf azul" style="display:inline-block;width:auto;padding:10px 20px;"
           onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', ${pdfPeriodoArg}, true, true)">
           Descargar Informe PDF
         </button></div>`;
 
-      const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
-        || m.extraordinario != null || m.ets != null;
-
-      // Caso A: hay calificaciones capturadas para el ciclo actual
-      const matsPeriodoActual = _periodoInforme
-        ? ((_h.porPeriodo || {})[String(_periodoInforme)] || []).filter(_tieneDato)
-        : null;
-      if (matsPeriodoActual && matsPeriodoActual.length > 0) {
-        vistaEl.innerHTML = pdfBtn + resumen
-          + `<h3 class="periodo-titulo">${periodoLabel}</h3>`
-          + _construirTablaConFaltasArray(matsPeriodoActual);
+      // Caso A: hay calificaciones en porPeriodo para el ciclo resuelto
+      if (_currentPerKey && (_h.porPeriodo || {})[_currentPerKey]) {
+        const mats = (_h.porPeriodo[_currentPerKey] || []).filter(_tieneDato);
+        const contenido = `<h3 class="periodo-titulo">${periodoLabel}</h3>`
+          + (mats.length > 0
+            ? _construirTablaConFaltasArray(mats)
+            : `<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas aún para este ciclo.</p>`);
+        vistaEl.innerHTML = pdfBtn + resumen + contenido;
         return;
       }
 
@@ -355,7 +359,7 @@
                     border:1.5px solid #bdbdbd;color:#555;">
           <p style="margin:0 0 6px;font-size:1rem;font-weight:bold;">
             Pendiente de inscripción
-            ${_periodoInforme ? `— <span style="color:#6A2135;">Ciclo ${_periodoInforme}</span>` : ''}
+            ${_h.periodoActual ? `— <span style="color:#6A2135;">Ciclo ${_h.periodoActual}</span>` : ''}
           </p>
           <p style="margin:0;font-size:0.88rem;color:#777;">
             El alumno aún no ha sido inscrito al ciclo actual.
