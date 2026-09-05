@@ -125,7 +125,9 @@
           ? toN(m.parcial1)
           : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
         let prom = redondearCalificacion(calNum);
-        // ETS > extraordinario tienen prioridad sobre el valor calculado (igual que PeriodoPDF.js)
+        // Si parciales no capturados, usar el promedio guardado (p.ej. ingresado desde Boleta Global)
+        if (prom === null && m.promedio != null) prom = redondearCalificacion(m.promedio);
+        // ETS > extraordinario tienen prioridad sobre el valor calculado
         if (m.ets != null)                prom = redondearCalificacion(m.ets);
         else if (m.extraordinario != null) prom = redondearCalificacion(m.extraordinario);
         const promStr   = (prom === null || prom === undefined) ? '-' : String(prom);
@@ -201,7 +203,9 @@
           ? toN(m.parcial1)
           : calcularCalificacion(toN(m.parcial1), toN(m.parcial2), toN(m.parcial3), tieneEF);
         let prom = redondearCalificacion(calNum);
-        // ETS > extraordinario tienen prioridad sobre el valor calculado (igual que PeriodoPDF.js)
+        // Si parciales no capturados, usar el promedio guardado (p.ej. ingresado desde Boleta Global)
+        if (prom === null && m.promedio != null) prom = redondearCalificacion(m.promedio);
+        // ETS > extraordinario tienen prioridad sobre el valor calculado
         if (m.ets != null)                prom = redondearCalificacion(m.ets);
         else if (m.extraordinario != null) prom = redondearCalificacion(m.extraordinario);
         const promStr = (prom === null || prom === undefined) ? '-' : String(prom);
@@ -341,7 +345,7 @@
         : (_h.periodoActual ? `${tipo} actual — ${_h.periodoActual}` : 'Periodo Actual');
 
       const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
-        || m.extraordinario != null || m.ets != null;
+        || m.extraordinario != null || m.ets != null || m.promedio != null;
 
       // Resolver la clave real en porPeriodo (puede ser '2026-1' o un número de grado '3',
       // dependiendo de cómo se guardó calificaciones.periodo en Firestore)
@@ -398,7 +402,7 @@
       // En limbo: todos los datos son históricos; inscrito: excluir periodo actual
       const _currentPerKey = _alumnoEnLimbo() ? null : _resolverCurrentPerKey();
       const _tieneDato = m => m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
-        || m.extraordinario != null || m.ets != null;
+        || m.extraordinario != null || m.ets != null || m.promedio != null;
 
       // Periodos históricos en orden ascendente (más antiguo primero)
       const periodosHist = Object.keys(_h.porPeriodo || {})
