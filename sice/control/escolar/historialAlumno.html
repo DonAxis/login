@@ -69,6 +69,13 @@
   <script>
     // ── Estado compartido entre funciones de vista ───────────────────────────
     const _h = {};
+
+    // Botón PDF del informe: llama a descargarPeriodoPDF con los datos ya guardados en _h
+    // (evita interpolar id/nombre/clave en el atributo onclick, lo que puede romper el HTML
+    // si el nombre contiene comillas dobles u otros caracteres especiales)
+    function _descInformePDF() {
+      descargarPeriodoPDF(_h.alumnoId, _h.alumnoNombre, _h.informePdfKey ?? null, true, true);
+    }
     const _TURNOS_H    = { 1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino' };
     const _SEMESTRES_H = {
       1: 'Primero', 2: 'Segundo',  3: 'Tercero', 4: 'Cuarto', 5: 'Quinto',
@@ -283,7 +290,6 @@
       const vistaEl = document.getElementById('vistaActiva');
       if (!vistaEl) return;
 
-      const nomSafe  = (_h.alumnoNombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const turnoStr = _TURNOS_H[_h.turnoNum]      || String(_h.turnoNum      || '—');
       const semStr   = _SEMESTRES_H[_h.semestreNum] || String(_h.semestreNum  || '—');
       const resumen  = `
@@ -325,28 +331,28 @@
       // dependiendo de cómo se guardó calificaciones.periodo en Firestore)
       const _currentPerKey = _resolverCurrentPerKey();
 
-      // Para el PDF usamos la clave real como filtro (así coincide con cal.periodo en Firestore)
-      const pdfPeriodoArg = JSON.stringify(_currentPerKey);
-      const pdfBtn = `<div style="text-align:right;margin-bottom:16px;">
+      const _pdfBtn = `<div style="text-align:right;margin-bottom:16px;">
         <button class="btn-pdf azul" style="display:inline-block;width:auto;padding:10px 20px;"
-          onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', ${pdfPeriodoArg}, true, true)">
+          onclick="_descInformePDF()">
           Descargar Informe PDF
         </button></div>`;
 
       // Caso A: hay calificaciones en porPeriodo para el ciclo resuelto
       if (_currentPerKey && (_h.porPeriodo || {})[_currentPerKey]) {
         const mats = (_h.porPeriodo[_currentPerKey] || []).filter(_tieneDato);
+        _h.informePdfKey = _currentPerKey;  // clave real de porPeriodo (puede ser número de grado)
         const contenido = `<h3 class="periodo-titulo">${periodoLabel}</h3>`
           + (mats.length > 0
             ? _construirTablaConFaltasArray(mats)
             : `<p style="color:#999;text-align:center;padding:20px;">Sin calificaciones capturadas aún para este ciclo.</p>`);
-        vistaEl.innerHTML = pdfBtn + resumen + contenido;
+        vistaEl.innerHTML = _pdfBtn + resumen + contenido;
         return;
       }
 
       // Caso B: inscrito al ciclo actual pero sin calificaciones capturadas aún
       if (_h.matsActualesCiclo && _h.matsActualesCiclo.length > 0) {
-        vistaEl.innerHTML = pdfBtn + resumen
+        _h.informePdfKey = _h.periodoActual ?? null;  // filtrar por ciclo actual; matsCtx llenará las filas
+        vistaEl.innerHTML = _pdfBtn + resumen
           + `<h3 class="periodo-titulo">${periodoLabel}</h3>`
           + `<p style="font-size:0.85rem;margin:0 0 12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:3px solid #1565c0;color:#0d47a1;">Sin calificaciones capturadas aún para este ciclo.</p>`
           + _construirTablaConFaltasArray(_h.matsActualesCiclo);
