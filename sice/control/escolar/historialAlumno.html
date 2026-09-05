@@ -401,8 +401,8 @@
         const mats = (_h.porPeriodo[p] || []).filter(_tieneDato);
         if (mats.length === 0) continue;
         const labelBtn = String(p).match(/^\d{4}-\d+$/) ? p : `Semestre ${p}`;
-        const pdfBtn = `<div style="margin-bottom:8px;">
-          <button class="btn-pdf rojo" style="width:auto;padding:7px 16px;font-size:0.8rem;"
+        const pdfBtn = `<div style="text-align:right;margin-bottom:16px;">
+          <button class="btn-pdf azul" style="display:inline-block;width:auto;padding:10px 20px;"
             onclick="descargarPeriodoPDF('${_h.alumnoId}', '${nomSafe}', '${p}', true)">
             PDF ${labelBtn}
           </button></div>`;
