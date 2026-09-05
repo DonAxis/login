@@ -151,10 +151,18 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     doc.setTextColor(0, 0, 0);
     doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 27, { align: 'center' });
     const tituloDoc    = esInforme ? 'INFORME DE CALIFICACIONES' : 'CALIFICACIONES DEL PERIODO';
-    const _cicloFallback = (typeof _h !== 'undefined' && _h.periodoActual) ? _h.periodoActual : null;
+    // Resolver el ciclo a mostrar en el PDF:
+    // 1. Si periodoKey ya es un ciclo YYYY-N → usarlo directo
+    // 2. Si es numérico → buscar en el mapa _h.periodoNumACiclo (construido en historialAlumno.html)
+    // 3. Para informe, fallback a _h.periodoActual si no hay mapa
+    const _hRef = typeof _h !== 'undefined' ? _h : {};
+    const _cicloFallback = PERIODO_VALIDO_PPDF.test(String(periodoKey ?? ''))
+      ? null
+      : ((_hRef.periodoNumACiclo || {})[String(periodoKey)]
+         || (esInforme ? (_hRef.periodoActual || null) : null));
     const labelPeriodo = (periodoKey && PERIODO_VALIDO_PPDF.test(periodoKey))
       ? periodoKey
-      : (_cicloFallback ?? periodoKey ?? '');
+      : (_cicloFallback ?? String(periodoKey ?? ''));
     doc.setFontSize(11);
     doc.text(tituloDoc, pageWidth / 2, 34, { align: 'center' });
     doc.setLineWidth(0.5);
