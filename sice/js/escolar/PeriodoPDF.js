@@ -178,25 +178,18 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     doc.setTextColor(0, 0, 0);
     doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 27, { align: 'center' });
     const tituloDoc    = esInforme ? 'INFORME DE CALIFICACIONES' : 'CALIFICACIONES DEL PERIODO';
-    // Resolver la etiqueta de periodo para el PDF:
-    // 1. Si periodoKey ya es YYYY-N → usarlo directo
-    // 2. Si es numérico → buscar ciclo en _h.periodoNumACiclo → "Trimestre 2 — 2026-1"
-    // 3. Para informe sin mapa → fallback a _h.periodoActual
-    // 4. Sin ciclo disponible → al menos "Trimestre 2" en lugar del número crudo
+    // Etiqueta de periodo: solo el ciclo académico YYYY-N
     const _hRef = typeof _h !== 'undefined' ? _h : {};
-    const _tipoLabel = _hRef.periodosAnio === 4 ? 'Trimestre' : (_hRef.periodosAnio === 3 ? 'Cuatrimestre' : 'Semestre');
     let labelPeriodo;
     if (periodoKey && PERIODO_VALIDO_PPDF.test(periodoKey)) {
       labelPeriodo = periodoKey;
     } else {
-      const _ciclo = ((_hRef.periodoNumACiclo || {})[String(periodoKey)])
+      // Clave numérica → buscar ciclo en el mapa o usar fallbacks de config
+      labelPeriodo = ((_hRef.periodoNumACiclo || {})[String(periodoKey)])
         || (esInforme ? (_hRef.periodoActual || null) : null)
         || (_hRef.periodoAnterior && String(periodoKey) === String((_hRef.semestreNum || 0) - 1)
-            ? _hRef.periodoAnterior : null);
-      const _esNum = String(periodoKey ?? '').match(/^\d+$/);
-      labelPeriodo = _ciclo
-        ? (_esNum ? `${_tipoLabel} ${periodoKey} — ${_ciclo}` : _ciclo)
-        : (_esNum ? `${_tipoLabel} ${periodoKey}` : String(periodoKey ?? ''));
+            ? _hRef.periodoAnterior : null)
+        || String(periodoKey ?? '');
     }
     doc.setFontSize(11);
     doc.text(tituloDoc, pageWidth / 2, 34, { align: 'center' });
@@ -308,6 +301,10 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
         doc.setLineWidth(0.3);
         doc.line(25,  firmasY, 95,  firmasY);
         doc.line(115, firmasY, 185, firmasY);
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'bold');
+        doc.text('PROFESOR', 60,  firmasY + 5, { align: 'center' });
+        doc.text('COORDINADOR', 150, firmasY + 5, { align: 'center' });
       }
     }
 
