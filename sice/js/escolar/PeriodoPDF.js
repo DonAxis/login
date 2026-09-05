@@ -107,6 +107,8 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
         : calcularCalificacion(toN(p1Raw), toN(p2Raw), toN(p3Raw), tieneEF);
 
       let final = calNum === null ? '-' : (calNum === 'NP' ? 'NP' : String(redondearCalificacion(calNum)));
+      // Fallback: parciales no capturados → usar promedio guardado (ingresado desde Boleta Global)
+      if (final === '-' && cal.promedio != null) final = String(redondearCalificacion(cal.promedio));
       if (cal.ets          != null) final = String(redondearCalificacion(cal.ets));
       else if (cal.extraordinario != null) final = String(redondearCalificacion(cal.extraordinario));
 
@@ -188,7 +190,9 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       labelPeriodo = periodoKey;
     } else {
       const _ciclo = ((_hRef.periodoNumACiclo || {})[String(periodoKey)])
-        || (esInforme ? (_hRef.periodoActual || null) : null);
+        || (esInforme ? (_hRef.periodoActual || null) : null)
+        || (_hRef.periodoAnterior && String(periodoKey) === String((_hRef.semestreNum || 0) - 1)
+            ? _hRef.periodoAnterior : null);
       const _esNum = String(periodoKey ?? '').match(/^\d+$/);
       labelPeriodo = _ciclo
         ? (_esNum ? `${_tipoLabel} ${periodoKey} — ${_ciclo}` : _ciclo)
