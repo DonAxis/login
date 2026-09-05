@@ -292,8 +292,12 @@
         if (_h.semestreNum && _h.periodoActual) return `${tipo} ${_h.semestreNum} — ${_h.periodoActual}`;
         return _h.periodoActual ? `${tipo} actual — ${_h.periodoActual}` : 'Periodo actual';
       }
-      if (esCicloStr) return `Ciclo ${p}`;
-      return `${tipo} ${p}`;
+      if (esCicloStr) {
+        const num = (_h.cicloANumero || {})[String(p)];
+        return num ? `${tipo} ${num} — ${p}` : `Ciclo ${p}`;
+      }
+      const ciclo = (_h.periodoNumACiclo || {})[String(p)];
+      return ciclo ? `${tipo} ${p} — ${ciclo}` : `${tipo} ${p}`;
     }
 
     // ── Informe de Calificaciones: SOLO el periodo académico actual ──────────
@@ -508,13 +512,50 @@
           _h.colsBeforePromedio = 5; _h.colsAfterPromedio = 2;
         }
 
-        const [calSnap, materiasSnap] = await Promise.all([
+        const [calSnap, materiasSnap, histAcadDoc] = await Promise.all([
           db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
-          db.collection('materias').get()
+          db.collection('materias').get(),
+          db.collection('historialAcademico').doc(alumnoId).get()
         ]);
 
         const materiasCache = {};
         materiasSnap.forEach(d => { materiasCache[d.id] = d.data(); });
+
+        // Mapa bidireccional número de grado ↔ ciclo académico
+        // Fuente: historialAcademico.periodos[] (tiene ambos datos)
+        _h.periodoNumACiclo = {}; // e.g. { '2': '2026-1', '3': '2026-2' }
+        _h.cicloANumero     = {}; // e.g. { '2026-1': '2', '2026-2': '3' }
+        if (histAcadDoc.exists) {
+          const hd = histAcadDoc.data();
+          (hd.periodos || []).forEach(p => {
+            if (p.semestre != null && p.periodo) {
+              _h.periodoNumACiclo[String(p.semestre)] = String(p.periodo);
+              _h.cicloANumero[String(p.periodo)] = String(p.semestre);
+            }
+          });
+          // Fallback: materias[] tiene periodoAcademico por materia
+          (hd.materias || []).forEach(m => {
+            if (m.periodo != null && m.periodoAcademico) {
+              const k = String(m.periodo);
+              if (!_h.periodoNumACiclo[k]) {
+                _h.periodoNumACiclo[k] = String(m.periodoAcademico);
+                _h.cicloANumero[String(m.periodoAcademico)] = k;
+              }
+            }
+          });
+        }
+        // Complementar con config (datos frescos para ciclos recientes)
+        if (_h.semestreNum && _h.periodoActual) {
+          _h.periodoNumACiclo[String(_h.semestreNum)] = _h.periodoActual;
+          _h.cicloANumero[_h.periodoActual] = String(_h.semestreNum);
+        }
+        if (_h.semestreNum && _h.periodoAnterior) {
+          const _prevNum = String(_h.semestreNum - 1);
+          if (_prevNum > '0' && !_h.periodoNumACiclo[_prevNum]) {
+            _h.periodoNumACiclo[_prevNum] = _h.periodoAnterior;
+            _h.cicloANumero[_h.periodoAnterior] = _prevNum;
+          }
+        }
 
         const idSafe  = alumnoId;
         const nomSafe = nombreAlumno.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -629,14 +670,9 @@
         }
         // ¿Los datos mostrados corresponden al ciclo actual configurado?
         const _esCicloActual = !_h.periodoActual || String(_periodoMostrado) === String(_h.periodoActual);
-        const _tipo = _labelTipoPeriodo();
         const _tituloPeriodoVista = _esCicloActual
-          ? (_h.semestreNum && _h.periodoActual
-              ? `${_tipo} ${_h.semestreNum} — ${_h.periodoActual}`
-              : `Periodo Actual${_h.periodoActual ? ' — ' + _h.periodoActual : ''}`)
-          : (String(_periodoMostrado).match(/^\d{4}-\d+$/)
-              ? `Ciclo ${_periodoMostrado}`
-              : `${_tipo} ${_periodoMostrado}`);
+          ? _labelPeriodo(_periodoMostrado, true)
+          : _labelPeriodo(_periodoMostrado, false);
         const _avisoDesfase = (!_esCicloActual && _h.periodoActual)
           ? `<p style="font-size:0.85rem;margin:6px 0 14px;padding:8px 12px;background:#fff8f0;border-radius:6px;border-left:3px solid #e67e22;color:#7a4f00;">
               El periodo actual del sistema es <strong>${_h.periodoActual}</strong>. Las calificaciones de ese ciclo aún no han sido capturadas por los profesores.

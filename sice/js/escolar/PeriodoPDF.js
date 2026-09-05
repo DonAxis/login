@@ -151,7 +151,10 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     doc.setTextColor(0, 0, 0);
     doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 27, { align: 'center' });
     const tituloDoc    = esInforme ? 'INFORME DE CALIFICACIONES' : 'CALIFICACIONES DEL PERIODO';
-    const labelPeriodo = (periodoKey && PERIODO_VALIDO_PPDF.test(periodoKey)) ? periodoKey : (esInforme ? 'ACTUAL' : (periodoKey ?? ''));
+    const _cicloFallback = (typeof _h !== 'undefined' && _h.periodoActual) ? _h.periodoActual : null;
+    const labelPeriodo = (periodoKey && PERIODO_VALIDO_PPDF.test(periodoKey))
+      ? periodoKey
+      : (_cicloFallback ?? periodoKey ?? '');
     doc.setFontSize(11);
     doc.text(tituloDoc, pageWidth / 2, 34, { align: 'center' });
     doc.setLineWidth(0.5);
