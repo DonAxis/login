@@ -609,7 +609,7 @@
           materiasMap[key] = {
             materiaNombre:  cal.materiaNombre  || materiasCache[cal.materiaId]?.nombre || 'Sin nombre',
             materiaCodigo:  cal.materiaCodigo  || materiasCache[cal.materiaId]?.codigo || '',
-            periodo:        cal.periodo        || 'N/A',
+            periodo:        cal.periodo        || cal.periodoAcademico || 'N/A',
             parcial1:       cal.parciales?.parcial1 ?? null,
             parcial2:       cal.parciales?.parcial2 ?? null,
             parcial3:       cal.parciales?.parcial3 ?? null,

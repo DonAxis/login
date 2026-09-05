@@ -70,7 +70,9 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     const registros = [];
     for (const calDoc of calSnap.docs) {
       const cal = calDoc.data();
-      if (periodoKey !== null && normP(cal.periodo) !== periodoKey) continue;
+      if (periodoKey !== null
+          && normP(cal.periodo) !== periodoKey
+          && normP(cal.periodoAcademico) !== periodoKey) continue;
 
       const p1Raw = cal.parciales?.parcial1 ?? null;
       const p2Raw = cal.parciales?.parcial2 ?? null;
@@ -151,18 +153,24 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     doc.setTextColor(0, 0, 0);
     doc.text('INSTITUTO LEONARDO BRAVO PLANTEL CENTRO', pageWidth / 2, 27, { align: 'center' });
     const tituloDoc    = esInforme ? 'INFORME DE CALIFICACIONES' : 'CALIFICACIONES DEL PERIODO';
-    // Resolver el ciclo a mostrar en el PDF:
-    // 1. Si periodoKey ya es un ciclo YYYY-N → usarlo directo
-    // 2. Si es numérico → buscar en el mapa _h.periodoNumACiclo (construido en historialAlumno.html)
-    // 3. Para informe, fallback a _h.periodoActual si no hay mapa
+    // Resolver la etiqueta de periodo para el PDF:
+    // 1. Si periodoKey ya es YYYY-N → usarlo directo
+    // 2. Si es numérico → buscar ciclo en _h.periodoNumACiclo → "Trimestre 2 — 2026-1"
+    // 3. Para informe sin mapa → fallback a _h.periodoActual
+    // 4. Sin ciclo disponible → al menos "Trimestre 2" en lugar del número crudo
     const _hRef = typeof _h !== 'undefined' ? _h : {};
-    const _cicloFallback = PERIODO_VALIDO_PPDF.test(String(periodoKey ?? ''))
-      ? null
-      : ((_hRef.periodoNumACiclo || {})[String(periodoKey)]
-         || (esInforme ? (_hRef.periodoActual || null) : null));
-    const labelPeriodo = (periodoKey && PERIODO_VALIDO_PPDF.test(periodoKey))
-      ? periodoKey
-      : (_cicloFallback ?? String(periodoKey ?? ''));
+    const _tipoLabel = _hRef.periodosAnio === 4 ? 'Trimestre' : (_hRef.periodosAnio === 3 ? 'Cuatrimestre' : 'Semestre');
+    let labelPeriodo;
+    if (periodoKey && PERIODO_VALIDO_PPDF.test(periodoKey)) {
+      labelPeriodo = periodoKey;
+    } else {
+      const _ciclo = ((_hRef.periodoNumACiclo || {})[String(periodoKey)])
+        || (esInforme ? (_hRef.periodoActual || null) : null);
+      const _esNum = String(periodoKey ?? '').match(/^\d+$/);
+      labelPeriodo = _ciclo
+        ? (_esNum ? `${_tipoLabel} ${periodoKey} — ${_ciclo}` : _ciclo)
+        : (_esNum ? `${_tipoLabel} ${periodoKey}` : String(periodoKey ?? ''));
+    }
     doc.setFontSize(11);
     doc.text(tituloDoc, pageWidth / 2, 34, { align: 'center' });
     doc.setLineWidth(0.5);
@@ -292,8 +300,8 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       doc.text(`Página ${i} de ${numPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
     }
 
-    const nombre   = nombreAlumno.replace(/\s+/g, '_');
-    const sufijoPer = labelPeriodo || (periodoKey ?? '');
+    const nombre    = nombreAlumno.replace(/\s+/g, '_');
+    const sufijoPer = (labelPeriodo || String(periodoKey ?? '')).replace(/[\s—]+/g, '_');
     doc.save(`Calificaciones_${sufijoPer}_${nombre}.pdf`);
 
   } catch (error) {
