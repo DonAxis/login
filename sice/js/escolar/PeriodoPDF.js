@@ -209,16 +209,33 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
       doc.setFont(undefined, 'normal'); doc.setTextColor(0,0,0); doc.text(valor, xValor, y);
     };
 
-    campo('FECHA:',    fecha,         izq,      izq + 16);
-    campo('PERIODO:',  labelPeriodo,  der - 60, der - 40);
-    y += 6;
-    campo('ESPECIALIDAD:', especialidad, izq,      izq + 32);
-    campo('MATRÍCULA:',    noControl,    der - 60, der - 35);
-    y += 6;
-    campo('NOMBRE:',   nombreAlumno.toUpperCase(), izq,    izq + 18);
-    campo('TURNO:',    turnoStr,                   der - 60, der - 40);
-    y += 6;
-    campo('PROMEDIO GENERAL:', promedioGeneral, izq, izq + 36);
+    if (esInforme) {
+      // ── Encabezado INFORME DE CALIFICACIONES ──────────────────────
+      campo('FECHA:',    fecha,         izq,      izq + 16);
+      campo('PERIODO:',  labelPeriodo,  der - 60, der - 40);
+      y += 6;
+      campo('ESPECIALIDAD:', especialidad, izq,      izq + 32);
+      campo('NO. CONTROL:',  noControl,    der - 60, der - 35);
+      y += 6;
+      campo('NOMBRE:',   nombreAlumno.toUpperCase(), izq,    izq + 18);
+      campo('SEMESTRE:', semestreStr,                der - 60, der - 38);
+      y += 6;
+      campo('PROMEDIO GENERAL:', promedioGeneral,  izq,             izq + 36);
+      campo('GRUPO:',            grupo,             pageWidth/2-20, pageWidth/2-5);
+      campo('TURNO:',            turnoStr,          der - 55,       der - 40);
+    } else {
+      // ── Encabezado CALIFICACIONES DEL PERIODO (historial) ─────────
+      campo('FECHA:',    fecha,         izq,      izq + 16);
+      campo('PERIODO:',  labelPeriodo,  der - 60, der - 40);
+      y += 6;
+      campo('ESPECIALIDAD:', especialidad, izq,      izq + 32);
+      campo('MATRÍCULA:',    noControl,    der - 60, der - 35);
+      y += 6;
+      campo('NOMBRE:',   nombreAlumno.toUpperCase(), izq,    izq + 18);
+      campo('TURNO:',    turnoStr,                   der - 60, der - 40);
+      y += 6;
+      campo('PROMEDIO GENERAL:', promedioGeneral, izq, izq + 36);
+    }
     doc.setTextColor(0, 0, 0);
 
     y += 8;
