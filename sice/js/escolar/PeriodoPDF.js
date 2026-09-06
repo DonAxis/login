@@ -213,14 +213,12 @@ async function descargarPeriodoPDF(alumnoId, nombreAlumno, periodoKey, esOficial
     campo('PERIODO:',  labelPeriodo,  der - 60, der - 40);
     y += 6;
     campo('ESPECIALIDAD:', especialidad, izq,      izq + 32);
-    campo('NO. CONTROL:',  noControl,    der - 60, der - 35);
+    campo('MATRÍCULA:',    noControl,    der - 60, der - 35);
     y += 6;
     campo('NOMBRE:',   nombreAlumno.toUpperCase(), izq,    izq + 18);
-    campo('SEMESTRE:', semestreStr,                der - 60, der - 38);
+    campo('TURNO:',    turnoStr,                   der - 60, der - 40);
     y += 6;
-    campo('PROMEDIO GENERAL:', promedioGeneral,  izq,             izq + 36);
-    campo('GRUPO:',            grupo,             pageWidth/2-20, pageWidth/2-5);
-    campo('TURNO:',            turnoStr,          der - 55,       der - 40);
+    campo('PROMEDIO GENERAL:', promedioGeneral, izq, izq + 36);
     doc.setTextColor(0, 0, 0);
 
     y += 8;
