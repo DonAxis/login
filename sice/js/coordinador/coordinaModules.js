@@ -6704,179 +6704,175 @@ function _renderHistorial() {
 // ===== verDetalleHistorial =====
 async function verDetalleHistorial(alumnoId, nombreAlumno) {
     try {
-        // Obtener todas las calificaciones del alumno
-        const calificaciones = await db.collection('calificaciones')
-            .where('alumnoId', '==', alumnoId)
-            .get();
+        // Cargar usuario, calificaciones actuales e historial en paralelo
+        const [aDocSnap, calSnap, histSnap] = await Promise.all([
+            db.collection('usuarios').doc(alumnoId).get(),
+            db.collection('calificaciones').where('alumnoId', '==', alumnoId).get(),
+            db.collection('historialCalificaciones').where('alumnoId', '==', alumnoId).get()
+        ]);
 
-        if (calificaciones.empty) {
+        if (calSnap.empty && histSnap.empty) {
             alert('Este alumno no tiene calificaciones registradas');
             return;
         }
 
-        // Obtener tieneExamenFinal del alumno a partir de su carrera
         let tieneExamenFinalHistorial = false;
-        try {
-            const aDoc = await db.collection('usuarios').doc(alumnoId).get();
-            if (aDoc.exists && aDoc.data().carreraId) {
-                tieneExamenFinalHistorial = await obtenerTieneExamenFinal(aDoc.data().carreraId);
-            }
-        } catch (_) {}
-
-        const materiasMap = {};
-        const materiasCache = {};
-
-        // Cargar nombres de materias desde la coleccion 'materias'
-        for (const calDoc of calificaciones.docs) {
-            const cal = calDoc.data();
-            const key = `${cal.materiaId}_${cal.periodo}`;
-
-            // Obtener nombre de materia
-            let materiaNombre = cal.materiaNombre || 'Sin nombre';
-            let materiaCodigo = cal.materiaCodigo || '';
-
-            // Si no tiene nombre, buscarlo en la coleccion materias
-            if (!cal.materiaNombre && cal.materiaId) {
-                if (!materiasCache[cal.materiaId]) {
-                    try {
-                        const materiaDoc = await db.collection('materias').doc(cal.materiaId).get();
-                        if (materiaDoc.exists) {
-                            materiasCache[cal.materiaId] = materiaDoc.data();
-                        }
-                    } catch (error) {
-                        console.error('Error al cargar materia:', error);
-                    }
-                }
-
-                if (materiasCache[cal.materiaId]) {
-                    materiaNombre = materiasCache[cal.materiaId].nombre;
-                    materiaCodigo = materiasCache[cal.materiaId].codigo || '';
-                }
-            }
-
-            // Usar ?? en lugar de || para permitir 0
-            materiasMap[key] = {
-                materiaNombre: materiaNombre,
-                materiaCodigo: materiaCodigo,
-                materiaId: cal.materiaId,
-                periodo: cal.periodo || 'N/A',
-                parcial1: cal.parciales?.parcial1 ?? '-',
-                parcial2: cal.parciales?.parcial2 ?? '-',
-                parcial3: cal.parciales?.parcial3 ?? '-',
-                extraordinario: cal.extraordinario ?? null
-            };
+        if (aDocSnap.exists && aDocSnap.data().carreraId) {
+            try { tieneExamenFinalHistorial = await obtenerTieneExamenFinal(aDocSnap.data().carreraId); } catch (_) {}
         }
 
-        let html = `
+        // Key: `${materiaId}_${periodoAcademico || '_actual'}`
+        // historialCalificaciones (periodos cerrados) tiene prioridad sobre calificaciones activas
+        const materiasMap = {};
+
+        const procesarDoc = (cal, esCerrado) => {
+            const periodoAcad = cal.periodoAcademico || null;
+            const key = `${cal.materiaId}_${periodoAcad || '_actual'}`;
+
+            // No pisar historial cerrado con el doc activo del mismo periodo
+            if (materiasMap[key]?._cerrado && !esCerrado) return;
+
+            // Doc activo sin ningún dato real → ignorar (periodo nuevo sin calificaciones aún)
+            if (!esCerrado) {
+                const tieneDatos =
+                    cal.parciales?.parcial1 != null ||
+                    cal.parciales?.parcial2 != null ||
+                    cal.parciales?.parcial3 != null ||
+                    cal.promedio != null || cal.ets != null || cal.extraordinario != null;
+                if (!tieneDatos) return;
+            }
+
+            materiasMap[key] = {
+                materiaNombre: cal.materiaNombre || 'Sin nombre',
+                materiaCodigo: cal.materiaCodigo || '',
+                materiaId: cal.materiaId,
+                periodoDisplay: periodoAcad || 'Actual',
+                periodoSort: periodoAcad || 'zzzz',
+                parcial1: cal.parciales?.parcial1 ?? null,
+                parcial2: cal.parciales?.parcial2 ?? null,
+                parcial3: cal.parciales?.parcial3 ?? null,
+                promedio: cal.promedio ?? null,
+                ets: cal.ets ?? null,
+                extraordinario: cal.extraordinario ?? null,
+                acreditacion: cal.acreditacion || null,
+                _cerrado: esCerrado
+            };
+        };
+
+        // Primero historial (periodos cerrados, datos fiables), luego activos
+        histSnap.forEach(doc => procesarDoc(doc.data(), true));
+        calSnap.forEach(doc => procesarDoc(doc.data(), false));
+
+        const entries = Object.values(materiasMap);
+        if (!entries.length) {
+            alert('Este alumno no tiene calificaciones con datos registrados');
+            return;
+        }
+
+        // Ordenar: ciclo desc, luego nombre
+        entries.sort((a, b) => {
+            if (a.periodoSort !== b.periodoSort) return b.periodoSort.localeCompare(a.periodoSort);
+            return a.materiaNombre.localeCompare(b.materiaNombre, 'es');
+        });
+
+        const nombreSeguro = nombreAlumno.replace(/'/g, "\\'");
+        const fmtParcial = v => (v === null || v === undefined) ? '-' : String(v);
+        const getColor = val => {
+            if (val === 'NP' || val === '-' || val === null) return '#dc3545';
+            const n = parseFloat(val);
+            if (isNaN(n)) return '#000';
+            return n < 6 ? '#dc3545' : n >= 8 ? '#4caf50' : '#000';
+        };
+
+        let filas = '';
+        entries.forEach(m => {
+            const toNum = v => (v !== null && v !== undefined && v !== 'NP') ? parseFloat(v) : (v === 'NP' ? 'NP' : null);
+            const p1Num = toNum(m.parcial1), p2Num = toNum(m.parcial2), p3Num = toNum(m.parcial3);
+
+            // Calificación efectiva: ETS > Extra > calculada desde parciales > promedio guardado
+            let calDisplay = '-', colorCal = '#667eea';
+            if (m.ets != null) {
+                calDisplay = String(redondearCalificacion(m.ets));
+                colorCal = parseFloat(calDisplay) >= 6 ? '#4caf50' : '#dc3545';
+            } else if (m.extraordinario != null) {
+                calDisplay = String(redondearCalificacion(m.extraordinario));
+                colorCal = parseFloat(calDisplay) >= 6 ? '#4caf50' : '#dc3545';
+            } else {
+                const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalHistorial);
+                if (calNum === 'NP') { calDisplay = 'NP'; colorCal = '#dc3545'; }
+                else if (calNum !== null) {
+                    calDisplay = String(redondearCalificacion(calNum));
+                    colorCal = parseFloat(calDisplay) < 6 ? '#dc3545' : parseFloat(calDisplay) >= 8 ? '#4caf50' : '#667eea';
+                } else if (m.promedio !== null && m.promedio !== undefined) {
+                    // Fallback: promedio guardado directamente (Boleta Global o sin parciales)
+                    calDisplay = m.promedio === 'NP' ? 'NP' : String(redondearCalificacion(m.promedio));
+                    colorCal = calDisplay === 'NP' ? '#dc3545' : parseFloat(calDisplay) < 6 ? '#dc3545' : '#667eea';
+                }
+            }
+
+            // Columna Extra/ETS con chip de tipo acreditación
+            let extraDisplay = '-';
+            let acrChip = '';
+            if (m.acreditacion && m.acreditacion !== 'ORD' && m.acreditacion !== 'ORD2') {
+                const cols = { ETS: '#1565c0', EXT: '#e65100', REC: '#7b1fa2', EQUI: '#00695c', FINAL: '#006064' };
+                const col = cols[m.acreditacion] || '#555';
+                acrChip = `<span style="background:${col};color:white;padding:1px 6px;border-radius:8px;font-size:0.7rem;font-weight:700;display:inline-block;margin-bottom:2px;">${m.acreditacion}</span><br>`;
+            }
+            if (m.ets != null) extraDisplay = String(redondearCalificacion(m.ets));
+            else if (m.extraordinario != null) extraDisplay = String(redondearCalificacion(m.extraordinario));
+
+            filas += `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 10px; border: 1px solid #ddd;">
+            <strong>${m.materiaNombre}</strong>
+            <br><small style="color: #666;">${m.materiaCodigo}</small>
+          </td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-size:0.88rem; color:#555;">${m.periodoDisplay}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${getColor(fmtParcial(m.parcial1))};">${fmtParcial(m.parcial1)}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${getColor(fmtParcial(m.parcial2))};">${fmtParcial(m.parcial2)}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${getColor(fmtParcial(m.parcial3))};">${fmtParcial(m.parcial3)}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 1.1rem; background: #f8f9fa; color: ${colorCal};">${calDisplay}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #555;">${acrChip}${extraDisplay}</td>
+        </tr>`;
+        });
+
+        const html = `
       <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1000px; margin: 20px auto; max-height: 85vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;">
           <h3 style="margin: 0; color: #6A2135;">Historial Academico: ${nombreAlumno}</h3>
           <div style="display:flex; gap:8px;">
-            <button onclick="descargarHistorialAlumnoPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}');"
+            <button onclick="descargarHistorialAlumnoPDF('${alumnoId}', '${nombreSeguro}');"
                     style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
               Historial Académico
             </button>
-            <button onclick="descargarInformeCalificacionesPDF('${alumnoId}', '${nombreAlumno.replace(/'/g, "\\'")}');"
+            <button onclick="descargarInformeCalificacionesPDF('${alumnoId}', '${nombreSeguro}');"
                     style="background: #6A2135; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
               Informe de Calificaciones
             </button>
           </div>
         </div>
-        
         <div style="overflow-x: auto;">
           <table style="width: 100%; border-collapse: collapse;">
             <thead>
               <tr style="background: #667eea; color: white;">
                 <th style="padding: 12px; border: 1px solid #ddd;">Materia</th>
-                <th style="padding: 12px; border: 1px solid #ddd;">Periodo</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Ciclo</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Parcial 1</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Parcial 2</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">${tieneExamenFinalHistorial ? 'Examen Final' : 'Parcial 3'}</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Calificación</th>
-                <th style="padding: 12px; border: 1px solid #ddd;">Extra.</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Extra. / ETS</th>
               </tr>
             </thead>
-            <tbody>
-    `;
-
-        // Funcion auxiliar para colores
-        const getColorCalif = (calif) => {
-            if (calif === 'NP') return '#dc3545';
-            if (calif === '-') return '#dc3545';
-            const num = parseFloat(calif);
-            if (isNaN(num)) return '#000000';
-            if (num === 0) return '#dc3545';
-            if (num < 6) return '#000000';
-            return '#000000';
-        };
-
-        Object.values(materiasMap).forEach(materia => {
-            const p1Raw = materia.parcial1;
-            const p2Raw = materia.parcial2;
-            const p3Raw = materia.parcial3;
-
-            const p1Num = (p1Raw !== '-' && p1Raw !== null && p1Raw !== undefined && p1Raw !== 'NP') ? parseFloat(p1Raw) : (p1Raw === 'NP' ? 'NP' : null);
-            const p2Num = (p2Raw !== '-' && p2Raw !== null && p2Raw !== undefined && p2Raw !== 'NP') ? parseFloat(p2Raw) : (p2Raw === 'NP' ? 'NP' : null);
-            const p3Num = (p3Raw !== '-' && p3Raw !== null && p3Raw !== undefined && p3Raw !== 'NP') ? parseFloat(p3Raw) : (p3Raw === 'NP' ? 'NP' : null);
-
-            const calNum = calcularCalificacion(p1Num, p2Num, p3Num, tieneExamenFinalHistorial);
-            let promedio = '-';
-            if (calNum === 'NP') promedio = 'NP';
-            else if (calNum !== null) promedio = String(redondearCalificacion(calNum));
-
-            // Extraordinario tiene prioridad sobre el promedio calculado
-            if (materia.extraordinario !== null && materia.extraordinario !== undefined) {
-                promedio = String(redondearCalificacion(materia.extraordinario));
-            }
-
-            // Color del promedio
-            let colorPromedio = '#667eea';
-            if (promedio === 'NP') {
-                colorPromedio = '#dc3545';
-            } else if (promedio !== '-') {
-                const promedioNum = parseFloat(promedio);
-                if (promedioNum < 6) colorPromedio = '#dc3545';
-                else if (promedioNum >= 8) colorPromedio = '#4caf50';
-            }
-
-            html += `
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 10px; border: 1px solid #ddd;">
-            <strong>${materia.materiaNombre}</strong>
-            <br><small style="color: #666;">${materia.materiaCodigo}</small>
-          </td>
-          <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${materia.periodo}</td>
-          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${getColorCalif(materia.parcial1)};">
-            ${materia.parcial1}
-          </td>
-          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${getColorCalif(materia.parcial2)};">
-            ${materia.parcial2}
-          </td>
-          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${getColorCalif(materia.parcial3)};">
-            ${materia.parcial3}
-          </td>
-          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 1.1rem; background: #f8f9fa; color: ${colorPromedio};">
-            ${promedio}
-          </td>
-          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #e65100;">
-            ${materia.extraordinario !== null && materia.extraordinario !== undefined ? redondearCalificacion(materia.extraordinario) : '-'}
-          </td>
-        </tr>
-      `;
-        });
-
-        html += `
-            </tbody>
+            <tbody>${filas}</tbody>
           </table>
         </div>
-        
         <div style="margin-top: 20px;">
           <button onclick="mostrarHistorialAlumnos()" style="width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
             Volver
           </button>
         </div>
-      </div>
-    `;
+      </div>`;
 
         document.getElementById('contenidoModal').innerHTML = html;
 
