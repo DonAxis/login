@@ -14,6 +14,16 @@ const _ORPHAN_IDS = new Set([
   '1xCqcfg3WJiOwFKAySNz',  // FINANZAS III (INVERSION EN ACTIVOS)   — periodo 9
 ]);
 
+// Docs de calificaciones duplicados verificados manualmente:
+// c3l... y r0h... son renombrados de "FINANZAS II"; el ID actual KvVXMBkQjJcJjKs3vhjN
+// ya tiene la calificación correcta para estos dos alumnos. Borrar los duplicados.
+const _ORPHAN_CAL_DOCS = [
+  'Kfj2gb5MpTasySvW5YLH_c3lTWSUcyuXDUdFogj1E', // Lopez Hernandez — FINANZAS II (viejo ID 1)
+  'Kfj2gb5MpTasySvW5YLH_r0hToVzsuzYDHmPyGTTS', // Lopez Hernandez — FINANZAS II (viejo ID 2)
+  'sE4LsiWXn7kYmSg5tLbk_c3lTWSUcyuXDUdFogj1E', // Gonzalez Tiburcio — FINANZAS II (viejo ID 1)
+  'sE4LsiWXn7kYmSg5tLbk_r0hToVzsuzYDHmPyGTTS', // Gonzalez Tiburcio — FINANZAS II (viejo ID 2)
+];
+
 async function accionVigia() {
   _vigiaAbrirPanel('Verificando calificaciones reales antes de limpiar…', true);
 
@@ -29,66 +39,20 @@ async function accionVigia() {
       return;
     }
 
-    // ── 2. Verificar que ningún doc de calificaciones tiene promedio real ─────
-    // Para cada huérfano: query calificaciones where materiaId == id
-    // Si alguno tiene promedio != null → ABORTAR, mostrar advertencia
-    _vigiaSetHtml(`<p style="color:#555;">⏳ Verificando calificaciones (${_ORPHAN_IDS.size} IDs)…</p>`);
+    // ── 2. Verificar que los docs de calificaciones duplicados existen ────────
+    // _ORPHAN_CAL_DOCS fue verificado manualmente: el ID actual KvVXMBkQjJcJjKs3vhjN
+    // ya tiene la calificación para esos alumnos → los docs orphan son duplicados seguros.
+    _vigiaSetHtml(`<p style="color:#555;">⏳ Verificando docs duplicados de calificaciones…</p>`);
 
-    const orphanArr   = Array.from(_ORPHAN_IDS);
-    const calQueries  = orphanArr.map(mid =>
-      db.collection('calificaciones').where('materiaId', '==', mid).get()
+    const calDocSnaps = await Promise.all(
+      _ORPHAN_CAL_DOCS.map(id => db.collection('calificaciones').doc(id).get())
     );
-    const calResults = await Promise.all(calQueries);
-
-    const bloqueados = []; // { materiaId, alumnoId, promedio }
-    calResults.forEach((snap, i) => {
-      snap.docs.forEach(doc => {
-        const d = doc.data();
-        if (d.promedio !== null && d.promedio !== undefined) {
-          bloqueados.push({
-            materiaId:    orphanArr[i],
-            alumnoId:     d.alumnoId,
-            alumnoNombre: d.alumnoNombre,
-            promedio:     d.promedio
-          });
-        }
-      });
-    });
-
-    if (bloqueados.length > 0) {
-      let html = `
-        <div style="padding:14px 16px; background:#ffebee; border:2px solid #c62828;
-                    border-radius:8px; color:#c62828; font-weight:700; margin-bottom:16px;">
-          ⛔ LIMPIEZA ABORTADA — se encontraron calificaciones reales en la colección
-          <code>calificaciones</code> para algunos de los IDs huérfanos.<br>
-          <span style="font-weight:400; font-size:0.88rem;">
-            Estos datos no son artifacts y NO deben eliminarse automáticamente.
-            Revisar manualmente caso por caso.
-          </span>
-        </div>
-        <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
-          <thead>
-            <tr style="background:#c62828; color:white;">
-              <th style="padding:7px 10px; text-align:left;">materiaId</th>
-              <th style="padding:7px 10px; text-align:left;">Alumno</th>
-              <th style="padding:7px 10px; text-align:center;">Promedio</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${bloqueados.map((b, i) => `
-              <tr style="background:${i % 2 ? '#fff' : '#fff8f8'}">
-                <td style="padding:5px 10px; font-family:monospace; font-size:0.78rem;">${b.materiaId}</td>
-                <td style="padding:5px 10px;">${b.alumnoNombre || b.alumnoId}</td>
-                <td style="padding:5px 10px; text-align:center; font-weight:700;">${b.promedio}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>`;
-      _vigiaSetHtml(html);
-      return;
-    }
+    const calDocsABorrar = calDocSnaps
+      .filter(s => s.exists)
+      .map(s => ({ id: s.id, promedio: s.data().promedio, alumnoNombre: s.data().alumnoNombre }));
 
     // ── 3. Cargar historialAcademico de la carrera ─────────────────────────────
-    _vigiaSetHtml(`<p style="color:#555;">⏳ Verificación OK — cargando historiales…</p>`);
+    _vigiaSetHtml(`<p style="color:#555;">⏳ Cargando historiales…</p>`);
 
     const historialesSnap = await db.collection('historialAcademico')
       .where('carreraId', '==', carrera.id)
@@ -189,9 +153,10 @@ async function accionVigia() {
     html += `
       <div style="margin-top:20px; padding:14px 16px; background:#fff8e1;
                   border:1px solid #ffd54f; border-radius:8px; font-size:0.88rem; color:#5d4037;">
-        ⚠️ Esta acción <strong>modifica Firestore</strong>: reescribe <code>materias[]</code>
-        en ${afectados.length} documentos de <code>historialAcademico</code>.
-        Las calificaciones en la colección <code>calificaciones</code> <strong>no se tocan</strong>.
+        ⚠️ Esta acción <strong>modifica Firestore</strong>:<br>
+        • Reescribe <code>materias[]</code> en ${afectados.length} docs de <code>historialAcademico</code>.<br>
+        • Elimina ${calDocsABorrar.length} docs duplicados de <code>calificaciones</code>
+        (FINANZAS II viejo — la nota ya existe en el ID actual del catálogo).
       </div>
       <div style="margin-top:16px; text-align:center;">
         <button id="_vigiaBtn_ejecutar"
@@ -199,13 +164,14 @@ async function accionVigia() {
           style="background:#c62828; color:white; border:none; border-radius:8px;
                  padding:12px 32px; font-size:1rem; font-weight:700; cursor:pointer;
                  box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-          Ejecutar limpieza (${afectados.length} documentos)
+          Ejecutar limpieza (${afectados.length} historiales + ${calDocsABorrar.length} calificaciones)
         </button>
       </div>`;
 
     // Guardar datos en variable global para el botón
-    window._vigiaAfectados    = afectados;
-    window._vigiaCarreraNombre = carrera.nombre;
+    window._vigiaAfectados      = afectados;
+    window._vigiaCalDocsABorrar = calDocsABorrar;
+    window._vigiaCarreraNombre  = carrera.nombre;
 
     _vigiaSetHtml(html);
 
@@ -216,47 +182,50 @@ async function accionVigia() {
 }
 
 async function _vigiaEjecutarLimpieza() {
-  const afectados = window._vigiaAfectados;
+  const afectados      = window._vigiaAfectados;
+  const calDocsABorrar = window._vigiaCalDocsABorrar || [];
   if (!afectados || afectados.length === 0) return;
 
   const btn = document.getElementById('_vigiaBtn_ejecutar');
   if (btn) { btn.disabled = true; btn.textContent = 'Ejecutando…'; }
 
-  _vigiaSetHtml(`<p style="color:#555;">⏳ Escribiendo cambios en Firestore (${afectados.length} documentos)…</p>`);
+  _vigiaSetHtml(`<p style="color:#555;">⏳ Escribiendo cambios en Firestore…</p>`);
 
   try {
-    // Releer los docs actuales justo antes de escribir (estado fresco)
-    const docIds  = afectados.map(a => a.docId);
-    const snaps   = await Promise.all(docIds.map(id => db.collection('historialAcademico').doc(id).get()));
+    // Releer historialAcademico justo antes de escribir (estado fresco)
+    const docIds = afectados.map(a => a.docId);
+    const snaps  = await Promise.all(docIds.map(id => db.collection('historialAcademico').doc(id).get()));
 
     const batch = db.batch();
 
+    // 1. Limpiar historialAcademico.materias[]
     snaps.forEach(snap => {
       if (!snap.exists) return;
-      const materiasActuales = snap.data().materias || [];
-      const materiasFiltradas = materiasActuales.filter(m => !_ORPHAN_IDS.has(m.materiaId));
+      const materiasFiltradas = (snap.data().materias || []).filter(m => !_ORPHAN_IDS.has(m.materiaId));
       batch.update(snap.ref, { materias: materiasFiltradas });
+    });
+
+    // 2. Borrar docs duplicados de calificaciones
+    calDocsABorrar.forEach(({ id }) => {
+      batch.delete(db.collection('calificaciones').doc(id));
     });
 
     await batch.commit();
 
-    // Resumen de éxito
     const totalEliminadas = afectados.reduce((s, a) => s + a.materiasAEliminar.length, 0);
     let html = `
       <div style="padding:16px 20px; background:#e8f5e9; border:2px solid #2e7d32;
                   border-radius:10px; color:#1b5e20; margin-bottom:20px;">
-        <div style="font-size:1.2rem; font-weight:700; margin-bottom:6px;">
-          ✅ Limpieza completada
-        </div>
+        <div style="font-size:1.2rem; font-weight:700; margin-bottom:6px;">✅ Limpieza completada</div>
         <div style="font-size:0.9rem;">
-          Se eliminaron <strong>${totalEliminadas} entradas huérfanas</strong>
-          de <strong>${afectados.length} documentos</strong> en
-          <code>historialAcademico</code>.<br>
-          La boleta de calificaciones de ${window._vigiaCarreraNombre} ya no
-          mostrará materias duplicadas.
+          • <strong>${totalEliminadas} entradas huérfanas</strong> eliminadas de
+          <strong>${afectados.length} docs</strong> en <code>historialAcademico</code>.<br>
+          • <strong>${calDocsABorrar.length} docs duplicados</strong> eliminados de
+          <code>calificaciones</code>.<br>
+          La boleta de ${window._vigiaCarreraNombre} ya no mostrará materias duplicadas.
         </div>
       </div>
-      <h4 style="margin:0 0 10px; font-size:0.93rem; color:#333;">Alumnos actualizados:</h4>
+      <h4 style="margin:0 0 10px; font-size:0.93rem; color:#333;">Historiales actualizados:</h4>
       <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
         <thead>
           <tr style="background:#2e7d32; color:white;">
@@ -274,11 +243,33 @@ async function _vigiaEjecutarLimpieza() {
                          font-weight:700; color:#2e7d32;">${a.materiasAEliminar.length}</td>
             </tr>`).join('')}
         </tbody>
-      </table>`;
+      </table>
+      ${calDocsABorrar.length > 0 ? `
+        <h4 style="margin:16px 0 8px; font-size:0.93rem; color:#333;">
+          Calificaciones duplicadas eliminadas:
+        </h4>
+        <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+          <thead>
+            <tr style="background:#c62828; color:white;">
+              <th style="padding:7px 10px; text-align:left;">Doc eliminado</th>
+              <th style="padding:7px 10px; text-align:left;">Alumno</th>
+              <th style="padding:7px 10px; text-align:center;">Promedio (era duplicado)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${calDocsABorrar.map((d, i) => `
+              <tr style="background:${i % 2 ? '#fff' : '#fff8f8'}">
+                <td style="padding:5px 10px; font-family:monospace; font-size:0.75rem;">${d.id}</td>
+                <td style="padding:5px 10px;">${d.alumnoNombre || '—'}</td>
+                <td style="padding:5px 10px; text-align:center;">${d.promedio ?? '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>` : ''}`;
 
     _vigiaSetHtml(html);
-    window._vigiaAfectados    = null;
-    window._vigiaCarreraNombre = null;
+    window._vigiaAfectados      = null;
+    window._vigiaCalDocsABorrar = null;
+    window._vigiaCarreraNombre  = null;
 
   } catch (e) {
     console.error('Error en _vigiaEjecutarLimpieza:', e);
