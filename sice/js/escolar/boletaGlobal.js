@@ -686,6 +686,19 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     // periodoAnterior: fallback de periodo cuando historialAcademico aún no fue actualizado
     const periodoAnterior = configDoc.exists ? (configDoc.data().periodoAnterior || null) : null;
 
+    // periodosAnio: desde caché sessionStorage (ya cargado al abrir la boleta) o fallback Firestore
+    let _periodosAnio = 2;
+    try {
+      const _cached = JSON.parse(sessionStorage.getItem(_CACHE_KEY_MATERIAS + carreraId) || 'null');
+      if (_cached && _cached.periodosAnio) _periodosAnio = Number(_cached.periodosAnio);
+    } catch (_) {}
+    if (_periodosAnio === 2 && carreraId) {
+      try {
+        const _carDoc = await db.collection('carreras').doc(carreraId).get();
+        if (_carDoc.exists) _periodosAnio = Number(_carDoc.data().periodosAnio) || 2;
+      } catch (_) {}
+    }
+
     // Calificación efectiva desde calificaciones: ETS > extraordinario > promedio
     function _efectivaPDF(materiaId) {
       const d = calMap[materiaId];
@@ -749,8 +762,8 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
     const GAP   = 5;
     const col2X = (pageWidth + GAP) / 2; // ~110.45mm
 
-    const NIVEL_NOMBRES = ['PRIMER','SEGUNDO','TERCER','CUARTO','QUINTO',
-                           'SEXTO','SEPTIMO','OCTAVO','NOVENO','DECIMO'];
+    const _TIPO_PER  = _periodosAnio === 3 ? 'Cuatrimestre' : _periodosAnio === 4 ? 'Trimestre' : 'Semestre';
+    const _ORDINALS  = ['1er','2do','3er','4to','5to','6to','7mo','8vo','9no','10mo'];
     const CAL_PALABRAS  = ['cero','uno','dos','tres','cuatro','cinco',
                            'seis','siete','ocho','nueve','diez'];
 
@@ -771,7 +784,7 @@ async function descargarBoletaGlobalPDF(alumnoId, periodoActual = 0) {
                          cellPadding: { top: 1.5, bottom: 0.3, left: 1, right: 1 } };
 
     function agregarFilasNivel(periodo, target) {
-      const label = (NIVEL_NOMBRES[periodo - 1] || (periodo + 'o')) + ' NIVEL';
+      const label = (_ORDINALS[periodo - 1] || (periodo + 'o')) + ' ' + _TIPO_PER;
       target.push([{ content: label, colSpan: 5, styles: nivelStyle }]);
       porPeriodo[periodo].forEach(m => {
         if (m.valida === false) return;
