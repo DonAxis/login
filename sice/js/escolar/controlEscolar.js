@@ -110,9 +110,8 @@ async function cargarAlumnos() {
   try {
     const snapshot = await db.collection('usuarios')
       .where('rol', '==', 'alumno')
-      .where('activo', '==', true)
       .get();
-    
+
     alumnosData = [];
     snapshot.forEach(doc => {
       alumnosData.push({
@@ -120,7 +119,7 @@ async function cargarAlumnos() {
         ...doc.data()
       });
     });
-    
+
     console.log(alumnosData.length + ' alumnos cargados');
   } catch (error) {
     console.error('Error al cargar alumnos:', error);
@@ -147,7 +146,7 @@ async function cargarMaterias() {
 
 function actualizarEstadisticas() {
   document.getElementById('totalCarreras').textContent = carrerasData.length;
-  document.getElementById('totalAlumnos').textContent = alumnosData.length;
+  document.getElementById('totalAlumnos').textContent = alumnosData.filter(a => a.activo !== false).length;
   document.getElementById('totalMaterias').textContent = materiasData.length;
 }
 
@@ -390,13 +389,26 @@ function verAlumnosGrupo() {
   alumnos.forEach(alumno => {
     const _nomSafe   = alumno.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const esEspecial = alumnoIdsEsp.has(alumno.uid);
+    const esBaja     = alumno.activo === false;
     const badge      = esEspecial
       ? '<span style="background:#ff9800;color:white;padding:1px 6px;border-radius:3px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:5px;">ESPECIAL</span>'
       : '';
-    const rowStyle = esEspecial ? ' style="background:#fff8e1;"' : '';
+    const badgeBaja  = esBaja
+      ? '<span style="background:#757575;color:white;padding:1px 6px;border-radius:3px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:5px;">BAJA</span>'
+      : '';
+    const rowStyle = esEspecial ? ' style="background:#fff8e1;"' : esBaja ? ' style="background:#f5f5f5;"' : '';
+    const btnEstado = esBaja
+      ? `<button onclick="toggleActivoAlumno('${alumno.uid}', '${_nomSafe}', true, 'grupo')"
+           style="background:#4caf50;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
+           Reactivar
+         </button>`
+      : `<button onclick="toggleActivoAlumno('${alumno.uid}', '${_nomSafe}', false, 'grupo')"
+           style="background:#dc3545;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
+           Desactivar
+         </button>`;
     html += `<tr${rowStyle}>
       <td><strong>${alumno.matricula || 'N/A'}</strong></td>
-      <td>${alumno.nombre}${badge}</td>
+      <td>${alumno.nombre}${badge}${badgeBaja}</td>
       <td>${alumno.periodo || '-'}</td>
       <td style="white-space:nowrap;">
         <button onclick="verHistorialCompleto('${alumno.uid}', '${_nomSafe}')">Ver Historial</button>
@@ -404,10 +416,7 @@ function verAlumnosGrupo() {
           style="background:#388e3c;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
           Boleta
         </button>
-        <button onclick="toggleActivoAlumno('${alumno.uid}', '${_nomSafe}', false, 'grupo')"
-          style="background:#dc3545;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
-          Desactivar
-        </button>
+        ${btnEstado}
       </td>
     </tr>`;
   });
@@ -1162,7 +1171,6 @@ async function verAlumnosEspeciales() {
       .where('rol', '==', 'alumno')
       .where('tipoAlumno', '==', 'especial')
       .where('carreraId', '==', carreraSeleccionada.id)
-      .where('activo', '==', true)
       .get();
     
     if (alumnosSnap.empty) {
@@ -1223,12 +1231,18 @@ async function verAlumnosEspeciales() {
     `;
     
     alumnosArray.forEach(alumno => {
+      const esBajaEsp = alumno.activo === false;
+      const badgeBajaEsp = esBajaEsp
+        ? '<span style="background:#757575;color:white;padding:2px 6px;border-radius:3px;font-size:0.75rem;margin-left:5px;">BAJA</span>'
+        : '';
+      const rowBgEsp = esBajaEsp ? 'background:#f5f5f5;' : 'background:#fff8e1;';
       html += `
-        <tr style="background: #fff8e1;">
+        <tr style="${rowBgEsp}">
           <td><strong>${alumno.matricula}</strong></td>
           <td>
             ${alumno.nombre}
             <span style="background: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; margin-left: 5px;">ESPECIAL</span>
+            ${badgeBajaEsp}
           </td>
           <td style="font-size: 0.85rem; color: #666;">${alumno.email || 'N/A'}</td>
           <td>${alumno.periodoActualCiclo || periodoActual || '-'}</td>
