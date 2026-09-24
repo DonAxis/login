@@ -3082,6 +3082,7 @@ function aplicarFiltrosAlumnos() {
     lista.forEach(item => {
         const alumno = item.data;
         const id = item.id;
+        const _verUrl = '../../index.html?m=' + encodeURIComponent(alumno.matricula || '') + '&e=' + encodeURIComponent(alumno.email || '');
 
         // Nombre del grupo
         let grupoNombre = 'Sin grupo';
@@ -3122,6 +3123,7 @@ function aplicarFiltrosAlumnos() {
                     <p style="color:#888;">${alumno.email}</p>
                 </div>
                 <div class="item-acciones">
+                    <button onclick="window.open('${_verUrl}','_blank')" style="background:linear-gradient(135deg,#0288d1,#01579b);color:white;border:none;padding:6px 14px;border-radius:6px;font-weight:700;font-size:0.85rem;cursor:pointer;">Ver</button>
                     <button onclick="editarAlumno('${id}')" class="btn-editar">Editar</button>
                     ${alumno.graduado
                         ? `<button disabled style="background:#e65100;color:white;border:none;padding:6px 14px;border-radius:6px;font-weight:700;font-size:0.85rem;cursor:default;opacity:0.85;">Egresado</button>`

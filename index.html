@@ -484,6 +484,18 @@ function nuevaConsulta() {
   carreraNombreCache = null;
   horarioUrlCache = null;
 }
+
+// Auto-consulta cuando el coordinador abre esta página con ?m=matricula&e=email
+window.addEventListener('load', function() {
+  const params = new URLSearchParams(window.location.search);
+  const m = params.get('m');
+  const e = params.get('e');
+  if (m && e) {
+    document.getElementById('matricula').value = m;
+    document.getElementById('email').value = e;
+    consultarAlumno({ preventDefault: () => {} });
+  }
+});
   </script>
   
   <!-- jsPDF para generar PDFs -->
