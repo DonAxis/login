@@ -3082,7 +3082,7 @@ function aplicarFiltrosAlumnos() {
     lista.forEach(item => {
         const alumno = item.data;
         const id = item.id;
-        const _verUrl = '../../index.html?m=' + encodeURIComponent(alumno.matricula || '') + '&e=' + encodeURIComponent(alumno.email || '');
+        const _verUrl = '../../../index.html?m=' + encodeURIComponent(alumno.matricula || '') + '&e=' + encodeURIComponent(alumno.email || '');
 
         // Nombre del grupo
         let grupoNombre = 'Sin grupo';
