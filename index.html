@@ -131,7 +131,7 @@ async function consultarAlumno(event) {
       try {
         const { alumno, materias, carreraNombre, horarioUrl, timestamp } = JSON.parse(cached);
         const TTL = 30 * 60 * 1000; // 30 minutos
-        if (Date.now() - timestamp < TTL && alumno.email === email) {
+        if (Date.now() - timestamp < TTL && alumno.email === email && alumno.activo !== false) {
           alumnoActual = alumno;
           materiasCache = materias;
           carreraNombreCache = carreraNombre;
@@ -169,9 +169,16 @@ async function consultarAlumno(event) {
       id: doc.id,
       ...doc.data()
     };
-    
+
+    if (alumnoActual.activo === false) {
+      alert('No estás inscrito en el periodo actual.\n\nContacta a tu coordinador o control escolar para más información.');
+      btnConsultar.disabled = false;
+      btnConsultar.textContent = 'Consultar';
+      return;
+    }
+
     console.log('Alumno encontrado:', alumnoActual);
-    
+
     // Mostrar información
     await mostrarInformacionAlumno();
     

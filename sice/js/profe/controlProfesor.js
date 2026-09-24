@@ -389,7 +389,9 @@ async function cargarAlumnosYCalificaciones() {
       
       if (alumnoDoc.exists) {
         const alumnoData = alumnoDoc.data();
-        
+
+        if (alumnoData.activo === false) continue;
+
         const alumno = {
           id: inscripcion.alumnoId,
           nombre: alumnoData.nombre,
