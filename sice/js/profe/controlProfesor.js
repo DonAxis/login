@@ -167,10 +167,10 @@ async function mostrarMisMaterias() {
     const CARRERAS_TECNICO = new Set(['TIAC', 'TA', 'TC', 'TI', 'TT']);
 
     function getColorCarrera(carreraId, carrera) {
-      if (CARRERAS_TECNICO.has(carreraId)) return '#692817';
+      if (CARRERAS_TECNICO.has(carreraId)) return '#8B3A22';
       const codigo = carrera?.codigo || '';
       const nombre = carrera?.nombre || '';
-      if (codigo.startsWith('M') || nombre.toLowerCase().startsWith('maestr')) return '#242782';
+      if (codigo.startsWith('M') || nombre.toLowerCase().startsWith('maestr')) return '#3B3FAA';
       return carrera?.color || '#888888';
     }
 
@@ -184,10 +184,23 @@ async function mostrarMisMaterias() {
       materiasPorCarrera[cid][periodo].push(asignacion);
     });
 
-    // Ordenar carreras alfabéticamente por nombre
+    // Ordenar: Maestría primero → Carreras regulares → Técnico al final
+    function getPrioridadCarrera(carreraId, carrera) {
+      if (CARRERAS_TECNICO.has(carreraId)) return 2;
+      const codigo = carrera?.codigo || '';
+      const nombre = carrera?.nombre || '';
+      if (codigo.startsWith('M') || nombre.toLowerCase().startsWith('maestr')) return 0;
+      return 1;
+    }
+
     const carrerasOrdenadas = Object.keys(materiasPorCarrera).sort((a, b) => {
-      const nomA = (carrerasData.find(c => c.id === a)?.nombre || a).toLowerCase();
-      const nomB = (carrerasData.find(c => c.id === b)?.nombre || b).toLowerCase();
+      const carreraA = carrerasData.find(c => c.id === a);
+      const carreraB = carrerasData.find(c => c.id === b);
+      const prioA = getPrioridadCarrera(a, carreraA);
+      const prioB = getPrioridadCarrera(b, carreraB);
+      if (prioA !== prioB) return prioA - prioB;
+      const nomA = (carreraA?.nombre || a).toLowerCase();
+      const nomB = (carreraB?.nombre || b).toLowerCase();
       return nomA.localeCompare(nomB);
     });
 
