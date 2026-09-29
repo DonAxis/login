@@ -155,56 +155,101 @@ async function mostrarMisMaterias() {
       return turnoA - turnoB;
     });
     
-    // Agrupar por periodo
-    const materiasPorPeriodo = {};
-    
+    // Helper: convierte hex a rgba con opacidad dada
+    function hexToRgba(hex, alpha) {
+      const h = (hex || '#888888').replace('#', '');
+      const r = parseInt(h.slice(0, 2), 16) || 0;
+      const g = parseInt(h.slice(2, 4), 16) || 0;
+      const b = parseInt(h.slice(4, 6), 16) || 0;
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    const CARRERAS_TECNICO = new Set(['TIAC', 'TA', 'TC', 'TI', 'TT']);
+
+    function getColorCarrera(carreraId, carrera) {
+      if (CARRERAS_TECNICO.has(carreraId)) return '#692817';
+      const codigo = carrera?.codigo || '';
+      const nombre = carrera?.nombre || '';
+      if (codigo.startsWith('M') || nombre.toLowerCase().startsWith('maestr')) return '#242782';
+      return carrera?.color || '#888888';
+    }
+
+    // Agrupar por carreraId → periodo
+    const materiasPorCarrera = {};
     asignaciones.forEach(asignacion => {
+      const cid = asignacion.carreraId || 'sin_carrera';
+      if (!materiasPorCarrera[cid]) materiasPorCarrera[cid] = {};
       const periodo = asignacion.periodo || 1;
-      
-      if (!materiasPorPeriodo[periodo]) {
-        materiasPorPeriodo[periodo] = [];
-      }
-      
-      materiasPorPeriodo[periodo].push(asignacion);
+      if (!materiasPorCarrera[cid][periodo]) materiasPorCarrera[cid][periodo] = [];
+      materiasPorCarrera[cid][periodo].push(asignacion);
     });
-    
+
+    // Ordenar carreras alfabéticamente por nombre
+    const carrerasOrdenadas = Object.keys(materiasPorCarrera).sort((a, b) => {
+      const nomA = (carrerasData.find(c => c.id === a)?.nombre || a).toLowerCase();
+      const nomB = (carrerasData.find(c => c.id === b)?.nombre || b).toLowerCase();
+      return nomA.localeCompare(nomB);
+    });
+
+    console.log('Carreras agrupadas:', carrerasOrdenadas);
+
     // Generar HTML
     let html = '';
-    const periodos = Object.keys(materiasPorPeriodo).sort((a, b) => b - a);
-    
-    console.log('Periodos encontrados:', periodos);
-    
-    periodos.forEach(periodo => {
-      const materias = materiasPorPeriodo[periodo];
-      
+
+    carrerasOrdenadas.forEach(carreraId => {
+      const carrera = carrerasData.find(c => c.id === carreraId);
+      const color = getColorCarrera(carreraId, carrera);
+      const bgColor = hexToRgba(color, 0.07);
+      const borderColor = hexToRgba(color, 0.3);
+      const nombreCarrera = carrera?.nombre || carreraId;
+
+      const periodosOrdenados = Object.keys(materiasPorCarrera[carreraId]).sort((a, b) => b - a);
+
       html += `
-        <div style="margin-bottom: 30px;">
-          <h3 style="color: #6A2135; margin-bottom: 15px;">Periodo ${periodo}</h3>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+        <div style="margin-bottom: 28px; border-radius: 12px; overflow: hidden; border: 1px solid ${borderColor};">
+          <div style="background: ${color}; color: white; padding: 12px 18px;">
+            <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">${nombreCarrera}</h3>
+          </div>
+          <div style="background: ${bgColor}; padding: 16px;">
       `;
-      
-      materias.forEach(asignacion => {
-        const turnosNombres = {1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino'};
-        const turnoNombre = asignacion.turnoNombre || turnosNombres[asignacion.turno] || 'Sin turno';
-        
+
+      periodosOrdenados.forEach(periodo => {
+        const materias = materiasPorCarrera[carreraId][periodo];
+
         html += `
-          <div class="card-profesor" onclick="verCalificacionesMateria('${asignacion.id}')">
-            <h3>${asignacion.materiaNombre}</h3>
-            <p style="margin: 5px 0; color: #666;">
-              <strong>Código Grupo:</strong> ${asignacion.codigoGrupo || 'N/A'}<br>
-              <strong>Turno:</strong> ${turnoNombre}<br>
-              <strong>Periodo:</strong> ${asignacion.periodo}
-            </p>
+          <div style="margin-bottom: 15px;">
+            <h4 style="color: ${color}; margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 700;
+                        text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">Periodo ${periodo}</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+        `;
+
+        materias.forEach(asignacion => {
+          const turnosNombres = {1: 'Matutino', 2: 'Vespertino', 3: 'Nocturno', 4: 'Sabatino'};
+          const turnoNombre = asignacion.turnoNombre || turnosNombres[asignacion.turno] || 'Sin turno';
+
+          html += `
+            <div class="card-profesor" onclick="verCalificacionesMateria('${asignacion.id}')">
+              <h3>${asignacion.materiaNombre}</h3>
+              <p style="margin: 5px 0; color: #666;">
+                <strong>Código Grupo:</strong> ${asignacion.codigoGrupo || 'N/A'}<br>
+                <strong>Turno:</strong> ${turnoNombre}
+              </p>
+            </div>
+          `;
+        });
+
+        html += `
+            </div>
           </div>
         `;
       });
-      
+
       html += `
           </div>
         </div>
       `;
     });
-    
+
     console.log('HTML generado, mostrando materias');
     container.innerHTML = html;
     
