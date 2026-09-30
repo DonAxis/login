@@ -73,7 +73,7 @@ async function inicializar() {
 
   // Restaurar panel desde hash del navegador (recarga en pestaña específica)
   const hashPanel = location.hash.replace('#', '').split('/')[0];
-  const panelesValidos = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config', 'actas'];
+  const panelesValidos = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'egresados', 'config', 'actas'];
   const panelInicial = panelesValidos.includes(hashPanel) ? hashPanel : 'alumnos';
   mostrarPanelEscolar(panelInicial, true);
   history.replaceState({ panel: panelInicial, nivel: 'panel' }, '', '#' + panelInicial);
@@ -373,8 +373,12 @@ function verAlumnosGrupo() {
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) {
+    const tieneEspeciales = (inscEspPorGrupo[grupo] || []).length > 0;
+    const msg = tieneEspeciales
+      ? 'Este grupo solo tiene alumnos especiales. Usa "Ver Materias" para ver las materias del grupo.'
+      : 'No hay alumnos activos en este grupo.';
     mostrarLista(`<h2 class="titulo-seccion">Alumnos — ${grupo}</h2>
-      <div class="sin-datos">No hay alumnos en este grupo</div>`);
+      <div class="sin-datos">${msg}</div>`);
     return;
   }
 
@@ -1939,7 +1943,7 @@ function mostrarPanelEscolar(panel, skipHistory = false) {
     if (el) el.style.display = 'none';
   });
 
-  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'config', 'actas'];
+  const paneles = ['alumnos', 'editar', 'aprobar', 'boletaGlobal', 'buscar', 'exAlumnos', 'egresados', 'config', 'actas'];
   paneles.forEach(p => {
     const el = document.getElementById(`panel${p.charAt(0).toUpperCase() + p.slice(1)}`);
     const btn = document.getElementById(`btnPanel${p.charAt(0).toUpperCase() + p.slice(1)}`);
@@ -1962,6 +1966,7 @@ function mostrarPanelEscolar(panel, skipHistory = false) {
     document.getElementById('inputBuscarGlobal')?.focus();
   }
   if (panel === 'exAlumnos') cargarExAlumnos();
+  if (panel === 'egresados') cargarEgresados();
   if (panel === 'boletaGlobal') {
     inicializarBoletaGlobal(null, false, true);
     buscarAlumnoBoletaGlobal();
@@ -2434,6 +2439,83 @@ function _renderExAlumnos(busqueda) {
       <tbody>${rows}</tbody>
     </table>
     <p style="color:#999;font-size:0.85rem;margin-top:0.5rem;">${alumnos.length} resultado(s)</p>`;
+}
+
+// ── Egresados ────────────────────────────────────────────────────────────────
+let _egresadosCache = null;
+
+async function cargarEgresados() {
+  const contenedor = document.getElementById('resultadosEgresados');
+  if (!contenedor) return;
+
+  if (!_egresadosCache) {
+    contenedor.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Cargando egresados...</p>';
+    await cargarAlumnosSiNecesario();
+    if (!_carrerasMapBuscar) {
+      try {
+        const snap = await db.collection('carreras').get();
+        _carrerasMapBuscar = {};
+        snap.docs.forEach(d => { _carrerasMapBuscar[d.id] = d.data().nombre || d.id; });
+      } catch (e) {}
+    }
+    _egresadosCache = alumnosData
+      .filter(a => a.pasante === true || a.graduado === true)
+      .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+  }
+  filtrarEgresados();
+}
+
+function filtrarEgresados() {
+  const busqueda = (document.getElementById('inputBuscarEgresado')?.value || '').trim().toLowerCase();
+  _renderEgresados(busqueda);
+}
+
+function _renderEgresados(busqueda) {
+  const contenedor = document.getElementById('resultadosEgresados');
+  if (!contenedor || !_egresadosCache) return;
+
+  let lista = _egresadosCache;
+  if (busqueda) {
+    lista = lista.filter(a =>
+      (a.nombre    || '').toLowerCase().includes(busqueda) ||
+      (a.matricula || '').toLowerCase().includes(busqueda)
+    );
+  }
+
+  if (lista.length === 0) {
+    contenedor.innerHTML = busqueda
+      ? '<p style="color:#999;text-align:center;padding:20px;">No se encontraron egresados con ese criterio.</p>'
+      : '<p style="color:#999;text-align:center;padding:20px;">No hay egresados registrados.</p>';
+    return;
+  }
+
+  const rows = lista.map(a => {
+    const uid      = a.uid || a.id;
+    const _nomSafe = (a.nombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const badge = a.graduado === true
+      ? ' <span style="background:#4caf50;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">GRADUADO</span>'
+      : ' <span style="background:#1565c0;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">PASANTE</span>';
+    const carreraNombre = (_carrerasMapBuscar || {})[a.carreraId] || a.carreraId || '—';
+    return `<tr>
+      <td>${a.nombre || '—'}${badge}</td>
+      <td>${a.matricula || '—'}</td>
+      <td>${carreraNombre}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-accion" onclick="verHistorialCompleto('${uid}', '${_nomSafe}')">Ver Historial</button>
+        <button onclick="verBoletaGlobalAlumno('${uid}', false)"
+          style="background:#388e3c;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
+          Boleta
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  contenedor.innerHTML = `
+    <table class="tabla-alumnos">
+      <thead><tr><th>Nombre</th><th>Matrícula</th><th>Carrera</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="color:#999;font-size:0.85rem;margin-top:0.5rem;">${lista.length} resultado(s)</p>`;
 }
 
 // ── Activar / Desactivar alumno ──────────────────────────────────────────────
