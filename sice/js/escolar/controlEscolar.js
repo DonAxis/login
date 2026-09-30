@@ -285,10 +285,17 @@ function mostrarGruposCarrera() {
       const normales  = alumnosCarrera.filter(a => a.codigoGrupo === codigo).length;
       const especiales = new Set((inscEspPorGrupo[codigo] || []).map(i => i.alumnoId)).size;
       const total = normales + especiales;
+      const esPasante = codigo.endsWith('-PASANTE');
+      const cardStyle = esPasante
+        ? 'style="background:#e8f5e9; border-left:4px solid #388e3c; opacity:0.85;"'
+        : '';
+      const etiqueta  = esPasante
+        ? '<span style="display:block;font-size:0.72rem;font-weight:700;color:#2e7d32;letter-spacing:0.5px;margin-bottom:4px;">PASANTES</span>'
+        : '';
       html += `
-        <div class="grupo-card" onclick="seleccionarGrupo('${codigo.replace(/'/g, "\\'")}')">
-          <h4>${codigo}</h4>
-          <p style="font-weight:bold; color:#6A2135;">${total} alumno${total !== 1 ? 's' : ''}</p>
+        <div class="grupo-card" onclick="seleccionarGrupo('${codigo.replace(/'/g, "\\'")}')" ${cardStyle}>
+          ${etiqueta}<h4>${codigo}</h4>
+          <p style="font-weight:bold; color:${esPasante ? '#2e7d32' : '#6A2135'};">${total} alumno${total !== 1 ? 's' : ''}</p>
         </div>`;
     });
   }
@@ -361,12 +368,9 @@ function seleccionarGrupo(codigoGrupo, skipHistory = false) {
 function verAlumnosGrupo() {
   const grupo = grupoSeleccionado.codigoGrupo;
 
-  const normales = alumnosData.filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial' && a.activo !== false);
-
-  const alumnoIdsEsp = new Set((inscEspPorGrupo[grupo] || []).map(i => i.alumnoId));
-  const especiales = alumnosData.filter(a => alumnoIdsEsp.has(a.uid) && a.activo !== false);
-
-  const alumnos = [...normales, ...especiales].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const alumnos = alumnosData
+    .filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial' && a.activo !== false)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) {
     mostrarLista(`<h2 class="titulo-seccion">Alumnos — ${grupo}</h2>
@@ -387,28 +391,14 @@ function verAlumnosGrupo() {
       <tbody>`;
 
   alumnos.forEach(alumno => {
-    const _nomSafe   = alumno.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const esEspecial = alumnoIdsEsp.has(alumno.uid);
-    const esBaja     = alumno.activo === false;
-    const badge      = esEspecial
-      ? '<span style="background:#ff9800;color:white;padding:1px 6px;border-radius:3px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:5px;">ESPECIAL</span>'
-      : '';
-    const badgeBaja  = esBaja
-      ? '<span style="background:#757575;color:white;padding:1px 6px;border-radius:3px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:5px;">BAJA</span>'
-      : '';
-    const rowStyle = esEspecial ? ' style="background:#fff8e1;"' : esBaja ? ' style="background:#f5f5f5;"' : '';
-    const btnEstado = esBaja
-      ? `<button onclick="toggleActivoAlumno('${alumno.uid}', '${_nomSafe}', true, 'grupo')"
-           style="background:#4caf50;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
-           Reactivar
-         </button>`
-      : `<button onclick="toggleActivoAlumno('${alumno.uid}', '${_nomSafe}', false, 'grupo')"
+    const _nomSafe  = alumno.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const btnEstado = `<button onclick="toggleActivoAlumno('${alumno.uid}', '${_nomSafe}', false, 'grupo')"
            style="background:#dc3545;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
-           Desactivar
+           Dar de baja
          </button>`;
-    html += `<tr${rowStyle}>
+    html += `<tr>
       <td><strong>${alumno.matricula || 'N/A'}</strong></td>
-      <td>${alumno.nombre}${badge}${badgeBaja}</td>
+      <td>${alumno.nombre}</td>
       <td>${alumno.periodo || '-'}</td>
       <td style="white-space:nowrap;">
         <button onclick="verHistorialCompleto('${alumno.uid}', '${_nomSafe}')">Ver Historial</button>
@@ -1875,10 +1865,9 @@ async function guardarDatosAlumno(uid) {
 // ===== LISTA DE ALUMNOS CON OBSERVACIONES (PDF) =====
 function generarListaObservacionesPDF() {
   const grupo = grupoSeleccionado.codigoGrupo;
-  const normales = alumnosData.filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial' && a.activo !== false);
-  const alumnoIdsEsp = new Set((inscEspPorGrupo[grupo] || []).map(i => i.alumnoId));
-  const especiales = alumnosData.filter(a => alumnoIdsEsp.has(a.uid) && a.activo !== false);
-  const alumnos = [...normales, ...especiales].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const alumnos = alumnosData
+    .filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial' && a.activo !== false)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) { alert('No hay alumnos en este grupo'); return; }
 
