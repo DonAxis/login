@@ -244,7 +244,7 @@ function mostrarGruposCarrera() {
   document.getElementById('gruposContainer').classList.add('active');
 
   const alumnosCarrera = alumnosData.filter(a =>
-    a.carreraId === carreraSeleccionada.id && a.tipoAlumno !== 'especial' && a.codigoGrupo
+    a.carreraId === carreraSeleccionada.id && a.tipoAlumno !== 'especial' && a.codigoGrupo && a.activo !== false
   );
 
   // Grupos únicos: normales + grupos donde hay especiales inscritos
@@ -293,7 +293,7 @@ function mostrarGruposCarrera() {
     });
   }
 
-  const numEspActivos = alumnosData.filter(a => a.carreraId === carreraSeleccionada.id && a.tipoAlumno === 'especial').length;
+  const numEspActivos = alumnosData.filter(a => a.carreraId === carreraSeleccionada.id && a.tipoAlumno === 'especial' && a.activo !== false).length;
   const numEspInsc    = new Set(Object.values(inscEspPorGrupo).flat().map(i => i.alumnoId)).size;
   const numEspeciales = Math.max(numEspActivos, numEspInsc);
   if (numEspeciales > 0) {
@@ -311,7 +311,7 @@ function mostrarGruposCarrera() {
 function seleccionarGrupo(codigoGrupo, skipHistory = false) {
   grupoSeleccionado = { codigoGrupo, carreraId: carreraSeleccionada.id };
 
-  const normalesGrupo  = alumnosData.filter(a => a.codigoGrupo === codigoGrupo && a.tipoAlumno !== 'especial').length;
+  const normalesGrupo  = alumnosData.filter(a => a.codigoGrupo === codigoGrupo && a.tipoAlumno !== 'especial' && a.activo !== false).length;
   const especialesGrupo = new Set((inscEspPorGrupo[codigoGrupo] || []).map(i => i.alumnoId)).size;
   const totalAlumnos = normalesGrupo + especialesGrupo;
 
@@ -361,10 +361,10 @@ function seleccionarGrupo(codigoGrupo, skipHistory = false) {
 function verAlumnosGrupo() {
   const grupo = grupoSeleccionado.codigoGrupo;
 
-  const normales = alumnosData.filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial');
+  const normales = alumnosData.filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial' && a.activo !== false);
 
   const alumnoIdsEsp = new Set((inscEspPorGrupo[grupo] || []).map(i => i.alumnoId));
-  const especiales = alumnosData.filter(a => alumnoIdsEsp.has(a.uid));
+  const especiales = alumnosData.filter(a => alumnoIdsEsp.has(a.uid) && a.activo !== false);
 
   const alumnos = [...normales, ...especiales].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
@@ -428,7 +428,7 @@ function verAlumnosGrupo() {
 // ===== HISTORIAL ACTUAL POR ALUMNO =====
 async function historialActualAlumnos() {
   const alumnos = alumnosData
-    .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial')
+    .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial' && a.activo !== false)
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) {
@@ -567,7 +567,7 @@ async function historialActualMaterias() {
     });
 
     const alumnos = alumnosData
-      .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial')
+      .filter(a => a.codigoGrupo === grupoSeleccionado.codigoGrupo && a.tipoAlumno !== 'especial' && a.activo !== false)
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     let html = `<h2 class="titulo-seccion">Historial ${periodoActual} — ${grupoSeleccionado.codigoGrupo}</h2>`;
@@ -735,7 +735,7 @@ async function verAlumnosEnMateria(materiaId, nombreMateria, profesorNombreParam
 
     if (codigoGrupoMateria) {
       const alumnosGrupo = alumnosData
-        .filter(a => a.codigoGrupo === codigoGrupoMateria && a.tipoAlumno !== 'especial')
+        .filter(a => a.codigoGrupo === codigoGrupoMateria && a.tipoAlumno !== 'especial' && a.activo !== false)
         .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
       // Especiales inscritos en esta materia específica dentro de este grupo
@@ -1198,10 +1198,11 @@ async function verAlumnosEspeciales() {
     const alumnosArray = [];
     alumnosSnap.docs.forEach(doc => {
       const alumno       = { id: doc.id, ...doc.data() };
+      if (alumno.activo === false) return; // los de baja van al tab Bajas, no a grupos
       alumno.numMaterias = (materiasPorAlumno[doc.id] || new Set()).size;
       alumnosArray.push(alumno);
     });
-    
+
     // Ordenar alfabéticamente
     alumnosArray.sort((a, b) => a.nombre.localeCompare(b.nombre));
     
@@ -1874,9 +1875,9 @@ async function guardarDatosAlumno(uid) {
 // ===== LISTA DE ALUMNOS CON OBSERVACIONES (PDF) =====
 function generarListaObservacionesPDF() {
   const grupo = grupoSeleccionado.codigoGrupo;
-  const normales = alumnosData.filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial');
+  const normales = alumnosData.filter(a => a.codigoGrupo === grupo && a.tipoAlumno !== 'especial' && a.activo !== false);
   const alumnoIdsEsp = new Set((inscEspPorGrupo[grupo] || []).map(i => i.alumnoId));
-  const especiales = alumnosData.filter(a => alumnoIdsEsp.has(a.uid));
+  const especiales = alumnosData.filter(a => alumnoIdsEsp.has(a.uid) && a.activo !== false);
   const alumnos = [...normales, ...especiales].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (alumnos.length === 0) { alert('No hay alumnos en este grupo'); return; }
@@ -2413,9 +2414,12 @@ function _renderExAlumnos(busqueda) {
   const rows = alumnos.map(a => {
     const _nomSafe     = (a.nombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const esGraduado   = a.graduado === true;
+    const esPasante    = a.pasante === true;
     const badge = esGraduado
       ? ' <span style="background:#4caf50;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">GRADUADO</span>'
-      : ' <span style="background:#757575;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">BAJA</span>';
+      : esPasante
+        ? ' <span style="background:#1565c0;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">PASANTE</span>'
+        : ' <span style="background:#757575;color:white;padding:1px 7px;border-radius:10px;font-size:0.72rem;font-weight:700;vertical-align:middle;margin-left:4px;">BAJA</span>';
     const carreraNombre = (_carrerasMapExAlumnos || {})[a.carreraId] || a.carreraId || '—';
     return `<tr>
       <td>${a.nombre || '—'}${badge}</td>
@@ -2423,6 +2427,10 @@ function _renderExAlumnos(busqueda) {
       <td>${carreraNombre}</td>
       <td style="white-space:nowrap;">
         <button class="btn-accion" onclick="verHistorialCompleto('${a.id}', '${_nomSafe}')">Ver Historial</button>
+        <button onclick="verBoletaGlobalAlumno('${a.id}', false)"
+          style="background:#388e3c;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
+          Boleta
+        </button>
         <button onclick="toggleActivoAlumno('${a.id}', '${_nomSafe}', true, 'exAlumnos')"
           style="background:#4caf50;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-left:4px;">
           Reactivar
