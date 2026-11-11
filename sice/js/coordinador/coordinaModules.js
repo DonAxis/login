@@ -6703,6 +6703,144 @@ function _renderHistorial() {
     container.innerHTML = rows;
 }
 
+// ===== LISTA COMPLETA DE ALUMNOS (PDF) =====
+// Usa _alumnosCache (todos los alumnos de la carrera) — cero lecturas Firestore extra.
+
+function _estadoAlumnoLista(a) {
+    if (a.graduado) return 'Egresado';
+    if (a.pasante)  return 'Pasante';
+    return a.activo === false ? 'Inactivo' : 'Activo';
+}
+
+function _filtrarListaCompleta(tipo) {
+    const lista = (_alumnosCache || []).filter(item => {
+        const activo = item.data.activo !== false;
+        if (tipo === 'activos')   return activo;
+        if (tipo === 'inactivos') return !activo;
+        return true;
+    });
+    return lista.sort((x, y) => (x.data.nombre || '').localeCompare(y.data.nombre || '', 'es'));
+}
+
+async function mostrarModalListaCompleta() {
+    if (!_alumnosCache || !_alumnosCache.length) {
+        await cargarAlumnos();
+    }
+    const nAct = _filtrarListaCompleta('activos').length;
+    const nIna = _filtrarListaCompleta('inactivos').length;
+    const nTod = _filtrarListaCompleta('todos').length;
+
+    const opcion = (tipo, titulo, n, color) => `
+      <button onclick="generarListaCompletaPDF('${tipo}', this)"
+              style="flex:1; min-width:150px; padding:18px 12px; background:white; border:2px solid ${color};
+                     border-radius:12px; cursor:pointer; text-align:center;">
+        <div style="font-size:1.05rem; font-weight:700; color:${color};">${titulo}</div>
+        <div style="font-size:0.85rem; color:#666; margin-top:6px;">${n} alumno${n !== 1 ? 's' : ''}</div>
+        <div style="font-size:0.78rem; color:#999; margin-top:8px;">Descargar PDF</div>
+      </button>`;
+
+    const html = `
+    <div style="background:white; padding:24px; border-radius:15px; max-width:620px; margin:20px auto;">
+      <h3 style="margin:0 0 6px 0; color:#21596A;">Lista Completa de Alumnos</h3>
+      <p style="margin:0 0 18px 0; color:#666; font-size:0.9rem;">Selecciona qué alumnos incluir en el PDF.</p>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        ${opcion('activos',   'Activos',   nAct, '#2e7d32')}
+        ${opcion('inactivos', 'Inactivos', nIna, '#c62828')}
+        ${opcion('todos',     'Todos',     nTod, '#21596A')}
+      </div>
+      <button onclick="cerrarModal()" style="width:100%; margin-top:18px; padding:11px; background:#f5f5f5;
+              border:2px solid #ddd; border-radius:8px; font-weight:600; cursor:pointer;">Cerrar</button>
+    </div>`;
+
+    document.getElementById('contenidoModal').innerHTML = html;
+    document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+function generarListaCompletaPDF(tipo, btn) {
+    const lista = _filtrarListaCompleta(tipo);
+    if (!lista.length) {
+        alert('No hay alumnos para esta opción');
+        return;
+    }
+    if (typeof window.jspdf === 'undefined') {
+        alert('No se pudo cargar la librería de PDF. Recarga la página.');
+        return;
+    }
+
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Generando...'; }
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+        const ancho = doc.internal.pageSize.getWidth();
+
+        if (typeof agregarLogosAlPDF === 'function') agregarLogosAlPDF(doc);
+
+        const titulos = { activos: 'ALUMNOS ACTIVOS', inactivos: 'ALUMNOS INACTIVOS', todos: 'LISTA COMPLETA DE ALUMNOS' };
+        const carreraNombre = (typeof carreraActualData !== 'undefined' && carreraActualData?.nombre)
+            ? carreraActualData.nombre : (usuarioActual.carreraId || '');
+        const fecha = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text(titulos[tipo] || titulos.todos, ancho / 2, 20, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(carreraNombre.toUpperCase(), ancho / 2, 27, { align: 'center' });
+        doc.setFontSize(9);
+        doc.text(`Fecha: ${fecha}    ·    Total: ${lista.length} alumno${lista.length !== 1 ? 's' : ''}`, ancho / 2, 33, { align: 'center' });
+
+        const body = lista.map((item, i) => {
+            const a = item.data;
+            return [
+                i + 1,
+                a.matricula || '—',
+                a.nombre || '—',
+                a.codigoGrupo || (a.graduado ? 'Egresado' : 'Sin grupo'),
+                a.periodo != null && a.periodo !== '' ? a.periodo : '—',
+                _estadoAlumnoLista(a)
+            ];
+        });
+
+        doc.autoTable({
+            startY: 40,
+            head: [['#', 'Matrícula', 'Nombre', 'Grupo', 'Periodo', 'Estado']],
+            body,
+            theme: 'grid',
+            styles: { fontSize: 8.5, cellPadding: 1.8 },
+            headStyles: { fillColor: [33, 89, 106], textColor: 255, halign: 'center' },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 9 },
+                1: { halign: 'center', cellWidth: 25 },
+                3: { halign: 'center', cellWidth: 28 },
+                4: { halign: 'center', cellWidth: 16 },
+                5: { halign: 'center', cellWidth: 20 }
+            },
+            didParseCell: data => {
+                if (data.section === 'body' && data.column.index === 5 && data.cell.raw === 'Inactivo') {
+                    data.cell.styles.textColor = [198, 40, 40];
+                }
+            },
+            didDrawPage: () => {
+                const n = doc.internal.getNumberOfPages();
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`Página ${n}`, ancho - 15, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
+                doc.setTextColor(0);
+            }
+        });
+
+        const sufijo = { activos: 'Activos', inactivos: 'Inactivos', todos: 'Todos' }[tipo] || 'Todos';
+        doc.save(`Lista_Alumnos_${sufijo}_${(usuarioActual.carreraId || '').replace(/\s+/g, '_')}.pdf`);
+    } catch (e) {
+        console.error('Error al generar lista PDF:', e);
+        alert('Error al generar el PDF');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+    }
+}
+
 // ===== verDetalleHistorial =====
 async function verDetalleHistorial(alumnoId, nombreAlumno) {
     try {
