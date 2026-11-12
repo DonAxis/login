@@ -670,6 +670,7 @@ function generarPDFReporte() {
 // Dibuja la hoja "Reporte escolar" de un alumno en la página actual del doc.
 // Compartida por el PDF individual y el paquete por grupo (mismo formato).
 function _dibujarReporteAlumno(doc, r) {
+  const paginaInicio = doc.getNumberOfPages();
   const fecha  = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
     day: '2-digit', month: 'long', year: 'numeric'
   });
@@ -701,23 +702,27 @@ function _dibujarReporteAlumno(doc, r) {
   y += 8;
 
   // ----- DATOS DEL ALUMNO -----
+  // Nombre en negrita y más grande: es lo que busca quien reparte las hojas
   doc.setFontSize(12);
   doc.setTextColor(30);
   doc.setFont(undefined, 'bold');
   doc.text('Alumno:', margen, y);
-  doc.setFont(undefined, 'normal');
+  doc.setFontSize(14);
   doc.text(r.alumnoNombre || '-', margen + 22, y);
   y += 7;
 
+  doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
   doc.text('Grupo:', margen, y);
   doc.setFont(undefined, 'normal');
   doc.text(r.codigoGrupo || '-', margen + 22, y);
 
+  // Fecha alineada al margen derecho para que nunca se salga del área imprimible
+  const derecha = 210 - margen;
+  doc.text(fecha, derecha, y, { align: 'right' });
   doc.setFont(undefined, 'bold');
-  doc.text('Fecha de solicitud:', 120, y);
+  doc.text('Fecha de solicitud: ', derecha - doc.getTextWidth(fecha), y, { align: 'right' });
   doc.setFont(undefined, 'normal');
-  doc.text(fecha, 120 + 40, y);
   y += 12;
 
   // ----- TABLA DE REPORTES -----
@@ -735,7 +740,7 @@ function _dibujarReporteAlumno(doc, r) {
     startY: y,
     head: [['Profesor', 'Observación', 'Fecha']],
     body: filas,
-    margin: { left: margen, right: margen },
+    margin: { left: margen, right: margen, top: 22 }, // top: deja espacio al encabezado de continuación
     headStyles: {
       fillColor: [0, 96, 100],
       textColor: 255,
@@ -773,6 +778,29 @@ function _dibujarReporteAlumno(doc, r) {
   doc.setFontSize(8);
   doc.setTextColor(130);
   doc.text('Nombre y Firma', margen, y);
+
+  // ----- REPORTE DE VARIAS HOJAS -----
+  // Si la tabla o la firma pasaron a otra hoja, cada hoja extra lleva el nombre del
+  // alumno arriba y todas llevan "Hoja i de n" abajo, para no perderlas al repartir.
+  const paginaFin = doc.getNumberOfPages();
+  const totalHojas = paginaFin - paginaInicio + 1;
+  if (totalHojas > 1) {
+    const nombre = r.alumnoNombre || '-';
+    for (let pg = paginaInicio; pg <= paginaFin; pg++) {
+      const i = pg - paginaInicio + 1;
+      doc.setPage(pg);
+      doc.setFont(undefined, 'normal');
+      if (i > 1) {
+        doc.setFontSize(9);
+        doc.setTextColor(80);
+        doc.text(`Reporte escolar — ${nombre} (${r.codigoGrupo || '-'}) — continuación`, margen, 14);
+      }
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      doc.text(`${nombre} — Hoja ${i} de ${totalHojas}`, 210 - margen, 290, { align: 'right' });
+    }
+    doc.setPage(paginaFin);
+  }
 }
 
 // ============================================================================
