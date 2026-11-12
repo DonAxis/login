@@ -102,6 +102,7 @@ function ocultarTodasSecciones() {
   document.getElementById('seccionArchivo').style.display       = 'none';
   document.getElementById('seccionPendientes').style.display    = 'none';
   document.getElementById('seccionNuevoPeriodo').style.display  = 'none';
+  document.getElementById('seccionPaquetes').style.display      = 'none';
   document.getElementById('btnVolver').style.display            = 'inline-block';
 }
 
@@ -658,8 +659,17 @@ function generarPDFReporte() {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const r   = reporteDetalleActual;
 
-  const r      = reporteDetalleActual;
+  _dibujarReporteAlumno(doc, r);
+
+  const nombreArchivo = `reporte_${(r.alumnoNombre || 'alumno').replace(/\s+/g, '_')}_${r.fechaSolicitud?.slice(0, 10)}.pdf`;
+  doc.save(nombreArchivo);
+}
+
+// Dibuja la hoja "Reporte escolar" de un alumno en la página actual del doc.
+// Compartida por el PDF individual y el paquete por grupo (mismo formato).
+function _dibujarReporteAlumno(doc, r) {
   const fecha  = new Date(r.fechaSolicitud).toLocaleDateString('es-MX', {
     day: '2-digit', month: 'long', year: 'numeric'
   });
@@ -672,6 +682,7 @@ function generarPDFReporte() {
   let y = 20;
 
   // ----- ENCABEZADO -----
+  doc.setFont(undefined, 'normal');
   doc.setFontSize(9);
   doc.setTextColor(120);
   doc.text('Instituto ILB', margen, y);
@@ -718,6 +729,7 @@ function generarPDFReporte() {
       p.respuesta,
       p.fecha ? new Date(p.fecha).toLocaleDateString('es-MX') : '-'
     ]);
+  if (!filas.length) filas.push(['-', '[vacío]', '-']); // ningún profesor ha respondido aún
 
   doc.autoTable({
     startY: y,
@@ -761,10 +773,178 @@ function generarPDFReporte() {
   doc.setFontSize(8);
   doc.setTextColor(130);
   doc.text('Nombre y Firma', margen, y);
+}
 
-  // ----- GUARDAR -----
-  const nombreArchivo = `reporte_${(r.alumnoNombre || 'alumno').replace(/\s+/g, '_')}_${r.fechaSolicitud?.slice(0, 10)}.pdf`;
-  doc.save(nombreArchivo);
+// ============================================================================
+// SECCIÓN: REPORTES POR GRUPO (un PDF por grupo para junta de padres)
+// ============================================================================
+
+let paquetesCache = []; // [{ codigoGrupo, reportes: [...] }] — solo reportes activos
+
+function _escHTML(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function mostrarPaquetesGrupo() {
+  ocultarTodasSecciones();
+  document.getElementById('seccionPaquetes').style.display = 'block';
+  document.getElementById('buscadorPaquete').value = '';
+  const cont = document.getElementById('listaPaquetes');
+  cont.innerHTML = '<div class="msg-info">Cargando reportes...</div>';
+
+  try {
+    const snap = await db.collection('reportesPrefecto').get();
+    const porGrupo = {};
+    snap.forEach(d => {
+      const r = { id: d.id, ...d.data() };
+      if (r.archivado) return;
+      const g = r.codigoGrupo || 'Sin grupo';
+      (porGrupo[g] = porGrupo[g] || []).push(r);
+    });
+
+    paquetesCache = Object.keys(porGrupo)
+      .sort((a, b) => a.localeCompare(b, 'es', { numeric: true }))
+      .map(codigoGrupo => ({
+        codigoGrupo,
+        reportes: porGrupo[codigoGrupo].sort((a, b) =>
+          (a.alumnoNombre || '').localeCompare(b.alumnoNombre || '', 'es') ||
+          new Date(a.fechaSolicitud) - new Date(b.fechaSolicitud))
+      }));
+
+    renderPaquetesGrupo();
+  } catch (e) {
+    cont.innerHTML = `<div class="msg-error">Error: ${_escHTML(e.message)}</div>`;
+  }
+}
+
+function renderPaquetesGrupo() {
+  const cont = document.getElementById('listaPaquetes');
+  if (!paquetesCache.length) {
+    cont.innerHTML = '<div class="msg-info">No hay reportes activos.</div>';
+    return;
+  }
+
+  const filtro = (document.getElementById('buscadorPaquete').value || '').trim().toUpperCase();
+  const html = paquetesCache.map((p, idx) => {
+    if (filtro && !p.codigoGrupo.toUpperCase().includes(filtro)) return '';
+    const total      = p.reportes.length;
+    const pendientes = p.reportes.filter(r => (r.profesoresPendientes || []).length > 0).length;
+    const completos  = total - pendientes;
+
+    return `
+      <div style="background:white; border:2px solid #e0f2f1; border-radius:10px;
+                  padding:14px 16px; margin-bottom:12px;
+                  display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <div style="min-width:0;">
+          <div style="font-size:1.15rem; font-weight:800; color:#006064;">${_escHTML(p.codigoGrupo)}</div>
+          <div style="font-size:0.85rem; color:#555; margin-top:3px;">
+            ${total} reporte${total !== 1 ? 's' : ''}
+            · <span style="color:#2e7d32; font-weight:600;">${completos} completo${completos !== 1 ? 's' : ''}</span>
+            ${pendientes ? `· <span style="color:#e65100; font-weight:600;">${pendientes} con pendientes</span>` : ''}
+          </div>
+        </div>
+        <button onclick="descargarPaqueteGrupo(${idx}, this)"
+                style="flex-shrink:0; padding:12px 18px; min-height:44px;
+                       background:linear-gradient(135deg,#006064,#00838f); color:white;
+                       border:none; border-radius:8px; font-weight:700; font-size:0.9rem; cursor:pointer;">
+          Descargar PDF
+        </button>
+      </div>`;
+  }).join('');
+
+  cont.innerHTML = html || '<div class="msg-info">Ningún grupo coincide con la búsqueda.</div>';
+}
+
+function descargarPaqueteGrupo(idx, btn) {
+  const p = paquetesCache[idx];
+  if (!p || !p.reportes.length) return;
+
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generando...';
+
+  // setTimeout para que el navegador pinte "Generando..." antes del trabajo síncrono de jsPDF
+  setTimeout(() => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      _dibujarListaEntrega(doc, p);
+      p.reportes.forEach(r => {
+        doc.addPage();
+        _dibujarReporteAlumno(doc, r);
+      });
+
+      const hoy = new Date().toISOString().slice(0, 10);
+      doc.save(`reportes_grupo_${p.codigoGrupo.replace(/[^\w-]+/g, '_')}_${hoy}.pdf`);
+    } catch (e) {
+      console.error('Error generando paquete:', e);
+      alert('Error al generar el PDF: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  }, 50);
+}
+
+// Portada del paquete: lista de alumnos del grupo con columna de firma de recibido.
+function _dibujarListaEntrega(doc, p) {
+  const margen = 20;
+  const hoy = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+  let y = 20;
+
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.setFont(undefined, 'normal');
+  doc.text('Instituto ILB', margen, y);
+  doc.text(hoy, 210 - margen, y, { align: 'right' });
+  y += 8;
+
+  doc.setFontSize(16);
+  doc.setTextColor(30);
+  doc.setFont(undefined, 'bold');
+  doc.text('Lista de entrega de reportes', 105, y, { align: 'center' });
+  y += 3;
+
+  doc.setDrawColor(0, 96, 100);
+  doc.setLineWidth(0.8);
+  doc.line(margen, y, 210 - margen, y);
+  y += 8;
+
+  doc.setFontSize(12);
+  doc.text('Grupo:', margen, y);
+  doc.setFont(undefined, 'normal');
+  doc.text(p.codigoGrupo, margen + 18, y);
+  y += 6;
+
+  // Un renglón por alumno (si tiene varios reportes, se indica cuántos)
+  const conteo = new Map();
+  p.reportes.forEach(r => {
+    const k = r.alumnoId || r.alumnoNombre;
+    const prev = conteo.get(k);
+    conteo.set(k, { nombre: r.alumnoNombre || '-', n: (prev?.n || 0) + 1 });
+  });
+  const filas = [...conteo.values()].map((a, i) => [
+    i + 1,
+    a.n > 1 ? `${a.nombre} (${a.n} reportes)` : a.nombre,
+    ''
+  ]);
+
+  doc.autoTable({
+    startY: y,
+    head: [['#', 'Alumno', 'Firma de recibido (padre / tutor)']],
+    body: filas,
+    margin: { left: margen, right: margen },
+    headStyles: { fillColor: [0, 96, 100], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+    bodyStyles: { fontSize: 10, textColor: 30, minCellHeight: 11, valign: 'middle' },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 90 },
+      2: { cellWidth: 'auto' }
+    },
+    alternateRowStyles: { fillColor: [240, 248, 248] }
+  });
 }
 
 // ============================================================================

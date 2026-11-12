@@ -274,11 +274,22 @@
     }
 
     // ── Clave del periodo actual en porPeriodo ────────────────────────────────
+    // Un grupo solo cuenta como "periodo en curso" si tiene captura real del profesor
+    // (parciales / Extra / ETS). Grupos con solo `promedio` vienen de Boleta Global, que
+    // puede estampar el ciclo actual en materias pasadas sin calificación (promedio 0).
+    function _grupoTieneCaptura(k) {
+      return ((_h.porPeriodo || {})[k] || []).some(m =>
+        m.parcial1 != null || m.parcial2 != null || m.parcial3 != null
+        || m.extraordinario != null || m.ets != null);
+    }
     function _resolverCurrentPerKey() {
       const keys = Object.keys(_h.porPeriodo || {});
-      if (_h.periodoActual && keys.includes(String(_h.periodoActual))) return String(_h.periodoActual);
+      if (_h.periodoActual && keys.includes(String(_h.periodoActual))
+          && _grupoTieneCaptura(String(_h.periodoActual))) return String(_h.periodoActual);
       if (_h.semestreNum   && keys.includes(String(_h.semestreNum)))   return String(_h.semestreNum);
-      return keys.length > 0 ? keys.sort().at(-1) : null;
+      // Último recurso: mismo criterio que la vista inicial (más reciente con captura real), nunca 'N/A'
+      const validas = keys.filter(k => k !== 'N/A').sort().reverse();
+      return validas.find(_grupoTieneCaptura) || validas[0] || null;
     }
 
     // ── Tipo de periodo según periodosAnio de la carrera ─────────────────────

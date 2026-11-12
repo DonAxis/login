@@ -565,20 +565,35 @@ function guardarTodosCambios() {
   document.querySelectorAll('[id^="cal_"],[id^="chk_"]').forEach(function(el) {
     mids.add(el.id.slice(4));
   });
+  // Valor original con que se pintó el control (para enviar SOLO filas modificadas).
+  // Antes se mandaban todas las filas: materias sin captura quedaban con promedio 0
+  // y el ciclo pre-llenado (periodo actual) estampado aunque nadie las tocara.
+  function _selOrig(sel) {
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].defaultSelected) return sel.options[i].value;
+    }
+    return sel.options.length ? sel.options[0].value : '';
+  }
   mids.forEach(function(mid) {
     const calSel   = document.getElementById('cal_' + mid);
     const acrSel   = document.getElementById('acr_' + mid);
     const perInput = document.getElementById('per_' + mid);
     const chkInput = document.getElementById('chk_' + mid);
+    const calCambio = (calSel   && calSel.value !== _selOrig(calSel))
+                   || (acrSel   && acrSel.value !== _selOrig(acrSel))
+                   || (perInput && perInput.value.trim() !== perInput.defaultValue.trim());
+    const chkCambio = chkInput && chkInput.checked !== chkInput.defaultChecked;
+    if (!calCambio && !chkCambio) return;
     cambios.push({
       mid:    mid,
-      val:    calSel   ? calSel.value         : undefined,
-      acr:    acrSel   ? acrSel.value         : undefined,
-      per:    perInput ? perInput.value.trim() : undefined,
-      valida: chkInput ? chkInput.checked      : true
+      // Si solo cambió la validez, no se reescribe calificación/acr/ciclo
+      val:    (calCambio && calSel)   ? calSel.value          : undefined,
+      acr:    (calCambio && acrSel)   ? acrSel.value          : undefined,
+      per:    (calCambio && perInput) ? perInput.value.trim() : undefined,
+      valida: chkInput ? chkInput.checked : true
     });
   });
-  if (!cambios.length) return;
+  if (!cambios.length) { alert('No hay cambios por guardar.'); return; }
   if (!window.opener || window.opener.closed) {
     alert('La ventana principal se cerró. Cierra esta boleta y ábrela de nuevo.');
     return;
@@ -590,8 +605,17 @@ function guardarTodosCambios() {
     if (ok) {
       btn.textContent = '✓ Guardado';
       cambios.forEach(function(c) {
+        // Lo guardado pasa a ser el nuevo "original" (un segundo Guardar no lo reenvía)
+        ['cal_', 'acr_'].forEach(function(pre) {
+          var s = document.getElementById(pre + c.mid);
+          if (s) for (var i = 0; i < s.options.length; i++) s.options[i].defaultSelected = s.options[i].selected;
+        });
+        var pIn = document.getElementById('per_' + c.mid);
+        if (pIn) pIn.defaultValue = pIn.value;
+        var cIn = document.getElementById('chk_' + c.mid);
+        if (cIn) cIn.defaultChecked = cIn.checked;
         var chip = document.getElementById('chip_' + c.mid);
-        if (chip) _actualizarChip(chip, c.val);
+        if (chip && c.val !== undefined) _actualizarChip(chip, c.val);
         if (c.val !== undefined) {
           var row = document.getElementById('row_' + c.mid);
           if (row) {
