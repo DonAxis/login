@@ -238,6 +238,137 @@ input:focus {
   background: #1a4757;
 }
 
+/* ===== Tarjeta Gaceta ILB ===== */
+.tarjeta-gaceta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 26px 0 30px;
+  padding: 18px 22px;
+  border-radius: 18px;
+  text-decoration: none;
+  color: #FCEBD9;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  isolation: isolate;
+}
+
+/* Tarjeta "de atrás" (efecto pila) */
+.tarjeta-gaceta::before {
+  content: '';
+  position: absolute;
+  inset: -8px 10px 8px -6px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #6E2C55 0%, #4A1A3C 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 0.75;
+  z-index: -1;
+}
+
+/* Fondo de la tarjeta principal: velo + marca de agua tenue a la derecha + degradado */
+.tarjeta-gaceta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(90deg, rgba(110, 42, 86, 0.96) 35%, rgba(91, 32, 73, 0.7) 100%),
+    url('../../assets/index/fondo-gaceta.webp') right -20px center / auto 135% no-repeat,
+    linear-gradient(135deg, #8A3A66 0%, #5B2049 100%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.tarjeta-gaceta:hover,
+.tarjeta-gaceta:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+.tarjeta-gaceta:focus-visible {
+  outline: 3px solid #FCEBD9;
+  outline-offset: 3px;
+}
+
+.tarjeta-gaceta-icono {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 78px;
+  border-radius: 16px;
+  background: #FBEFE4;
+  box-shadow: inset 0 0 0 2px rgba(106, 33, 53, 0.15);
+}
+
+.tarjeta-gaceta-icono img {
+  width: 58px;
+  height: auto;
+  display: block;
+}
+
+.tarjeta-gaceta-texto {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tarjeta-gaceta-texto strong {
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #FCEBD9;
+}
+
+.tarjeta-gaceta-texto small {
+  font-size: 0.95rem;
+  color: rgba(252, 235, 217, 0.82);
+}
+
+.tarjeta-gaceta-flecha {
+  font-size: 2.4rem;
+  line-height: 1;
+  color: #F2C9A8;
+  transition: transform 0.2s ease;
+}
+
+.tarjeta-gaceta:hover .tarjeta-gaceta-flecha {
+  transform: translateX(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tarjeta-gaceta,
+  .tarjeta-gaceta-flecha {
+    transition: none;
+  }
+  .tarjeta-gaceta:hover,
+  .tarjeta-gaceta:hover .tarjeta-gaceta-flecha {
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .tarjeta-gaceta {
+    gap: 14px;
+    padding: 14px 16px;
+  }
+  .tarjeta-gaceta-icono {
+    width: 64px;
+    height: 64px;
+  }
+  .tarjeta-gaceta-icono img {
+    width: 48px;
+  }
+  .tarjeta-gaceta-texto strong {
+    font-size: 1.3rem;
+  }
+}
+
 /* Estilos para móvil */
 @media (max-width: 768px) {
   body {
