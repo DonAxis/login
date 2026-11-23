@@ -1,0 +1,13 @@
+{
+  "name": "consultar-boleta",
+  "version": "1.0.0",
+  "description": "Ventanilla de consulta de calificaciones para alumnos (SICE ILB)",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.0",
+    "firebase-admin": "^13.0.0"
+  }
+}

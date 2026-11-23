@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prueba — Ventanilla de consulta</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 760px; margin: 30px auto; padding: 0 16px; color: #222; }
+    h1 { color: #6A2135; font-size: 1.4rem; }
+    label { display: block; font-weight: 600; margin-top: 12px; }
+    input { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+    button { margin-top: 16px; padding: 12px 20px; background: #6A2135; color: #fff; border: 0; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+    button:disabled { opacity: .6; }
+    .caja { margin-top: 20px; padding: 14px; border-radius: 8px; background: #f6f6f6; }
+    .ok { background: #e8f5e9; border-left: 4px solid #2e7d32; }
+    .mal { background: #fdecea; border-left: 4px solid #c62828; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .9rem; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+    th { background: #6A2135; color: #fff; }
+    td:first-child { text-align: left; }
+    pre { white-space: pre-wrap; word-break: break-all; font-size: .8rem; }
+    small { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Prueba de la ventanilla de consulta</h1>
+  <p><small>Página solo para pruebas. Ábrela con <code>python -m http.server 8000</code> en
+  <code>http://localhost:8000/_funciones/prueba.html</code>. No modifica nada: solo consulta.</small></p>
+
+  <label for="url">Dirección (URL) de la función</label>
+  <input id="url" placeholder="https://consultar-boleta-xxxxx.us-central1.run.app">
+
+  <label for="matricula">Matrícula de un alumno real</label>
+  <input id="matricula">
+
+  <label for="email">Correo de ese alumno</label>
+  <input id="email" type="email">
+
+  <button id="btn" onclick="probar()">Probar consulta</button>
+
+  <div id="resultado"></div>
+
+  <script>
+    document.getElementById('url').value = localStorage.getItem('prueba_url_funcion') || '';
+
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    async function probar() {
+      const url = document.getElementById('url').value.trim();
+      const matricula = document.getElementById('matricula').value.trim();
+      const email = document.getElementById('email').value.trim().toLowerCase();
+      const out = document.getElementById('resultado');
+      const btn = document.getElementById('btn');
+      if (!url || !matricula || !email) { alert('Llena los tres campos'); return; }
+      localStorage.setItem('prueba_url_funcion', url);
+
+      btn.disabled = true; btn.textContent = 'Consultando...';
+      const inicio = performance.now();
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ matricula, email })
+        });
+        const datos = await resp.json();
+        const seg = ((performance.now() - inicio) / 1000).toFixed(1);
+
+        if (datos.estado !== 'ok') {
+          out.innerHTML = `<div class="caja mal"><strong>Respuesta: ${esc(datos.estado)}</strong> (en ${seg} s)<br>
+            <small>no_encontrado = matrícula/correo no coinciden · inactivo = alumno dado de baja</small></div>`;
+          return;
+        }
+
+        const filas = datos.materias.map(m => `<tr>
+            <td>${esc(m.nombre)}<br><small>${esc(m.profesor)}</small></td>
+            <td>${esc(m.parcial1)}</td><td>${esc(m.parcial2)}</td><td>${esc(m.parcial3)}</td>
+            <td>${esc(m.extraordinario ?? '-')}</td><td>${esc(m.ets ?? '-')}</td></tr>`).join('');
+
+        out.innerHTML = `<div class="caja ok">
+            <strong>✅ Funciona</strong> — respondió en ${seg} s<br>
+            <b>${esc(datos.alumno.nombre)}</b> · ${esc(datos.alumno.matricula)} · Grupo: ${esc(datos.alumno.codigoGrupo || 'Especial')}<br>
+            Carrera: ${esc(datos.carrera.nombre)} · Horario: ${datos.horarioUrl ? 'sí' : 'no'}
+            ${datos.aviso ? `<br>Aviso: ${esc(datos.aviso)}` : ''}
+            <table><tr><th>Materia</th><th>P1</th><th>P2</th><th>P3/EF</th><th>Extra</th><th>ETS</th></tr>${filas}</table>
+            <p><small>Compara con lo que muestra hoy ilbcontrol.mx para el mismo alumno: debe ser igual.</small></p>
+          </div>
+          <details class="caja"><summary>Ver respuesta completa (para revisar que NO aparezca tutor ni teléfono)</summary>
+            <pre>${esc(JSON.stringify(datos, null, 2))}</pre></details>`;
+      } catch (e) {
+        out.innerHTML = `<div class="caja mal"><strong>No se pudo conectar.</strong><br>${esc(e.message)}<br>
+          <small>Revisa que la URL esté bien y que la función permita acceso público.</small></div>`;
+      } finally {
+        btn.disabled = false; btn.textContent = 'Probar consulta';
+      }
+    }
+  </script>
+</body>
+</html>
