@@ -17,6 +17,15 @@ firebase.initializeApp(firebaseConfig);
 // Referencia a Firestore
 const db = firebase.firestore();
 
+// Redes móviles/inestables: si la conexión normal de Firestore no funciona,
+// el SDK cambia automáticamente a un modo compatible (long-polling).
+// En redes buenas no cambia nada. Debe ir antes de cualquier consulta.
+try {
+  db.settings({ experimentalAutoDetectLongPolling: true });
+} catch (e) {
+  console.warn('No se pudo ajustar Firestore para redes lentas:', e);
+}
+
 console.log('Firebase conectado correctamente');
 
 // Obtiene datos del usuario: primero del caché de sesión, si no de Firestore.

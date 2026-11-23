@@ -5,6 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Consulta de Calificaciones</title>
+  <!-- Abrir conexiones con anticipación (ahorra tiempo en datos móviles) -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com">
   <link rel="stylesheet" type="text/css" href="sice/css/modules/controlAlumnoEstilo.css">
 </head>
 <body>
@@ -74,7 +77,7 @@
         <div id="listaMaterias"></div>
         
         <!-- Botón para generar PDF -->
-        <button onclick="generarPDFBoletaActual()" 
+        <button onclick="descargarBoletaPDF(this)"
                 style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 20px; display: block; width: 100%;">
           Descargar Boleta en PDF
         </button>
@@ -134,7 +137,12 @@ async function consultarAlumno(event) {
   
   btnConsultar.disabled = true;
   btnConsultar.textContent = 'Consultando...';
-  
+
+  // Aviso si la conexión es lenta (solo cambia el texto, la consulta sigue)
+  const avisoLento = setTimeout(() => {
+    if (btnConsultar.disabled) btnConsultar.textContent = 'Conexión lenta, seguimos intentando...';
+  }, 8000);
+
   try {
     // Verificar caché de sesión (evita releer Firestore)
     const cacheKey = `consulta_${matricula}`;
@@ -196,9 +204,51 @@ async function consultarAlumno(event) {
     
   } catch (error) {
     console.error('Error:', error);
-    alert('Error al consultar. Intenta de nuevo.');
+    alert('Error al consultar. Revisa tu conexión a internet e intenta de nuevo.');
     btnConsultar.disabled = false;
     btnConsultar.textContent = 'Consultar';
+  } finally {
+    clearTimeout(avisoLento);
+  }
+}
+
+// ── Librerías del PDF: se descargan solo cuando el alumno pide su boleta ──
+// (jsPDF + AutoTable + logos ≈ 270 KB que antes se bajaban siempre al abrir la página)
+let _pdfLibsPromise = null;
+
+function _cargarScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('No se pudo cargar ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+function cargarLibreriasPDF() {
+  if (!_pdfLibsPromise) {
+    _pdfLibsPromise = _cargarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      .then(() => Promise.all([
+        _cargarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'),
+        _cargarScript('sice/js/utils/logoPdf.js')
+      ]))
+      .catch(err => { _pdfLibsPromise = null; throw err; }); // permite reintentar
+  }
+  return _pdfLibsPromise;
+}
+
+async function descargarBoletaPDF(btn) {
+  const textoOriginal = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparando PDF...'; }
+  try {
+    await cargarLibreriasPDF();
+    await generarPDFBoletaActual();
+  } catch (e) {
+    console.error('Error al preparar PDF:', e);
+    alert('No se pudo preparar el PDF. Revisa tu conexión a internet e intenta de nuevo.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
   }
 }
 
@@ -510,12 +560,7 @@ window.addEventListener('load', function() {
 });
   </script>
   
-  <!-- jsPDF para generar PDFs -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-  
-  <!-- Logos y funciones de PDF -->
-  <script src="sice/js/utils/logoPdf.js"></script>
+  <!-- jsPDF, AutoTable y logoPdf.js se cargan bajo demanda en descargarBoletaPDF() -->
   <script src="sice/js/utils/calificaciones.js"></script>
   <script src="sice/js/utils/boletaPDF.js"></script>
   
