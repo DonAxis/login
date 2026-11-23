@@ -23,11 +23,9 @@ simultáneas, para que nunca pueda dispararse.
 4. Deja las alertas en 50%, 90% y 100% → Guardar.
    (Solo envía correos; no corta el servicio.)
 
-## Paso 1 — Ver dónde vive la base de datos
-1. Entra a https://console.firebase.google.com → proyecto **registrosescolares9** → **Firestore Database**.
-2. Busca la "ubicación" (location), por ejemplo `nam5 (us-central)`.
-3. Anótala. Si dice `nam5` o `us-central1`, usa la región **us-central1** en el paso 3.
-   (Si dice otra cosa, avísame antes de seguir.)
+## Paso 1 — Ver dónde vive la base de datos ✅ (hecho)
+Ubicación confirmada: **`northamerica-south1` (Querétaro, México)**.
+La función se crea en esa misma región (ver paso 3).
 
 ## Paso 2 — Abrir Cloud Run
 1. Entra a https://console.cloud.google.com/run
@@ -38,8 +36,9 @@ simultáneas, para que nunca pueda dispararse.
 1. Clic en **Escribir una función** (o "Write a function" / "Crear función").
 2. Llena:
    - **Nombre del servicio:** `consultar-boleta`
-   - **Región:** `us-central1` (o la que corresponda según el paso 1)
-   - **Entorno de ejecución (runtime):** **Node.js 22**
+   - **Región:** `northamerica-south1` (México) — la misma que la base de datos.
+     Si no aparece en la lista, NO elijas otra: avísame.
+   - **Entorno de ejecución (runtime):** **Node.js 24**
    - **Autenticación:** **Permitir acceso público** / "Allow unauthenticated invocations"
      (es correcto: la ventanilla debe estar abierta; lo que protege es que pide matrícula + correo
      y solo entrega la boleta de ese alumno)
@@ -58,7 +57,11 @@ simultáneas, para que nunca pueda dispararse.
 4. En **Punto de entrada de la función** (Function entry point) escribe: `consultarBoleta`
 5. Clic en **Guardar y volver a implementar** (Save and redeploy). Tarda 2–4 minutos.
 6. Cuando termine, arriba aparece una **URL** parecida a
-   `https://consultar-boleta-xxxxxxxx.us-central1.run.app`. **Cópiala.**
+   `https://consultar-boleta-xxxxxxxx.northamerica-south1.run.app` (o similar). **Cópiala.**
+
+> ✅ **Desplegada el 2026-11-23.** URL:
+> `https://consultar-boleta-1094486519116.northamerica-south1.run.app`
+> Punto de entrada: `consultarBoleta` (NO `helloHttp`, el de ejemplo — ese fue el error del primer intento).
 
 ## Paso 5 — Probar (no cambia nada)
 1. En la carpeta del proyecto: `python -m http.server 8000`

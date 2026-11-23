@@ -8,6 +8,7 @@
   <!-- Abrir conexiones con anticipación (ahorra tiempo en datos móviles) -->
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="preconnect" href="https://consultar-boleta-1094486519116.northamerica-south1.run.app">
   <link rel="stylesheet" type="text/css" href="sice/css/modules/controlAlumnoEstilo.css">
 </head>
 <body>
@@ -108,6 +109,31 @@
     let materiasCache = null;
     let carreraNombreCache = null;
     let horarioUrlCache = null;
+    let avisoMaterias = null; // 'sin_grupo' | 'sin_materias' | 'sin_inscripciones' (respuesta de la ventanilla)
+
+// ── Ventanilla de consulta (Cloud Run, Querétaro) ──
+// Una sola petición devuelve la boleta del alumno. Si falla por cualquier razón
+// (red, servidor), consultarAlumno usa automáticamente el método anterior.
+const URL_VENTANILLA = 'https://consultar-boleta-1094486519116.northamerica-south1.run.app';
+
+async function consultarVentanilla(matricula, email) {
+  const control = new AbortController();
+  const limite = setTimeout(() => control.abort(), 25000);
+  try {
+    const resp = await fetch(URL_VENTANILLA, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // texto plano = sin petición previa de permiso
+      body: JSON.stringify({ matricula, email }),
+      signal: control.signal
+    });
+    if (resp.status >= 500) throw new Error('Ventanilla respondió ' + resp.status);
+    const datos = await resp.json();
+    if (!datos || !datos.estado || datos.estado === 'error') throw new Error('Respuesta inválida');
+    return datos;
+  } finally {
+    clearTimeout(limite);
+  }
+}
 
 // Detectar si hay sesión activa
 firebase.auth().onAuthStateChanged((user) => {
@@ -139,6 +165,8 @@ async function consultarAlumno(event) {
   btnConsultar.textContent = 'Consultando...';
 
   // Aviso si la conexión es lenta (solo cambia el texto, la consulta sigue)
+  avisoMaterias = null;
+
   const avisoLento = setTimeout(() => {
     if (btnConsultar.disabled) btnConsultar.textContent = 'Conexión lenta, seguimos intentando...';
   }, 8000);
@@ -149,11 +177,12 @@ async function consultarAlumno(event) {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       try {
-        const { alumno, materias, carreraNombre, horarioUrl, timestamp } = JSON.parse(cached);
+        const { alumno, materias, carreraNombre, horarioUrl, aviso, timestamp } = JSON.parse(cached);
         const TTL = 30 * 60 * 1000; // 30 minutos
         if (Date.now() - timestamp < TTL && alumno.email === email && alumno.activo !== false) {
           alumnoActual = alumno;
           materiasCache = materias;
+          avisoMaterias = aviso || null;
           carreraNombreCache = carreraNombre;
           horarioUrlCache = horarioUrl || null;
           await mostrarInformacionAlumno(true);
@@ -167,7 +196,51 @@ async function consultarAlumno(event) {
       }
     }
 
-    console.log('Buscando alumno:', matricula, email);
+    // ── 1° intento: ventanilla (rápida y no expone datos de otros alumnos) ──
+    let ventanilla = null;
+    try {
+      ventanilla = await consultarVentanilla(matricula, email);
+    } catch (e) {
+      console.warn('Ventanilla no disponible, usando método anterior:', e.message);
+    }
+
+    const estadoV = ventanilla ? ventanilla.estado : null;
+
+    if (estadoV === 'no_encontrado' || estadoV === 'datos_invalidos') {
+      alert('No se encontró ningún alumno con esa matrícula y correo.\n\nVerifica tus datos.');
+      btnConsultar.disabled = false;
+      btnConsultar.textContent = 'Consultar';
+      return;
+    }
+
+    if (estadoV === 'inactivo') {
+      alert('No estás inscrito en el periodo actual.\n\nContacta a tu coordinador o control escolar para más información.');
+      btnConsultar.disabled = false;
+      btnConsultar.textContent = 'Consultar';
+      return;
+    }
+
+    if (estadoV === 'ok') {
+      alumnoActual = ventanilla.alumno;
+      materiasCache = ventanilla.materias || [];
+      avisoMaterias = ventanilla.aviso || null;
+      carreraNombreCache = ventanilla.carrera ? ventanilla.carrera.nombre : null;
+      horarioUrlCache = ventanilla.horarioUrl || null;
+
+      // Guardar el sistema de calificación de la carrera para no leerlo de Firestore
+      if (alumnoActual.carreraId && ventanilla.carrera) {
+        const cid = alumnoActual.carreraId;
+        sessionStorage.setItem(`carrera_examenFinal_${cid}`, String(!!ventanilla.carrera.tieneExamenFinal));
+        sessionStorage.setItem(`carrera_esUnParcial_${cid}`, String(!!ventanilla.carrera.esUnParcial));
+        sessionStorage.setItem(`carrera_esMaestria_${cid}`, String(!!ventanilla.carrera.esMaestria));
+      }
+
+      await mostrarInformacionAlumno(true);
+      return;
+    }
+
+    // ── Respaldo: método anterior (lectura directa de Firestore) ──
+    console.log('Buscando alumno (método anterior):', matricula);
 
     // Buscar alumno por matrícula y email
     const snapshot = await db.collection('usuarios')
@@ -301,6 +374,7 @@ async function mostrarInformacionAlumno(desdeCache = false) {
       materias: materiasCache,
       carreraNombre: carreraNombreCache,
       horarioUrl: horarioUrlCache,
+      aviso: avisoMaterias,
       timestamp: Date.now()
     }));
   }
@@ -391,6 +465,17 @@ async function cargarMateriasYCalificaciones() {
 
 function renderizarMaterias(materias, tieneEF = false, esUnParcial = false) {
   const container = document.getElementById('listaMaterias');
+
+  // Sin materias (respuesta de la ventanilla): mismos mensajes que el método anterior
+  if (!materias || materias.length === 0) {
+    const mensajes = {
+      sin_grupo: 'No estás asignado a ningún grupo.',
+      sin_materias: 'Tu grupo aún no tiene materias asignadas.',
+      sin_inscripciones: '<p>Aun no tienes materias inscritas</p>'
+    };
+    container.innerHTML = `<div class="sin-datos">${mensajes[avisoMaterias] || 'No hay materias para mostrar.'}</div>`;
+    return;
+  }
 
   if (esUnParcial) {
     let html = `
@@ -545,6 +630,7 @@ function nuevaConsulta() {
   materiasCache = null;
   carreraNombreCache = null;
   horarioUrlCache = null;
+  avisoMaterias = null;
 }
 
 // Auto-consulta cuando el coordinador abre esta página con ?m=matricula&e=email

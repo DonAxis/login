@@ -4,7 +4,7 @@
   "description": "Ventanilla de consulta de calificaciones para alumnos (SICE ILB)",
   "main": "index.js",
   "engines": {
-    "node": "22"
+    "node": "24"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.0",
